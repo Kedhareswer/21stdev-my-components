@@ -32,7 +32,47 @@ against a bare `@import "tailwindcss"` page as it does here.
 | `minHeight` | `"620px"` | Floor, so the sheet stays readable on short viewports. |
 | `fit` | `"contain"` | `"contain"` shows the whole 2:3 sheet, centred. `"cover"` crops it top and bottom to fill a wide band. |
 | `name` | `"Trần Đức Đạt"` | Name on the pinned slip. Its **last word** is inked red. |
+| `interactive` | `false` | Makes the board handleable — see below. |
 | `className` | — | Appended to the root. |
+
+## Handling the board
+
+With `interactive`, the poster stops being a picture of a pinboard:
+
+| Gesture | |
+|---|---|
+| Drag a sheet of paper | Moves it. Any pin through it goes too. |
+| Drag a pin | Moves just the pin. The floss follows. |
+| Let go | It eases back to where it was drawn, over about 2.6s. |
+| Ctrl/Cmd + wheel, or pinch | Zooms, about the point under the cursor. |
+| Double-click | Puts everything back at once. |
+
+Nothing stays where you leave it. On release each displaced paper and pin is
+interpolated from where it was dropped back to where it was drawn, eased out so
+it leaves quickly and arrives gently. Interpolating from a snapshot rather than
+easing the live value every frame means the journey depends only on elapsed
+time, so a slow frame or a backgrounded tab changes nothing about how long it
+takes. Under `prefers-reduced-motion` it returns on release instead of drifting.
+
+The wall itself is not a handle — only the paper and the pins are.
+
+The name slip and the torn sheet beneath it share an index, so they travel
+together rather than coming apart.
+
+The floss is not re-derived when a pin moves — each control point is stored in
+the chord's own frame, as a fraction along the chord and across it. Re-projecting
+those onto the moved chord means the thread keeps the exact curve it was drawn
+with, and stretches and swings instead of snapping to a fresh arc.
+
+**Off means unchanged.** Every paper starts at offset `(0,0)`, every pin where it
+was drawn, the view at the whole sheet — so the default render is identical to
+the poster before any of this existed.
+
+**Two things to know before you turn it on.** It sets `touch-action: none` on the
+sheet to receive drags, so a full-viewport interactive hero leaves a phone with
+no way to scroll past it — give it a bounded `height`. And zoom is deliberately
+on Ctrl/Cmd + wheel rather than a plain wheel, because a hero that swallows the
+wheel traps the reader against it.
 
 Do not pass `height="100%"`. The sheet is fitted to the root's box, so a
 percentage height collapses to 0px on any page where the ancestors up to
