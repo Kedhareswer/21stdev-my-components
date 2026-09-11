@@ -84,18 +84,34 @@ and take the watermark with it.
 
 ## What the filters are doing
 
-- **`brush`** — the painted marks. Two displacement passes rough the outline
-  (coarse for the ragged edge, fine for chatter), then a turbulence stretched
-  hard along x is thresholded into a mask and composited `in`. That mask is the
-  dry brush. Its ramp is the single easiest thing to get wrong here: too
-  shallow and the strokes turn into grey dither, too steep and they become flat
-  vector fills with no skip in them at all. Four of seven stops sit at full
-  opacity before the drop.
-- **`press`** — the same run far lighter, for the watermark, the tear and the
+- **`brush`** — the painted marks, and the whole reason this reads as dry media
+  rather than vector ink. A displacement pass roughs the outline and a small
+  blur takes the vector hardness off the edge, so the grain below has something
+  to bite into. Then three noise fields are multiplied into one mask and
+  composited `in`:
+  - **tooth** — the grain of the stock, at the same frequency and seed the
+    sheet itself is given, so the ink sits *in* the paper rather than on it.
+    Weighted hard towards opaque (`0.28 0.74 0.92 0.99 1 1`): it speckles a
+    dark stroke, it does not turn one grey.
+  - **load** — where the brush was still carrying and where it was running out,
+    at the scale of a letter rather than a fibre.
+  - **skip** — turbulence stretched along x, for the streaks splayed bristles
+    leave along the drag.
+
+  The ramps are the delicate part, and the failures are opposite. Flatten them
+  and the strokes become flat fills with scratches cut out — vector ink, which
+  is exactly what this looked like before. Steepen them and the strokes turn to
+  grey dither. The floor matters as much as the ceiling: none of the three ever
+  reaches 0, because even the slackest part of a stroke leaves something.
+
+  The tooth is isotropic on purpose. Stretching it two ways makes a convincing
+  woven linen, which is the wrong material — this is a cold-pressed paper, and
+  it is granular, not cloth.
+- **`press`** — the same idea far lighter, for the watermark, the tear and the
   spray.
-- **`tooth` / `mottle` / `grain`** — paper. Blended `soft-light` and `multiply`
-  under the art and `overlay` over it, so the ink sits *in* the sheet rather
-  than on it.
+- **`tooth` / `mottle` / `grain`** — the sheet. Blended `overlay` and `multiply`
+  under the art and `overlay` over it. `tooth` shares the `TOOTH` frequency
+  with the ink, so the two describe one surface.
 
 Filter ids are namespaced with `React.useId()`. Two posters on one page would
 otherwise share them and the second would repaint the first.
@@ -129,6 +145,6 @@ node tests/brushstroke-portfolio-hero.test.mjs
 ```
 
 The component uses no semantic colour tokens: it is a printed sheet, so it looks
-identical in both themes by design — the `?dark` render is byte-for-byte the
-same file. The dark check is about confirming nothing inverts, not about a
-second palette.
+identical in both themes by design — a `?dark` capture is pixel-for-pixel
+identical to the light one across the component's own box. The dark check is
+about confirming nothing inverts, not about a second palette.
