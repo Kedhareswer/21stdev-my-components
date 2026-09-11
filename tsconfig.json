@@ -19,7 +19,8 @@
       "@/components/ui/magic-hour": ["./components/magic-hour/magic-hour.tsx"],
       "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
       "@/components/ui/tile-scrollbar": ["./components/tile-scrollbar/tile-scrollbar.tsx"],
-      "@/components/ui/pinboard-portfolio-hero": ["./components/pinboard-portfolio-hero/pinboard-portfolio-hero.tsx"]
+      "@/components/ui/pinboard-portfolio-hero": ["./components/pinboard-portfolio-hero/pinboard-portfolio-hero.tsx"],
+      "@/components/ui/polaroid-zine-hero": ["./components/polaroid-zine-hero/polaroid-zine-hero.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
