@@ -20,6 +20,7 @@
       "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
       "@/components/ui/tile-scrollbar": ["./components/tile-scrollbar/tile-scrollbar.tsx"],
       "@/components/ui/pinboard-portfolio-hero": ["./components/pinboard-portfolio-hero/pinboard-portfolio-hero.tsx"],
+      "@/components/ui/brushstroke-portfolio-hero": ["./components/brushstroke-portfolio-hero/brushstroke-portfolio-hero.tsx"],
       "@/components/ui/polaroid-zine-hero": ["./components/polaroid-zine-hero/polaroid-zine-hero.tsx"],
       "@/components/ui/flatlay-resume-board": ["./components/flatlay-resume-board/flatlay-resume-board.tsx"]
     }
