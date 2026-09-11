@@ -17,7 +17,8 @@
       "@/components/ui/scroll-island": ["./components/scroll-island/scroll-island.tsx"],
       "@/components/ui/zero-melt-preloader": ["./components/zero-melt-preloader/zero-melt-preloader.tsx"],
       "@/components/ui/magic-hour": ["./components/magic-hour/magic-hour.tsx"],
-      "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"]
+      "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
+      "@/components/ui/pinboard-portfolio-hero": ["./components/pinboard-portfolio-hero/pinboard-portfolio-hero.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
