@@ -1,0 +1,36 @@
+/* Deliberately bare: Tailwind plus only the semantic tokens 21st components are
+   allowed to assume. If a component needs anything more than this to look
+   right, it will not survive installation. */
+@import "tailwindcss";
+
+/* Vite's root is dev/, so Tailwind's auto-detection stops there and would
+   generate nothing for the components. Point it back up at them. */
+@source "../components";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.145 0 0);
+  --color-muted: oklch(0.97 0 0);
+  --color-muted-foreground: oklch(0.556 0 0);
+  --color-border: oklch(0.922 0 0);
+  --color-primary: oklch(0.205 0 0);
+  --color-primary-foreground: oklch(0.985 0 0);
+}
+
+.dark {
+  --color-background: oklch(0.145 0 0);
+  --color-foreground: oklch(0.985 0 0);
+  --color-muted: oklch(0.269 0 0);
+  --color-muted-foreground: oklch(0.708 0 0);
+  --color-border: oklch(0.269 0 0);
+  --color-primary: oklch(0.985 0 0);
+  --color-primary-foreground: oklch(0.205 0 0);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
