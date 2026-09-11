@@ -20,6 +20,18 @@ export type PinboardPortfolioHeroProps = {
   fit?: "contain" | "cover"
   /** Name inked on the pinned slip. Its last word is the red one. */
   name?: string
+  /**
+   * Let the board be handled: drag the paper and the pins around, drag the wall
+   * to pan, hold Ctrl/Cmd and wheel to zoom, double-click to put it all back.
+   *
+   * Off by default, and off means *unchanged* — the interaction state starts at
+   * the poster's drawn rest position, so nothing about the static hero moves.
+   *
+   * It claims touch gestures on the sheet (`touch-action: none`), so a
+   * full-viewport interactive hero leaves a phone with no way to scroll past
+   * it. Give it a bounded `height` when you turn this on.
+   */
+  interactive?: boolean
   className?: string
 }
 
@@ -243,8 +255,129 @@ const CSS = `
 .pph-vig{background:radial-gradient(108% 62% at 50% 34%,rgba(0,0,0,0) 30%,rgba(0,0,0,.12) 58%,rgba(0,0,0,.3) 82%,rgba(0,0,0,.5) 100%),linear-gradient(180deg,rgba(0,0,0,.06) 0%,rgba(0,0,0,0) 26%,rgba(0,0,0,0) 50%,rgba(0,0,0,.2) 100%)}
 .pph-tex{mix-blend-mode:soft-light;opacity:.92}
 .pph-tex2{mix-blend-mode:overlay;opacity:.26}
+.pph-play{pointer-events:auto;touch-action:none}
+.pph-grab{cursor:grab}
+.pph-play[data-grab="1"] .pph-grab{cursor:grabbing}
 .pph-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 `
+
+/* ---------------------------------------------------------- the handling
+
+   Nothing below changes what the poster looks like at rest. Every paper is
+   offset by (0,0), every pin sits where it was drawn, and the view is the whole
+   sheet — so with `interactive` off this is all identity arithmetic. */
+
+type Vec = { x: number; y: number }
+type View = { x: number; y: number; w: number; h: number }
+
+/* The sheet is 735x1102, but the artwork sits in the middle of it with a wide
+   empty margin all round. Framing the whole sheet on a landscape screen leaves
+   the poster a small island in a field of bare wall — 42% of a 1440x900 frame.
+   Frame the drawing instead, with a little air around it, and let the wall fill
+   whatever the aspect ratio leaves over. */
+/* Measured off the artwork, not guessed: the topmost ink is the "Print Design"
+   cap at y 190, the lowest the descenders of "profession for 4 years" at 849,
+   and the paper spans x 48 (the lilac scrap) to 690 (the Ux/Ui pad). Plus a
+   margin, so nothing sits against the edge of the frame. */
+const CONTENT: View = { x: 22, y: 164, w: 694, h: 711 }
+const REST_VIEW: View = CONTENT
+const REST_OFFSETS: Vec[] = Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
+
+/** Pins pierce paper: these move with the sheet they hold, by index into PINS. */
+const PAPER_PINS: number[][] = [[], [], [4], [2], [3], [5]]
+
+const PINS: { x: number; y: number; r: number; tone: "red" | "blue" }[] = [
+  { x: 158, y: 406, r: 11, tone: "red" },
+  { x: 104, y: 600, r: 10, tone: "red" },
+  { x: 236, y: 478, r: 11, tone: "red" },
+  { x: 553, y: 345, r: 11, tone: "red" },
+  { x: 128, y: 618, r: 11, tone: "blue" },
+  { x: 628, y: 468, r: 11, tone: "blue" },
+]
+
+/** How far in you can go. 1 is the whole sheet. */
+const MIN_ZOOM = 0.3
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+/** How long a displaced thing takes to get back, in ms. Eased out, so it leaves
+ *  quickly and arrives gently — and it genuinely arrives, which an exponential
+ *  decay never does: that has an infinite tail and was still a visible distance
+ *  out after six seconds. */
+const RETURN_MS = 2600
+
+const easeHome = (p: number) => 1 - Math.pow(1 - p, 3)
+
+/** Positions `p` of the way from where they were let go back to where they were
+ *  drawn. Interpolating from a snapshot rather than easing the live value each
+ *  frame makes the journey depend only on elapsed time, so a slow frame or a
+ *  backgrounded tab changes nothing about how long it takes. */
+function lerpHome<T extends Vec>(from: T[], rest: T[], p: number): T[] {
+  return from.map((v, i) => ({ ...v, x: v.x + (rest[i].x - v.x) * p, y: v.y + (rest[i].y - v.y) * p }))
+}
+
+/** Has anything strayed far enough from where it was drawn to be worth moving? */
+function astray(cur: Vec[], rest: Vec[]) {
+  return cur.some((v, i) => Math.abs(v.x - rest[i].x) > 0.05 || Math.abs(v.y - rest[i].y) > 0.05)
+}
+
+/* The floss is two cubics between two pins each. Rather than re-deriving a
+   curve when a pin moves — which loses the drawn shape — each control point is
+   stored in the chord's own frame, as a fraction of the chord's length along it
+   and across it. Re-projecting those onto a moved chord keeps the thread's
+   exact resting curve and lets it stretch, swing and bend with its pins. */
+type Frame = { u: number; v: number }
+
+function frame(a: Vec, b: Vec, c: Vec): Frame {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len = Math.hypot(dx, dy) || 1
+  const ux = dx / len
+  const uy = dy / len
+  const px = c.x - a.x
+  const py = c.y - a.y
+  return { u: (px * ux + py * uy) / len, v: (px * -uy + py * ux) / len }
+}
+
+const FLOSS = [
+  { a: 0, b: 1, rest: [{ x: 120, y: 442 }, { x: 94, y: 500 }] },
+  { a: 3, b: 5, rest: [{ x: 602, y: 351 }, { x: 646, y: 392 }] },
+].map((f) => ({
+  a: f.a,
+  b: f.b,
+  c1: frame(PINS[f.a], PINS[f.b], f.rest[0]),
+  c2: frame(PINS[f.a], PINS[f.b], f.rest[1]),
+}))
+
+function flossPath(a: Vec, b: Vec, c1: Frame, c2: Frame) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len = Math.hypot(dx, dy) || 1
+  const ux = dx / len
+  const uy = dy / len
+  const put = (f: Frame) =>
+    a.x + (ux * f.u - uy * f.v) * len + " " + (a.y + (uy * f.u + ux * f.v) * len)
+  return "M" + a.x + " " + a.y + "C" + put(c1) + " " + put(c2) + " " + b.x + " " + b.y
+}
+
+/** Zoom about a fixed point of the sheet, so what is under the cursor stays there. */
+function zoomAbout(v: View, anchor: Vec, factor: number): View {
+  const w = clamp(v.w * factor, W * MIN_ZOOM, W)
+  const h = (w / W) * H
+  const rx = (anchor.x - v.x) / v.w
+  const ry = (anchor.y - v.y) / v.h
+  return clampView({ x: anchor.x - rx * w, y: anchor.y - ry * h, w, h })
+}
+
+/** Keep the sheet covering the frame — you can look closer, never off the edge. */
+function clampView(v: View): View {
+  return {
+    w: v.w,
+    h: v.h,
+    x: clamp(v.x, Math.min(0, W - v.w), Math.max(0, W - v.w)),
+    y: clamp(v.y, Math.min(0, H - v.h), Math.max(0, H - v.h)),
+  }
+}
 
 /* ------------------------------------------------------------------ hero */
 
@@ -253,6 +386,7 @@ export default function PinboardPortfolioHero({
   minHeight = "620px",
   fit = "contain",
   name = "Trần Đức Đạt",
+  interactive = false,
   className = "",
 }: PinboardPortfolioHeroProps) {
   // Two heroes on one page would otherwise share filter ids, and the second
@@ -260,6 +394,282 @@ export default function PinboardPortfolioHero({
   const uid = "pph" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const id = (n: string) => uid + "-" + n
   const u = (n: string) => "url(#" + uid + "-" + n + ")"
+
+  /* ------------------------------------------------------------ handling */
+
+  /* ------------------------------------------------------------ handling
+
+     None of this is React state. The poster is ~680 SVG leaves under a dozen
+     filters, and re-rendering it through React every frame runs at 3fps — so
+     React draws the board once, at rest, and every drag and drift is written
+     straight to the DOM. Once everything has settled the DOM is back to exactly
+     what React rendered, so the two never disagree. */
+
+  const svgRef = React.useRef<SVGSVGElement | null>(null)
+  const offs = React.useRef(REST_OFFSETS.map((v) => ({ ...v })))
+  const pins = React.useRef(PINS.map((v) => ({ ...v })))
+  const view = React.useRef({ ...REST_VIEW })
+  const nodes = React.useRef<{
+    papers: SVGGElement[][]
+    pins: SVGGElement[]
+    floss: SVGPathElement[][]
+  } | null>(null)
+  const drag = React.useRef<{
+    kind: "paper" | "pin"
+    i: number
+    m: DOMMatrix | null
+    from: Vec
+    offs: Vec[]
+    pins: Vec[]
+  } | null>(null)
+  const live = React.useRef(new Map<number, Vec>())
+  const pinching = React.useRef<{ dist: number } | null>(null)
+
+  /* Screen pixels reach the sheet through the SVG's own matrix, so the fit, the
+     letterboxing and the current zoom are the browser's arithmetic rather than
+     ours. Frozen at grab time: re-reading it mid-gesture would measure against a
+     view the gesture is itself changing. */
+  const sheetAt = (m: DOMMatrix | null, cx: number, cy: number): Vec =>
+    m ? new DOMPoint(cx, cy).matrixTransform(m) : { x: 0, y: 0 }
+
+  const inverse = () => svgRef.current?.getScreenCTM()?.inverse() ?? null
+
+  /** Last value written to each attribute, so an unchanged one is never touched. */
+  const painted = React.useRef(new Map<string, string>())
+
+  /* Write the current positions onto the DOM. The only thing that moves anything.
+     Every write is guarded: setAttribute invalidates whatever it touches even
+     when the value is identical, and re-setting the root viewBox invalidates the
+     whole SVG — ~680 leaves and a dozen filters. Writing all of it every frame
+     cost ~300ms a frame; writing only what moved costs nothing for the parts
+     standing still. */
+  const paint = () => {
+    const n = nodes.current
+    if (!n) return
+    const seen = painted.current
+    const put = (el: Element, name: string, key: string, value: string) => {
+      if (seen.get(key) === value) return
+      seen.set(key, value)
+      el.setAttribute(name, value)
+    }
+    n.papers.forEach((els, i) => {
+      const o = offs.current[i]
+      els.forEach((el, k) => {
+        const d = el.dataset
+        const t = "translate(" + (+d.rx! + o.x) + " " + (+d.ry! + o.y) + ") rotate(" + d.rot + ")"
+        put(el, "transform", "p" + i + "." + k, t)
+      })
+    })
+    n.pins.forEach((el, i) => {
+      const q = pins.current[i]
+      put(el, "transform", "n" + i, "translate(" + (q.x - PINS[i].x) + " " + (q.y - PINS[i].y) + ")")
+    })
+    n.floss.forEach((els, j) => {
+      const f = FLOSS[j]
+      const d = flossPath(pins.current[f.a], pins.current[f.b], f.c1, f.c2)
+      els.forEach((el, k) => put(el, "d", "f" + j + "." + k, d))
+    })
+    const v = view.current
+    const svg = svgRef.current
+    if (svg) put(svg, "viewBox", "view", v.x + " " + v.y + " " + v.w + " " + v.h)
+  }
+
+  React.useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const all = (sel: string) => [...svg.querySelectorAll<SVGGElement>(sel)]
+    nodes.current = {
+      papers: REST_OFFSETS.map((_, i) => all('[data-paper="' + i + '"]')),
+      pins: PINS.map((_, i) => svg.querySelector<SVGGElement>('[data-pin="' + i + '"]')!),
+      floss: FLOSS.map((_, j) => [...svg.querySelectorAll<SVGPathElement>('[data-floss="' + j + '"]')]),
+    }
+  }, [])
+
+  const start = (kind: "paper" | "pin", i: number, e: React.PointerEvent) => {
+    const m = inverse()
+    try {
+      svgRef.current?.setPointerCapture(e.pointerId)
+    } catch {
+      /* capture is a nicety; the move handler works without it */
+    }
+    svgRef.current?.setAttribute("data-grab", "1")
+    drag.current = {
+      kind,
+      i,
+      m,
+      from: sheetAt(m, e.clientX, e.clientY),
+      offs: offs.current.map((v) => ({ ...v })),
+      pins: pins.current.map((v) => ({ ...v })),
+    }
+  }
+
+  /** Grab a sheet of paper, or a pin. Stops the wall underneath from seeing it. */
+  const hold = (kind: "paper" | "pin", i: number) =>
+    interactive
+      ? {
+          className: "pph-grab",
+          onPointerDown: (e: React.PointerEvent) => {
+            if (e.button !== 0) return
+            e.stopPropagation()
+            live.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+            if (live.current.size > 1) return
+            start(kind, i, e)
+          },
+        }
+      : {}
+
+  /* The wall is not a handle — only the paper and the pins are. This tracks
+     pointers so a two-finger pinch still reads, and starts nothing. */
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!interactive || e.button !== 0) return
+    live.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (live.current.size > 1) drag.current = null
+  }
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!interactive) return
+    if (live.current.has(e.pointerId)) live.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (live.current.size >= 2) {
+      const [p1, p2] = [...live.current.values()]
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1
+      const m = inverse()
+      const mid = sheetAt(m, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2)
+      if (!pinching.current) {
+        pinching.current = { dist }
+        return
+      }
+      const ratio = pinching.current.dist / dist
+      pinching.current = { dist }
+      view.current = zoomAbout(view.current, mid, ratio)
+      paint()
+      return
+    }
+
+    const d = drag.current
+    if (!d) return
+    const here = sheetAt(d.m, e.clientX, e.clientY)
+    const dx = here.x - d.from.x
+    const dy = here.y - d.from.y
+
+    if (d.kind === "paper") {
+      offs.current[d.i] = { x: d.offs[d.i].x + dx, y: d.offs[d.i].y + dy }
+      for (const k of PAPER_PINS[d.i]) {
+        pins.current[k] = { ...pins.current[k], x: d.pins[k].x + dx, y: d.pins[k].y + dy }
+      }
+    } else {
+      pins.current[d.i] = { ...pins.current[d.i], x: d.pins[d.i].x + dx, y: d.pins[d.i].y + dy }
+    }
+    paint()
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    live.current.delete(e.pointerId)
+    if (live.current.size < 2) pinching.current = null
+    drag.current = null
+    svgRef.current?.setAttribute("data-grab", "0")
+    try {
+      if (svgRef.current?.hasPointerCapture(e.pointerId)) svgRef.current.releasePointerCapture(e.pointerId)
+    } catch {
+      /* already gone */
+    }
+  }
+
+  /* Nothing stays where you leave it. Every frame each displaced paper and pin
+     takes the same fraction of its remaining distance home — a slow start, a
+     long tail and no fixed duration, so a sheet shoved across the wall takes its
+     time while a nudged one is back almost at once.
+
+     dt is real elapsed time, so the drift runs at one speed whatever the frame
+     rate; the cap only stops a backgrounded tab from teleporting on its first
+     frame back. */
+  React.useEffect(() => {
+    if (!interactive) return
+    const drifts = !matchMedia("(prefers-reduced-motion: reduce)").matches
+    let raf = 0
+    let from: { offs: Vec[]; pins: typeof PINS; t: number } | null = null
+    let clean = true
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick)
+      if (drag.current) {
+        from = null
+        clean = false
+        return
+      }
+      if (!astray(offs.current, REST_OFFSETS) && !astray(pins.current, PINS)) {
+        from = null
+        // Land exactly, once. Stopping at "near enough" leaves a fractional
+        // residue in the DOM forever; this is the only frame that writes it.
+        if (!clean) {
+          offs.current = REST_OFFSETS.map((v) => ({ ...v }))
+          pins.current = PINS.map((v) => ({ ...v }))
+          paint()
+          clean = true
+        }
+        return
+      }
+      clean = false
+      if (!from) {
+        from = {
+          offs: offs.current.map((v) => ({ ...v })),
+          pins: pins.current.map((v) => ({ ...v })),
+          t: now,
+        }
+      }
+      const p = drifts ? easeHome(Math.min(1, (now - from.t) / RETURN_MS)) : 1
+      if (p >= 1) {
+        offs.current = REST_OFFSETS.map((v) => ({ ...v }))
+        pins.current = PINS.map((v) => ({ ...v }))
+        from = null
+      } else {
+        offs.current = lerpHome(from.offs, REST_OFFSETS, p)
+        pins.current = lerpHome(from.pins, PINS, p)
+      }
+      paint()
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [interactive])
+
+  /** Put the board back the way it was drawn, at once. */
+  const reset = () => {
+    if (!interactive) return
+    offs.current = REST_OFFSETS.map((v) => ({ ...v }))
+    pins.current = PINS.map((v) => ({ ...v }))
+    view.current = { ...REST_VIEW }
+    paint()
+  }
+
+  /* Wheel is the page's, not ours. A hero that swallows it traps the reader
+     against the poster, so zoom takes the modifier every map and canvas app
+     already uses. React's own wheel listener is passive, so preventDefault has
+     to come from a native one. */
+  React.useEffect(() => {
+    const svg = svgRef.current
+    if (!interactive || !svg) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const m = svg.getScreenCTM()
+      if (!m) return
+      const a = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
+      view.current = zoomAbout(view.current, a, Math.exp(e.deltaY * 0.0016))
+      paint()
+    }
+    svg.addEventListener("wheel", onWheel, { passive: false })
+    return () => svg.removeEventListener("wheel", onWheel)
+  }, [interactive])
+
+  /** A sheet of paper: where it was drawn, plus the handles that move it. */
+  const paper = (i: number, x: number, y: number, rot: number) => ({
+    "data-paper": i,
+    "data-rx": x,
+    "data-ry": y,
+    "data-rot": rot,
+    transform: "translate(" + x + " " + y + ") rotate(" + rot + ")",
+    ...hold("paper", i),
+  })
+
 
   // The slip is 96 wide. Measure the hand rather than forcing each word into a
   // fixed box, so a longer name stays centred instead of overrunning the paper.
@@ -403,10 +813,16 @@ export default function PinboardPortfolioHero({
       </svg>
 
       <svg
-        className="pph-l"
-        viewBox={"0 0 " + W + " " + H}
+        ref={svgRef}
+        className={"pph-l" + (interactive ? " pph-play" : "")}
+        viewBox={REST_VIEW.x + " " + REST_VIEW.y + " " + REST_VIEW.w + " " + REST_VIEW.h}
         preserveAspectRatio={fit === "cover" ? "xMidYMid slice" : "xMidYMid meet"}
         aria-hidden="true"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onDoubleClick={reset}
       >
         <defs>
           {/* Stamped ink. The shape is warped twice — coarse for the ragged
@@ -430,7 +846,7 @@ export default function PinboardPortfolioHero({
             </feMerge>
           </filter>
 
-          {/* The same press run lighter, for the portraits and the sun. */}
+          {/* The same press run lighter, for the portraits. */}
           <filter id={id("ink2")} x="-9%" y="-9%" width="118%" height="118%" colorInterpolationFilters="sRGB">
             <feTurbulence type="fractalNoise" baseFrequency="0.028 0.038" numOctaves="2" seed="8" result="w1" />
             <feDisplacementMap in="SourceGraphic" in2="w1" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="r1" />
@@ -488,11 +904,6 @@ export default function PinboardPortfolioHero({
             <stop offset="0.52" stopColor="#fff" stopOpacity="0.3" />
             <stop offset="1" stopColor="#fff" stopOpacity="0" />
           </radialGradient>
-          <radialGradient id={id("halo")} cx="50%" cy="50%" r="50%">
-            <stop offset="0.7" stopColor="#e6e6e5" stopOpacity="0.42" />
-            <stop offset="0.82" stopColor="#e6e6e5" stopOpacity="0.2" />
-            <stop offset="1" stopColor="#ececeb" stopOpacity="0" />
-          </radialGradient>
 
           <radialGradient id={id("pinred")} cx="34%" cy="28%" r="74%">
             <stop offset="0" stopColor="#ff9a90" />
@@ -506,26 +917,6 @@ export default function PinboardPortfolioHero({
             <stop offset="0.8" stopColor="#131c6c" />
             <stop offset="1" stopColor="#070b33" />
           </radialGradient>
-          <radialGradient id={id("sun")} cx="38%" cy="33%" r="78%">
-            <stop offset="0" stopColor="#d63a38" />
-            <stop offset="0.58" stopColor="#c01f26" />
-            <stop offset="1" stopColor="#87101a" />
-          </radialGradient>
-
-          <filter id={id("weaveTex")} x="0%" y="0%" width="100%" height="100%">
-            <feTurbulence type="turbulence" baseFrequency="0.42 0.42" numOctaves="3" seed="27" stitchTiles="stitch" />
-            <feColorMatrix type="saturate" values="0" />
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="0" intercept="1" />
-              <feFuncR type="linear" slope="0.9" intercept="0.32" />
-              <feFuncG type="linear" slope="0.9" intercept="0.32" />
-              <feFuncB type="linear" slope="0.9" intercept="0.32" />
-            </feComponentTransfer>
-          </filter>
-          <pattern id={id("weave")} patternUnits="userSpaceOnUse" x="380" y="517" width="70" height="70">
-            <rect width="70" height="70" filter={u("weaveTex")} />
-          </pattern>
-
           <linearGradient id={id("yellow")} x1="0" y1="0" x2="0.35" y2="1">
             <stop offset="0" stopColor="#fdf2a8" />
             <stop offset="0.62" stopColor="#f5e184" />
@@ -690,14 +1081,6 @@ export default function PinboardPortfolioHero({
           <path d="M501 667L499 682L506 684" fill="none" stroke="#131313" strokeOpacity="0.8" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
         </g>
 
-        {/* The sun, floated clear of the ink on its own halo. */}
-        <circle cx="414" cy="551" r="35" fill={u("halo")} />
-        <g filter={u("ink2")}>
-          <circle cx="414" cy="551" r="26" fill={u("sun")} />
-        </g>
-        <circle cx="414" cy="551" r="26" fill={u("weave")} style={{ mixBlendMode: "multiply" }} opacity="0.4" />
-        <circle cx="414" cy="551" r="26" fill="none" stroke="#78101a" strokeOpacity="0.32" strokeWidth="1.2" />
-
         {/* Two strips of tape, gone matte where the light hits them. */}
         {[
           { x: 425, y: 412, w: 58, h: 22, r: -10 },
@@ -718,24 +1101,23 @@ export default function PinboardPortfolioHero({
 
         {/* Floss, run before the paper so its ends tuck under the slips. */}
         <g filter={u("floss")} fill="none" strokeLinecap="round">
-          <g stroke="#000" strokeOpacity="0.28" strokeWidth="5.4" transform="translate(1.5 3)">
-            <path d="M158 406C120 442 94 500 104 600" />
-            <path d="M553 345C602 351 646 392 628 468" />
-          </g>
-          <g stroke="#bf1f1e" strokeWidth="4.2">
-            <path d="M158 406C120 442 94 500 104 600" />
-            <path d="M553 345C602 351 646 392 628 468" />
-          </g>
-          <g stroke="#f07a72" strokeOpacity="0.5" strokeWidth="1.2" transform="translate(-0.8 -1.2)">
-            <path d="M158 406C120 442 94 500 104 600" />
-            <path d="M553 345C602 351 646 392 628 468" />
-          </g>
+          {[
+            { c: "#000", o: 0.28, w: 5.4, t: "translate(1.5 3)" },
+            { c: "#bf1f1e", o: 1, w: 4.2, t: undefined },
+            { c: "#f07a72", o: 0.5, w: 1.2, t: "translate(-0.8 -1.2)" },
+          ].map((pass, k) => (
+            <g key={k} stroke={pass.c} strokeOpacity={pass.o} strokeWidth={pass.w} transform={pass.t}>
+              {FLOSS.map((f, j) => (
+                <path key={j} data-floss={j} d={flossPath(PINS[f.a], PINS[f.b], f.c1, f.c2)} />
+              ))}
+            </g>
+          ))}
         </g>
 
         {/* ------------------------------------------------------- the paper */}
 
         {/* Lilac scrap, bottom left, mostly buried. */}
-        <g transform="translate(74 678) rotate(-12)" filter={u("slipDrop")}>
+        <g {...paper(0, 74, 678, -12)} filter={u("slipDrop")}>
           <rect x="-26" y="-18" width="52" height="36" fill={u("lilac")} />
           <g stroke="#8f79b4" strokeOpacity="0.45" strokeWidth="0.7">
             <line x1="-20" y1="-6" x2="20" y2="-6" />
@@ -745,13 +1127,13 @@ export default function PinboardPortfolioHero({
         </g>
 
         {/* The scrap of body copy that landed under the big slip. */}
-        <g transform="translate(104 688) rotate(-7)" filter={u("slipDrop")}>
+        <g {...paper(1, 104, 688, -7)} filter={u("slipDrop")}>
           <rect x="-40" y="-18" width="80" height="36" fill={u("white")} />
           {handBlock(COMMS_NOTE, -34, -6, 7.5, 4.6, 91)}
         </g>
 
         {/* "Print Design" slip. */}
-        <g transform="translate(130 654) rotate(-5)" filter={u("paperDrop")}>
+        <g {...paper(2, 130, 654, -5)} filter={u("paperDrop")}>
           <rect x="-48" y="-37" width="96" height="74" fill={u("white")} />
           <g stroke="#a8bcd8" strokeOpacity="0.4" strokeWidth="0.6">
             {[-10, -1, 8, 17, 26].map((y) => (
@@ -763,7 +1145,7 @@ export default function PinboardPortfolioHero({
         </g>
 
         {/* "Communication" note. */}
-        <g transform="translate(231 531) rotate(-7)" filter={u("paperDrop")}>
+        <g {...paper(3, 231, 531, -7)} filter={u("paperDrop")}>
           <rect x="-46" y="-31" width="92" height="62" fill={u("yellow")} />
           <path d="M46 20L46 31L33 31Z" fill="#d6bf58" />
           {hand("Communication", -34, -6, 9.5, 68, 7.5, "#3c3a35", 31)}
@@ -771,10 +1153,10 @@ export default function PinboardPortfolioHero({
         </g>
 
         {/* Name slip, and the sheet it was torn off. */}
-        <g transform="translate(546 370) rotate(-8)" filter={u("slipDrop")}>
+        <g {...paper(4, 546, 370, -8)} filter={u("slipDrop")}>
           <rect x="-47" y="-19" width="94" height="38" fill={u("white")} />
         </g>
-        <g transform="translate(550 373) rotate(-4)" filter={u("paperDrop")}>
+        <g {...paper(4, 550, 373, -4)} filter={u("paperDrop")}>
           <rect x="-48" y="-20" width="96" height="40" fill={u("white")} />
           <g stroke="#a8bcd8" strokeOpacity="0.35" strokeWidth="0.6">
             <line x1="-40" y1="-9" x2="40" y2="-9" />
@@ -785,7 +1167,7 @@ export default function PinboardPortfolioHero({
         </g>
 
         {/* "Ux/Ui Design" pad, torn off the spiral. */}
-        <g transform="translate(634 511) rotate(-1)" filter={u("paperDrop")}>
+        <g {...paper(5, 634, 511, -1)} filter={u("paperDrop")}>
           <rect x="-56" y="-46" width="112" height="92" fill={u("yellow")} />
           <rect x="-56" y="-46" width="112" height="13" fill="#efdb78" />
           <line x1="-56" y1="-33" x2="56" y2="-33" stroke="#d2ba55" strokeWidth="0.8" />
@@ -798,12 +1180,13 @@ export default function PinboardPortfolioHero({
           {handBlock(UX_NOTE, -44, 12, 10, 5.8, 81)}
         </g>
 
-        {pin(158, 406, 11, "red")}
-        {pin(104, 600, 10, "red")}
-        {pin(236, 478, 11, "red")}
-        {pin(553, 345, 11, "red")}
-        {pin(128, 618, 11, "blue")}
-        {pin(628, 468, 11, "blue")}
+        {PINS.map((q, i) => (
+          <g key={i} data-pin={i} {...hold("pin", i)}>
+            {/* A pin head is 11 units across — too small to catch on a phone. */}
+            {interactive ? <circle cx={q.x} cy={q.y} r={q.r * 2.1} fill="transparent" /> : null}
+            {pin(q.x, q.y, q.r, q.tone)}
+          </g>
+        ))}
 
         {/* --------------------------------------- hand-lettered on the wall */}
         <g filter={u("nib")}>
