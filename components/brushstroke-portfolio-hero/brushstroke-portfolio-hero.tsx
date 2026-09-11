@@ -350,14 +350,19 @@ const FLECKS: Dot[] = (() => {
 
 /* ------------------------------------------------------------------ style */
 
+/* The grain of the stock, shared by the sheet and by everything printed on
+   it. Isotropic on purpose — stretching it two ways makes a woven linen, and
+   this is a cold-pressed paper: granular, not cloth. */
+const TOOTH = "0.17"
+
 const INK = "#1a181c"
 const RULE = "#222024"
 
 const CSS = `
 .bph-root{position:relative;width:100%;overflow:hidden;isolation:isolate;background:#e7e4dd;}
 .bph-svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
-.bph-tooth{mix-blend-mode:soft-light;opacity:.8;}
-.bph-mottle{mix-blend-mode:multiply;opacity:.28;}
+.bph-tooth{mix-blend-mode:overlay;opacity:.7;}
+.bph-mottle{mix-blend-mode:multiply;opacity:.38;}
 .bph-grain{mix-blend-mode:overlay;opacity:.62;}
 .bph-set{font-kerning:none;paint-order:stroke;}
 `
@@ -423,16 +428,38 @@ export default function BrushstrokePortfolioHero({
             x="-10%" y="-24%" width="120%" height="148%"
             colorInterpolationFilters="sRGB"
           >
-            <feTurbulence type="fractalNoise" baseFrequency="0.016 0.028" numOctaves="3" seed="11" result="coarse" />
-            <feDisplacementMap in="SourceGraphic" in2="coarse" scale="5" xChannelSelector="R" yChannelSelector="G" result="rag" />
-            <feTurbulence type="fractalNoise" baseFrequency="0.14 0.2" numOctaves="2" seed="5" result="fine" />
-            <feDisplacementMap in="rag" in2="fine" scale="1.7" xChannelSelector="R" yChannelSelector="G" result="chatter" />
-            <feTurbulence type="fractalNoise" baseFrequency="0.005 0.24" numOctaves="3" seed="3" result="bristle" />
-            <feColorMatrix in="bristle" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="bristleA" />
-            <feComponentTransfer in="bristleA" result="mask">
-              <feFuncA type="table" tableValues="1 1 1 1 0.99 0.62 0.1" />
+            {/* 1. The outline goes ragged. */}
+            <feTurbulence type="fractalNoise" baseFrequency="0.014 0.024" numOctaves="3" seed="11" result="coarse" />
+            <feDisplacementMap in="SourceGraphic" in2="coarse" scale="6" xChannelSelector="R" yChannelSelector="G" result="rag" />
+            {/* 2. Soften the vector edge, so the tooth has something to bite
+                   into instead of a hard boundary. */}
+            <feGaussianBlur in="rag" stdDeviation="0.6" result="soft" />
+            {/* 3. Paper tooth — the same grain the sheet itself is given, so
+                   the ink sits in the surface rather than on it. Weighted hard
+                   towards opaque: this speckles a dark stroke, it does not
+                   turn one grey. */}
+            <feTurbulence type="fractalNoise" baseFrequency={TOOTH} numOctaves="3" seed="7" result="tooth" />
+            <feColorMatrix in="tooth" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="toothA" />
+            <feComponentTransfer in="toothA" result="toothM">
+              <feFuncA type="table" tableValues="0.28 0.74 0.92 0.99 1 1" />
             </feComponentTransfer>
-            <feComposite in="chatter" in2="mask" operator="in" />
+            {/* 4. Load. Where the brush was carrying and where it was running
+                   out, at the scale of a whole letter rather than a fibre. */}
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="2" seed="19" result="blotch" />
+            <feColorMatrix in="blotch" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="blotchA" />
+            <feComponentTransfer in="blotchA" result="blotchM">
+              <feFuncA type="table" tableValues="0.5 0.78 0.93 1 1 1" />
+            </feComponentTransfer>
+            {/* 5. Bristle skip along the drag. */}
+            <feTurbulence type="fractalNoise" baseFrequency="0.005 0.26" numOctaves="3" seed="3" result="bristle" />
+            <feColorMatrix in="bristle" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="bristleA" />
+            <feComponentTransfer in="bristleA" result="bristleM">
+              <feFuncA type="table" tableValues="1 1 1 0.97 0.72 0.3" />
+            </feComponentTransfer>
+            {/* 6. One mask: tooth x load x skip. */}
+            <feComposite in="toothM" in2="blotchM" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="m1" />
+            <feComposite in="m1" in2="bristleM" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="mask" />
+            <feComposite in="soft" in2="mask" operator="in" />
           </filter>
 
           {/* The same press run far lighter — the ghost lockup and the spray. */}
@@ -443,20 +470,20 @@ export default function BrushstrokePortfolioHero({
           >
             <feTurbulence type="fractalNoise" baseFrequency="0.03 0.05" numOctaves="2" seed="17" result="n" />
             <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d" />
-            <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="3" seed="23" result="f" />
+            <feTurbulence type="fractalNoise" baseFrequency={TOOTH} numOctaves="3" seed="7" result="f" />
             <feColorMatrix in="f" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0" result="fa" />
             <feComponentTransfer in="fa" result="fm">
-              <feFuncA type="table" tableValues="1 1 1 1 0.88 0.4" />
+              <feFuncA type="table" tableValues="0.42 0.8 0.93 0.99 1 1" />
             </feComponentTransfer>
             <feComposite in="d" in2="fm" operator="in" />
           </filter>
 
           {/* Board tooth: turbulence stretched along y so the fibre runs. */}
           <filter id={id("tooth")} x="0" y="0" width="100%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.022 0.9" numOctaves="4" seed="9" />
+            <feTurbulence type="fractalNoise" baseFrequency={TOOTH} numOctaves="3" seed="7" />
             <feColorMatrix type="saturate" values="0" />
             <feComponentTransfer>
-              <feFuncA type="linear" slope="0.55" intercept="0" />
+              <feFuncA type="linear" slope="1" intercept="0" />
             </feComponentTransfer>
           </filter>
 
@@ -505,7 +532,7 @@ export default function BrushstrokePortfolioHero({
         </g>
 
         {/* ---- the watermark, under the painting ---- */}
-        <g fill={INK} fillRule="evenodd" opacity="0.115" filter={u("press")}>
+        <g fill={INK} fillRule="evenodd" opacity="0.15" filter={u("press")}>
           <g transform={"translate(" + GHOST_X + " " + TOP_Y + ") scale(" + fmt(TOP_S) + ")"}>
             {GHOST_TOP.glyphs.map((g, i) => (
               <path key={i} d={g.d} transform={"translate(" + g.x + " -100)"} />
