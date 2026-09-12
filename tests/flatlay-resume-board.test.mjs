@@ -77,24 +77,37 @@ for (const [r0, c0] of [[0, 0], [0, n - 7], [n - 7, 0]]) {
 // Past capacity it must say so rather than emit a truncated code.
 assert.equal(qrMatrix("q".repeat(400)), null, "over-capacity must return null")
 
+/* ---------- the drawn hand ---------- */
+
+// Every handwritten label is set from a drawn alphabet, so it renders the
+// same on the headless box that captures the cover as on a designer's Mac.
+// A font stack for it would fall back to a serif there and nobody would know.
+assert.match(src, /const SCRIPT: Record<string, Pen> = \{/, "the marker hand must be drawn, not a font")
+assert.doesNotMatch(src, /cursive|Comic Sans|Bradley Hand|Segoe (Print|Script)|Marker Felt|@font-face/, "no script font stack")
+for (const word of ["my portfolio", "abilities", "soft skills", "software", "skills", "teamwork"]) {
+  assert.match(src, new RegExp('hand\\("' + word + '"'), `"${word}" must be set in the drawn hand`)
+}
+
 /* ---------- install safety ---------- */
 
-const css = src.slice(src.indexOf("const CSS = `") + 13, src.indexOf("\n`\n"))
+const cssStart = src.indexOf("const CSS = `") + 13
+const css = src.slice(cssStart, src.indexOf("\n`\n", cssStart))
 assert.ok(css.length > 300, "could not extract the style block")
 assert.doesNotMatch(css, /@import/, "no @import in the inline style block")
 assert.doesNotMatch(css, /[`]|\$\{/, "no backticks or template holes inside the CSS")
-// The board ships two default URLs, but they are QR *payloads*: encoded into a
-// matrix locally and never requested. What the capture sandbox blocks is an
-// external origin in a loading position, so check those instead of the string.
+assert.equal((css.match(/font-family/g) ?? []).length, 1, "one printed face; everything else is drawn")
+// The board ships default URLs, but they are QR *payloads* and link *targets*:
+// encoded locally or followed on click, never requested. What the capture
+// sandbox blocks is an external origin in a loading position.
 assert.doesNotMatch(css, /url\(/, "no url() in the style block")
-assert.doesNotMatch(src, /href=["']https?:/, "no element may load from an external origin")
-assert.doesNotMatch(src, /@import|<link\b|fetch\(|new Image\(/, "nothing may load at runtime")
+assert.doesNotMatch(src, /(image|use|script|link)\s+[^>]*href=["']https?:/, "no element may load from an external origin")
+assert.doesNotMatch(src, /@import|<link\b|fetch\(|new Image\(|\bsrc=["']https?:/, "nothing may load at runtime")
 for (const m of src.matchAll(/["'](https?:\/\/[^"']+)["']/g)) {
   const line = src.slice(src.lastIndexOf("\n", m.index) + 1, src.indexOf("\n", m.index))
   assert.match(
     line,
-    /(portfolioUrl|codeUrl) =/,
-    `an external URL appears somewhere other than a QR payload default: ${line.trim()}`,
+    /(portfolioUrl|codeUrl) =|\bhref: "https?:/,
+    `an external URL appears somewhere other than a QR payload or a link target: ${line.trim()}`,
   )
 }
 
@@ -122,7 +135,28 @@ assert.equal(src.match(/url\(#(?!")/g), null, "every url(#...) must be built by 
 assert.match(src, /React\.useMemo\(\(\) => qrMatrix\(portfolioUrl\)/, "the portfolio matrix must be memoised")
 assert.match(src, /React\.useMemo\(\(\) => qrMatrix\(codeUrl\)/, "the code matrix must be memoised")
 
-// The board is a still: nothing animates, so there is no motion to gate.
-assert.doesNotMatch(css, /animation|transition/, "no motion is expected on this board")
+/* ---------- the red marker ---------- */
+
+// The rings draw themselves on hover and focus — never at rest — and the
+// drawing is a dash offset over a normalised path, so it needs no JS and no
+// measuring. Reduced motion keeps the ring and drops the drawing.
+assert.doesNotMatch(src, /ring\?: boolean|row\.ring/, "no ring is drawn at rest")
+assert.match(src, /className="frb-ring"[^>]*pathLength=\{1\}/, "rings must be normalised with pathLength=1")
+// The gap is longer than the path: with `1 1` the dash boundary lands exactly on
+// the path's end and its round cap shows as a red dot on every hidden ring.
+assert.match(css, /\.frb-ring,\.frb-arrow\{stroke-dasharray:1 2;stroke-dashoffset:1;transition:stroke-dashoffset/, "the ring is hidden by dash offset and revealed by transition")
+assert.match(css, /\.frb-hit:hover \.frb-ring/, "hover must reveal the ring")
+assert.match(css, /\.frb-hit:focus-visible \.frb-ring/, "keyboard focus must reveal the ring too")
+assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{\n\.frb-ring,\.frb-arrow,\.frb-lift\{transition:none\}/, "motion must be gated by prefers-reduced-motion")
+assert.doesNotMatch(css, /animation/, "nothing loops; the only motion is the hover reveal")
+
+// The grain is a full-board rect painted last. Painted means hit-testable, so
+// without this it sits on top of every row and link and nothing ever hovers.
+const firstHit = src.indexOf('className="frb-hit"')
+const overlays = [...src.matchAll(/<rect width=\{W\} height=\{H\}[^>]*>/g)].filter((m) => m.index > firstHit)
+assert.ok(overlays.length > 0, "expected a full-board overlay after the hover targets")
+for (const m of overlays) {
+  assert.match(m[0], /pointerEvents="none"/, `a full-board overlay above the hover targets must not take the pointer: ${m[0]}`)
+}
 
 console.log("ok - flatlay-resume-board")
