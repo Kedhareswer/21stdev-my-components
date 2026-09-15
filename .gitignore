@@ -8,3 +8,7 @@ output/
 .playwright-cli/
 render/
 render-frames/
+
+# Agent skill packages installed by `npx skills add`
+.agents/
+skills-lock.json

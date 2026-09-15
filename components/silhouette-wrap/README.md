@@ -55,7 +55,25 @@ measures in *that* font: the type is the host's, the layout is this component's.
 | `children` | — | Painted inside the outline instead of the default fill. |
 | `className` | `""` | Appended to the root. |
 
-### Silhouettes are a set of shapes, not one outline
+### A silhouette can be an image
+
+```tsx
+<SilhouetteWrap silhouette={{ src: "/dragon.png" }} />
+```
+
+The image is drawn once into a small offscreen canvas and its matte is read
+into the same scanline profile the vector shapes feed, so the text wraps the
+real artwork — wings, spines, tail and all — and every later frame is still
+just an array lookup. `matte` picks what counts as the subject: `alpha` for a
+cut-out PNG, `luma` for ink on a white ground, and `auto` (the default) uses
+transparency when the image has any and darkness when it does not — so a
+generated illustration works without cutting it out first.
+
+Cross-origin art needs CORS headers, or `getImageData` taints the canvas and
+throws; that is caught, and the image is stacked above the text rather than
+rendering nothing.
+
+### Silhouettes are also a set of shapes
 
 ```tsx
 { box: [170, 150], shapes: [
