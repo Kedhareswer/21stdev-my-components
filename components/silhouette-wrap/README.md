@@ -25,7 +25,7 @@ no animation library.
 import SilhouetteWrap from "@/components/ui/silhouette-wrap"
 
 <SilhouetteWrap />                                   // keyhole, falls with scroll
-<SilhouetteWrap silhouette="dragon" size={280} />
+<SilhouetteWrap silhouette={{ src: "/dragon.png" }} size={280} />
 <SilhouetteWrap silhouette={{ box: [100, 140], shapes: [{ path: "M…Z" }] }} text={copy} />
 ```
 
@@ -38,14 +38,16 @@ measures in *that* font: the type is the host's, the layout is this component's.
 | Prop | Default | Notes |
 |---|---|---|
 | `text` | the fall, from chapter I | The passage to typeset. |
-| `silhouette` | `"keyhole"` | `keyhole` \| `dragon` \| `bottle` \| `teapot` \| `circle` \| `diamond`, or `{ box, shapes }`. |
+| `silhouette` | `"keyhole"` | `keyhole` \| `bottle` \| `teapot` \| `circle` \| `diamond`, `{ box, shapes }`, or `{ src }`. |
 | `size` | `190` | Silhouette width in px, before the column has its say. |
-| `follow` | `"scroll"` | `scroll` falls with the page, `drag` follows the pointer, `fixed` holds still. |
+| `follow` | `"pointer"` | `pointer` eases after the cursor, `scroll` falls with the page, `drag` waits to be dragged, `fixed` holds still. |
+| `chase` | `0.17` | Seconds to close most of the distance to the pointer. |
+| `alive` | `true` | Bob, wingbeat and bank into the turn — transform only, never a re-typeset. |
 | `travel` | `[0.06, 0.82]` | Fractions of the paragraph the fall runs between. |
 | `drift` | `46` | Sideways drift over the fall, in px, so no two lines break alike. |
 | `origin` | `{ x: 0.52, y: 0.42 }` | Where a `fixed` silhouette sits. |
 | `gutter` | `18` | Clear space held between outline and text. |
-| `minRun` | `112` | Narrowest strip of text the wrap may leave beside it. |
+| `minRun` | `9em` | Narrowest strip worth setting. The silhouette shrinks to respect it, and any run under it is left empty instead of taking one orphaned word. |
 | `justify` | `true` | Stretch spaces so both edges of every run line up, where it can be done cleanly. |
 | `tolerance` | `0.62` | How far a space may stretch before the line is left ragged instead. |
 | `dropCap` | `3` | Lines tall for the opening capital. `0` turns it off. |
@@ -109,6 +111,13 @@ own ascent/descent for where CSS puts a baseline inside a line box. The cap's
 top then lands on the first line's cap-height and its baseline on the last line
 it spans, which is the rule a compositor would use.
 
+**The beast moves without the page moving.** The bob, the wingbeat and the bank
+into a turn are written straight to the art's `transform` on their own frame
+loop — they never touch the layout. The paragraph is set around the silhouette's
+envelope and the art lives inside it, so a beast that is constantly in motion
+costs one style write per frame instead of a re-typeset per frame. Following the
+pointer *does* re-typeset, and at about 0.2ms a pass that is affordable.
+
 **A line band is cleared at its widest point.** Measuring the shape at the line's
 midpoint lets a glyph clip the corner of anything that pinches — exactly what a
 keyhole does at its waist. Every scanline the band touches is checked, and the
@@ -140,8 +149,11 @@ it is tested.
 ## The demos
 
 - **default** — an illuminated folio: parchment, a gold-ground initial, a
-  rubricated incipit, embers, and a wyrm coiled around the sun with the text of
-  Revelation 12 (KJV, 1611, public domain) carved around it.
+  rubricated incipit, and a dragon that chases the cursor, banks into its turns
+  and breathes sparks, with Revelation 12 (KJV, 1611, public domain) set around
+  its outline. The beast is a generated illustration (muapi / nano-banana),
+  cropped to the ink, given an alpha channel from its own luma and inlined in
+  the demo — the silhouette is read from those pixels.
 - **keyhole** — Alice's fall, chapter I, the keyhole dropping through the column.
 - **bottle** — a fixed silhouette carrying its own label.
 

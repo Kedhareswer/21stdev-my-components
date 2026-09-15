@@ -46,6 +46,11 @@ export type FlowOpts = {
    * keeps rivers out of the narrow runs beside a silhouette.
    */
   tolerance: number
+  /**
+   * Narrowest run worth setting type in. A sliver beside a silhouette takes one
+   * word and reads as debris, so it is left empty and the word goes on.
+   */
+  minRun: number
   /** Usable runs on the line starting at `top`, left to right. */
   runsFor: (top: number) => Run[]
 }
@@ -122,7 +127,7 @@ export function flowText(tokens: Token[], measure: Measure, opts: FlowOpts): Fra
     for (let k = 0; k < runs.length; k++) {
       const left = runs[k][0]
       const avail = runs[k][1] - left
-      if (avail <= 0) continue
+      if (avail <= 0 || avail < opts.minRun) continue
 
       let text = ""
       let width = 0
@@ -272,6 +277,10 @@ export function withDropCap(runs: Run[], line: number, lines: number, capWidth: 
 /**
  * Outlines worth wrapping. Alice picks the lock, drinks the bottle, and falls
  * past the cupboards — so the presets are the objects, not geometry.
+ *
+ * These are simple enough to author as paths. Anything that wants to be an
+ * illustration should come in as an image instead: pass { src } and the
+ * outline is read from the artwork itself.
  */
 export const SILHOUETTES: Record<string, Art> = {
   keyhole: {
@@ -284,33 +293,6 @@ export const SILHOUETTES: Record<string, Art> = {
       {
         path: "M42 4 h16 v24 q0 7 6 13 q14 14 14 35 v56 q0 14 -14 14 h-28 q-14 0 -14 -14 v-56 q0 -21 14 -35 q6 -6 6 -13 z",
       },
-    ],
-  },
-  /**
-   * A wyrm curled into a C, head raised clear of the coil.
-   *
-   * The body is arcs stroked at a tapering width, so the coil is authored as a
-   * line rather than as both sides of an outline; the spines are anchored on
-   * that arc's centre so they grow out of the beast instead of floating beside
-   * it. Head, wing and claws are filled.
-   */
-  dragon: {
-    box: [170, 150],
-    shapes: [
-      {
-        path: "M60.1 45.1 L42 29.7 L52.6 51 Z M45.4 60.9 L20 56.7 L42.1 69.8 Z M41.3 82 L18.5 91.7 L43.3 91.3 Z M48.6 101.5 L35.6 118.7 L54 107.5 Z M63 113.6 L60.6 132.1 L70.7 116.4 Z",
-      },
-      { path: "M78 116 L84 134 M96 108 L108 124", width: 6 },
-      { path: "M84 134 l-6 6 M84 134 l5 6 M108 124 l-1 8 M108 124 l7 3", width: 3 },
-      { path: "M96 52 C112 22 152 24 150 52 C142 45 136 50 134 60 C128 52 122 50 116 54 C112 46 104 46 98 58 Z" },
-      { path: "M104 44 A42 42 0 1 0 108 110", width: 17 },
-      { path: "M108 110 C122 106 128 96 126 86", width: 11 },
-      { path: "M126 86 C124 76 114 72 108 78", width: 6 },
-      { path: "M108 78 C104 82 105 88 110 89", width: 3 },
-      { path: "M104 44 C106 28 118 18 132 18", width: 12 },
-      { path: "M132 18 C146 14 162 18 165 26 C167 34 158 36 150 34 C142 32 134 30 130 26 Z" },
-      { path: "M150 34 C156 38 162 38 165 34 C160 31 155 30 150 30 Z" },
-      { path: "M136 16 L138 2 M142 16 L152 6", width: 3.5 },
     ],
   },
   teapot: {
@@ -554,8 +536,23 @@ export type SilhouetteWrapProps = {
   silhouette?: keyof typeof SILHOUETTES | Art | Raster
   /** Silhouette width in px, before the column has its say. */
   size?: number
-  /** How the silhouette moves: falls with the page, follows the pointer, or holds still. */
-  follow?: "scroll" | "drag" | "fixed"
+  /**
+   * How the silhouette moves: eases after the pointer, falls with the page,
+   * waits to be dragged, or holds still.
+   */
+  follow?: "pointer" | "scroll" | "drag" | "fixed"
+  /**
+   * Seconds for the silhouette to close most of the distance to the pointer.
+   * Small is darty, large is stately; the text is re-set the whole way.
+   */
+  chase?: number
+  /**
+   * Breathe: a slow rise and fall, a bank into the direction of travel, and a
+   * wingbeat pulse. Written straight to the transform on its own frame loop, so
+   * the beast can move without the paragraph being typeset again — the text
+   * wraps its envelope, and it lives inside that.
+   */
+  alive?: boolean
   /** Fraction of the paragraph the fall runs between. */
   travel?: [number, number]
   /** How far the silhouette drifts sideways over the fall, in px. */
@@ -564,7 +561,12 @@ export type SilhouetteWrapProps = {
   origin?: { x: number; y: number }
   /** Clear space held between the outline and the text, in px. */
   gutter?: number
-  /** Narrowest strip of text the wrap may leave beside the silhouette. */
+  /**
+   * Narrowest strip of text worth setting, in px. Defaults to 9em of the
+   * measured type — about four or five words, below which a run reads as
+   * debris rather than as a column. Used twice: the silhouette shrinks to keep
+   * both its runs above it, and any run under it is left empty.
+   */
   minRun?: number
   /** Stretch spaces so both edges of every run line up, where it can be done cleanly. */
   justify?: boolean
@@ -598,12 +600,14 @@ export default function SilhouetteWrap({
   text = FALL,
   silhouette = "keyhole",
   size = 190,
-  follow = "scroll",
+  follow = "pointer",
+  chase = 0.17,
+  alive = true,
   travel = [0.06, 0.82],
   drift = 46,
   origin = { x: 0.52, y: 0.42 },
   gutter = 18,
-  minRun = 112,
+  minRun,
   justify = true,
   tolerance = 0.62,
   dropCap = 3,
@@ -661,6 +665,102 @@ export default function SilhouetteWrap({
   const travelling = follow === "scroll" && !reduced
   const p = useTravel(boxRef, travelling)
 
+  // Where the silhouette is right now, eased toward where the pointer is. The
+  // target is set by pointer events; the easing runs on its own rAF so the
+  // motion is frame-rate independent and settles instead of spinning forever.
+  const [chased, setChased] = React.useState<{ x: number; y: number } | null>(null)
+  const targetRef = React.useRef<{ x: number; y: number } | null>(null)
+  const easedRef = React.useRef<{ x: number; y: number } | null>(null)
+  const restRef = React.useRef<{ x: number; y: number } | null>(null)
+  const chaseRaf = React.useRef(0)
+  const chaseLast = React.useRef(0)
+  const velocityRef = React.useRef({ x: 0, y: 0 })
+  const artRef = React.useRef<HTMLDivElement>(null)
+
+  const stepChase = React.useCallback(
+    (now: number) => {
+      chaseRaf.current = 0
+      const target = targetRef.current ?? restRef.current
+      const eased = easedRef.current
+      if (!target) return
+      // Start from where it is resting, not from the first thing the pointer
+      // said — otherwise the beast teleports on the first mouse move.
+      const from = eased ?? restRef.current ?? target
+      const dt = chaseLast.current ? Math.min((now - chaseLast.current) / 1000, 0.05) : 0.016
+      chaseLast.current = now
+      const k = 1 - Math.exp(-dt / Math.max(chase, 0.02))
+      const next = { x: from.x + (target.x - from.x) * k, y: from.y + (target.y - from.y) * k }
+      velocityRef.current = { x: (next.x - from.x) / Math.max(dt, 0.001), y: (next.y - from.y) / Math.max(dt, 0.001) }
+      easedRef.current = next
+      setChased(next)
+      // Stop once it has arrived, so an idle page costs nothing.
+      if (Math.hypot(target.x - next.x, target.y - next.y) > 0.4) {
+        chaseRaf.current = requestAnimationFrame(stepChase)
+      }
+    },
+    [chase],
+  )
+
+  const kickChase = React.useCallback(() => {
+    if (!chaseRaf.current) {
+      chaseLast.current = 0
+      chaseRaf.current = requestAnimationFrame(stepChase)
+    }
+  }, [stepChase])
+
+  React.useEffect(() => () => cancelAnimationFrame(chaseRaf.current), [])
+
+  /**
+   * The life of the thing: a slow rise and fall, a wingbeat that squashes it a
+   * little against that rhythm, and a bank into the direction it is travelling.
+   *
+   * This writes the transform straight to the node instead of going through
+   * state, so none of it costs a re-typeset — the paragraph is set around the
+   * beast's envelope, and the beast moves inside it. An idle page keeps one
+   * rAF writing one style property, which is the cheapest animation there is.
+   */
+  React.useEffect(() => {
+    if (!alive || reduced) return
+    let raf = 0
+    const t0 = performance.now()
+
+    const beat = (now: number) => {
+      const node = artRef.current
+      if (node) {
+        const t = (now - t0) / 1000
+        const bob = Math.sin(t * 1.9) * 5
+        const wing = 1 + Math.sin(t * 1.9 + Math.PI / 2) * 0.035
+        const v = velocityRef.current
+        // Bank into the turn, and pitch the nose with the climb.
+        const bank = Math.max(-9, Math.min(9, v.x * 0.02))
+        const pitch = Math.max(-5, Math.min(5, v.y * 0.012))
+        node.style.transform =
+          "translate3d(0," + bob.toFixed(2) + "px,0) rotate(" + (bank + pitch).toFixed(2) +
+          "deg) scaleY(" + wing.toFixed(3) + ")"
+        // Friction, so the bank levels out when the pointer stops.
+        velocityRef.current = { x: v.x * 0.92, y: v.y * 0.92 }
+      }
+      raf = requestAnimationFrame(beat)
+    }
+
+    raf = requestAnimationFrame(beat)
+    return () => cancelAnimationFrame(raf)
+  }, [alive, reduced])
+
+  const chasing = follow === "pointer" && !reduced
+  const onTrack = (e: React.PointerEvent) => {
+    if (!chasing || !boxRef.current) return
+    const r = boxRef.current.getBoundingClientRect()
+    targetRef.current = { x: e.clientX - r.left, y: e.clientY - r.top }
+    kickChase()
+  }
+  const onLeave = () => {
+    if (!chasing) return
+    // Nothing to chase: drift back to where it rests.
+    targetRef.current = null
+    kickChase()
+  }
+
   // Width and font both come off the live element, so the component inherits
   // whatever type the host has set instead of assuming its own.
   React.useEffect(() => {
@@ -700,7 +800,9 @@ export default function SilhouetteWrap({
     if (!measurer || box.width <= 0 || box.lineHeight <= 0) return idle
 
     const aspect = artBox ? artBox[1] / artBox[0] : 1
-    const fitted = fitSilhouette(box.width, size, gutter, minRun)
+    // A run has to hold a handful of words or it is not a column, it is debris.
+    const floor = minRun ?? box.fontSize * 9
+    const fitted = fitSilhouette(box.width, size, gutter, floor)
     const width = fitted.width
     const shapeHeight = width * aspect
     const capGap = capWidth > 0 ? capWidth + gutter * 0.6 : 0
@@ -710,6 +812,7 @@ export default function SilhouetteWrap({
       maxLines,
       justify,
       tolerance,
+      minRun: floor,
     }
 
     // Lay out once with no silhouette: that gives the paragraph's natural
@@ -735,12 +838,20 @@ export default function SilhouetteWrap({
       }
     }
 
-    // The fall: top of the silhouette runs between the two travel marks of the
-    // paragraph, with a slow sideways drift so no two lines break alike.
     const span = Math.max(naturalHeight, box.lineHeight * 4)
+
+    // Where it sits when nothing is chasing it — also the point it drifts back
+    // to when the pointer leaves.
+    const rest = { x: box.width * origin.x, y: span * origin.y }
+    restRef.current = rest
+
     let x: number
     let y: number
-    if (follow === "drag" && dragAt) {
+    if (follow === "pointer" && !reduced) {
+      const centre = chased ?? rest
+      x = centre.x - width / 2
+      y = centre.y - shapeHeight / 2
+    } else if (follow === "drag" && dragAt) {
       x = dragAt.x - width / 2
       y = dragAt.y - shapeHeight / 2
     } else if (follow === "scroll" && !reduced) {
@@ -748,8 +859,8 @@ export default function SilhouetteWrap({
       y = span * t
       x = (box.width - width) / 2 + Math.sin(p * Math.PI * 1.2) * drift
     } else {
-      x = box.width * origin.x - width / 2
-      y = span * origin.y - shapeHeight / 2
+      x = rest.x - width / 2
+      y = rest.y - shapeHeight / 2
     }
     x = Math.min(box.width - width * 0.25, Math.max(-width * 0.25, x))
     y = Math.max(0, y)
@@ -779,6 +890,7 @@ export default function SilhouetteWrap({
     minRun,
     justify,
     tolerance,
+    box.fontSize,
     dropCap,
     capWidth,
     maxLines,
@@ -792,6 +904,7 @@ export default function SilhouetteWrap({
     origin.x,
     origin.y,
     dragAt,
+    chased,
   ])
 
   const drag = React.useRef(false)
@@ -814,6 +927,8 @@ export default function SilhouetteWrap({
   return (
     <div
       ref={boxRef}
+      onPointerMove={onTrack}
+      onPointerLeave={onLeave}
       className={"relative w-full " + className}
       style={{ height: height || undefined }}
     >
@@ -882,6 +997,15 @@ export default function SilhouetteWrap({
           }
           style={{ left: at.x, top: at.y, width: at.width, height: at.height }}
         >
+          <div
+            ref={artRef}
+            style={{
+              width: "100%",
+              height: "100%",
+              transformOrigin: "50% 60%",
+              willChange: alive && !reduced ? "transform" : undefined,
+            }}
+          >
           {children ??
             (raster ? (
               // The art the profile was taken from, drawn at the size the text
@@ -923,6 +1047,7 @@ export default function SilhouetteWrap({
                 </g>
               </svg>
             ))}
+          </div>
         </div>
       )}
     </div>
