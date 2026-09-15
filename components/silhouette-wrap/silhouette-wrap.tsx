@@ -20,7 +20,8 @@ import * as React from "react"
  * profile lookup and one greedy pass over cached widths.
  *
  * Self-contained: React is the only import. Tailwind utilities, no CSS file,
- * no animation library. Colours come from the host's semantic tokens.
+ * no animation library. Ink is whatever `color` the host has set — the text and
+ * the silhouette both inherit it — so the component never fights a palette.
  *
  * Measuring-not-reflowing is the idea behind Cheng Lou's pretext
  * (github.com/chenglou/pretext); the line breaker here is written for this
@@ -58,6 +59,16 @@ export type Frag = { x: number; y: number; text: string; wordSpacing: number }
  * outline never covers.
  */
 export type Profile = { rows: number; span: Float32Array }
+
+/**
+ * One piece of a silhouette. `width` strokes the path at that thickness —
+ * which is how a coiled body or a limb gets drawn without authoring both sides
+ * of its outline; without it the path is filled.
+ */
+export type Shape = { path: string; width?: number }
+
+/** A silhouette: its pieces, and the viewBox they are drawn in. */
+export type Art = { shapes: Shape[]; box: [number, number] }
 
 /** Does the outline cover this point? Coordinates are 0..1 of its own box. */
 export type Hit = (x: number, y: number) => boolean
@@ -239,33 +250,83 @@ export function withDropCap(runs: Run[], line: number, lines: number, capWidth: 
  * Outlines worth wrapping. Alice picks the lock, drinks the bottle, and falls
  * past the cupboards — so the presets are the objects, not geometry.
  */
-export const SILHOUETTES: Record<string, { path: string; box: [number, number] }> = {
+export const SILHOUETTES: Record<string, Art> = {
   keyhole: {
-    path: "M50 12 A34 34 0 1 0 50.01 12 Z M40 70 L29 146 Q50 157 71 146 L60 70 Z",
     box: [100, 158],
+    shapes: [{ path: "M50 12 A34 34 0 1 0 50.01 12 Z M40 70 L29 146 Q50 157 71 146 L60 70 Z" }],
   },
   bottle: {
-    path: "M42 4 h16 v24 q0 7 6 13 q14 14 14 35 v56 q0 14 -14 14 h-28 q-14 0 -14 -14 v-56 q0 -21 14 -35 q6 -6 6 -13 z",
     box: [100, 150],
+    shapes: [
+      {
+        path: "M42 4 h16 v24 q0 7 6 13 q14 14 14 35 v56 q0 14 -14 14 h-28 q-14 0 -14 -14 v-56 q0 -21 14 -35 q6 -6 6 -13 z",
+      },
+    ],
+  },
+  /**
+   * A wyrm curled into a C, head raised clear of the coil.
+   *
+   * The body is arcs stroked at a tapering width, so the coil is authored as a
+   * line rather than as both sides of an outline; the spines are anchored on
+   * that arc's centre so they grow out of the beast instead of floating beside
+   * it. Head, wing and claws are filled.
+   */
+  dragon: {
+    box: [170, 150],
+    shapes: [
+      {
+        path: "M60.1 45.1 L42 29.7 L52.6 51 Z M45.4 60.9 L20 56.7 L42.1 69.8 Z M41.3 82 L18.5 91.7 L43.3 91.3 Z M48.6 101.5 L35.6 118.7 L54 107.5 Z M63 113.6 L60.6 132.1 L70.7 116.4 Z",
+      },
+      { path: "M78 116 L84 134 M96 108 L108 124", width: 6 },
+      { path: "M84 134 l-6 6 M84 134 l5 6 M108 124 l-1 8 M108 124 l7 3", width: 3 },
+      { path: "M96 52 C112 22 152 24 150 52 C142 45 136 50 134 60 C128 52 122 50 116 54 C112 46 104 46 98 58 Z" },
+      { path: "M104 44 A42 42 0 1 0 108 110", width: 17 },
+      { path: "M108 110 C122 106 128 96 126 86", width: 11 },
+      { path: "M126 86 C124 76 114 72 108 78", width: 6 },
+      { path: "M108 78 C104 82 105 88 110 89", width: 3 },
+      { path: "M104 44 C106 28 118 18 132 18", width: 12 },
+      { path: "M132 18 C146 14 162 18 165 26 C167 34 158 36 150 34 C142 32 134 30 130 26 Z" },
+      { path: "M150 34 C156 38 162 38 165 34 C160 31 155 30 150 30 Z" },
+      { path: "M136 16 L138 2 M142 16 L152 6", width: 3.5 },
+    ],
   },
   teapot: {
-    path: "M30 54 q-18 2 -18 20 q0 18 18 20 M30 50 h44 q18 0 18 22 q0 22 -18 22 h-44 q-16 0 -16 -22 q0 -22 16 -22 Z M74 56 q22 4 22 18 q0 12 -12 16 M44 50 q8 -14 20 -6",
     box: [100, 100],
+    shapes: [
+      { path: "M30 50 h44 q18 0 18 22 q0 22 -18 22 h-44 q-16 0 -16 -22 q0 -22 16 -22 Z" },
+      { path: "M30 54 q-18 2 -18 20 q0 18 18 20", width: 7 },
+      { path: "M74 56 q22 4 22 18 q0 12 -12 16", width: 7 },
+      { path: "M44 50 q8 -14 20 -6", width: 6 },
+    ],
   },
-  circle: { path: "M50 6 A44 44 0 1 0 50.01 6 Z", box: [100, 100] },
-  diamond: { path: "M50 2 L98 50 L50 98 L2 50 Z", box: [100, 100] },
+  circle: { box: [100, 100], shapes: [{ path: "M50 6 A44 44 0 1 0 50.01 6 Z" }] },
+  diamond: { box: [100, 100], shapes: [{ path: "M50 2 L98 50 L50 98 L2 50 Z" }] },
 }
 
-/** Rasterise a path into a scanline profile with an offscreen canvas. */
-function profileFromPath(path: string, box: [number, number], rows = 128, cols = 96): Profile | null {
+/** Rasterise a silhouette into a scanline profile with an offscreen canvas. */
+function profileFromArt(art: Art, rows = 128, cols = 96): Profile | null {
   if (typeof Path2D === "undefined") return null
   const ctx = document.createElement("canvas").getContext("2d")
   if (!ctx) return null
-  const p = new Path2D(path)
-  const m = new DOMMatrix().scaleSelf(1 / box[0], 1 / box[1])
-  const unit = new Path2D()
-  unit.addPath(p, m)
-  return sampleProfile((x, y) => ctx.isPointInPath(unit, x, y), rows, cols)
+
+  // Sampled in the art's own coordinates rather than a unit square: scaling the
+  // path would scale non-uniformly and a stroke width would stop meaning what
+  // it means in the SVG the eye actually sees.
+  ctx.lineCap = "round"
+  ctx.lineJoin = "round"
+  const pieces = art.shapes.map((s) => ({ p: new Path2D(s.path), width: s.width }))
+  const [bw, bh] = art.box
+
+  return sampleProfile(
+    (x, y) =>
+      pieces.some((piece) => {
+        if (!piece.width) return ctx.isPointInPath(piece.p, x * bw, y * bh)
+        ctx.lineWidth = piece.width
+        return ctx.isPointInStroke(piece.p, x * bw, y * bh)
+      }),
+    rows,
+    cols,
+  )
 }
 
 /** Break text into tokens plus whether each follows a space. */
@@ -419,8 +480,8 @@ function useTravel(ref: React.RefObject<HTMLElement>, enabled: boolean) {
 export type SilhouetteWrapProps = {
   /** The paragraph to typeset. */
   text?: string
-  /** A preset name from SILHOUETTES, or your own SVG path plus its viewBox. */
-  silhouette?: keyof typeof SILHOUETTES | { path: string; box: [number, number] }
+  /** A preset name from SILHOUETTES, or your own shapes plus their viewBox. */
+  silhouette?: keyof typeof SILHOUETTES | Art
   /** Silhouette width in px, before the column has its say. */
   size?: number
   /** How the silhouette moves: falls with the page, follows the pointer, or holds still. */
@@ -441,8 +502,19 @@ export type SilhouetteWrapProps = {
   tolerance?: number
   /** Lines tall for the opening capital. 0 turns it off. */
   dropCap?: number
+  /**
+   * Opening lines set in `rubricColor` — the incipit a scribe wrote in red
+   * before the rest of the page went down in ink.
+   */
+  rubricLines?: number
+  rubricColor?: string
   /** Safety cap on lines typeset. */
   maxLines?: number
+  /**
+   * An illuminated initial to sit in the drop cap's notch instead of a letter.
+   * Given one, the notch becomes a square `dropCap` lines on a side.
+   */
+  cap?: React.ReactNode
   /** Painted inside the outline instead of the default fill. */
   children?: React.ReactNode
   className?: string
@@ -465,7 +537,10 @@ export default function SilhouetteWrap({
   justify = true,
   tolerance = 0.62,
   dropCap = 3,
+  rubricLines = 0,
+  rubricColor,
   maxLines = 500,
+  cap,
   children,
   className = "",
 }: SilhouetteWrapProps) {
@@ -479,10 +554,8 @@ export default function SilhouetteWrap({
 
   const tokens = React.useMemo(() => tokenize(text), [text])
   const art = typeof silhouette === "string" ? SILHOUETTES[silhouette] : silhouette
-  const profile = React.useMemo(
-    () => (art ? profileFromPath(art.path, art.box) : null),
-    [art?.path, art?.box[0], art?.box[1]],
-  )
+  const artKey = art ? art.box.join() + "|" + art.shapes.map((sh) => sh.path).join("|") : ""
+  const profile = React.useMemo(() => (art ? profileFromArt(art) : null), [artKey])
 
   const travelling = follow === "scroll" && !reduced
   const p = useTravel(boxRef, travelling)
@@ -516,9 +589,10 @@ export default function SilhouetteWrap({
     return () => ro.disconnect()
   }, [])
 
-  const capChar = dropCap > 0 ? ([...text.trimStart()][0] ?? "") : ""
+  const capChar = dropCap > 0 && !cap ? ([...text.trimStart()][0] ?? "") : ""
   const capAt = capChar && measurer ? measurer.cap(capChar, dropCap) : null
-  const capWidth = capAt ? capAt.width : 0
+  const capBlock = cap && dropCap > 0 ? box.lineHeight * dropCap : 0
+  const capWidth = capBlock || (capAt ? capAt.width : 0)
 
   const { frags, height, at, wraps, textTop } = React.useMemo(() => {
     const idle = { frags: [] as Frag[], height: 0, at: null, wraps: false, textTop: 0 }
@@ -607,6 +681,7 @@ export default function SilhouetteWrap({
     dropCap,
     capWidth,
     maxLines,
+    capBlock,
     follow,
     reduced,
     p,
@@ -638,7 +713,7 @@ export default function SilhouetteWrap({
   return (
     <div
       ref={boxRef}
-      className={"relative w-full text-foreground " + className}
+      className={"relative w-full " + className}
       style={{ height: height || undefined }}
     >
       {/* The typeset fragments are decoration; this is the real text, for
@@ -646,6 +721,16 @@ export default function SilhouetteWrap({
       <p ref={probeRef} className="sr-only">
         {text}
       </p>
+
+      {capBlock > 0 && frags.length > 0 && (
+        <div
+          aria-hidden="true"
+          className="absolute"
+          style={{ left: 0, top: textTop, width: capBlock, height: capBlock }}
+        >
+          {cap}
+        </div>
+      )}
 
       {capAt && frags.length > 0 && (
         // SVG, because HTML gives no way to sit a glyph on a named baseline —
@@ -670,6 +755,13 @@ export default function SilhouetteWrap({
             left: f.x,
             top: f.y,
             wordSpacing: f.wordSpacing ? `${f.wordSpacing}px` : undefined,
+            // Compared as a line index, not as pixels: a line's top lands on an
+            // exact multiple of the line height, and comparing those floats
+            // directly put the second line inside "the first line".
+            color:
+              rubricColor && Math.round((f.y - textTop) / box.lineHeight) < rubricLines
+                ? rubricColor
+                : undefined,
           }}
         >
           {f.text}
@@ -690,13 +782,29 @@ export default function SilhouetteWrap({
           style={{ left: at.x, top: at.y, width: at.width, height: at.height }}
         >
           {children ?? (
+            // The default drawing is the silhouette itself: every piece painted
+            // exactly as the profile sampled it, so what the text avoids and
+            // what the eye sees cannot drift apart.
             <svg
               viewBox={`0 0 ${art.box[0]} ${art.box[1]}`}
               width="100%"
               height="100%"
               className="block overflow-visible"
             >
-              <path d={art.path} className="fill-foreground" />
+              <g
+                className="fill-current stroke-current"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {art.shapes.map((shape, i) => (
+                  <path
+                    key={i}
+                    d={shape.path}
+                    fill={shape.width ? "none" : undefined}
+                    strokeWidth={shape.width}
+                  />
+                ))}
+              </g>
             </svg>
           )}
         </div>
