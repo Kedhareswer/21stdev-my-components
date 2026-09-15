@@ -13,8 +13,8 @@ import * as React from "react"
  *
  *   - canvas `measureText` for word widths, cached per font
  *   - `Intl.Segmenter` for break opportunities, so CJK breaks where it should
- *   - an SVG path rasterised once into a left/right profile, then asked for its
- *     width at each line
+ *   - an SVG path, or an image's alpha, rasterised once into a left/right
+ *     profile, then asked for its width at each line
  *
  * Nothing measures the DOM, so the fall costs no reflow: each frame is a
  * profile lookup and one greedy pass over cached widths.
@@ -69,6 +69,29 @@ export type Shape = { path: string; width?: number }
 
 /** A silhouette: its pieces, and the viewBox they are drawn in. */
 export type Art = { shapes: Shape[]; box: [number, number] }
+
+/**
+ * A silhouette taken from an image — an illustration, a cut-out photograph,
+ * anything with an edge. Far better than hand-authored paths for real artwork.
+ */
+export type Raster = {
+  src: string
+  /** Aspect box. Defaults to the image's own pixel size. */
+  box?: [number, number]
+  /**
+   * What counts as the subject. `alpha` uses transparency (a cut-out PNG),
+   * `luma` uses darkness (ink on a white ground), `auto` picks alpha when the
+   * image has any transparency at all and darkness otherwise — which is what
+   * makes a generated illustration usable without cutting it out first.
+   */
+  matte?: "auto" | "alpha" | "luma"
+  /** Cut-off for the matte, 0..1. */
+  threshold?: number
+}
+
+export function isRaster(art: Art | Raster | undefined): art is Raster {
+  return !!art && typeof (art as Raster).src === "string"
+}
 
 /** Does the outline cover this point? Coordinates are 0..1 of its own box. */
 export type Hit = (x: number, y: number) => boolean
@@ -329,6 +352,50 @@ function profileFromArt(art: Art, rows = 128, cols = 96): Profile | null {
   )
 }
 
+/**
+ * Read a silhouette out of an image.
+ *
+ * The image is drawn once into a small offscreen canvas and every later frame
+ * reads the scanline profile, so the cost is one decode regardless of how the
+ * page scrolls. Cross-origin art without CORS headers taints the canvas and
+ * `getImageData` throws — caught here, and the caller falls back to stacking
+ * the image above the text rather than rendering nothing.
+ */
+function profileFromImage(img: HTMLImageElement, raster: Raster, rows = 128, cols = 96): Profile | null {
+  const canvas = document.createElement("canvas")
+  canvas.width = cols
+  canvas.height = rows
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })
+  if (!ctx) return null
+
+  ctx.drawImage(img, 0, 0, cols, rows)
+  let data: Uint8ClampedArray
+  try {
+    data = ctx.getImageData(0, 0, cols, rows).data
+  } catch {
+    return null
+  }
+
+  let transparent = false
+  for (let i = 3; i < data.length && !transparent; i += 4) if (data[i] < 200) transparent = true
+  const matte = !raster.matte || raster.matte === "auto" ? (transparent ? "alpha" : "luma") : raster.matte
+  const cut = (raster.threshold ?? (matte === "alpha" ? 0.5 : 0.62)) * 255
+
+  return sampleProfile(
+    (x, y) => {
+      const c = Math.min(cols - 1, Math.floor(x * cols))
+      const r = Math.min(rows - 1, Math.floor(y * rows))
+      const i = (r * cols + c) * 4
+      if (matte === "alpha") return data[i + 3] >= cut
+      // Ink on a light ground: the subject is what is dark enough.
+      const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+      return data[i + 3] > 40 && luma <= cut
+    },
+    rows,
+    cols,
+  )
+}
+
 /** Break text into tokens plus whether each follows a space. */
 function tokenize(text: string): Token[] {
   const out: Token[] = []
@@ -480,8 +547,11 @@ function useTravel(ref: React.RefObject<HTMLElement>, enabled: boolean) {
 export type SilhouetteWrapProps = {
   /** The paragraph to typeset. */
   text?: string
-  /** A preset name from SILHOUETTES, or your own shapes plus their viewBox. */
-  silhouette?: keyof typeof SILHOUETTES | Art
+  /**
+   * A preset name from SILHOUETTES, your own shapes plus their viewBox, or an
+   * image to take the outline from.
+   */
+  silhouette?: keyof typeof SILHOUETTES | Art | Raster
   /** Silhouette width in px, before the column has its say. */
   size?: number
   /** How the silhouette moves: falls with the page, follows the pointer, or holds still. */
@@ -554,8 +624,39 @@ export default function SilhouetteWrap({
 
   const tokens = React.useMemo(() => tokenize(text), [text])
   const art = typeof silhouette === "string" ? SILHOUETTES[silhouette] : silhouette
-  const artKey = art ? art.box.join() + "|" + art.shapes.map((sh) => sh.path).join("|") : ""
-  const profile = React.useMemo(() => (art ? profileFromArt(art) : null), [artKey])
+  const raster = isRaster(art) ? art : null
+  const vector = art && !isRaster(art) ? art : null
+
+  const vectorKey = vector ? vector.box.join() + "|" + vector.shapes.map((sh) => sh.path).join("|") : ""
+  const vectorProfile = React.useMemo(() => (vector ? profileFromArt(vector) : null), [vectorKey])
+
+  // An image has to decode before it can be sampled, so the profile and the
+  // aspect box arrive a frame or two after the rest.
+  const [loaded, setLoaded] = React.useState<{ profile: Profile | null; box: [number, number] } | null>(null)
+  React.useEffect(() => {
+    if (!raster) {
+      setLoaded(null)
+      return
+    }
+    let live = true
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      if (!live) return
+      setLoaded({
+        profile: profileFromImage(img, raster),
+        box: raster.box ?? [img.naturalWidth || 1, img.naturalHeight || 1],
+      })
+    }
+    img.onerror = () => live && setLoaded({ profile: null, box: raster.box ?? [1, 1] })
+    img.src = raster.src
+    return () => {
+      live = false
+    }
+  }, [raster?.src, raster?.matte, raster?.threshold, raster?.box?.[0], raster?.box?.[1]])
+
+  const profile = raster ? loaded?.profile ?? null : vectorProfile
+  const artBox: [number, number] | null = raster ? loaded?.box ?? null : vector ? vector.box : null
 
   const travelling = follow === "scroll" && !reduced
   const p = useTravel(boxRef, travelling)
@@ -598,7 +699,7 @@ export default function SilhouetteWrap({
     const idle = { frags: [] as Frag[], height: 0, at: null, wraps: false, textTop: 0 }
     if (!measurer || box.width <= 0 || box.lineHeight <= 0) return idle
 
-    const aspect = art ? art.box[1] / art.box[0] : 1
+    const aspect = artBox ? artBox[1] / artBox[0] : 1
     const fitted = fitSilhouette(box.width, size, gutter, minRun)
     const width = fitted.width
     const shapeHeight = width * aspect
@@ -671,7 +772,7 @@ export default function SilhouetteWrap({
     box.width,
     box.lineHeight,
     tokens,
-    art,
+    artBox,
     profile,
     size,
     gutter,
@@ -781,32 +882,47 @@ export default function SilhouetteWrap({
           }
           style={{ left: at.x, top: at.y, width: at.width, height: at.height }}
         >
-          {children ?? (
-            // The default drawing is the silhouette itself: every piece painted
-            // exactly as the profile sampled it, so what the text avoids and
-            // what the eye sees cannot drift apart.
-            <svg
-              viewBox={`0 0 ${art.box[0]} ${art.box[1]}`}
-              width="100%"
-              height="100%"
-              className="block overflow-visible"
-            >
-              <g
-                className="fill-current stroke-current"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          {children ??
+            (raster ? (
+              // The art the profile was taken from, drawn at the size the text
+              // was set around.
+              <img
+                src={raster.src}
+                alt=""
+                width={at.width}
+                height={at.height}
+                className="block"
+                // The box is already sized in px, so the art just fills it.
+                // Tailwind Preflight's img { max-width: 100% } would otherwise
+                // shrink it inside a narrower ancestor.
+                style={{ width: "100%", height: "100%", maxWidth: "none" }}
+              />
+            ) : (
+              // The default drawing is the silhouette itself: every piece
+              // painted exactly as the profile sampled it, so what the text
+              // avoids and what the eye sees cannot drift apart.
+              <svg
+                viewBox={`0 0 ${vector ? vector.box[0] : 0} ${vector ? vector.box[1] : 0}`}
+                width="100%"
+                height="100%"
+                className="block overflow-visible"
               >
-                {art.shapes.map((shape, i) => (
-                  <path
-                    key={i}
-                    d={shape.path}
-                    fill={shape.width ? "none" : undefined}
-                    strokeWidth={shape.width}
-                  />
-                ))}
-              </g>
-            </svg>
-          )}
+                <g
+                  className="fill-current stroke-current"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {(vector?.shapes ?? []).map((shape, i) => (
+                    <path
+                      key={i}
+                      d={shape.path}
+                      fill={shape.width ? "none" : undefined}
+                      strokeWidth={shape.width}
+                    />
+                  ))}
+                </g>
+              </svg>
+            ))}
         </div>
       )}
     </div>
