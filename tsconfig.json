@@ -24,7 +24,7 @@
       "@/components/ui/polaroid-zine-hero": ["./components/polaroid-zine-hero/polaroid-zine-hero.tsx"],
       "@/components/ui/flatlay-resume-board": ["./components/flatlay-resume-board/flatlay-resume-board.tsx"],
       "@/components/ui/singularity-horizon": ["./components/singularity-horizon/singularity-horizon.tsx"],
-      "@/components/ui/shape-wrap-text": ["./components/shape-wrap-text/shape-wrap-text.tsx"]
+      "@/components/ui/silhouette-wrap": ["./components/silhouette-wrap/silhouette-wrap.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
