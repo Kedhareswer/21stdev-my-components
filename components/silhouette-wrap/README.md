@@ -10,8 +10,8 @@ do. So this does the typesetting itself:
 
 - canvas `measureText` for word widths, cached per font
 - `Intl.Segmenter` for break opportunities, so CJK breaks where it should
-- your SVG path rasterised **once** into a left/right scanline profile, then
-  asked for its width at each line
+- your SVG shapes rasterised **once** into a left/right scanline profile, then
+  asked for their width at each line
 
 Nothing measures the DOM, so the fall costs no reflow: each frame is a profile
 lookup and one greedy pass over cached widths.
@@ -25,8 +25,8 @@ no animation library.
 import SilhouetteWrap from "@/components/ui/silhouette-wrap"
 
 <SilhouetteWrap />                                   // keyhole, falls with scroll
-<SilhouetteWrap silhouette="bottle" follow="fixed" />
-<SilhouetteWrap silhouette={{ path: "M…Z", box: [100, 140] }} text={copy} />
+<SilhouetteWrap silhouette="dragon" size={280} />
+<SilhouetteWrap silhouette={{ box: [100, 140], shapes: [{ path: "M…Z" }] }} text={copy} />
 ```
 
 It sizes itself — the height comes from the lines it set, so it drops into a
@@ -38,7 +38,7 @@ measures in *that* font: the type is the host's, the layout is this component's.
 | Prop | Default | Notes |
 |---|---|---|
 | `text` | the fall, from chapter I | The passage to typeset. |
-| `silhouette` | `"keyhole"` | `keyhole` \| `bottle` \| `teapot` \| `circle` \| `diamond`, or `{ path, box }`. |
+| `silhouette` | `"keyhole"` | `keyhole` \| `dragon` \| `bottle` \| `teapot` \| `circle` \| `diamond`, or `{ box, shapes }`. |
 | `size` | `190` | Silhouette width in px, before the column has its say. |
 | `follow` | `"scroll"` | `scroll` falls with the page, `drag` follows the pointer, `fixed` holds still. |
 | `travel` | `[0.06, 0.82]` | Fractions of the paragraph the fall runs between. |
@@ -49,13 +49,30 @@ measures in *that* font: the type is the host's, the layout is this component's.
 | `justify` | `true` | Stretch spaces so both edges of every run line up, where it can be done cleanly. |
 | `tolerance` | `0.62` | How far a space may stretch before the line is left ragged instead. |
 | `dropCap` | `3` | Lines tall for the opening capital. `0` turns it off. |
+| `rubricLines` / `rubricColor` | `0` / — | Opening lines set in red, the way a scribe wrote an incipit. |
+| `cap` | — | An illuminated initial for the drop cap's notch, which becomes a square. |
 | `maxLines` | `500` | Safety cap. |
 | `children` | — | Painted inside the outline instead of the default fill. |
 | `className` | `""` | Appended to the root. |
 
-`children` replaces the fill, so the outline can carry artwork: the bottle demo
-paints a DRINK ME label inside it. Left alone the silhouette is solid ink —
-which in dark mode becomes light coming through the keyhole.
+### Silhouettes are a set of shapes, not one outline
+
+```tsx
+{ box: [170, 150], shapes: [
+    { path: "M104 44 A42 42 0 1 0 108 110", width: 17 },  // stroked: a coiled body
+    { path: "M132 18 C146 14 …Z" },                        // filled: the head
+] }
+```
+
+A `width` strokes the path at that thickness instead of filling it, which is how
+the dragon's body is authored as a *line* that tapers head to tail rather than
+as both sides of an outline. The profile is sampled in the art's own coordinates
+so a stroke width means the same thing to the sampler as it does to the SVG.
+
+`children` replaces the drawing, so the outline can carry artwork: the default
+demo puts a gilded sun inside the dragon's coil, the bottle demo paints a DRINK
+ME label. Left alone the silhouette is solid ink, and since it inherits `color`,
+a dark page turns it into light coming through the keyhole.
 
 ## Three things it gets right that are easy to get wrong
 
@@ -102,9 +119,17 @@ it is tested.
   on `document.fonts.ready` and on any column resize.
 - Colours are the host's semantic tokens, so it works in both themes untouched.
 
+## The demos
+
+- **default** — an illuminated folio: parchment, a gold-ground initial, a
+  rubricated incipit, embers, and a wyrm coiled around the sun with the text of
+  Revelation 12 (KJV, 1611, public domain) carved around it.
+- **keyhole** — Alice's fall, chapter I, the keyhole dropping through the column.
+- **bottle** — a fixed silhouette carrying its own label.
+
 ## Credit
 
-The passage is Lewis Carroll, *Alice's Adventures in Wonderland* (1865), public
+The Alice passage is Lewis Carroll, *Alice's Adventures in Wonderland* (1865), public
 domain. The measure-don't-reflow approach is the idea behind Cheng Lou's
 [pretext](https://github.com/chenglou/pretext) — not a dependency, and none of
 its code ships here; the line breaker is written for this component.
