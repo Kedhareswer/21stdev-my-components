@@ -42,6 +42,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     maxLines: 50,
     justify: false,
     tolerance: 0.62,
+    minRun: 0,
     runsFor: () => [[0, 10]],
   })
   assert.equal(frags.length, 2, "10px of column fits two 3-char words per line")
@@ -76,6 +77,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     maxLines: 300,
     justify: false,
     tolerance: 0.62,
+    minRun: 0,
     runsFor: (top) => runsAround(120, top, 8, circle, at),
   })
   assert.ok(frags.length > 20, "expected the outline to split many lines")
@@ -115,6 +117,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     maxLines: 100,
     justify: false,
     tolerance: 0.62,
+    minRun: 0,
     runsFor: () => [[0, 40]],
   })
   assert.equal(frags.map((f) => f.text).join(" "), source, "tokens survive in order")
@@ -127,6 +130,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     maxLines: 20,
     justify: false,
     tolerance: 0.62,
+    minRun: 0,
     runsFor: () => [[0, 12]],
   })
   const joined = frags.map((f) => f.text).join(" ")
@@ -141,6 +145,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     maxLines: 50,
     justify: true,
     tolerance: 0.62,
+    minRun: 0,
     runsFor: () => [[0, 9]],
   })
   assert.ok(frags[0].wordSpacing > 0, "a full line should be stretched")
@@ -152,7 +157,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
   // Three ten-character words in a forty-pixel run: the fourth cannot fit, so
   // justifying has to push 8px into two gaps — a river four spaces wide.
   const long = "aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd eeeeeeeeee"
-  const opts = { lineHeight: 10, maxLines: 9, justify: true, runsFor: () => [[0, 40]] }
+  const opts = { lineHeight: 10, maxLines: 9, justify: true, minRun: 0, runsFor: () => [[0, 40]] }
   const torn = flowText(words(long), measure, { ...opts, tolerance: 99 })
   const clean = flowText(words(long), measure, { ...opts, tolerance: 0.62 })
 
@@ -162,6 +167,23 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     torn.map((f) => f.text).join("|"),
     clean.map((f) => f.text).join("|"),
     "tolerance changes spacing, never the break points",
+  )
+}
+
+// ---- a sliver of a run is left empty rather than given one word ---------
+{
+  // A 6px gap beside the shape would take "aa" and read as debris.
+  const opts = { lineHeight: 10, maxLines: 20, justify: false, tolerance: 0.62 }
+  const runs = () => [[0, 6], [40, 100]]
+  const debris = flowText(words("aa bb cc dd ee ff gg"), measure, { ...opts, minRun: 0, runsFor: runs })
+  const clean = flowText(words("aa bb cc dd ee ff gg"), measure, { ...opts, minRun: 20, runsFor: runs })
+
+  assert.ok(debris.some((f) => f.x === 0), "with no floor, the sliver gets a word")
+  assert.ok(!clean.some((f) => f.x === 0), "past the floor, the sliver is skipped")
+  assert.equal(
+    clean.map((f) => f.text).join(" "),
+    "aa bb cc dd ee ff gg",
+    "skipping a run must not drop or reorder a word",
   )
 }
 
