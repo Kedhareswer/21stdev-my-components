@@ -41,6 +41,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     lineHeight: 10,
     maxLines: 50,
     justify: false,
+    tolerance: 0.62,
     runsFor: () => [[0, 10]],
   })
   assert.equal(frags.length, 2, "10px of column fits two 3-char words per line")
@@ -74,6 +75,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     lineHeight: 8,
     maxLines: 300,
     justify: false,
+    tolerance: 0.62,
     runsFor: (top) => runsAround(120, top, 8, circle, at),
   })
   assert.ok(frags.length > 20, "expected the outline to split many lines")
@@ -112,6 +114,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     lineHeight: 10,
     maxLines: 100,
     justify: false,
+    tolerance: 0.62,
     runsFor: () => [[0, 40]],
   })
   assert.equal(frags.map((f) => f.text).join(" "), source, "tokens survive in order")
@@ -123,6 +126,7 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     lineHeight: 10,
     maxLines: 20,
     justify: false,
+    tolerance: 0.62,
     runsFor: () => [[0, 12]],
   })
   const joined = frags.map((f) => f.text).join(" ")
@@ -136,10 +140,29 @@ const circle = sampleProfile((x, y) => Math.hypot(x - 0.5, y - 0.5) <= 0.5, 64, 
     lineHeight: 10,
     maxLines: 50,
     justify: true,
+    tolerance: 0.62,
     runsFor: () => [[0, 9]],
   })
   assert.ok(frags[0].wordSpacing > 0, "a full line should be stretched")
   assert.equal(frags[frags.length - 1].wordSpacing, 0, "the last line must stay ragged")
+}
+
+// ---- a line that cannot justify cleanly is left ragged -------------------
+{
+  // Three ten-character words in a forty-pixel run: the fourth cannot fit, so
+  // justifying has to push 8px into two gaps — a river four spaces wide.
+  const long = "aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd eeeeeeeeee"
+  const opts = { lineHeight: 10, maxLines: 9, justify: true, runsFor: () => [[0, 40]] }
+  const torn = flowText(words(long), measure, { ...opts, tolerance: 99 })
+  const clean = flowText(words(long), measure, { ...opts, tolerance: 0.62 })
+
+  assert.ok(torn[0].wordSpacing > 0, "an unbounded tolerance stretches anything")
+  assert.equal(clean[0].wordSpacing, 0, "past tolerance the line must set ragged")
+  assert.equal(
+    torn.map((f) => f.text).join("|"),
+    clean.map((f) => f.text).join("|"),
+    "tolerance changes spacing, never the break points",
+  )
 }
 
 // ---- the drop cap takes a notch out of the first lines only --------------

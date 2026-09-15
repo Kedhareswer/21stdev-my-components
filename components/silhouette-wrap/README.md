@@ -46,17 +46,26 @@ measures in *that* font: the type is the host's, the layout is this component's.
 | `origin` | `{ x: 0.52, y: 0.42 }` | Where a `fixed` silhouette sits. |
 | `gutter` | `18` | Clear space held between outline and text. |
 | `minRun` | `112` | Narrowest strip of text the wrap may leave beside it. |
-| `justify` | `true` | Stretch spaces so both edges of every run line up. |
+| `justify` | `true` | Stretch spaces so both edges of every run line up, where it can be done cleanly. |
+| `tolerance` | `0.62` | How far a space may stretch before the line is left ragged instead. |
 | `dropCap` | `3` | Lines tall for the opening capital. `0` turns it off. |
 | `maxLines` | `500` | Safety cap. |
 | `children` | — | Painted inside the outline instead of the default fill. |
 | `className` | `""` | Appended to the root. |
 
-`children` is how the hole becomes a hole: the default demo clips a garden into
-the keyhole with `clipPath`, so the text wraps the outline and the outline shows
-you what Alice can see and not reach.
+`children` replaces the fill, so the outline can carry artwork: the bottle demo
+paints a DRINK ME label inside it. Left alone the silhouette is solid ink —
+which in dark mode becomes light coming through the keyhole.
 
-## Two things it gets right that are easy to get wrong
+## Three things it gets right that are easy to get wrong
+
+**Narrow runs are not justified.** Justification beside a silhouette is where
+shaped text usually falls apart: a six-word run stretched to both edges opens
+rivers you can see from across the room. Any line needing more than `tolerance`
+of extra space per gap is set ragged instead. Wide lines still justify, so the
+column keeps a clean left and right edge and the text still hugs the outline —
+which is the whole point of doing this at all.
+
 
 **The drop cap is measured, not guessed.** A cap sized by a magic ratio either
 collides with the text or floats above its baseline. This asks the font:

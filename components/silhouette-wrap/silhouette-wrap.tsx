@@ -39,6 +39,12 @@ export type FlowOpts = {
   lineHeight: number
   maxLines: number
   justify: boolean
+  /**
+   * How far a space may stretch when justifying, as a multiple of its natural
+   * width. A line that would need more is set ragged instead — which is what
+   * keeps rivers out of the narrow runs beside a silhouette.
+   */
+  tolerance: number
   /** Usable runs on the line starting at `top`, left to right. */
   runsFor: (top: number) => Run[]
 }
@@ -111,13 +117,23 @@ export function flowText(tokens: Token[], measure: Measure, opts: FlowOpts): Fra
       placed = true
 
       // The last line of a paragraph sets ragged, the way justified text always
-      // has — stretching it would pull four words across the column.
-      const justify = opts.justify && gaps > 0 && i < tokens.length && width < avail
+      // has — stretching it would pull four words across the column. And a run
+      // too narrow to take the slack is left ragged rather than torn open:
+      // beside a silhouette that is most of them, and a river down a six-word
+      // line looks far worse than an uneven edge.
+      const slack = (avail - width) / Math.max(gaps, 1)
+      const justify =
+        opts.justify &&
+        gaps > 0 &&
+        i < tokens.length &&
+        width < avail &&
+        slack <= spaceW * opts.tolerance
+
       frags.push({
         x: left,
         y: line * opts.lineHeight,
         text,
-        wordSpacing: justify ? (avail - width) / gaps : 0,
+        wordSpacing: justify ? slack : 0,
       })
     }
 
@@ -419,8 +435,10 @@ export type SilhouetteWrapProps = {
   gutter?: number
   /** Narrowest strip of text the wrap may leave beside the silhouette. */
   minRun?: number
-  /** Stretch spaces so both edges of every run line up. */
+  /** Stretch spaces so both edges of every run line up, where it can be done cleanly. */
   justify?: boolean
+  /** How far a space may stretch before the line is left ragged instead. */
+  tolerance?: number
   /** Lines tall for the opening capital. 0 turns it off. */
   dropCap?: number
   /** Safety cap on lines typeset. */
@@ -445,6 +463,7 @@ export default function SilhouetteWrap({
   gutter = 18,
   minRun = 112,
   justify = true,
+  tolerance = 0.62,
   dropCap = 3,
   maxLines = 500,
   children,
@@ -515,6 +534,7 @@ export default function SilhouetteWrap({
       lineHeight: box.lineHeight,
       maxLines,
       justify,
+      tolerance,
     }
 
     // Lay out once with no silhouette: that gives the paragraph's natural
@@ -583,6 +603,7 @@ export default function SilhouetteWrap({
     gutter,
     minRun,
     justify,
+    tolerance,
     dropCap,
     capWidth,
     maxLines,
