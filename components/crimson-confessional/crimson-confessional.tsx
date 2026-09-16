@@ -16,15 +16,30 @@ import * as React from "react"
  * animation library, no fonts to download.
  */
 
-/** The seven things it can draw. One per chapter. */
+/** What the canvas draws for a chapter that has no still of its own. */
 export type Motif = "beam" | "strings" | "race" | "watch" | "flood" | "static" | "void"
+
+/**
+ * How a still comes in. The shape is a mask that grows with scroll, so the
+ * image is uncovered rather than faded — a light widening, an aperture
+ * opening, a bar crossing the frame.
+ */
+export type Reveal = "cone" | "iris" | "wipe" | "slats" | "none"
+
+/** Texture laid over a still. Texture only: never a subject. */
+export type Overlay = "glyphs" | "static" | "grid" | "none"
 
 export type Chapter = {
   /** The large word. Kept short — it is set very wide. */
   word: string
   /** One cryptic line beneath it. */
   line?: string
-  motif: Motif
+  /**
+   * Drawn only when the chapter has no `image`. A still is the scene; drawing
+   * a motif over one puts a second light cone on top of a photograph of a
+   * light cone, which is how this went wrong the first time.
+   */
+  motif?: Motif
   /**
    * A still for this chapter. Any URL or data URI. It is not pasted on top —
    * it is drawn into the frame: cropped to cover, drained to greyscale, washed
@@ -33,6 +48,10 @@ export type Chapter = {
    * the same picture.
    */
   image?: string
+  /** How the still is uncovered as the chapter runs. Default `cone`. */
+  reveal?: Reveal
+  /** Texture over the still. Texture only — never a second subject. */
+  overlay?: Overlay
   /** How hard the still is pushed by scroll. 0 pins it. */
   parallax?: number
   /** Overrides `imageLevel` for this chapter. A pale still needs less. */
@@ -612,6 +631,82 @@ export default function CrimsonConfessional({
       g.globalCompositeOperation = "source-over"
     }
 
+    /**
+     * Clip to the shape that is uncovering the still, and report whether the
+     * shape wants a light drawn along its edge. The shape grows with the
+     * chapter, so scrolling opens the picture up instead of dissolving it in.
+     */
+    const clipReveal = (
+      g: CanvasRenderingContext2D,
+      kind: Reveal,
+      w: number,
+      h: number,
+      t: number,
+    ) => {
+      const e = smoothstep(0, 0.72, t)
+      if (kind === "none") return
+      g.beginPath()
+      if (kind === "cone") {
+        // A shaft from above that widens as you scroll. The still is only
+        // visible where the light has reached.
+        const apexX = w * 0.5
+        const apexY = -h * 0.1
+        const spread = w * (0.07 + 0.72 * e)
+        g.moveTo(apexX, apexY)
+        g.lineTo(apexX - spread, h * 1.05)
+        g.lineTo(apexX + spread, h * 1.05)
+        g.closePath()
+      } else if (kind === "iris") {
+        g.arc(w * 0.5, h * 0.48, Math.max(w, h) * 0.08 + Math.max(w, h) * 0.62 * e, 0, Math.PI * 2)
+      } else if (kind === "wipe") {
+        g.rect(0, 0, w * e, h)
+      } else {
+        // Slats: the picture arriving through a blind.
+        const n = 9
+        for (let i = 0; i < n; i++) {
+          const band = h / n
+          g.rect(0, i * band, w, band * e)
+        }
+      }
+      g.clip()
+    }
+
+    /** The light that belongs to a reveal, drawn over the uncovered still. */
+    const revealLight = (
+      g: CanvasRenderingContext2D,
+      kind: Reveal,
+      w: number,
+      h: number,
+      t: number,
+      a: number,
+    ) => {
+      if (kind !== "cone" && kind !== "iris") return
+      const e = smoothstep(0, 0.72, t)
+      if (kind === "cone") {
+        const apexX = w * 0.5
+        const apexY = -h * 0.1
+        const spread = w * (0.07 + 0.72 * e)
+        const grad = g.createLinearGradient(0, apexY, 0, h)
+        grad.addColorStop(0, "rgba(224,18,33," + 0.34 * a + ")")
+        grad.addColorStop(0.6, "rgba(224,18,33," + 0.08 * a + ")")
+        grad.addColorStop(1, "rgba(224,18,33,0)")
+        g.fillStyle = grad
+        g.beginPath()
+        g.moveTo(apexX, apexY)
+        g.lineTo(apexX - spread, h * 1.05)
+        g.lineTo(apexX + spread, h * 1.05)
+        g.closePath()
+        g.fill()
+      } else {
+        const r = Math.max(w, h) * 0.08 + Math.max(w, h) * 0.62 * e
+        g.strokeStyle = "rgba(224,18,33," + 0.5 * a + ")"
+        g.lineWidth = Math.max(1.5, w * 0.0018)
+        g.beginPath()
+        g.arc(w * 0.5, h * 0.48, r, 0, Math.PI * 2)
+        g.stroke()
+      }
+    }
+
     const MOTIFS: Record<
       Motif,
       (g: CanvasRenderingContext2D, w: number, h: number, t: number, a: number) => void
@@ -658,12 +753,26 @@ export default function CrimsonConfessional({
       // Cross-fade neighbours at the seam so motifs dissolve rather than cut.
       const draw = (i: number, t: number, a: number) => {
         const ch = L.chapters[i]
-        if (!ch || a <= 0.001) return
-        // Still first, motif over it: the light, the strings and the iris
-        // belong in front of the photograph, not behind it.
-        const img = stills[i]
-        if (img) still(ctx, img, w, h, t, a, ch.parallax ?? 0.12, ch.level ?? L.imageLevel)
-        MOTIFS[ch.motif]?.(ctx, w, h, t, a)
+        if (a <= 0.001) return
+        const img = ch && stills[i]
+
+        if (ch && img) {
+          // A still is the scene. It is uncovered through the reveal shape and
+          // then given texture — never a motif, because a motif would draw a
+          // second cone on top of a photograph of a cone.
+          const kind = ch.reveal ?? "cone"
+          ctx.save()
+          clipReveal(ctx, kind, w, h, t)
+          still(ctx, img, w, h, t, a, ch.parallax ?? 0.12, ch.level ?? L.imageLevel)
+          if (ch.overlay === "glyphs") flood(ctx, w, h, t, a * 0.85)
+          else if (ch.overlay === "static") staticNoise(ctx, w, h, t, a * 0.9)
+          else if (ch.overlay === "grid") race(ctx, w, h, t, a * 0.5)
+          ctx.restore()
+          revealLight(ctx, kind, w, h, t, a)
+          return
+        }
+
+        if (ch?.motif) MOTIFS[ch.motif]?.(ctx, w, h, t, a)
       }
       const outgoing = smoothstep(0.82, 1, local)
       draw(index, local, 1 - outgoing)
@@ -772,8 +881,19 @@ export default function CrimsonConfessional({
 
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
           <div className="relative" style={{ opacity: o }}>
+            {wipe > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{
+                  background: crimson,
+                  transformOrigin: "left center",
+                  transform: "scaleX(" + wipe.toFixed(3) + ")",
+                }}
+              />
+            )}
             <h2
-              className="m-0 font-semibold leading-[0.9]"
+              className="relative m-0 font-semibold leading-[0.9]"
               style={{
                 fontFamily: STACK,
                 fontSize: "clamp(2.6rem, 11vw, 9rem)",
@@ -786,17 +906,6 @@ export default function CrimsonConfessional({
             >
               {active?.word}
             </h2>
-            {wipe > 0 && (
-              <span
-                aria-hidden="true"
-                className="absolute inset-0"
-                style={{
-                  background: crimson,
-                  transformOrigin: "left center",
-                  transform: "scaleX(" + wipe.toFixed(3) + ")",
-                }}
-              />
-            )}
           </div>
 
           {active?.line && (
