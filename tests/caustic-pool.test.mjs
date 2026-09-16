@@ -126,6 +126,11 @@ assert.ok(src.includes("usePrefersReducedMotion") || src.includes("prefers-reduc
   "must read prefers-reduced-motion")
 assert.ok(/if \(reduced\)/.test(src), "reduced motion must take its own path")
 
+// Flat water is one flat colour, so the pool has to arrive already moving —
+// otherwise the first frames, and any still capture of them, are blank.
+assert.ok(/const seed = \(\) => \{/.test(src), "the pool must seed itself before the first paint")
+assert.ok(/^\s*seed\(\)\s*$/m.test(src), "and actually call it")
+
 // The wave equation is only stable at the rate it was tuned for.
 assert.ok(src.includes("maxSub"), "a stalled tab must not integrate one enormous step")
 

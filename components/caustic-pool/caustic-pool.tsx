@@ -816,9 +816,26 @@ export default function CausticPool({
       raf = requestAnimationFrame(frame)
     }
 
+    // Flat water is a single flat colour: the first frames would have nothing
+    // in them, which is how a still capture of this comes back blank. Throw a
+    // handful of drops in and run the wave out before the first paint, so the
+    // pool is already lit the moment anyone sees it.
+    const seed = () => {
+      for (let i = 0; i < 6; i++) {
+        drop(
+          0.2 + 0.6 * Math.random(),
+          0.2 + 0.6 * Math.random(),
+          0.05 + 0.07 * Math.random(),
+          0.035 + 0.03 * Math.random(),
+        )
+        // Only MAX_DROPS ride along per step, so spend them over several.
+        if (i % 3 === 2) stepOnce(1 / 60)
+      }
+      for (let i = 0; i < 26; i++) stepOnce(1 / 60)
+    }
+    seed()
+
     if (reduced) {
-      // Still water: one step to seed the surface, one frame, then nothing.
-      stepOnce(1 / 60)
       paint()
     } else {
       raf = requestAnimationFrame(frame)
