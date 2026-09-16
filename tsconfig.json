@@ -26,7 +26,8 @@
       "@/components/ui/singularity-horizon": ["./components/singularity-horizon/singularity-horizon.tsx"],
       "@/components/ui/silhouette-wrap": ["./components/silhouette-wrap/silhouette-wrap.tsx"],
       "@/components/ui/caustic-pool": ["./components/caustic-pool/caustic-pool.tsx"],
-      "@/components/ui/morph-gallery": ["./components/morph-gallery/morph-gallery.tsx"]
+      "@/components/ui/morph-gallery": ["./components/morph-gallery/morph-gallery.tsx"],
+      "@/components/ui/notebook-testimonials": ["./components/notebook-testimonials/notebook-testimonials.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
