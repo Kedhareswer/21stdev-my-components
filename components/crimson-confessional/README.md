@@ -53,7 +53,7 @@ const chapters: Chapter[] = [
 | `ink` / `bone` | `#07070a` / `#e6e0d6` | The bone is deliberately not white. |
 | `crimson` | `#e01221` | Everything bright is this colour. |
 | `oxblood` | `#3d070d` | The field under everything. |
-| `grain` | `0.16` | `0` disables it. Above ~`0.3` it eats the type. |
+| `grain` | `0.16` | Film grain **and** the halftone screen. `0` disables both. Above ~`0.3` it eats the type. |
 | `scanlines` | `true` | |
 | `className` | `""` | Appended to the root. |
 
@@ -83,6 +83,9 @@ alongside it.
 - The chapters also exist as an ordinary `sr-only` list, because the canvas is
   `aria-hidden` and a screen reader would otherwise find an empty seven-screen
   scroll.
+- The halftone screen is one 4px tile built once and tiled as a pattern. The
+  references are all printed things, and the dot screen is most of why they
+  read as posters rather than as renders.
 - Grain and static are drawn as sparse rectangles, not per-pixel `ImageData` —
   at device resolution the per-pixel version costs more than everything else in
   the component put together.

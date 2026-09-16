@@ -100,13 +100,15 @@ export const chapterAt = (
  * Words overlap slightly at the seams so the sequence never shows an empty
  * frame between two chapters.
  *
- * The first chapter is the exception — it is already up. Fading it in from
- * nothing means whoever arrives before scrolling is looking at a black
+ * The two ends are exceptions. The first chapter is already up: fading it in
+ * from nothing means whoever arrives before scrolling is looking at a black
  * rectangle, which is both a poor first frame and, as it turns out, an
- * unusable one: a cover capture of it comes back empty.
+ * unusable one — a cover capture of it comes back empty. The last chapter
+ * never leaves, so the sequence rests on its final frame instead of fading to
+ * black for whoever is parked at the bottom of the page.
  */
-export const typeOpacity = (local: number, first = false): number =>
-  (first ? 1 : smoothstep(0, 0.28, local)) * (1 - smoothstep(0.74, 1, local))
+export const typeOpacity = (local: number, first = false, last = false): number =>
+  (first ? 1 : smoothstep(0, 0.28, local)) * (last ? 1 : 1 - smoothstep(0.74, 1, local))
 // #endregion
 
 const DEFAULT_CHAPTERS: Chapter[] = [
@@ -253,7 +255,8 @@ export default function CrimsonConfessional({
       // Taut lines converging on a point off the top of the frame, swaying as
       // if something up there just moved.
       const hubX = w * 0.5
-      const hubY = -h * 0.35
+      const hubY = h * 0.07
+      const tilt = Math.sin(t * 6.283) * 0.07 * smoothstep(0, 0.4, t)
       const n = 14
       g.lineWidth = Math.max(1, w * 0.0012)
       for (let i = 0; i < n; i++) {
@@ -272,6 +275,22 @@ export default function CrimsonConfessional({
         g.arc(endX, h * (0.78 + 0.18 * f), Math.max(1.5, w * 0.0018), 0, Math.PI * 2)
         g.fill()
       }
+
+      // The control bar they hang from, tilting as it works. Without it the
+      // strings are just lines going off the top of the frame; with it there
+      // is somebody up there holding them, which is the whole idea.
+      g.save()
+      g.translate(hubX, hubY)
+      g.rotate(tilt)
+      const barW = w * 0.2
+      const barT = Math.max(3, h * 0.008)
+      g.fillStyle = "rgba(10,6,8," + 0.95 * a + ")"
+      g.fillRect(-barW / 2, -barT / 2, barW, barT)
+      g.fillRect(-barT / 2, -h * 0.05, barT, h * 0.1)
+      g.strokeStyle = "rgba(224,18,33," + 0.55 * a + ")"
+      g.lineWidth = Math.max(1, w * 0.0009)
+      g.strokeRect(-barW / 2, -barT / 2, barW, barT)
+      g.restore()
     }
 
     const race = (g: CanvasRenderingContext2D, w: number, h: number, t: number, a: number) => {
@@ -421,6 +440,21 @@ export default function CrimsonConfessional({
           }
         }
       }
+      // Colour split: the same noise offset left and right. A CRT does not
+      // lose signal in greyscale, it loses it in fringes.
+      const off = Math.max(2, w * 0.0035)
+      for (const [dx, tint] of [[-off, "rgba(255,40,40,"], [off, "rgba(40,200,255,"]] as const) {
+        for (let y = 0; y < rows; y += 2) {
+          for (let x = 0; x < cols; x += 2) {
+            const s2 = ((x * 73856093) ^ (y * 19349663) ^ ((seed + 7) * 83492791)) >>> 0
+            if ((s2 % 1000) / 1000 > 0.9) {
+              g.fillStyle = tint + 0.35 * a + ")"
+              g.fillRect(x * cell + dx, y * cell, cell, cell)
+            }
+          }
+        }
+      }
+
       const bandY = ((t * 0.9) % 1) * h
       const band = g.createLinearGradient(0, bandY - h * 0.08, 0, bandY + h * 0.08)
       band.addColorStop(0, "rgba(230,224,214,0)")
@@ -478,6 +512,24 @@ export default function CrimsonConfessional({
       (g: CanvasRenderingContext2D, w: number, h: number, t: number, a: number) => void
     > = { beam, strings, race, watch, flood, static: staticNoise, void: voidMotif }
 
+    // A halftone screen, built once and tiled. The references are all printed
+    // things — the dot screen is most of why they read as posters rather than
+    // as renders, and it costs one cached pattern.
+    let screen: CanvasPattern | null = null
+    const buildScreen = () => {
+      const cell = 4
+      const tile = document.createElement("canvas")
+      tile.width = cell
+      tile.height = cell
+      const tg = tile.getContext("2d")
+      if (!tg) return null
+      tg.fillStyle = "rgba(0,0,0,0.55)"
+      tg.beginPath()
+      tg.arc(cell / 2, cell / 2, cell * 0.28, 0, Math.PI * 2)
+      tg.fill()
+      return ctx.createPattern(tile, "repeat")
+    }
+
     const paint = () => {
       const L = look.current
       const w = canvas.width
@@ -515,6 +567,14 @@ export default function CrimsonConfessional({
       }
 
       if (L.grain > 0) {
+        if (!screen) screen = buildScreen()
+        if (screen) {
+          ctx.globalAlpha = 0.5
+          ctx.fillStyle = screen
+          ctx.fillRect(0, 0, w, h)
+          ctx.globalAlpha = 1
+        }
+
         // Sparse dots, reseeded per frame. Cheaper than ImageData and, because
         // it is sparse, reads as film rather than as television.
         const count = Math.round((w * h) / 4200)
@@ -583,7 +643,7 @@ export default function CrimsonConfessional({
   }, [reduced, chapters.length])
 
   const active = chapters[view.index] ?? chapters[0]
-  const o = typeOpacity(view.local, view.index === 0)
+  const o = typeOpacity(view.local, view.index === 0, view.index === chapters.length - 1)
   // The censor bar wipes across the word once the chapter has landed.
   const wipe = active?.censor ? smoothstep(0.42, 0.66, view.local) : 0
 
@@ -641,7 +701,9 @@ export default function CrimsonConfessional({
                 color: "rgba(230,224,214,0.62)",
                 opacity:
                   (view.index === 0 ? 1 : smoothstep(0.18, 0.42, view.local)) *
-                  (1 - smoothstep(0.76, 1, view.local)),
+                  (view.index === chapters.length - 1
+                    ? 1
+                    : 1 - smoothstep(0.76, 1, view.local)),
               }}
             >
               {active.line}

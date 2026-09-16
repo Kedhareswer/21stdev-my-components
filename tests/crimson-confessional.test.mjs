@@ -70,6 +70,10 @@ const { clamp01, smoothstep, progressFrom, chapterAt, typeOpacity } = await impo
   // ...except the first, which has to be readable before anyone scrolls.
   assert.equal(typeOpacity(0, true), 1, "the opening word is already up")
   assert.equal(typeOpacity(1, true), 0, "and still leaves at the end")
+  // And the closing word stays, so the piece rests on its last frame rather
+  // than on black for anyone parked at the bottom of the page.
+  assert.equal(typeOpacity(1, false, true), 1, "the closing word does not fade out")
+  assert.equal(typeOpacity(0, false, true), 0, "but still fades in")
   assert.equal(typeOpacity(1), 0, "and ends with it gone")
   assert.ok(typeOpacity(0.5) > 0.98, "and is fully present in the middle")
   let peak = 0
