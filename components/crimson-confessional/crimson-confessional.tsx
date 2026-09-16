@@ -25,6 +25,18 @@ export type Chapter = {
   /** One cryptic line beneath it. */
   line?: string
   motif: Motif
+  /**
+   * A still for this chapter. Any URL or data URI. It is not pasted on top —
+   * it is drawn into the frame: cropped to cover, drained to greyscale, washed
+   * to the palette, pushed by scroll, and then the motif, the halftone and the
+   * grain go over it, so a photograph and a drawn motif end up looking like
+   * the same picture.
+   */
+  image?: string
+  /** How hard the still is pushed by scroll. 0 pins it. */
+  parallax?: number
+  /** Overrides `imageLevel` for this chapter. A pale still needs less. */
+  level?: number
   /** Draw the red censor bar across the word as the chapter peaks. */
   censor?: boolean
 }
@@ -47,6 +59,14 @@ export type CrimsonConfessionalProps = {
   grain?: number
   /** Scanlines over everything, as in the CRT reference. */
   scanlines?: boolean
+  /**
+   * How far a chapter's still is drained towards the palette. 1 is a full
+   * duotone and is what makes an arbitrary image belong here; 0 leaves it as
+   * it came, which almost never sits right against the red.
+   */
+  duotone?: number
+  /** Brightness of the stills. They sit under type, so they stay down. */
+  imageLevel?: number
   className?: string
 }
 
@@ -135,6 +155,8 @@ export default function CrimsonConfessional({
   oxblood = "#3d070d",
   grain = 0.16,
   scanlines = true,
+  duotone = 0.92,
+  imageLevel = 0.62,
   className = "",
 }: CrimsonConfessionalProps) {
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -151,8 +173,12 @@ export default function CrimsonConfessional({
     return () => mq.removeEventListener("change", sync)
   }, [])
 
-  const look = React.useRef({ ink, bone, crimson, oxblood, grain, scanlines, chapters })
-  look.current = { ink, bone, crimson, oxblood, grain, scanlines, chapters }
+  const look = React.useRef({
+    ink, bone, crimson, oxblood, grain, scanlines, duotone, imageLevel, chapters,
+  })
+  look.current = {
+    ink, bone, crimson, oxblood, grain, scanlines, duotone, imageLevel, chapters,
+  }
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -169,6 +195,22 @@ export default function CrimsonConfessional({
     // trackpad and jank the whole page.
     let progress = 0
     let painted = -1
+
+    // Stills, by chapter index, with holes. Each loads on its own and is drawn
+    // the moment it lands; waiting for the set would hold the whole sequence
+    // black behind the slowest one.
+    const stills: (HTMLImageElement | null)[] = look.current.chapters.map(() => null)
+    look.current.chapters.forEach((ch, i) => {
+      if (!ch.image) return
+      const img = new Image()
+      img.decoding = "async"
+      // Never read back from this canvas, so a tainted one costs nothing and
+      // a cross-origin still that lacks CORS headers still draws.
+      img.onload = () => {
+        if (!disposed) stills[i] = img
+      }
+      img.src = ch.image
+    })
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -507,6 +549,69 @@ export default function CrimsonConfessional({
       }
     }
 
+    /**
+     * Draw a chapter's still so that it belongs to the frame rather than
+     * sitting on it: cropped to cover, drained of its own colour, washed to
+     * the palette, and pushed a little by scroll so it is not a flat plate.
+     */
+    const still = (
+      g: CanvasRenderingContext2D,
+      img: HTMLImageElement,
+      w: number,
+      h: number,
+      t: number,
+      a: number,
+      push: number,
+      level: number,
+    ) => {
+      const L = look.current
+      const iw = img.naturalWidth || 1
+      const ih = img.naturalHeight || 1
+      // Cover, plus a little headroom so the parallax never exposes an edge.
+      const bleed = 1.12
+      const scale = Math.max(w / iw, h / ih) * bleed
+      const dw = iw * scale
+      const dh = ih * scale
+      const dx = (w - dw) / 2
+      const dy = (h - dh) / 2 + (t - 0.5) * h * push
+
+      g.save()
+      g.globalAlpha = a * level
+      // grayscale is the duotone: the wash below supplies the only colour, so
+      // whatever the still was — a green field, a blue sky — it arrives here
+      // already belonging to the palette.
+      g.filter =
+        "grayscale(" + L.duotone + ") contrast(1.25) brightness(0.82)"
+      g.drawImage(img, dx, dy, dw, dh)
+      g.filter = "none"
+
+      // The wash. Multiply keeps the blacks black and tints everything above
+      // them, which is what a duotone print does.
+      g.globalCompositeOperation = "multiply"
+      g.globalAlpha = a * 0.85
+      const wash = g.createLinearGradient(0, 0, 0, h)
+      wash.addColorStop(0, L.oxblood)
+      wash.addColorStop(0.5, L.crimson)
+      wash.addColorStop(1, L.oxblood)
+      g.fillStyle = wash
+      g.fillRect(0, 0, w, h)
+
+      // And a hard falloff to ink at the edges so the still has no seam.
+      g.globalCompositeOperation = "source-over"
+      g.globalAlpha = a
+      const edge = g.createRadialGradient(
+        w * 0.5, h * 0.48, Math.min(w, h) * 0.18,
+        w * 0.5, h * 0.5, Math.max(w, h) * 0.62,
+      )
+      edge.addColorStop(0, "rgba(0,0,0,0)")
+      edge.addColorStop(1, L.ink)
+      g.fillStyle = edge
+      g.fillRect(0, 0, w, h)
+      g.restore()
+      g.globalAlpha = 1
+      g.globalCompositeOperation = "source-over"
+    }
+
     const MOTIFS: Record<
       Motif,
       (g: CanvasRenderingContext2D, w: number, h: number, t: number, a: number) => void
@@ -554,6 +659,10 @@ export default function CrimsonConfessional({
       const draw = (i: number, t: number, a: number) => {
         const ch = L.chapters[i]
         if (!ch || a <= 0.001) return
+        // Still first, motif over it: the light, the strings and the iris
+        // belong in front of the photograph, not behind it.
+        const img = stills[i]
+        if (img) still(ctx, img, w, h, t, a, ch.parallax ?? 0.12, ch.level ?? L.imageLevel)
         MOTIFS[ch.motif]?.(ctx, w, h, t, a)
       }
       const outgoing = smoothstep(0.82, 1, local)

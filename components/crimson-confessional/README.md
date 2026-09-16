@@ -48,13 +48,15 @@ const chapters: Chapter[] = [
 
 | Prop | Default | Notes |
 |---|---|---|
-| `chapters` | seven | `{ word, line?, motif, censor? }`. Any length. |
+| `chapters` | seven | `{ word, line?, motif, image?, parallax?, level?, censor? }`. Any length. |
 | `chapterScroll` | `1.35` | Viewport-heights of scroll per chapter. Below ~0.8 the type has no time to land. |
 | `ink` / `bone` | `#07070a` / `#e6e0d6` | The bone is deliberately not white. |
 | `crimson` | `#e01221` | Everything bright is this colour. |
 | `oxblood` | `#3d070d` | The field under everything. |
 | `grain` | `0.16` | Film grain **and** the halftone screen. `0` disables both. Above ~`0.3` it eats the type. |
 | `scanlines` | `true` | |
+| `duotone` | `0.92` | How far a still is drained towards the palette. `0` leaves it as it came. |
+| `imageLevel` | `0.62` | Brightness of the stills. Overridden per chapter with `level`. |
 | `className` | `""` | Appended to the root. |
 
 `censor: true` wipes a flat red bar across the word as that chapter peaks and
@@ -63,6 +65,29 @@ leaves it there — the block over the face, from the reference.
 `clamp01`, `smoothstep`, `progressFrom`, `chapterAt` and `typeOpacity` are
 exported, so the same scroll position can drive something of your own
 alongside it.
+
+## Stills
+
+Give a chapter an `image` — any URL or data URI — and it is not pasted on top
+of the frame, it is drawn into it:
+
+```tsx
+{ word: "WATCHED", motif: "watch", image: "/press/suit.jpg", parallax: 0.1 }
+```
+
+It is cropped to cover with bleed, drained to greyscale, washed through the
+palette with `multiply` so the blacks stay black, faded to ink at the edges so
+it has no seam, and pushed by scroll. Then the motif, the halftone screen, the
+grain and the vignette go over the top. The result is that a photograph and a
+drawn motif end up looking like the same picture — which is the whole point,
+and the reason an arbitrary image does not need retouching before it fits.
+
+`level` lowers a single pale still so it does not blow out under the type;
+`parallax` sets how far it travels; `duotone` and `imageLevel` set the defaults
+for all of them.
+
+Nothing is read back from the canvas, so a cross-origin still with no CORS
+headers still draws — it only taints a canvas nobody reads.
 
 ## Notes
 
