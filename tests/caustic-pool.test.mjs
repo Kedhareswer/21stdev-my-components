@@ -131,6 +131,23 @@ assert.ok(/if \(reduced\)/.test(src), "reduced motion must take its own path")
 assert.ok(/const seed = \(\) => \{/.test(src), "the pool must seed itself before the first paint")
 assert.ok(/^\s*seed\(\)\s*$/m.test(src), "and actually call it")
 
+// A demo wrapper left at width:auto collapses the pool to 0px wide inside
+// 21st's centring flex — which renders as a black rectangle with a caption on
+// it, and as a blank cover capture. Every wrapper around it needs a width.
+for (const name of ["demo.tsx", "demo-presets.tsx"]) {
+  const demo = readFileSync(
+    new URL(`../components/caustic-pool/${name}`, import.meta.url),
+    "utf8",
+  )
+  for (const cls of demo.match(/className="[^"]*"/g) ?? []) {
+    if (!/relative/.test(cls)) continue
+    assert.ok(
+      /w-(full|screen|\[|\d)/.test(cls) || /max-w-|h-\[/.test(cls),
+      `${name}: ${cls} wraps the pool without a width — it will collapse to 0px`,
+    )
+  }
+}
+
 // The wave equation is only stable at the rate it was tuned for.
 assert.ok(src.includes("maxSub"), "a stalled tab must not integrate one enormous step")
 
