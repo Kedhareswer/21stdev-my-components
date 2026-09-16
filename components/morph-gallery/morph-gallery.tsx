@@ -152,12 +152,20 @@ float fbm(vec2 v) {
   return value;
 }
 
+// The drift below pushes UVs past the edge of the image, and CLAMP_TO_EDGE
+// answers that by smearing the last row of pixels into long vertical streaks.
+// Reflecting instead keeps real picture there. Done in the shader because
+// MIRRORED_REPEAT is illegal on the non-power-of-two textures photos produce.
+vec2 mirror(vec2 uv) {
+  return 1.0 - abs(1.0 - mod(uv, 2.0));
+}
+
 vec2 coverUV(vec2 uv, float imgAspect) {
   float canvasAspect = u_resolution.x / u_resolution.y;
   vec2 scale = (canvasAspect > imgAspect)
     ? vec2(1.0, imgAspect / canvasAspect)
     : vec2(canvasAspect / imgAspect, 1.0);
-  return (uv - 0.5) * scale + 0.5;
+  return mirror((uv - 0.5) * scale + 0.5);
 }
 
 void main() {
