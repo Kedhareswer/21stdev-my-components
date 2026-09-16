@@ -99,9 +99,14 @@ export const chapterAt = (
  * How present a chapter's type is: up during the first third, held, then out.
  * Words overlap slightly at the seams so the sequence never shows an empty
  * frame between two chapters.
+ *
+ * The first chapter is the exception — it is already up. Fading it in from
+ * nothing means whoever arrives before scrolling is looking at a black
+ * rectangle, which is both a poor first frame and, as it turns out, an
+ * unusable one: a cover capture of it comes back empty.
  */
-export const typeOpacity = (local: number): number =>
-  smoothstep(0, 0.28, local) * (1 - smoothstep(0.74, 1, local))
+export const typeOpacity = (local: number, first = false): number =>
+  (first ? 1 : smoothstep(0, 0.28, local)) * (1 - smoothstep(0.74, 1, local))
 // #endregion
 
 const DEFAULT_CHAPTERS: Chapter[] = [
@@ -192,7 +197,9 @@ export default function CrimsonConfessional({
       // this is a filled path rather than a radial gradient.
       const apexX = w * 0.5
       const apexY = -h * 0.12
-      const spread = w * (0.16 + 0.34 * t)
+      // Starts wide enough to be a shaft rather than a needle: this is the
+      // frame the piece opens on.
+      const spread = w * (0.22 + 0.28 * t)
       const grad = g.createLinearGradient(0, apexY, 0, h)
       grad.addColorStop(0, "rgba(224,18,33," + 0.5 * a + ")")
       grad.addColorStop(0.55, "rgba(224,18,33," + 0.16 * a + ")")
@@ -576,7 +583,7 @@ export default function CrimsonConfessional({
   }, [reduced, chapters.length])
 
   const active = chapters[view.index] ?? chapters[0]
-  const o = typeOpacity(view.local)
+  const o = typeOpacity(view.local, view.index === 0)
   // The censor bar wipes across the word once the chapter has landed.
   const wipe = active?.censor ? smoothstep(0.42, 0.66, view.local) : 0
 
@@ -632,7 +639,9 @@ export default function CrimsonConfessional({
                 letterSpacing: "0.26em",
                 textTransform: "uppercase",
                 color: "rgba(230,224,214,0.62)",
-                opacity: smoothstep(0.18, 0.42, view.local) * (1 - smoothstep(0.76, 1, view.local)),
+                opacity:
+                  (view.index === 0 ? 1 : smoothstep(0.18, 0.42, view.local)) *
+                  (1 - smoothstep(0.76, 1, view.local)),
               }}
             >
               {active.line}
