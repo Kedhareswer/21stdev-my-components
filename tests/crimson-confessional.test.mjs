@@ -67,6 +67,9 @@ const { clamp01, smoothstep, progressFrom, chapterAt, typeOpacity } = await impo
 // ---- the type fades in and out, and is never stuck on ---------------------
 {
   assert.equal(typeOpacity(0), 0, "a chapter starts with its word absent")
+  // ...except the first, which has to be readable before anyone scrolls.
+  assert.equal(typeOpacity(0, true), 1, "the opening word is already up")
+  assert.equal(typeOpacity(1, true), 0, "and still leaves at the end")
   assert.equal(typeOpacity(1), 0, "and ends with it gone")
   assert.ok(typeOpacity(0.5) > 0.98, "and is fully present in the middle")
   let peak = 0
