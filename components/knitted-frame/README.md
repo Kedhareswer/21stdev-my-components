@@ -59,8 +59,8 @@ import KnittedFrame from "@/components/ui/knitted-frame"
 | Prop | Default | Notes |
 |---|---|---|
 | `children` | — | Anything. The frame sizes itself to it. |
-| `stitches` | `5` | Border thickness, in stitches. |
-| `stitchSize` | `9` | Height of one stitch in px. Smaller is finer yarn. |
+| `stitches` | `3` | Border thickness, in stitches. |
+| `stitchSize` | `7` | Height of one stitch in px. Smaller is finer yarn. |
 | `pattern` | `"chevron"` | `chevron` \| `fairisle` \| `argyle` \| `seed` \| `ribbing` \| `stripes` \| `plain`. |
 | `tint` | `"#4e8098"` | **One** colour; the contrasts are derived from it. |
 | `yarn` | — | An explicit colourway, if you want the yarns to clash. Wins over `tint`. |

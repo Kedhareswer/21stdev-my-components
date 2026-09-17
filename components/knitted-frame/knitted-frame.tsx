@@ -246,8 +246,8 @@ const yarnFor = (colors: string[], i: number) =>
 
 export default function KnittedFrame({
   children,
-  stitches = 5,
-  stitchSize = 9,
+  stitches = 3,
+  stitchSize = 7,
   pattern = "chevron",
   yarn,
   tint,
