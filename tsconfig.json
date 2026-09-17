@@ -28,7 +28,8 @@
       "@/components/ui/caustic-pool": ["./components/caustic-pool/caustic-pool.tsx"],
       "@/components/ui/morph-gallery": ["./components/morph-gallery/morph-gallery.tsx"],
       "@/components/ui/notebook-testimonials": ["./components/notebook-testimonials/notebook-testimonials.tsx"],
-      "@/components/ui/crimson-confessional": ["./components/crimson-confessional/crimson-confessional.tsx"]
+      "@/components/ui/crimson-confessional": ["./components/crimson-confessional/crimson-confessional.tsx"],
+      "@/components/ui/holo-card": ["./components/holo-card/holo-card.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
