@@ -7,7 +7,7 @@ export default function Demo() {
     <div className="flex w-full items-center justify-center bg-[#f4efe6] px-6 py-16">
       <KnittedFrame
         pattern="chevron"
-        yarn={["#c8452f", "#f2e4cf", "#2e4a6b"]}
+        tint="#4e8098"
         background="#fffaf2"
         className="w-full max-w-lg"
       >

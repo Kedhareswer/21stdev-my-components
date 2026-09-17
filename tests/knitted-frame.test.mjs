@@ -19,10 +19,14 @@ assert.ok(start > -1 && end > start, "knitting region markers missing")
 
 const js = src
   .slice(start, end)
+  .replace(/:\s*\[number, number, number\] \| null/g, "")
+  .replace(/:\s*\[number, number, number\]/g, "")
+  .replace(/:\s*string\[\]/g, "")
   .replace(/:\s*KnitPattern/g, "")
   .replace(/:\s*number/g, "")
   .replace(/:\s*boolean/g, "")
-const { stitchNoise, stitchColorIndex, inBorder } = await import(
+  .replace(/:\s*string/g, "")
+const { stitchNoise, stitchColorIndex, inBorder, parseHex, tintYarn } = await import(
   "data:text/javascript," + encodeURIComponent(js)
 )
 
@@ -152,6 +156,36 @@ const PATTERNS = ["plain", "stripes", "ribbing", "seed", "chevron", "fairisle", 
   assert.equal(inBorder(0, 0, 0, 0, band, 0), false, "an empty grid has no border")
 }
 
+// ---- tinting --------------------------------------------------------------
+{
+  assert.deepEqual(parseHex("#4e8098"), [0x4e, 0x80, 0x98])
+  assert.deepEqual(parseHex("4e8098"), [0x4e, 0x80, 0x98], "the hash is optional")
+  assert.deepEqual(parseHex("#abc"), [0xaa, 0xbb, 0xcc], "three digits expand")
+  assert.equal(parseHex("rebeccapurple"), null, "a named colour is not a hex")
+  assert.equal(parseHex("#12345"), null, "nor is a five-digit one")
+
+  // A colourway from one shade: three yarns, all of them related to the base.
+  const way = tintYarn("#4e8098")
+  assert.equal(way.length, 3, "a tint yields a ground and two contrasts")
+  assert.equal(way[0], "#4e8098", "the base is the ground")
+  assert.ok(way.every((c) => typeof c === "string" && c.length > 0), "every yarn is a colour")
+  // The contrast has to be lighter than the ground, or the frame has no chart.
+  const lum = (c) => {
+    const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(c)
+    const [r, g, b] = m ? [+m[1], +m[2], +m[3]] : parseHex(c)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  assert.ok(lum(way[1]) > lum(way[0]) + 40, "the contrast must read as lighter")
+  assert.ok(lum(way[2]) < lum(way[0]), "and the third as deeper")
+
+  // A colour it cannot parse comes back as one plain yarn rather than a guess.
+  assert.deepEqual(tintYarn("rebeccapurple"), ["rebeccapurple"], "unparseable stays single")
+  // And a single-yarn colourway is legal everywhere a chart is used.
+  for (const pattern of PATTERNS) {
+    assert.equal(stitchColorIndex(4, 7, pattern, 1), 0, pattern + " must survive one yarn")
+  }
+}
+
 // ---- install safety ------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react"], "the only import may be react")
@@ -183,8 +217,11 @@ assert.ok(
   "the padded box must carry no background of its own",
 )
 
-// A non-hex yarn must not be parsed into nonsense channels.
-assert.ok(src.includes('return "rgba(0,0,0,0.35)"'), "an unparseable yarn needs a safe shadow")
+// The renderer is a height field lit by its normals, not an offset dark copy.
+// That is the whole reason the wool looks round, so it is worth pinning.
+assert.ok(src.includes("getImageData"), "the frame must be lit per pixel")
+assert.ok(/RIDGE_TONE/.test(src) && /RIDGE_WIDTH/.test(src), "the ridge needs its five passes")
+assert.ok(/GAUGE\.relief/.test(src), "the normals must actually light it")
 
 // The canvas is decoration and must never swallow a click meant for the
 // content it is wrapped around.

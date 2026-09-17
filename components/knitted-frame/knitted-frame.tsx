@@ -5,11 +5,11 @@ import * as React from "react"
 /**
  * Knitted Frame — wraps anything in a border of real knitting.
  *
- * Every stitch is drawn, not tiled: a stockinette V struck twice, once in
- * shadow and once in yarn, on a grid whose columns line up the way stitches
- * actually stack. Each one is nudged by a hash of its own position, so the
- * rows wander by a fraction of a millimetre like hand knitting does and never
- * like a repeating texture.
+ * The depth is not faked with an offset dark copy. Each run of stitches is one
+ * continuous scalloped path; that path is stroked five times into a **height
+ * field**, from wide and low to narrow and high, and the finished frame is lit
+ * by the surface normals taken from that height. That is the whole difference
+ * between wool that looks round and a sticker of wool.
  *
  * Colour comes from a chart — the same idea as a knitting pattern — so
  * stripes, ribbing, seed, chevron, fair isle and argyle are all one function
@@ -32,14 +32,20 @@ export type KnittedFrameProps = {
   children?: React.ReactNode
   /** Border thickness, in stitches. */
   stitches?: number
-  /** Size of one stitch in px. Smaller is finer yarn. */
+  /** Height of one stitch in px. Smaller is finer yarn. */
   stitchSize?: number
   pattern?: KnitPattern
   /**
-   * The colourway. The first is the ground; the rest are the contrast yarns.
-   * Two is plenty for most charts — fair isle and argyle use three.
+   * The colourway, explicitly. The first is the ground; the rest are the
+   * contrast yarns. Fair isle and argyle use a third.
    */
   yarn?: string[]
+  /**
+   * One colour instead of a colourway. The contrast yarns are derived from it,
+   * so the whole frame is a tint of a single shade rather than a clash — which
+   * is how the reference app dresses each window in its own app's colour.
+   */
+  tint?: string
   /** Which hand knitted it. Changes the wander, nothing else. */
   seed?: number
   /** Corner rounding, in stitches. */
@@ -48,6 +54,8 @@ export type KnittedFrameProps = {
   background?: string
   /** Knit itself on, row by row, when it first appears. */
   knitIn?: boolean
+  /** Show the built-in pattern and yarn pickers. */
+  controls?: boolean
   className?: string
 }
 
@@ -154,38 +162,107 @@ export const inBorder = (
   if (dx === 0 || dy === 0) return true
   return Math.hypot(dx, dy) <= radius + 0.5
 }
+
+/** Parse #rgb or #rrggbb into 0-255 channels. Anything else is null. */
+export const parseHex = (hex: string): [number, number, number] | null => {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const v = m[1]
+  const full = v.length === 3 ? v[0] + v[0] + v[1] + v[1] + v[2] + v[2] : v
+  const n = parseInt(full, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/**
+ * A whole colourway from one colour.
+ *
+ * The contrast is that same hue pulled most of the way to a warm off-white;
+ * the third is the same hue taken down toward brown. Neither is a new colour,
+ * and that is the point — a tinted frame is all one shade, which is what the
+ * reference app does when it dresses a window in its app's colour.
+ *
+ * A colour it cannot parse comes back as a single-yarn colourway rather than
+ * as a guess: one plain sweater is a better answer than three wrong ones.
+ */
+export const tintYarn = (base: string): string[] => {
+  const rgb = parseHex(base)
+  if (!rgb) return [base]
+  const toward = (to: [number, number, number], t: number) =>
+    "rgb(" +
+    Math.round(rgb[0] + (to[0] - rgb[0]) * t) + "," +
+    Math.round(rgb[1] + (to[1] - rgb[1]) * t) + "," +
+    Math.round(rgb[2] + (to[2] - rgb[2]) * t) + ")"
+  return [base, toward([250, 247, 240], 0.82), toward([26, 22, 20], 0.34)]
+}
 // #endregion
 
-const DEFAULT_YARN = ["#c8452f", "#f2e4cf", "#2e4a6b"]
+export const PATTERNS: KnitPattern[] = [
+  "chevron",
+  "fairisle",
+  "argyle",
+  "seed",
+  "ribbing",
+  "stripes",
+  "plain",
+]
 
-/** Darken a hex colour toward black, for the shadow under each stitch. */
-const shade = (hex: string, amount: number): string => {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-  // Anything that is not a plain 6-digit hex (a named colour, an rgb() string)
-  // gets a translucent black instead of a wrong guess at its channels.
-  if (!m) return "rgba(0,0,0,0.35)"
-  const v = parseInt(m[1], 16)
-  const r = Math.round(((v >> 16) & 255) * (1 - amount))
-  const g = Math.round(((v >> 8) & 255) * (1 - amount))
-  const b = Math.round((v & 255) * (1 - amount))
-  return "rgb(" + r + "," + g + "," + b + ")"
+/** A few hand-picked shades, in the spirit of the reference's per-app yarns. */
+export const COLOURWAYS: { name: string; hex: string }[] = [
+  { name: "Harbour", hex: "#4e8098" },
+  { name: "Cabin", hex: "#c8452f" },
+  { name: "Moss", hex: "#4a6b3d" },
+  { name: "Heather", hex: "#7b5ea7" },
+  { name: "Oat", hex: "#b8935f" },
+  { name: "Ember", hex: "#d1495b" },
+  { name: "Slate", hex: "#3f4a5a" },
+]
+
+const DEFAULT_TINT = "#4e8098"
+
+/**
+ * The gauge, taken from the reference app's own defaults. These are the
+ * numbers that decide whether it reads as knitting or as a pattern fill, and
+ * they are gentler than they look like they ought to be — the jitter in
+ * particular is a thirtieth of a stitch, not a tenth.
+ */
+const GAUGE = {
+  aspect: 1.35,
+  rowOverlap: 0.12,
+  yarn: 0.48,
+  bow: 0.28,
+  jitter: 0.035,
+  ground: 0.98,
+  shadow: 0.74,
+  light: 1.18,
+  relief: 0.7,
+  sheen: 0.1,
 }
+
+const RIDGE_TONE = [0.22, 0.48, 0.7, 0.88, 1]
+const RIDGE_WIDTH = [1, 0.8, 0.6, 0.4, 0.2]
+
+const yarnFor = (colors: string[], i: number) =>
+  colors[Math.min(i, colors.length - 1)] ?? colors[0]
 
 export default function KnittedFrame({
   children,
-  stitches = 4,
-  stitchSize = 15,
+  stitches = 5,
+  stitchSize = 9,
   pattern = "chevron",
-  yarn = DEFAULT_YARN,
+  yarn,
+  tint,
   seed = 1,
   radius = 2,
   background,
   knitIn = true,
+  controls = false,
   className = "",
 }: KnittedFrameProps) {
   const hostRef = React.useRef<HTMLDivElement | null>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const [reduced, setReduced] = React.useState(false)
+  const [ownPattern, setOwnPattern] = React.useState<KnitPattern>(pattern)
+  const [ownTint, setOwnTint] = React.useState<string>(tint ?? DEFAULT_TINT)
 
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -195,14 +272,29 @@ export default function KnittedFrame({
     return () => mq.removeEventListener("change", sync)
   }, [])
 
-  const look = React.useRef({ stitches, stitchSize, pattern, yarn, seed, radius, knitIn, reduced })
-  look.current = { stitches, stitchSize, pattern, yarn, seed, radius, knitIn, reduced }
+  // With the pickers on, the component owns the choice; with them off the
+  // props do, and the pickers are not in the way at all.
+  const activePattern = controls ? ownPattern : pattern
+  const yarnKey = (yarn ?? []).join(",")
+  const colors = React.useMemo(() => {
+    if (controls) return tintYarn(ownTint)
+    if (yarn && yarn.length > 0) return yarn
+    if (tint) return tintYarn(tint)
+    return tintYarn(DEFAULT_TINT)
+    // `yarnKey` stands in for `yarn`: an inline array literal is a new
+    // reference on every render, and depending on it would re-knit forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controls, ownTint, tint, yarnKey])
+
+  const look = React.useRef({
+    stitches, stitchSize, activePattern, colors, seed, radius, knitIn, reduced,
+  })
+  look.current = { stitches, stitchSize, activePattern, colors, seed, radius, knitIn, reduced }
 
   React.useEffect(() => {
     const host = hostRef.current
     const canvas = canvasRef.current
     if (!host || !canvas) return
-
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
@@ -210,139 +302,230 @@ export default function KnittedFrame({
     let disposed = false
     let startedAt = 0
 
+    // Two scratch buffers: one for the flat yarn colour, one for the height
+    // the wool stands up in. Kept between draws rather than reallocated.
+    const paint = document.createElement("canvas")
+    const relief = document.createElement("canvas")
+    const pc = paint.getContext("2d", { willReadFrequently: true })
+    const rc = relief.getContext("2d", { willReadFrequently: true })
+    if (!pc || !rc) return
+
+    /** A run of stitches on one row, as a single scalloped path. */
+    const layRun = (
+      from: number,
+      to: number,
+      y: number,
+      sw: number,
+      sh: number,
+      row: number,
+      jit: number,
+      seedN: number,
+    ) => {
+      const path = new Path2D()
+      const jy = (stitchNoise(row, 3, seedN) - 0.5) * jit * 2
+      path.moveTo(from * sw, y + jy)
+      const bx = sw * GAUGE.bow
+      for (let i = from; i < to; i++) {
+        const x = i * sw
+        const jx = (stitchNoise(i, row, seedN) - 0.5) * jit * 2
+        path.quadraticCurveTo(x + bx + jx, y + sh * 0.55 + jy, x + sw * 0.5 + jx, y + sh + jy)
+        path.quadraticCurveTo(x + sw - bx + jx, y + sh * 0.55 + jy, x + sw + jx, y + jy)
+      }
+      return path
+    }
+
     const draw = (progress: number) => {
       const L = look.current
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      const w = host.clientWidth
-      const h = host.clientHeight
-      if (w === 0 || h === 0) return
+      const cssW = host.clientWidth
+      const cssH = host.clientHeight
+      if (cssW === 0 || cssH === 0) return
 
-      const pw = Math.round(w * dpr)
-      const ph = Math.round(h * dpr)
-      if (canvas.width !== pw || canvas.height !== ph) {
-        canvas.width = pw
-        canvas.height = ph
+      const w = Math.max(1, Math.round(cssW * dpr))
+      const h = Math.max(1, Math.round(cssH * dpr))
+      for (const c of [canvas, paint, relief]) {
+        if (c.width !== w || c.height !== h) {
+          c.width = w
+          c.height = h
+        }
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, w, h)
 
-      const s = Math.max(L.stitchSize, 4)
-      const cols = Math.ceil(w / s)
-      const rows = Math.ceil(h / s)
-      // The grid rarely divides the box exactly, so the whole thing is centred
-      // on the leftover — otherwise every frame is a half stitch short on two
-      // sides and it reads as a misprint.
-      const offX = (w - cols * s) / 2
-      const offY = (h - rows * s) / 2
-
+      const sh = Math.max(3, L.stitchSize) * dpr
+      const sw = sh * GAUGE.aspect
+      const rowStep = sh * (1 - GAUGE.rowOverlap)
+      const cols = Math.ceil(w / sw) + 1
+      const rows = Math.ceil(h / rowStep) + 1
       const band = Math.max(1, Math.round(L.stitches))
-      const colors = L.yarn.length
+      const jit = sh * GAUGE.jitter
 
-      ctx.lineCap = "round"
-      ctx.lineJoin = "round"
+      pc.clearRect(0, 0, w, h)
+      rc.clearRect(0, 0, w, h)
+      pc.lineCap = "round"
+      pc.lineJoin = "round"
+      rc.lineCap = "round"
+      rc.lineJoin = "round"
 
-      for (let row = 0; row < rows; row++) {
-        // Knitting happens one row at a time, from the bottom up, so that is
-        // how it arrives.
-        if (progress < 1) {
-          const rowAt = 1 - row / Math.max(rows - 1, 1)
-          if (rowAt > progress) continue
+      // Knitting happens from the bottom up, so that is how it arrives.
+      const firstRow = progress >= 1 ? 0 : rows - Math.ceil(rows * progress)
+
+      for (let row = firstRow; row < rows; row++) {
+        const y = row * rowStep - sh * 0.5
+        // Runs of one colour become one path, so a plain row is a single
+        // stroke rather than a hundred.
+        const runs: { color: string; from: number; to: number }[] = []
+        let from = -1
+        let cur = ""
+        for (let col = 0; col <= cols; col++) {
+          const on = col < cols && inBorder(col, row, cols, rows, band, L.radius)
+          const color = on
+            ? yarnFor(L.colors, stitchColorIndex(col, row, L.activePattern, L.colors.length))
+            : ""
+          if (color !== cur) {
+            if (from >= 0) runs.push({ color: cur, from, to: col })
+            from = color ? col : -1
+            cur = color
+          }
         }
-        for (let col = 0; col < cols; col++) {
-          if (!inBorder(col, row, cols, rows, band, L.radius)) continue
 
-          const idx = stitchColorIndex(col, row, L.pattern, colors)
-          const color = L.yarn[Math.min(idx, colors - 1)] ?? DEFAULT_YARN[0]
-
-          const n = stitchNoise(col, row, L.seed)
-          const n2 = stitchNoise(col + 91, row + 17, L.seed)
-          // A fraction of a stitch of wander. Any more and it stops looking
-          // hand-made and starts looking broken.
-          const jx = (n - 0.5) * s * 0.12
-          const jy = (n2 - 0.5) * s * 0.12
-          const x = offX + col * s + jx
-          const y = offY + row * s + jy
-
-          // The shadow, struck low so the stitch above appears to sit on it.
-          ctx.strokeStyle = shade(color, 0.42)
-          ctx.lineWidth = s * 0.62
-          ctx.beginPath()
-          ctx.moveTo(x + s * 0.06, y + s * 0.2)
-          ctx.quadraticCurveTo(x + s * 0.5, y + s * 0.98, x + s * 0.94, y + s * 0.2)
-          ctx.stroke()
-
-          // The yarn itself.
-          ctx.strokeStyle = color
-          ctx.lineWidth = s * 0.48
-          ctx.beginPath()
-          ctx.moveTo(x + s * 0.06, y + s * 0.1)
-          ctx.quadraticCurveTo(x + s * 0.5, y + s * 0.86, x + s * 0.94, y + s * 0.1)
-          ctx.stroke()
-
-          // A highlight along the top of the loop, which is what makes wool
-          // look round instead of like a painted line.
-          ctx.strokeStyle = "rgba(255,255,255," + (0.13 + 0.07 * n) + ")"
-          ctx.lineWidth = s * 0.14
-          ctx.beginPath()
-          ctx.moveTo(x + s * 0.14, y + s * 0.14)
-          ctx.quadraticCurveTo(x + s * 0.5, y + s * 0.74, x + s * 0.86, y + s * 0.14)
-          ctx.stroke()
+        for (const run of runs) {
+          const path = layRun(run.from, run.to, y, sw, sh, row, jit, L.seed)
+          pc.strokeStyle = run.color
+          pc.lineWidth = sw * GAUGE.yarn
+          pc.stroke(path)
+          // The same strand into the height field: wide and low, then narrower
+          // and higher. Five steps is a round strand of wool; one stroke with
+          // an offset dark copy underneath is a sticker of one.
+          for (let i = 0; i < 5; i++) {
+            const t = Math.round(RIDGE_TONE[i] * 255)
+            rc.strokeStyle = "rgb(" + t + "," + t + "," + t + ")"
+            rc.lineWidth = sw * GAUGE.yarn * RIDGE_WIDTH[i]
+            rc.stroke(path)
+          }
         }
       }
+
+      // ---- light it by the normals of the height field --------------------
+      const col = pc.getImageData(0, 0, w, h)
+      const hgt = rc.getImageData(0, 0, w, h)
+      const cd = col.data
+      const hd = hgt.data
+
+      for (let y = 0; y < h; y++) {
+        const rowOff = y * w * 4
+        for (let x = 0; x < w; x++) {
+          const i = rowOff + x * 4
+          if (cd[i + 3] === 0) continue
+          const l = x > 0 ? hd[i - 4] : hd[i]
+          const r = x < w - 1 ? hd[i + 4] : hd[i]
+          const u = y > 0 ? hd[i - w * 4] : hd[i]
+          const d = y < h - 1 ? hd[i + w * 4] : hd[i]
+          // The gradient of the height is the surface normal, near enough.
+          // Lit from the upper left, as everything on a screen is.
+          const nx = (l - r) / 255
+          const ny = (u - d) / 255
+          const height = hd[i] / 255
+          let lit = GAUGE.ground + GAUGE.relief * (nx * 0.6 + ny * 0.62)
+          lit += GAUGE.sheen * height * height * height
+          if (lit < GAUGE.shadow) lit = GAUGE.shadow
+          else if (lit > GAUGE.light) lit = GAUGE.light
+          cd[i] = Math.min(255, cd[i] * lit)
+          cd[i + 1] = Math.min(255, cd[i + 1] * lit)
+          cd[i + 2] = Math.min(255, cd[i + 2] * lit)
+        }
+      }
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      ctx.putImageData(col, 0, 0)
     }
 
     const frame = () => {
       if (disposed) return
       const L = look.current
-      const span = 900
-      const t = L.knitIn && !L.reduced ? Math.min((performance.now() - startedAt) / span, 1) : 1
+      const t = L.knitIn && !L.reduced ? Math.min((performance.now() - startedAt) / 900, 1) : 1
       draw(t)
       if (t < 1) raf = requestAnimationFrame(frame)
     }
 
-    const restart = () => {
-      cancelAnimationFrame(raf)
-      startedAt = performance.now()
-      raf = requestAnimationFrame(frame)
-    }
-
     // A resize re-knits at full progress rather than replaying the animation,
-    // which would make every window drag look like a glitch.
+    // which would make every reflow look like a glitch.
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(raf)
       draw(1)
     })
     observer.observe(host)
 
-    restart()
+    startedAt = performance.now()
+    raf = requestAnimationFrame(frame)
 
     return () => {
       disposed = true
       cancelAnimationFrame(raf)
       observer.disconnect()
     }
-  }, [stitches, stitchSize, pattern, yarn, seed, radius, knitIn, reduced])
+  }, [stitches, stitchSize, activePattern, colors, seed, radius, knitIn, reduced])
 
-  const pad = Math.max(1, Math.round(stitches)) * Math.max(stitchSize, 4)
+  // A little more than the band, so the innermost row of stitches is not
+  // hidden behind the content's own edge.
+  const pad = Math.round(Math.max(1, stitches) * Math.max(stitchSize, 3) * 1.15)
+
+  const selectClass =
+    "rounded-md border border-black/15 bg-white px-2 py-1 text-[12px] capitalize text-[#3b2f26] " +
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
 
   return (
-    <div ref={hostRef} className={"relative " + className}>
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full"
-      />
-      {/* The padding is what the border is knitted into, so it has to stay
-          transparent. Putting the panel on this box instead paints straight
-          over the canvas and hides every stitch but the corners. */}
-      <div className="relative" style={{ padding: pad }}>
-        <div
-          style={{
-            background,
-            borderRadius: background ? Math.round(radius * stitchSize) : undefined,
-          }}
-        >
-          {children}
+    <div className={className}>
+      {controls && (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5 text-[12px] text-[#6b5847]">
+            Pattern
+            <select
+              className={selectClass}
+              value={ownPattern}
+              onChange={(e) => setOwnPattern(e.target.value as KnitPattern)}
+            >
+              {PATTERNS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-[12px] text-[#6b5847]">
+            Yarn
+            <select
+              className={selectClass}
+              value={ownTint}
+              onChange={(e) => setOwnTint(e.target.value)}
+            >
+              {COLOURWAYS.map((c) => (
+                <option key={c.hex} value={c.hex}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      <div ref={hostRef} className="relative">
+        <canvas
+          ref={canvasRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+        />
+        {/* The padding is what the border is knitted into, so it has to stay
+            transparent. Putting the panel on this box instead paints straight
+            over the canvas and hides every stitch but the corners. */}
+        <div className="relative" style={{ padding: pad }}>
+          <div
+            style={{
+              background,
+              borderRadius: background ? Math.round(radius * stitchSize) : undefined,
+            }}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>
