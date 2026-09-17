@@ -8,7 +8,6 @@ export default function Demo() {
       <KnittedFrame
         pattern="chevron"
         tint="#4e8098"
-        background="#fffaf2"
         className="w-full max-w-lg"
       >
         {/* A window, wearing a sweater. */}

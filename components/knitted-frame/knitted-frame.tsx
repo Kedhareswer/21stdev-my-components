@@ -357,6 +357,10 @@ export default function KnittedFrame({
       const rows = Math.ceil(h / rowStep) + 1
       const band = Math.max(1, Math.round(L.stitches))
       const jit = sh * GAUGE.jitter
+      // The band's real thickness in pixels, which is what the content is
+      // inset by. Anything larger leaves a gap and the sweater stops touching
+      // the window it is supposed to be on.
+      const bandPx = band * rowStep
 
       pc.clearRect(0, 0, w, h)
       rc.clearRect(0, 0, w, h)
@@ -364,6 +368,26 @@ export default function KnittedFrame({
       pc.lineJoin = "round"
       rc.lineCap = "round"
       rc.lineJoin = "round"
+
+      // The frame is a rounded ring, not the outer cells of a rectangular
+      // grid. Clipping to it is what gives a trimmed edge and mitred corners;
+      // without it the boundary is the canvas rectangle and every stitch on it
+      // is sliced mid-loop, which reads as a pasted swatch.
+      const outerR = Math.min(L.radius * sh * 1.6, Math.min(w, h) / 2)
+      const innerR = Math.max(outerR - bandPx * 0.55, sh * 0.6)
+      const ring = new Path2D()
+      const box = (px: number, py: number, bw: number, bh: number, r: number) => {
+        const rr = Math.max(0, Math.min(r, bw / 2, bh / 2))
+        if (typeof ring.roundRect === "function") ring.roundRect(px, py, bw, bh, rr)
+        else ring.rect(px, py, bw, bh)
+      }
+      box(0, 0, w, h, outerR)
+      box(bandPx, bandPx, w - bandPx * 2, h - bandPx * 2, innerR)
+      pc.save()
+      rc.save()
+      // even-odd, so the inner box punches the middle out of the outer one.
+      pc.clip(ring, "evenodd")
+      rc.clip(ring, "evenodd")
 
       // Knitting happens from the bottom up, so that is how it arrives.
       const firstRow = progress >= 1 ? 0 : rows - Math.ceil(rows * progress)
@@ -376,7 +400,9 @@ export default function KnittedFrame({
         let from = -1
         let cur = ""
         for (let col = 0; col <= cols; col++) {
-          const on = col < cols && inBorder(col, row, cols, rows, band, L.radius)
+          // One stitch deeper than the band, and with no corner rounding: the
+          // clip shapes the frame now, so the grid only has to cover it.
+          const on = col < cols && inBorder(col, row, cols, rows, band + 1, 0)
           const color = on
             ? yarnFor(L.colors, stitchColorIndex(col, row, L.activePattern, L.colors.length))
             : ""
@@ -403,6 +429,9 @@ export default function KnittedFrame({
           }
         }
       }
+
+      pc.restore()
+      rc.restore()
 
       // ---- light it by the normals of the height field --------------------
       const col = pc.getImageData(0, 0, w, h)
@@ -465,9 +494,13 @@ export default function KnittedFrame({
     }
   }, [stitches, stitchSize, activePattern, colors, seed, radius, knitIn, reduced])
 
-  // A little more than the band, so the innermost row of stitches is not
-  // hidden behind the content's own edge.
-  const pad = Math.round(Math.max(1, stitches) * Math.max(stitchSize, 3) * 1.15)
+  // Exactly the band, computed the same way the renderer computes it. Padding
+  // larger than the band leaves a ring of bare backdrop between the knitting
+  // and the content, and the frame stops reading as something the content is
+  // wearing.
+  const pad = Math.round(
+    Math.max(1, stitches) * Math.max(stitchSize, 3) * (1 - GAUGE.rowOverlap),
+  )
 
   const selectClass =
     "rounded-md border border-black/15 bg-white px-2 py-1 text-[12px] capitalize text-[#3b2f26] " +

@@ -26,6 +26,16 @@ copy behind it is a sticker of one, and that is exactly what it looks like.
 0.035 — a *thirtieth* of a stitch, not a tenth. Overdo any of them and it stops
 reading as hand knitting and starts reading as broken.
 
+**The frame is a rounded ring, not the outer cells of a grid.** The stitches
+are laid across the whole box and then clipped to an even-odd rounded ring, so
+the edge is trimmed and the corners mitre. Take the clip away and the boundary
+is the canvas rectangle, every stitch on it is sliced mid-loop, and the whole
+thing reads as a swatch pasted behind the content.
+
+**The inset equals the band exactly.** Padding larger than the band leaves a
+ring of bare backdrop between the knitting and the content, and it stops
+looking like something the content is wearing.
+
 **Colour is a chart**, one function of (column, row), so stripes, ribbing,
 seed, chevron, fair isle and argyle are the same renderer with a different
 chart rather than six code paths.
