@@ -37,8 +37,7 @@
       "@/components/ui/mono-contrast-preloader": ["./components/mono-contrast-preloader/mono-contrast-preloader.tsx"],
       "@/components/ui/card-fan-preloader": ["./components/card-fan-preloader/card-fan-preloader.tsx"],
       "@/components/ui/noise-dissolve-reveal": ["./components/noise-dissolve-reveal/noise-dissolve-reveal.tsx"],
-      "@/components/ui/cloth-peel-reveal": ["./components/cloth-peel-reveal/cloth-peel-reveal.tsx"],
-      "@/components/ui/elastic-editorial-about": ["./components/elastic-editorial-about/elastic-editorial-about.tsx"]
+      "@/components/ui/cloth-peel-reveal": ["./components/cloth-peel-reveal/cloth-peel-reveal.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
