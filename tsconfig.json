@@ -31,7 +31,10 @@
       "@/components/ui/crimson-confessional": ["./components/crimson-confessional/crimson-confessional.tsx"],
       "@/components/ui/holo-card": ["./components/holo-card/holo-card.tsx"],
       "@/components/ui/knitted-frame": ["./components/knitted-frame/knitted-frame.tsx"],
-      "@/components/ui/tumbling-cube-preloader": ["./components/tumbling-cube-preloader/tumbling-cube-preloader.tsx"]
+      "@/components/ui/tumbling-cube-preloader": ["./components/tumbling-cube-preloader/tumbling-cube-preloader.tsx"],
+      "@/components/ui/cinema-grain-preloader": ["./components/cinema-grain-preloader/cinema-grain-preloader.tsx"],
+      "@/components/ui/chroma-glitch-preloader": ["./components/chroma-glitch-preloader/chroma-glitch-preloader.tsx"],
+      "@/components/ui/mono-contrast-preloader": ["./components/mono-contrast-preloader/mono-contrast-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
