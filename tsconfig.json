@@ -37,7 +37,10 @@
       "@/components/ui/mono-contrast-preloader": ["./components/mono-contrast-preloader/mono-contrast-preloader.tsx"],
       "@/components/ui/card-fan-preloader": ["./components/card-fan-preloader/card-fan-preloader.tsx"],
       "@/components/ui/noise-dissolve-reveal": ["./components/noise-dissolve-reveal/noise-dissolve-reveal.tsx"],
-      "@/components/ui/cloth-peel-reveal": ["./components/cloth-peel-reveal/cloth-peel-reveal.tsx"]
+      "@/components/ui/cloth-peel-reveal": ["./components/cloth-peel-reveal/cloth-peel-reveal.tsx"],
+      "@/components/ui/dither-sweep-navbar": ["./components/dither-sweep-navbar/dither-sweep-navbar.tsx"],
+      "@/components/ui/blueprint-ink-reveal": ["./components/blueprint-ink-reveal/blueprint-ink-reveal.tsx"],
+      "@/components/ui/ascii-runner": ["./components/ascii-runner/ascii-runner.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
