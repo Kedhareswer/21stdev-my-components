@@ -40,7 +40,9 @@
       "@/components/ui/cloth-peel-reveal": ["./components/cloth-peel-reveal/cloth-peel-reveal.tsx"],
       "@/components/ui/dither-sweep-navbar": ["./components/dither-sweep-navbar/dither-sweep-navbar.tsx"],
       "@/components/ui/blueprint-ink-reveal": ["./components/blueprint-ink-reveal/blueprint-ink-reveal.tsx"],
-      "@/components/ui/ascii-runner": ["./components/ascii-runner/ascii-runner.tsx"]
+      "@/components/ui/ascii-runner": ["./components/ascii-runner/ascii-runner.tsx"],
+      "@/components/ui/paper-curl-carousel": ["./components/paper-curl-carousel/paper-curl-carousel.tsx"],
+      "@/components/ui/ink-flow-carousel": ["./components/ink-flow-carousel/ink-flow-carousel.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
