@@ -42,7 +42,8 @@
       "@/components/ui/blueprint-ink-reveal": ["./components/blueprint-ink-reveal/blueprint-ink-reveal.tsx"],
       "@/components/ui/ascii-runner": ["./components/ascii-runner/ascii-runner.tsx"],
       "@/components/ui/paper-curl-carousel": ["./components/paper-curl-carousel/paper-curl-carousel.tsx"],
-      "@/components/ui/ink-flow-carousel": ["./components/ink-flow-carousel/ink-flow-carousel.tsx"]
+      "@/components/ui/ink-flow-carousel": ["./components/ink-flow-carousel/ink-flow-carousel.tsx"],
+      "@/components/ui/glass-headline-hero": ["./components/glass-headline-hero/glass-headline-hero.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
