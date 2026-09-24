@@ -75,6 +75,8 @@ assert.ok(src.includes('maxWidth: "none"'), "Preflight's max-width must be overr
 assert.ok(src.includes("prefers-reduced-motion"), "must read prefers-reduced-motion")
 assert.ok(/touchAction: "none"/.test(src), "dragging on touch must not scroll the page")
 assert.ok(/onKeyDown/.test(src) && /tabIndex=\{0\}/.test(src), "the flip must be reachable by keyboard")
+assert.ok(/flipButton = true/.test(src) && /onClick=\{\(\) => flipRef.current\(\)\}/.test(src), "the flip button must drive the same flip as a tap")
+assert.ok(/setShowBack\(spinTarget !== 0\)/.test(src), "tap and button must agree on which face is showing")
 for (const gone of ["cancelAnimationFrame(raf)", "observer.disconnect()", 'removeEventListener("pointerdown"']) {
   assert.ok(src.includes(gone), `cleanup is missing ${gone}`)
 }

@@ -41,6 +41,8 @@ export interface LanyardBadgeProps {
   inkColor?: string
   /** Built-in card stock colour. */
   cardColor?: string
+  /** Show the "Show back / Show front" button in the top corner. */
+  flipButton?: boolean
   /** Card width in px. Height follows at 3:2, strap width at a tenth. */
   cardWidth?: number
   /** Root height. A definite length — never a percentage. */
@@ -263,6 +265,7 @@ export default function LanyardBadge({
   strapColor = "#141312",
   inkColor = "#b59a6c",
   cardColor = "#e8dfcc",
+  flipButton = true,
   cardWidth = 240,
   height = "100svh",
   className = "",
@@ -273,6 +276,11 @@ export default function LanyardBadge({
   const innerRef = React.useRef<HTMLDivElement | null>(null)
   const reduced = usePrefersReducedMotion()
   const flipRef = React.useRef<() => void>(() => {})
+  // which face is turned toward the viewer; the effect owns the physics, this
+  // mirrors it for the button label and survives the effect rebuilding
+  const [showBack, setShowBack] = React.useState(false)
+  const backRef = React.useRef(showBack)
+  backRef.current = showBack
 
   const cw = cardWidth
   const ch = Math.round(cardWidth * 1.5)
@@ -311,7 +319,8 @@ export default function LanyardBadge({
     let strapTex: HTMLCanvasElement | null = null
     let plainTex: HTMLCanvasElement | null = null
     const spin: Spin = { a: 0, v: 0 }
-    let spinTarget = 0
+    let spinTarget = backRef.current ? Math.PI : 0
+    spin.a = spinTarget
 
     const add = (x: number, y: number, w: number) => {
       pts.push({ x, y, px: x, py: y, w })
@@ -483,6 +492,7 @@ export default function LanyardBadge({
     }
     const flip = () => {
       spinTarget = spinTarget === 0 ? Math.PI : 0
+      setShowBack(spinTarget !== 0)
     }
     flipRef.current = flip
     const onDown = (e: PointerEvent) => {
@@ -662,6 +672,7 @@ export default function LanyardBadge({
             flipRef.current()
           }
         }}
+        aria-pressed={showBack}
         className="absolute left-0 top-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         style={{ width: cw, height: ch + ringR + clipH, transformOrigin: "50% 0", cursor: "grab", touchAction: "none", willChange: "transform" }}
       >
@@ -697,6 +708,22 @@ export default function LanyardBadge({
           </div>
         </div>
       </div>
+      {flipButton && (
+        <button
+          type="button"
+          onClick={() => flipRef.current()}
+          aria-pressed={showBack}
+          className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/80 px-4 py-2 text-sm font-medium text-[var(--color-foreground)] shadow-sm backdrop-blur transition-colors hover:bg-[var(--color-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+        >
+          <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="transition-transform duration-500 motion-reduce:transition-none" style={{ transform: showBack ? "scaleX(-1)" : "none" }}>
+            <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+          {showBack ? "Show front" : "Show back"}
+        </button>
+      )}
     </section>
   )
 }

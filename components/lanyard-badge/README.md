@@ -3,7 +3,8 @@
 An event badge hanging from a patterned lanyard. Two strands come down from
 above the frame, meet at a side-release buckle, and a short strap and ring hold
 the card. Drag the card and the strap pulls taut; flick it sideways and it spins
-on the ring; tap it (or press Enter) to flip it over.
+on the ring; tap it, press Enter, or use the **Show back** button in the top
+corner to flip it over.
 
 **No dependencies.** React is the only import: no 3D library, no model file, no
 textures to host.
@@ -54,6 +55,7 @@ import LanyardBadge from "@/components/ui/lanyard-badge"
 | `strapColor` | `"#141312"` | Strap, and the built-in back panel. |
 | `inkColor` | `"#b59a6c"` | Strap print and built-in card ornament. |
 | `cardColor` | `"#e8dfcc"` | Built-in card stock. |
+| `flipButton` | `true` | The Show back / Show front button. Uses the theme tokens, so it follows light and dark. |
 | `cardWidth` | `240` | px. Card is 3:2 tall; strap width scales with it. |
 | `height` | `"100svh"` | **Must be a definite length.** |
 | `className` | `""` | Appended to the root. Set a background here. |
