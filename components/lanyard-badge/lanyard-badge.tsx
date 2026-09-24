@@ -621,7 +621,7 @@ export default function LanyardBadge({
 
   const defaultFront = (
     <div className="relative h-full w-full" style={{ background: cardColor, color: inkColor }}>
-      <Ornament className="absolute" style={{ width: 300 * s, right: -130 * s, top: 60 * s, maxWidth: "none" }} />
+      <Ornament className="absolute" style={{ width: 300 * s, right: -130 * s, top: 100 * s, maxWidth: "none" }} />
       <Ornament className="absolute" style={{ width: 210 * s, left: -40 * s, bottom: -70 * s, maxWidth: "none", opacity: 0.8 }} />
       <Arrow className="absolute" style={{ width: 14 * s, height: 250 * s, left: 26 * s, top: 110 * s, transform: "rotate(-14deg)", maxWidth: "none" }} />
       <div className="absolute" style={{ left: 22 * s, top: 34 * s, right: 22 * s }}>
