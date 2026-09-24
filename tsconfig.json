@@ -47,7 +47,8 @@
       "@/components/ui/sunlit-cutting-mat": ["./components/sunlit-cutting-mat/sunlit-cutting-mat.tsx"],
       "@/components/ui/lanyard-badge": ["./components/lanyard-badge/lanyard-badge.tsx"],
       "@/components/ui/waving-portfolio-landing": ["./components/waving-portfolio-landing/waving-portfolio-landing.tsx"],
-      "@/components/ui/engraved-ticket": ["./components/engraved-ticket/engraved-ticket.tsx"]
+      "@/components/ui/engraved-ticket": ["./components/engraved-ticket/engraved-ticket.tsx"],
+      "@/components/ui/velocity-reel": ["./components/velocity-reel/velocity-reel.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
