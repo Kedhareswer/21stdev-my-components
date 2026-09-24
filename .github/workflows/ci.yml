@@ -1,0 +1,32 @@
+# Runs on every push to main and every pull request.
+#
+# Publishing to 21st.dev stays manual on purpose: `21st publish` needs an
+# interactive login, a cover, and a post-publish check of the live page
+# (see CONTRIBUTING.md §4), none of which a runner can do honestly.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # 24, not an LTS floor: several tests use node:module's
+      # stripTypeScriptTypes to run a component's #region for real.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Typecheck components and demos
+        run: npm run check
+      - name: Install-safety and logic tests
+        run: npm test
+      # Compiles every demo, which is the build error 21st Studio would
+      # otherwise report as "Cover failed".
+      - name: Build the workshop
+        run: npm run build
