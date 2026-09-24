@@ -8,11 +8,7 @@ export default function Demo() {
     // width:auto shrinks to its contents — which for a canvas is 0px.
     <div className="relative w-full">
       <EtchedAccretion>
-        <div className="pointer-events-none flex h-full flex-col justify-between p-6 text-white sm:p-10">
-          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.34em] text-white/55">
-            <span>Sgr A* / Survey 07</span>
-            <span className="hidden sm:inline">26,673 ly</span>
-          </div>
+        <div className="pointer-events-none flex h-full flex-col justify-end p-6 text-white sm:p-10">
           <div className="max-w-xl">
             <h1 className="text-4xl font-light leading-[1.05] tracking-tight sm:text-6xl">
               Nothing <span className="italic text-[#ff3b47]">escapes</span>
