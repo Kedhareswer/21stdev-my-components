@@ -24,7 +24,7 @@ small wave.
 import WavingPortfolioLanding from "@/components/ui/waving-portfolio-landing"
 
 <WavingPortfolioLanding
-  name="Maya Iyer"
+  name="Kedha"
   year="2027"
   roles={["Motion Designer", "Animator"]}
   lettersLeft={["HEL", "WOR"]}
@@ -53,7 +53,7 @@ are all drawn as SVG in the file. No fonts, images or stylesheets load.
 
 | Prop | Default | Description |
 |---|---|---|
-| `name` / `year` | `"Arin Varma"` / `"2026"` | Top labels. |
+| `name` / `year` | `"Kedhareswer"` / `"2026"` | Top labels. |
 | `roles` | `["Graphic Designer", "Illustrator"]` | Bottom labels. |
 | `lettersLeft` | `["P", "F"]` | Top and bottom rows left of the giant letter (right-aligned against it). |
 | `giantLetter` | `"O"` | The one tall letter both rows share. |

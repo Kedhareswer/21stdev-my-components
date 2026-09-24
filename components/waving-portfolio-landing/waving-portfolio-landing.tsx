@@ -258,7 +258,7 @@ export type WavingPortfolioLandingProps = {
 type Burst = { id: number; x: number; y: number; bits: { ch: string; dx: number; dy: number; rot: number }[] }
 
 export default function WavingPortfolioLanding({
-  name = "Arin Varma",
+  name = "Kedhareswer",
   year = "2026",
   roles = ["Graphic Designer", "Illustrator"],
   lettersLeft = ["P", "F"],
