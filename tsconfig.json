@@ -47,7 +47,9 @@
       "@/components/ui/mascot-portfolio-hero": ["./components/mascot-portfolio-hero/mascot-portfolio-hero.tsx"],
       "@/components/ui/craft-desk-portfolio-hero": ["./components/craft-desk-portfolio-hero/craft-desk-portfolio-hero.tsx"],
       "@/components/ui/bubble-graffiti-preloader": ["./components/bubble-graffiti-preloader/bubble-graffiti-preloader.tsx"],
-      "@/components/ui/bubble-graffiti-landing": ["./components/bubble-graffiti-landing/bubble-graffiti-landing.tsx"]
+      "@/components/ui/bubble-graffiti-landing": ["./components/bubble-graffiti-landing/bubble-graffiti-landing.tsx"],
+      "@/components/ui/graffiti-script-preloader": ["./components/graffiti-script-preloader/graffiti-script-preloader.tsx"],
+      "@/components/ui/graffiti-script-landing": ["./components/graffiti-script-landing/graffiti-script-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
