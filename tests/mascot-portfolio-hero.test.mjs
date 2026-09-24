@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs"
 const src = readFileSync(
   new URL("../components/mascot-portfolio-hero/mascot-portfolio-hero.tsx", import.meta.url),
   "utf8",
-)
+).replace(/\r\n/g, "\n") // a Windows checkout is CRLF; the slices below look for "\n"
 
 const css = src.slice(src.indexOf("const CSS = `") + 13, src.indexOf("\n`\n"))
 assert.ok(css.length > 500, "could not extract the style block")
