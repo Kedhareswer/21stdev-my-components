@@ -45,7 +45,9 @@
       "@/components/ui/ink-flow-carousel": ["./components/ink-flow-carousel/ink-flow-carousel.tsx"],
       "@/components/ui/glass-headline-hero": ["./components/glass-headline-hero/glass-headline-hero.tsx"],
       "@/components/ui/mascot-portfolio-hero": ["./components/mascot-portfolio-hero/mascot-portfolio-hero.tsx"],
-      "@/components/ui/craft-desk-portfolio-hero": ["./components/craft-desk-portfolio-hero/craft-desk-portfolio-hero.tsx"]
+      "@/components/ui/craft-desk-portfolio-hero": ["./components/craft-desk-portfolio-hero/craft-desk-portfolio-hero.tsx"],
+      "@/components/ui/bubble-graffiti-preloader": ["./components/bubble-graffiti-preloader/bubble-graffiti-preloader.tsx"],
+      "@/components/ui/bubble-graffiti-landing": ["./components/bubble-graffiti-landing/bubble-graffiti-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
