@@ -2,7 +2,7 @@
 
 import SixSevenPoster from "@/components/ui/six-seven-poster"
 
-// Any two glyphs, any title, any grade. A cold teal field and a warm shirt,
+// Any two glyphs, any title, any grade. A cold teal field and warm paint,
 // counting 4 then 2, on a slower clock that plays once and stays.
 export default function DemoCustom() {
   return (
@@ -18,7 +18,6 @@ export default function DemoCustom() {
         release="Coming 4.2"
         rating="Mostly harmless"
         red="#0f5e63"
-        shirt="#b89a7a"
         paint="#f4efe4"
         ink="#061013"
         duration={13}

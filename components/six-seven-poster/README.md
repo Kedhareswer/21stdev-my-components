@@ -1,14 +1,14 @@
 # Six Seven Poster
 
-A thriller one-sheet that acts out the "six… seven" meme. A red field, a
-figure in a stained shirt holding both palms out, and huge dry-brush numerals
-painted across it. First the **6** lands over the left hand. Then the **7**
-lands over the right. Then the hands pump like scales. Last, the title is
-painted across the whole poster and the small print comes up.
+A thriller one-sheet that acts out the "six… seven" meme. A red field and two
+huge dry-brush numerals standing on a painted balance beam. First the **6** is
+painted and its side of the beam lifts. Then the **7** is painted and the beam
+tips the other way. Then the two see-saw like the meme's weighing hands. Last,
+the title is painted across the whole poster and the small print comes up.
 
 **No dependencies.** React is the only import. It uses one 2D canvas and no
-CSS file, fonts, images or animation library. The figure, the hands, every
-brush stroke, the paper texture and the grain are drawn from numbers. So it
+CSS file, fonts, images or animation library. The beam, every brush stroke,
+the paper texture and the grain are drawn from numbers. So it
 never waits on a download and never trips a sandbox that blocks off-site
 assets.
 
@@ -22,19 +22,20 @@ assets.
 ```
 beat    what happens
 ------  ---------------------------------------------------------------
-intro   black → the red field flickers up, the figure fades in, billing
-six     cut on a white frame; left hand rises; the 6 is painted over it
-seven   cut; right hand rises, left drops; the 7 is painted; the 6 dims
-pump    the hands swing past each other three times; the numerals trade
-        brightness; the camera shakes
-title   the numerals sink behind the figure as dark ghosts; the title is
-        painted letter by letter; tagline, billing, date and rating land
+intro   black → the red field flickers up, the beam is brushed in, billing
+six     cut on a white frame; the 6 is painted and its end of the beam lifts
+seven   cut; the 7 is painted and the beam tips its way; the 6 dims
+pump    the beam see-saws three times; the numerals trade brightness; the
+        camera shakes
+title   the beam fades and the numerals sink into the field as dark ghosts;
+        the title is painted letter by letter; tagline, billing, date and
+        rating land
 ```
 
 **Interactive.** The pointer drifts the layers at different depths, and the
-hand under it lifts a little. Clicking flicks paint at the stage and kicks the
-hand on that side, which also flares its numeral. Keyboard: `6` and `7` kick
-the hands, `Space`/`K` pauses, `R` replays, and `←`/`→` step between beats.
+numeral under it lifts a little. Clicking flicks paint at the stage and tips
+the beam toward that side, which also flares its numeral. Keyboard: `6` and
+`7` tip the beam, `Space`/`K` pauses, `R` replays, and `←`/`→` step between beats.
 
 ## Usage
 
@@ -50,7 +51,6 @@ import SixSevenPoster from "@/components/ui/six-seven-poster"
   title="THE ANSWER"
   captions={["First, it was four.", "Then, it was two."]}
   red="#0f5e63"
-  shirt="#b89a7a"
   loop={false}
 />
 ```
@@ -70,7 +70,7 @@ Give it a parent with a width and nothing else (see `demo.tsx`).
 | `billing` | parody block | The small print. Hidden below `sm`. |
 | `release` | `"In cinemas 6.7"` | |
 | `rating` | `"Not rated for sevens"` | Beside a box holding `first + second`. |
-| `red` / `paint` / `ink` / `shirt` | `#d3141b` / `#f2eee8` / `#0f0808` / `#7f93a4` | Hex. Skin, blood and ghosts are mixed from these. Anything that isn't hex falls back to white. |
+| `red` / `paint` / `ink` | `#d3141b` / `#f2eee8` / `#0f0808` | Hex. Ghosts and shading are mixed from these. Anything that isn't hex falls back to white. |
 | `grain` | `0.14` | `0` disables it. |
 | `duration` | `11` | Seconds from black to the poster (auto). |
 | `hold` | `3.5` | Seconds on the poster before looping (auto). |
@@ -84,7 +84,7 @@ Give it a parent with a width and nothing else (see `demo.tsx`).
 | `className` | `""` | Appended to the root. |
 
 `clamp01`, `smoothstep`, `easeInOut`, `progressFrom`, `beatIndex`,
-`autoFrame`, `handLift`, `paintAt`, `flashAt`, `BEATS`, `BEAT_START` and
+`autoFrame`, `weigh`, `paintAt`, `flashAt`, `BEATS`, `BEAT_START` and
 `BEAT_HOLD` are exported. You can drive something of your own from the same
 timeline.
 
@@ -96,13 +96,13 @@ timeline.
   late, run dry early and skip, so the tail splits into streaks. Paper tooth
   is punched out of the paint layer afterwards with one tiled
   `destination-out` pattern.
-- The paint layer is redrawn only when a reveal or alpha actually changes. On
-  the held poster it is one `drawImage` per frame.
-- Each numeral is painted at full strength on a scratch canvas and landed with
-  a single alpha. Dimming bristle by bristle would show every overlap as a
-  stripe.
-- Field, torso and vignette are cached, and rebuilt only on resize or a colour
-  change. The arms and hands are drawn every frame because they move.
+- The title layer is redrawn only when its reveal moves. On the held poster
+  it is one `drawImage` per frame.
+- Each numeral is painted at full strength and landed with a single alpha.
+  Dimming bristle by bristle would show every overlap as a stripe.
+- Each numeral lives on its own cached canvas, redrawn only when its reveal
+  changes. Riding the beam just moves where that canvas lands. The field and
+  vignette are cached until a resize or a colour change.
 - Scroll progress comes from the element's `getBoundingClientRect()`, never
   `window.scrollY`. The rAF loop stops while the stage is off screen.
 - `prefers-reduced-motion` opens on the finished poster with no loop, grain
@@ -114,8 +114,8 @@ timeline.
 
 ## Credit
 
-Art direction is from two references: a red thriller one-sheet (a torso in a
-stained shirt, open palms either side, a giant white dry-brush title), and the
-"6 7" meme (a baby holding up both hands). The implementation, the alphabet
-and all the artwork are original and procedural. No real names, logos or
-rating marks are used.
+Art direction is from two references: a red thriller one-sheet (a giant white
+dry-brush title on a red field), and the "6 7" meme (two hands weighing one
+against the other, here done as a balance beam). There are no figures or body
+parts. The implementation, the alphabet and all the artwork are original and
+procedural. No real names, logos or rating marks are used.

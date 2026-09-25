@@ -6,12 +6,11 @@ import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerE
 /**
  * Six Seven Poster: a thriller one-sheet that plays out the "six… seven" meme.
  *
- * A red field, a figure in a stained shirt with both palms held out, and huge
- * dry-brush numerals painted across it: first the 6 over the left hand, then
- * the 7 over the right, then the hands pump like scales, and the title is
- * painted across the whole poster.
+ * A red field and two huge dry-brush numerals on a painted balance beam: first
+ * the 6 is painted and tips the beam, then the 7, then the two see-saw like
+ * the meme's weighing hands, and the title is painted across the whole poster.
  *
- * Nothing in it is an asset. The figure, the hands, the brush strokes, the
+ * Nothing in it is an asset. The beam, the brush strokes, the
  * paper texture and the grain are all drawn on one canvas from numbers, so it
  * never waits on a download and never trips a sandbox that blocks off-site
  * images. React is the only import.
@@ -28,9 +27,9 @@ export type SixSevenBeat = "intro" | "six" | "seven" | "pump" | "title"
 export type SixSevenPosterProps = {
   /** "auto" plays by itself (the default); "scroll" scrubs with the page. */
   mode?: SixSevenMode
-  /** The first numeral, over the left hand. Any single glyph A–Z / 0–9. */
+  /** The first numeral, on the left of the beam. Any single glyph A–Z / 0–9. */
   first?: string
-  /** The second numeral, over the right hand. */
+  /** The second numeral, on the right. */
   second?: string
   /** Painted across the finished poster. A–Z, 0–9, spaces and hyphens. */
   title?: string
@@ -50,10 +49,8 @@ export type SixSevenPosterProps = {
   red?: string
   /** The brush paint. Deliberately not pure white. */
   paint?: string
-  /** Shadows, skin and the blackout between loops. */
+  /** Shadows, ghosts and the blackout between loops. */
   ink?: string
-  /** The shirt. */
-  shirt?: string
   /** Film grain strength. 0 disables it. */
   grain?: number
   /** Seconds from black to the finished poster (auto mode). */
@@ -70,7 +67,7 @@ export type SixSevenPosterProps = {
   height?: string
   /** Play/pause, replay, beat chips and the scrubber. */
   controls?: boolean
-  /** The pointer drifts the layers and lifts the hand it is over. */
+  /** The pointer drifts the layers and lifts the numeral it is over. */
   parallax?: boolean
   onBeatChange?: (beat: SixSevenBeat) => void
   className?: string
@@ -131,8 +128,8 @@ function pumpEnvelope(t: number) {
   return smoothstep(0.62, 0.67, t) * (1 - smoothstep(0.74, 0.78, t))
 }
 
-/** How far each hand is raised. 0 rests, 1 is presented. */
-export function handLift(t: number) {
+/** How far each side of the balance is raised. 0 rests, 1 is presented. */
+export function weigh(t: number) {
   const six = smoothstep(0.1, 0.17, t) * (1 - smoothstep(0.38, 0.45, t))
   const seven = smoothstep(0.38, 0.45, t) * (1 - smoothstep(0.62, 0.68, t))
   const env = pumpEnvelope(t)
@@ -463,9 +460,6 @@ type Layout = {
   H: number
   cx: number
   F: number
-  collarY: number
-  handY: number
-  spread: number
   numeralH: number
   sixX: number
   sevenX: number
@@ -483,13 +477,10 @@ function layoutFor(W: number, H: number): Layout {
     H,
     cx: W / 2,
     F,
-    collarY: H * (portrait ? 0.14 : 0.1),
-    handY: H * (portrait ? 0.6 : 0.66),
-    spread: portrait ? W * 0.34 : Math.min(W * 0.4, F * 5.6),
     numeralH,
     sixX: W / 2 - off,
     sevenX: W / 2 + off,
-    numeralY: H * (portrait ? 0.42 : 0.46),
+    numeralY: H * (portrait ? 0.5 : 0.46),
     portrait,
   }
 }
@@ -556,7 +547,7 @@ function layoutTitle(title: string, L: Layout): TitleGlyph[] {
 // Static layers, rebuilt only on resize or a colour change
 // ---------------------------------------------------------------------------
 
-type Palette = { red: RGB; paint: RGB; ink: RGB; shirt: RGB; skin: RGB; blood: RGB }
+type Palette = { red: RGB; paint: RGB; ink: RGB }
 
 function makeCanvas(w: number, h: number) {
   const c = document.createElement("canvas")
@@ -601,211 +592,12 @@ function paintField(W: number, H: number, dpr: number, pal: Palette) {
     g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l)
     g.stroke()
   }
-  // A hot spot behind the figure, falling off to the edges.
+  // A hot spot in the middle, falling off to the edges.
   const glow = g.createRadialGradient(bw / 2, bh * 0.42, 0, bw / 2, bh * 0.42, big * 0.55)
   glow.addColorStop(0, css(mix(pal.red, WHITE, 0.1), 0.35))
   glow.addColorStop(1, css(pal.red, 0))
   g.fillStyle = glow
   g.fillRect(0, 0, bw, bh)
-  return c
-}
-
-function shirtPath(g: CanvasRenderingContext2D, L: Layout) {
-  const { cx, F, collarY: yc, H } = L
-  g.beginPath()
-  g.moveTo(cx - 0.3 * F, yc)
-  g.quadraticCurveTo(cx - 0.8 * F, yc + 0.08 * F, cx - 1.08 * F, yc + 0.3 * F)
-  g.quadraticCurveTo(cx - 1.3 * F, yc + 0.7 * F, cx - 1.36 * F, yc + 1.28 * F)
-  g.lineTo(cx - 1.0 * F, yc + 1.42 * F)
-  g.quadraticCurveTo(cx - 0.92 * F, yc + 2.4 * F, cx - 0.98 * F, H + 4)
-  g.lineTo(cx + 0.98 * F, H + 4)
-  g.quadraticCurveTo(cx + 0.92 * F, yc + 2.4 * F, cx + 1.0 * F, yc + 1.42 * F)
-  g.lineTo(cx + 1.36 * F, yc + 1.28 * F)
-  g.quadraticCurveTo(cx + 1.3 * F, yc + 0.7 * F, cx + 1.08 * F, yc + 0.3 * F)
-  g.quadraticCurveTo(cx + 0.8 * F, yc + 0.08 * F, cx + 0.3 * F, yc)
-  g.quadraticCurveTo(cx, yc + 0.3 * F, cx - 0.3 * F, yc)
-  g.closePath()
-}
-
-function splatter(g: CanvasRenderingContext2D, rnd: () => number, x0: number, y0: number, w: number, h: number, clusters: number, scale: number, color: RGB) {
-  for (let c = 0; c < clusters; c++) {
-    const cxp = x0 + rnd() * w
-    const cyp = y0 + rnd() * h
-    const count = 6 + Math.floor(rnd() * 22)
-    const spread = scale * (6 + rnd() * 26)
-    for (let i = 0; i < count; i++) {
-      const a = rnd() * Math.PI * 2
-      const d = Math.pow(rnd(), 1.8) * spread
-      const r = scale * (0.4 + Math.pow(rnd(), 3) * 4.5)
-      g.fillStyle = css(color, 0.45 + rnd() * 0.5)
-      g.beginPath()
-      g.ellipse(cxp + Math.cos(a) * d, cyp + Math.sin(a) * d, r * (1 + rnd()), r, a, 0, Math.PI * 2)
-      g.fill()
-    }
-    // A run or two.
-    if (rnd() < 0.5) {
-      const dx = cxp + (rnd() - 0.5) * spread
-      const len = scale * (8 + rnd() * 30)
-      g.strokeStyle = css(color, 0.55)
-      g.lineWidth = scale * (0.8 + rnd() * 1.4)
-      g.lineCap = "round"
-      g.beginPath()
-      g.moveTo(dx, cyp)
-      g.quadraticCurveTo(dx + scale * (rnd() - 0.5) * 3, cyp + len * 0.5, dx + scale * (rnd() - 0.5) * 2, cyp + len)
-      g.stroke()
-    }
-  }
-}
-
-/** The torso: neck in shadow, shirt, collar, placket, pocket, stains. */
-function paintTorso(W: number, H: number, dpr: number, L: Layout, pal: Palette) {
-  const c = makeCanvas(W * dpr, H * dpr)
-  const g = c.getContext("2d")
-  if (!g) return c
-  g.scale(dpr, dpr)
-  const { cx, F, collarY: yc } = L
-  const rnd = mulberry32(9)
-  const sc = F / 120
-
-  // Neck and the underside of a jaw, cropped by the top edge like the poster.
-  // The jaw, wider than the neck and cropped by the top edge.
-  const jawY = yc - 0.62 * F
-  const neck = g.createLinearGradient(0, jawY + 0.3 * F, 0, yc + 0.25 * F)
-  neck.addColorStop(0, css(pal.ink))
-  neck.addColorStop(1, css(pal.skin))
-  g.fillStyle = neck
-  g.beginPath()
-  g.moveTo(cx - 0.34 * F, jawY)
-  g.lineTo(cx + 0.34 * F, jawY)
-  g.lineTo(cx + 0.31 * F, yc + 0.25 * F)
-  g.lineTo(cx - 0.31 * F, yc + 0.25 * F)
-  g.closePath()
-  g.fill()
-  g.fillStyle = css(mix(pal.skin, pal.ink, 0.45))
-  g.beginPath()
-  g.moveTo(cx - 0.62 * F, -4)
-  g.lineTo(cx + 0.62 * F, -4)
-  g.quadraticCurveTo(cx + 0.6 * F, jawY + 0.34 * F, cx, jawY + 0.5 * F)
-  g.quadraticCurveTo(cx - 0.6 * F, jawY + 0.34 * F, cx - 0.62 * F, -4)
-  g.closePath()
-  g.fill()
-  // Rim light down one side of the neck.
-  g.strokeStyle = css(mix(pal.red, WHITE, 0.1), 0.35)
-  g.lineWidth = Math.max(1, F * 0.02)
-  g.beginPath()
-  g.moveTo(cx + 0.5 * F, jawY + 0.28 * F)
-  g.quadraticCurveTo(cx + 0.36 * F, jawY + 0.45 * F, cx + 0.33 * F, yc + 0.1 * F)
-  g.stroke()
-
-  // Shirt body.
-  shirtPath(g, L)
-  const body = g.createLinearGradient(cx - 1.4 * F, 0, cx + 1.4 * F, 0)
-  body.addColorStop(0, css(mix(pal.shirt, BLACK, 0.55)))
-  body.addColorStop(0.22, css(mix(pal.shirt, BLACK, 0.18)))
-  body.addColorStop(0.42, css(mix(pal.shirt, WHITE, 0.12)))
-  body.addColorStop(0.62, css(pal.shirt))
-  body.addColorStop(0.85, css(mix(pal.shirt, BLACK, 0.3)))
-  body.addColorStop(1, css(mix(pal.shirt, BLACK, 0.6)))
-  g.fillStyle = body
-  g.fill()
-
-  g.save()
-  shirtPath(g, L)
-  g.clip()
-  const fall = g.createLinearGradient(0, yc, 0, H)
-  fall.addColorStop(0, "rgba(0,0,0,0)")
-  fall.addColorStop(1, "rgba(0,0,0,0.38)")
-  g.fillStyle = fall
-  g.fillRect(0, 0, W, H)
-  // Folds.
-  g.lineCap = "round"
-  for (let i = 0; i < 7; i++) {
-    const side = i % 2 ? 1 : -1
-    const x = cx + side * (0.25 + rnd() * 0.6) * F
-    const y = yc + F * (1.5 + rnd() * 1.4)
-    g.strokeStyle = css(mix(pal.shirt, BLACK, 0.5), 0.1 + rnd() * 0.1)
-    g.lineWidth = F * (0.04 + rnd() * 0.06)
-    g.beginPath()
-    g.moveTo(x, y)
-    g.quadraticCurveTo(x + side * F * 0.08, y + F * 0.5, x + side * F * (0.02 + rnd() * 0.12), y + F * (0.9 + rnd() * 0.9))
-    g.stroke()
-  }
-  // Armpit shadows under the sleeves.
-  for (const side of [-1, 1]) {
-    const sx = cx + side * 1.02 * F
-    const sh = g.createRadialGradient(sx, yc + 1.5 * F, 0, sx, yc + 1.5 * F, F * 0.6)
-    sh.addColorStop(0, "rgba(0,0,0,0.45)")
-    sh.addColorStop(1, "rgba(0,0,0,0)")
-    g.fillStyle = sh
-    g.fillRect(sx - F, yc + F, F * 2, F * 1.2)
-  }
-  // Pocket, on the figure's right (viewer's left).
-  const px = cx - 0.74 * F
-  const py = yc + 0.95 * F
-  g.fillStyle = css(mix(pal.shirt, BLACK, 0.08))
-  g.strokeStyle = css(mix(pal.shirt, BLACK, 0.45), 0.8)
-  g.lineWidth = Math.max(1, F * 0.018)
-  g.beginPath()
-  g.rect(px, py, 0.5 * F, 0.62 * F)
-  g.fill()
-  g.stroke()
-  g.beginPath()
-  g.moveTo(px, py + 0.12 * F)
-  g.lineTo(px + 0.5 * F, py + 0.12 * F)
-  g.stroke()
-  // Placket and buttons.
-  g.strokeStyle = css(mix(pal.shirt, BLACK, 0.45), 0.9)
-  g.lineWidth = Math.max(1, F * 0.02)
-  g.beginPath()
-  g.moveTo(cx + 0.02 * F, yc + 0.34 * F)
-  g.lineTo(cx + 0.04 * F, H + 4)
-  g.stroke()
-  g.strokeStyle = css(mix(pal.shirt, WHITE, 0.2), 0.35)
-  g.beginPath()
-  g.moveTo(cx + 0.1 * F, yc + 0.34 * F)
-  g.lineTo(cx + 0.12 * F, H + 4)
-  g.stroke()
-  for (let y = yc + 0.8 * F; y < H; y += 0.62 * F) {
-    g.fillStyle = css(mix(pal.shirt, WHITE, 0.35))
-    g.beginPath()
-    g.arc(cx + 0.07 * F, y, F * 0.035, 0, Math.PI * 2)
-    g.fill()
-  }
-  // Stains.
-  splatter(g, rnd, cx - 1.3 * F, yc, 2.6 * F, H - yc, 22, sc, pal.blood)
-  g.restore()
-
-  // Sleeve hems.
-  g.strokeStyle = css(mix(pal.shirt, BLACK, 0.6), 0.8)
-  g.lineWidth = Math.max(1.2, F * 0.03)
-  for (const side of [-1, 1]) {
-    g.beginPath()
-    g.moveTo(cx + side * 1.36 * F, yc + 1.28 * F)
-    g.lineTo(cx + side * 1.0 * F, yc + 1.42 * F)
-    g.stroke()
-  }
-
-  // Collar: two flaps over an undershirt V.
-  g.fillStyle = css(mix(pal.shirt, WHITE, 0.5))
-  g.beginPath()
-  g.moveTo(cx - 0.3 * F, yc)
-  g.quadraticCurveTo(cx, yc + 0.3 * F, cx + 0.3 * F, yc)
-  g.lineTo(cx + 0.04 * F, yc + 0.46 * F)
-  g.closePath()
-  g.fill()
-  for (const side of [-1, 1]) {
-    g.fillStyle = css(mix(pal.shirt, WHITE, side < 0 ? 0.2 : 0.05))
-    g.strokeStyle = css(mix(pal.shirt, BLACK, 0.5), 0.8)
-    g.lineWidth = Math.max(1, F * 0.018)
-    g.beginPath()
-    g.moveTo(cx + side * 0.34 * F, yc - 0.04 * F)
-    g.lineTo(cx + side * 0.04 * F, yc + 0.5 * F)
-    g.lineTo(cx + side * 0.56 * F, yc + 0.4 * F)
-    g.quadraticCurveTo(cx + side * 0.52 * F, yc + 0.12 * F, cx + side * 0.34 * F, yc - 0.04 * F)
-    g.closePath()
-    g.fill()
-    g.stroke()
-  }
   return c
 }
 
@@ -877,123 +669,6 @@ function makeNoiseTile(seed: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Arms and hands, drawn every frame because they move
-// ---------------------------------------------------------------------------
-
-const FINGERS: [number, number, number, number, number][] = [
-  // angle (deg), length, width, base x, base y — in hand units, fingers pointing +x
-  [-108, 0.56, 0.28, -0.08, -0.28],
-  [-40, 0.7, 0.25, 0.3, -0.26],
-  [-15, 0.8, 0.255, 0.44, -0.07],
-  [8, 0.74, 0.24, 0.44, 0.13],
-  [28, 0.58, 0.21, 0.34, 0.3],
-]
-
-function drawArm(g: CanvasRenderingContext2D, ex: number, ey: number, wx: number, wy: number, F: number, pal: Palette) {
-  const dx = wx - ex
-  const dy = wy - ey
-  const l = Math.hypot(dx, dy) || 1
-  const nx = -dy / l
-  const ny = dx / l
-  const w0 = F * 0.24
-  const w1 = F * 0.15
-  g.fillStyle = css(pal.skin)
-  g.beginPath()
-  g.moveTo(ex + nx * w0, ey + ny * w0)
-  g.quadraticCurveTo((ex + wx) / 2 + nx * w0 * 1.05, (ey + wy) / 2 + ny * w0 * 1.05, wx + nx * w1, wy + ny * w1)
-  g.lineTo(wx - nx * w1, wy - ny * w1)
-  g.quadraticCurveTo((ex + wx) / 2 - nx * w0 * 0.9, (ey + wy) / 2 - ny * w0 * 0.9, ex - nx * w0, ey - ny * w0)
-  g.closePath()
-  g.fill()
-  // Red rim along the top edge, where the field bounces back onto it.
-  const top = ny < 0 ? 1 : -1
-  g.strokeStyle = css(mix(pal.red, WHITE, 0.1), 0.35)
-  g.lineWidth = Math.max(1, F * 0.025)
-  g.beginPath()
-  g.moveTo(ex + nx * w0 * top * 0.95, ey + ny * w0 * top * 0.95)
-  g.quadraticCurveTo(
-    (ex + wx) / 2 + nx * w0 * top,
-    (ey + wy) / 2 + ny * w0 * top,
-    wx + nx * w1 * top * 0.95,
-    wy + ny * w1 * top * 0.95,
-  )
-  g.stroke()
-}
-
-function drawHand(g: CanvasRenderingContext2D, x: number, y: number, s: number, dir: number, lift: number, time: number, pal: Palette, seed: number) {
-  g.save()
-  g.translate(x, y)
-  g.scale(dir, 1)
-  g.rotate(-0.22 * lift + Math.sin(time * 1.3 + seed) * 0.015)
-  g.lineCap = "round"
-  const spreadF = 1 + 0.1 * lift
-  const tips: [number, number, number, number][] = []
-  const bones = FINGERS.map(([deg, len, w, bx, by], i) => {
-    const a = ((deg * spreadF) * Math.PI) / 180
-    const curl = ((i === 0 ? -8 : 12) * Math.PI) / 180
-    const x0 = bx * s
-    const y0 = by * s
-    const x1 = x0 + Math.cos(a) * len * 0.55 * s
-    const y1 = y0 + Math.sin(a) * len * 0.55 * s
-    const x2 = x1 + Math.cos(a + curl) * len * 0.45 * s
-    const y2 = y1 + Math.sin(a + curl) * len * 0.45 * s
-    tips.push([x2, y2, w * s, a + curl])
-    return [x0, y0, x1, y1, x2, y2, w * s]
-  })
-  // Rim first, nudged up, so the dark hand sits inside a thin red edge.
-  for (const pass of [0, 1]) {
-    const col = pass === 0 ? css(mix(pal.red, WHITE, 0.15), 0.45) : css(pal.skin)
-    const grow = pass === 0 ? s * 0.035 : 0
-    const oy = pass === 0 ? -s * 0.02 : 0
-    g.strokeStyle = col
-    g.fillStyle = col
-    for (const [x0, y0, x1, y1, x2, y2, w] of bones) {
-      g.lineWidth = w + grow
-      g.beginPath()
-      g.moveTo(x0, y0 + oy)
-      g.lineTo(x1, y1 + oy)
-      g.lineTo(x2, y2 + oy)
-      g.stroke()
-    }
-    g.beginPath()
-    g.ellipse(0.1 * s, oy + 0.02 * s, 0.52 * s + grow, 0.46 * s + grow, 0, 0, Math.PI * 2)
-    g.fill()
-    // Wrist.
-    g.beginPath()
-    g.ellipse(-0.42 * s, 0.08 * s + oy, 0.3 * s + grow, 0.22 * s + grow, 0.2, 0, Math.PI * 2)
-    g.fill()
-  }
-  // The palm catches a little light.
-  const palm = g.createRadialGradient(0.14 * s, 0.02 * s, 0, 0.14 * s, 0.02 * s, 0.46 * s)
-  palm.addColorStop(0, css(mix(pal.skin, pal.red, 0.35), 0.8))
-  palm.addColorStop(1, css(pal.skin, 0))
-  g.fillStyle = palm
-  g.beginPath()
-  g.ellipse(0.12 * s, 0, 0.46 * s, 0.4 * s, 0, 0, Math.PI * 2)
-  g.fill()
-  // Crease lines.
-  g.strokeStyle = css(pal.ink, 0.55)
-  g.lineWidth = Math.max(0.8, s * 0.018)
-  g.beginPath()
-  g.moveTo(-0.2 * s, -0.12 * s)
-  g.quadraticCurveTo(0.1 * s, 0.06 * s, 0.42 * s, -0.16 * s)
-  g.moveTo(-0.18 * s, 0.1 * s)
-  g.quadraticCurveTo(0.12 * s, 0.24 * s, 0.4 * s, 0.1 * s)
-  g.stroke()
-  // Pale fingertips, the detail that makes the poster's hands read as hands.
-  for (const [tx, ty, w, a] of tips) {
-    g.fillStyle = css(mix(pal.paint, pal.red, 0.35), 0.5)
-    g.beginPath()
-    g.ellipse(tx - Math.cos(a) * w * 0.12, ty - Math.sin(a) * w * 0.12, w * 0.36, w * 0.28, a, 0, Math.PI * 2)
-    g.fill()
-  }
-  // Stains on the palm.
-  const rnd = mulberry32(seed)
-  splatter(g, rnd, -0.3 * s, -0.3 * s, 0.7 * s, 0.6 * s, 3, s / 160, pal.blood)
-  g.restore()
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -1013,15 +688,14 @@ export default function SixSevenPoster({
   second = "7",
   title = "SIX SE7EN",
   captions = ["First, it was six.", "Then, it was seven."],
-  cast = ["The Left Hand", "The Right Hand", "The Group Chat"],
+  cast = ["The Six", "The Seven", "The Group Chat"],
   credit = "A film by nobody in particular",
-  billing = "Seven Six Pictures presents · a two-hand production · a film about two numbers · starring the left hand · the right hand · and the group chat · music by the pause between them · edited by nobody · directed by the meme",
+  billing = "Seven Six Pictures presents · a balanced production · a film about two numbers · starring the six · the seven · and the group chat · music by the pause between them · edited by nobody · directed by the meme",
   release = "In cinemas 6.7",
   rating = "Not rated for sevens",
   red = "#d3141b",
   paint = "#f2eee8",
   ink = "#0f0808",
-  shirt = "#7f93a4",
   grain = 0.14,
   duration = 11,
   hold = 3.5,
@@ -1062,8 +736,8 @@ export default function SixSevenPoster({
     kick: () => {},
   })
 
-  const cfg = useRef({ first, second, title, red, paint, ink, shirt, grain, duration, hold, loop, parallax, onBeatChange })
-  cfg.current = { first, second, title, red, paint, ink, shirt, grain, duration, hold, loop, parallax, onBeatChange }
+  const cfg = useRef({ first, second, title, red, paint, ink, grain, duration, hold, loop, parallax, onBeatChange })
+  cfg.current = { first, second, title, red, paint, ink, grain, duration, hold, loop, parallax, onBeatChange }
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -1094,13 +768,13 @@ export default function SixSevenPoster({
     let dpr = 1
     const layer = document.createElement("canvas")
     const lctx = layer.getContext("2d")
-    const scratch = document.createElement("canvas")
-    const sctx = scratch.getContext("2d")
+    const beamStroke = sampleStroke([0, 50, 50, 49, 100, 50])
     const dry = makeDryTile()
     const noise = [makeNoiseTile(1), makeNoiseTile(2), makeNoiseTile(3)]
     let dryPattern: CanvasPattern | null = null
     let field: HTMLCanvasElement | null = null
-    let torso: HTMLCanvasElement | null = null
+    const numCanvas = [document.createElement("canvas"), document.createElement("canvas")]
+    const numKey = ["", ""]
     let vignette: HTMLCanvasElement | null = null
     let cacheKey = ""
     let layerKey = ""
@@ -1119,6 +793,8 @@ export default function SixSevenPoster({
       layer.width = canvas.width
       layer.height = canvas.height
       dryPattern = null
+      numKey[0] = ""
+      numKey[1] = ""
       cacheKey = ""
       layerKey = ""
       titleKey = ""
@@ -1139,18 +815,12 @@ export default function SixSevenPoster({
         red: parseHex(C.red),
         paint: parseHex(C.paint),
         ink: parseHex(C.ink),
-        shirt: parseHex(C.shirt),
-        skin: [0, 0, 0],
-        blood: [0, 0, 0],
       }
-      pal.skin = mix(pal.ink, pal.red, 0.16)
-      pal.blood = mix(pal.red, pal.ink, 0.62)
       const lay = layoutFor(W, H)
-      const key = W + "x" + H + "@" + dpr + C.red + C.shirt + C.ink
+      const key = W + "x" + H + "@" + dpr + C.red + C.ink
       if (key !== cacheKey) {
         cacheKey = key
         field = paintField(W, H, dpr, pal)
-        torso = paintTorso(W, H, dpr, lay, pal)
         vignette = paintVignette(W, H, dpr)
       }
       const tk = W + "x" + H + C.title
@@ -1168,7 +838,7 @@ export default function SixSevenPoster({
       L.kickR *= still ? 0 : 0.93
       const par = C.parallax && !still ? 1 : 0
 
-      const lifts = handLift(t)
+      const lifts = weigh(t)
       const hoverL = L.hover < 0 ? 0.14 : 0
       const hoverR = L.hover > 0 ? 0.14 : 0
       const bob = still ? 0 : 0.035
@@ -1202,7 +872,7 @@ export default function SixSevenPoster({
 
       const intro = smoothstep(0, 0.07, t)
       const flicker = t < 0.1 && !still ? 0.82 + 0.18 * Math.sin(t * 420) * Math.sin(t * 131) : 1
-      const figure = smoothstep(0.02, 0.1, t)
+      const beamIn = smoothstep(0.03, 0.1, t)
 
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.globalCompositeOperation = "source-over"
@@ -1216,7 +886,7 @@ export default function SixSevenPoster({
         blitCam(field, -0.5, -W * 0.06, -H * 0.06)
       }
 
-      // 2. Ghost numerals, behind the figure, once the title takes over.
+      // 2. Ghost numerals, deep in the field, once the title takes over.
       if (pa.ghost > 0.002) {
         setCam(-0.3)
         ctx.fillStyle = css(mix(pal.red, pal.ink, 0.45))
@@ -1228,32 +898,88 @@ export default function SixSevenPoster({
         paintGlyph(ctx, C.second, { x: lay.cx + (lay.sevenX - lay.cx) * gSpread, y: H * 0.5, k, sy: 1, skew: 0.12, rot: 0.05 }, 1, pa.ghost * 0.6, 67, 14, 1)
       }
 
-      // 3. Figure: arms go behind the torso, hands in front of the field.
-      ctx.globalAlpha = figure
-      setCam(0.35)
-      const F = lay.F
-      const hs = F * 0.72
-      const handLY = lay.handY - liftL * F * 0.95
-      const handRY = lay.handY - liftR * F * 0.95
-      const handLX = lay.cx - lay.spread
-      const handRX = lay.cx + lay.spread
-      const elbowY = lay.collarY + F * 2.75
-      drawArm(ctx, lay.cx - 0.7 * F, elbowY, handLX + 0.42 * hs, handLY + 0.08 * hs, F, pal)
-      drawArm(ctx, lay.cx + 0.7 * F, elbowY, handRX - 0.42 * hs, handRY + 0.08 * hs, F, pal)
-      if (torso) blitCam(torso, 0.35)
-      setCam(0.35)
-      ctx.globalAlpha = figure
-      drawHand(ctx, handLX, handLY, hs, -1, liftL, still ? 0 : time, pal, 11)
-      drawHand(ctx, handRX, handRY, hs, 1, liftR, still ? 0 : time + 1.7, pal, 23)
-      ctx.globalAlpha = 1
-
-      // 4. Paint. Redrawn only when something about it changed; texture after.
+      // 3. The balance: a brushed beam on a fulcrum, tipping with the weights.
+      //    The numerals ride its ends, so the 6-7 gesture is the numbers'
+      //    own gesture.
       const boostL = Math.min(1, L.kickL)
       const boostR = Math.min(1, L.kickR)
       const a6 = Math.min(1, pa.sixAlpha + boostL * 0.6 * (pa.six > 0.99 ? 1 : 0))
       const a7 = Math.min(1, pa.sevenAlpha + boostR * 0.6 * (pa.seven > 0.99 ? 1 : 0))
+      const amp = H * (lay.portrait ? 0.045 : 0.06)
+      const yL = -liftL * amp
+      const yR = -liftR * amp
+      const beamY = lay.numeralY + lay.numeralH * 0.56
+      const beamA = beamIn * (1 - smoothstep(0.76, 0.84, t))
+      if (beamA > 0.002) {
+        setCam(0.6)
+        ctx.fillStyle = css(pal.paint)
+        ctx.strokeStyle = ctx.fillStyle
+        const half = lay.sevenX - lay.cx + lay.numeralH * 0.42
+        const kb = (half * 2) / 100
+        const tilt = Math.atan2(yR - yL, lay.sevenX - lay.sixX)
+        const midY = beamY + (yL + yR) / 2
+        brushStroke(ctx, beamStroke, poseMatrix({ x: lay.cx, y: midY, k: kb, sy: 1, skew: 0, rot: tilt }, 100), lay.numeralH * 0.05, beamIn, 404, beamA * 0.9, 12)
+        // Fulcrum: a small painted wedge.
+        const fw = lay.numeralH * 0.07
+        const top = midY + lay.numeralH * 0.03
+        ctx.globalAlpha = beamA * 0.85
+        ctx.beginPath()
+        ctx.moveTo(lay.cx, top)
+        ctx.lineTo(lay.cx + fw, top + fw * 1.5)
+        ctx.lineTo(lay.cx - fw, top + fw * 1.5)
+        ctx.closePath()
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+
+      // 4. The numerals. Each is painted at full strength on its own canvas —
+      //    dimming bristle by bristle would show every overlap as a stripe —
+      //    textured once, then landed with one alpha at its end of the beam.
+      const kN = lay.numeralH / 100
+      const box = lay.numeralH * 1.5
+      const sw = Math.ceil(box * dpr)
       const q = (v: number) => Math.round(v * 400)
-      const lk = [W, H, dpr, C.paint, C.first, C.second, C.title, q(pa.six), q(pa.seven), q(a6), q(a7), q(pa.title), q(boostL), q(boostR)].join("|")
+      const numerals: [string, number, number, number, number, number, number][] = [
+        [C.first, lay.sixX, yL, pa.six, a6, boostL, -0.07],
+        [C.second, lay.sevenX, yR, pa.seven, a7, boostR, 0.05],
+      ]
+      numerals.forEach(([ch, nx, ny, rev, alpha, boost, rot], i) => {
+        if (rev <= 0 || alpha <= 0.002) return
+        const nc = numCanvas[i]
+        const key = [sw, dpr, ch, C.paint, q(rev), q(boost)].join("|")
+        if (key !== numKey[i]) {
+          numKey[i] = key
+          if (nc.width !== sw) {
+            nc.width = sw
+            nc.height = sw
+          }
+          const g = nc.getContext("2d")
+          if (!g) return
+          g.setTransform(1, 0, 0, 1, 0, 0)
+          g.globalCompositeOperation = "source-over"
+          g.clearRect(0, 0, sw, sw)
+          g.setTransform(dpr, 0, 0, dpr, 0, 0)
+          g.fillStyle = css(pal.paint)
+          g.strokeStyle = g.fillStyle
+          paintGlyph(g, ch, { x: box / 2, y: box / 2, k: kN * (1 + boost * 0.05), sy: 1, skew: 0.14, rot }, rev, 1, 3 + i * 2, 26, 1.4)
+          const pat = g.createPattern(dry, "repeat")
+          if (pat) {
+            g.setTransform(1, 0, 0, 1, 0, 0)
+            g.globalCompositeOperation = "destination-out"
+            g.globalAlpha = 0.9
+            g.fillStyle = pat
+            g.fillRect(0, 0, sw, sw)
+            g.globalAlpha = 1
+            g.globalCompositeOperation = "source-over"
+          }
+        }
+        ctx.globalAlpha = alpha
+        blitCam(nc, 0.9, nx - box / 2, lay.numeralY - box / 2 + ny)
+        ctx.globalAlpha = 1
+      })
+
+      // 5. The title. Redrawn only when its reveal moves; texture after.
+      const lk = [W, H, dpr, C.paint, C.title, q(pa.title)].join("|")
       if (lctx && lk !== layerKey) {
         layerKey = lk
         lctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -1262,33 +988,6 @@ export default function SixSevenPoster({
         lctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         lctx.fillStyle = css(pal.paint)
         lctx.strokeStyle = lctx.fillStyle
-        // Each numeral is painted at full strength on a scratch canvas and
-        // landed with one alpha: dimming per bristle would show every overlap
-        // between bristles as a stripe.
-        const k = lay.numeralH / 100
-        const box = lay.numeralH * 1.5
-        const sw = Math.ceil(box * dpr)
-        if (scratch.width !== sw) {
-          scratch.width = sw
-          scratch.height = sw
-        }
-        const numerals: [string, number, number, number, number, number][] = [
-          [C.first, lay.sixX, pa.six, a6, boostL, -0.07],
-          [C.second, lay.sevenX, pa.seven, a7, boostR, 0.05],
-        ]
-        numerals.forEach(([ch, nx, rev, alpha, boost, rot], i) => {
-          if (!sctx || rev <= 0 || alpha <= 0.002) return
-          sctx.setTransform(1, 0, 0, 1, 0, 0)
-          sctx.clearRect(0, 0, sw, sw)
-          sctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-          sctx.fillStyle = css(pal.paint)
-          sctx.strokeStyle = sctx.fillStyle
-          paintGlyph(sctx, ch, { x: box / 2, y: box / 2, k: k * (1 + boost * 0.05), sy: 1, skew: 0.14, rot }, rev, 1, 3 + i * 2, 26, 1.4)
-          lctx.setTransform(1, 0, 0, 1, 0, 0)
-          lctx.globalAlpha = alpha
-          lctx.drawImage(scratch, (nx - box / 2) * dpr, (lay.numeralY - box / 2) * dpr, sw, sw)
-          lctx.globalAlpha = 1
-        })
         lctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         const n = titleGlyphs.length
         for (let i = 0; i < n; i++) {
@@ -1311,7 +1010,7 @@ export default function SixSevenPoster({
       ctx.globalAlpha = 1
       blitCam(layer, 0.9)
 
-      // 5. Paint flicked at the stage by a click, in screen space.
+      // 6. Paint flicked at the stage by a click, in screen space.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       if (L.splats.length) {
         ctx.fillStyle = css(pal.paint)
@@ -1337,7 +1036,7 @@ export default function SixSevenPoster({
         ctx.globalAlpha = 1
       }
 
-      // 6. The cut: a white-hot frame.
+      // 7. The cut: a white-hot frame.
       const fl = still ? 0 : flashAt(t)
       if (fl > 0) {
         ctx.globalCompositeOperation = "lighter"
@@ -1346,7 +1045,7 @@ export default function SixSevenPoster({
         ctx.globalCompositeOperation = "source-over"
       }
 
-      // 7. Vignette, grain, and the blackout between loops.
+      // 8. Vignette, grain, and the blackout between loops.
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       if (vignette) ctx.drawImage(vignette, 0, 0)
       if (C.grain > 0) {
@@ -1574,7 +1273,7 @@ export default function SixSevenPoster({
         className={(mode === "scroll" ? "sticky top-0 " : "relative ") + "w-full select-none overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset"}
         style={{ height, touchAction: "pan-y", cursor: "crosshair" }}
         tabIndex={0}
-        aria-label={"Interactive poster. Click or press 6 and 7 to raise a hand." + (mode === "auto" ? " Space to pause, R to replay, arrow keys to change beat." : " Arrow keys change beat.")}
+        aria-label={"Interactive poster. Click either side, or press 6 and 7, to tip the balance." + (mode === "auto" ? " Space to pause, R to replay, arrow keys to change beat." : " Arrow keys change beat.")}
         onPointerMove={onStagePointerMove}
         onPointerLeave={onStagePointerLeave}
         onPointerDown={onStagePointerDown}
@@ -1608,7 +1307,7 @@ export default function SixSevenPoster({
           <div
             key={i}
             ref={ref}
-            className="pointer-events-none absolute inset-x-0 bottom-[16%] px-6 text-center text-[15px] uppercase sm:text-[22px]"
+            className="pointer-events-none absolute inset-x-0 top-[17%] px-6 text-center sm:top-[11%] text-[15px] uppercase sm:text-[22px]"
             style={{ ...track, opacity: 0, letterSpacing: "0.3em" }}
             aria-hidden="true"
           >

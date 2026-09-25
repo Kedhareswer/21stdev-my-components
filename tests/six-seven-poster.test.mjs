@@ -5,7 +5,7 @@
 // The canvas cannot be asserted here. What can — and what breaks silently — is
 // the timeline: a clock that wraps to the wrong place flashes the finished
 // poster before the intro, a beat index that runs past the end blanks the
-// chips, and a hand lift that jumps between beats reads as a glitch rather
+// chips, and a balance that jumps between beats reads as a glitch rather
 // than a gesture.
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
@@ -26,7 +26,7 @@ const {
   progressFrom,
   beatIndex,
   autoFrame,
-  handLift,
+  weigh,
   paintAt,
   flashAt,
   BEATS,
@@ -85,28 +85,28 @@ const {
 
 // ---- the gesture -----------------------------------------------------------
 {
-  // Left hand up for the six, right hand up for the seven.
-  const six = handLift(BEAT_HOLD[1])
-  assert.ok(six.left > 0.95 && six.right < 0.05, "the six raises the left hand")
-  const seven = handLift(BEAT_HOLD[2])
-  assert.ok(seven.right > 0.95 && seven.left < 0.05, "the seven raises the right hand")
-  // During the pump the hands go opposite ways — the meme.
+  // Left side up for the six, right side up for the seven.
+  const six = weigh(BEAT_HOLD[1])
+  assert.ok(six.left > 0.95 && six.right < 0.05, "the six raises the left side")
+  const seven = weigh(BEAT_HOLD[2])
+  assert.ok(seven.right > 0.95 && seven.left < 0.05, "the seven raises the right side")
+  // During the pump the sides go opposite ways — the meme.
   let crossings = 0
   let prev = 0
   for (let t = 0.645; t <= 0.755; t += 0.001) {
-    const { left, right } = handLift(t)
+    const { left, right } = weigh(t)
     const d = Math.sign(left - right)
     if (prev && d && d !== prev) crossings++
     if (d) prev = d
   }
-  assert.ok(crossings >= 4, "the pump swings the hands past each other (" + crossings + ")")
-  // No jumps anywhere: a hand that teleports between frames reads as a bug.
+  assert.ok(crossings >= 4, "the pump swings the sides past each other (" + crossings + ")")
+  // No jumps anywhere: a side that teleports between frames reads as a bug.
   // 0.001 of the timeline is about one frame of the default 11s clock; the
-  // pump is fast on purpose, but no hand may cover a tenth of its travel in it.
-  let last = handLift(0)
+  // pump is fast on purpose, but no side may cover a tenth of its travel in it.
+  let last = weigh(0)
   for (let t = 0.001; t <= 1; t += 0.001) {
-    const cur = handLift(t)
-    assert.ok(Math.abs(cur.left - last.left) < 0.1 && Math.abs(cur.right - last.right) < 0.1, "hand jumped at " + t)
+    const cur = weigh(t)
+    assert.ok(Math.abs(cur.left - last.left) < 0.1 && Math.abs(cur.right - last.right) < 0.1, "balance jumped at " + t)
     assert.ok(cur.left >= -1e-9 && cur.left <= 1.2 && cur.right >= -1e-9 && cur.right <= 1.2, "lift out of range at " + t)
     last = cur
   }
@@ -127,8 +127,8 @@ const {
   const end = paintAt(1)
   assert.equal(end.title, 1, "the title is fully painted at the end")
   assert.equal(end.poster, 1, "and the small print is up")
-  assert.equal(end.ghost, 1, "the numerals are behind the figure")
-  assert.ok(end.sixAlpha < 1e-9 && end.sevenAlpha < 1e-9, "not in front of it")
+  assert.equal(end.ghost, 1, "the numerals sink into the field")
+  assert.ok(end.sixAlpha < 1e-9 && end.sevenAlpha < 1e-9, "and leave the front for the title")
   for (let t = 0; t <= 1; t += 0.002) {
     const p = paintAt(t)
     for (const k of Object.keys(p)) assert.ok(p[k] >= -1e-9 && p[k] <= 1 + 1e-9, k + " left [0,1] at " + t)
@@ -200,6 +200,9 @@ assert.ok(src.includes('aria-hidden="true"'), "the canvas must be hidden from th
 assert.ok(src.includes('className="sr-only"'), "the poster copy must exist as real text")
 assert.ok(/aria-label=\{playing \? "Pause" : "Play"\}/.test(src), "play/pause must be named")
 assert.ok(src.includes("tabIndex={0}") && src.includes("onKeyDown"), "the stage must be keyboard-reachable")
+
+// No figure, no hands, no stains: the gesture belongs to the numerals.
+assert.doesNotMatch(code, /drawHand|drawArm|paintTorso|splatter|blood|shirt/, "no body parts or gore in the poster")
 
 // Every glyph the defaults ask for must exist, or that letter paints nothing.
 const glyphs = src.slice(src.indexOf("const GLYPHS"), src.indexOf("const SPACE"))
