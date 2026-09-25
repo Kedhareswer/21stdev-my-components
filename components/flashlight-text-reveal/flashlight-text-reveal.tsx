@@ -3,29 +3,46 @@
 import * as React from "react"
 
 /**
- * Mesh Drift Background — soft colour blobs drifting under grain, with a
- * spotlight that follows the cursor. Made for sitting behind a hero or a whole
- * page: children render on top.
+ * Flashlight Text Reveal — words written on a dark wall that you can only read
+ * where your light falls. The wall is a drifting, grainy WebGL shader; the
+ * cursor is a flashlight, and the text layer is masked to the exact falloff of
+ * the shader's spotlight, so the words and the lit wall come up together.
+ * With no pointer over it, the light roams the wall on its own.
  *
  * Self-contained: one fullscreen triangle in a plain WebGL1 context, no
  * libraries, no CSS file. The fragment shader is the "Mesh drift" recipe from
- * the 21st.dev Shader Builder, unchanged; every prop maps onto one slot of its
- * packed uniforms, so the CPU only advances a clock and eases the cursor.
+ * the 21st.dev Shader Builder, unchanged. The text is real DOM text, so it is
+ * selectable and screen readers get all of it, lit or not.
  *
- * Pauses while the tab is hidden. Honours prefers-reduced-motion by drawing a
- * still frame (the spotlight still follows the pointer, one frame per move).
+ * Pauses while the tab is hidden. Honours prefers-reduced-motion: the wall
+ * stops, the light stops roaming and parks in the centre, and the pointer
+ * still moves it one frame per move.
  */
 
-export type MeshDriftCursor = "off" | "push" | "repel" | "swirl" | "ripple" | "spotlight"
-
-export type MeshDriftBackgroundProps = {
-  /** Blob colours, low to high. Hex (#rgb or #rrggbb), 1 to 8 of them. */
+export type FlashlightTextRevealProps = {
+  /** What is written on the wall. Line breaks ("\n") are kept. */
+  text?: string
+  /** Colour of the writing where it is lit. */
+  textColor?: string
+  /** How much of the writing shows with no light on it, 0..1. */
+  ghost?: number
+  /** Any heavy face; nothing is loaded. */
+  fontFamily?: string
+  /** CSS font size of the writing. */
+  fontSize?: string
+  /** Let the light roam the wall when no pointer is over it. */
+  wander?: boolean
+  /** Light radius, in units of the wall's short side. */
+  radius?: number
+  /** How much the light brightens the wall itself. */
+  strength?: number
+  /** Wall colours, low to high. Hex (#rgb or #rrggbb), 1 to 8 of them. */
   colors?: string[]
-  /** Clock multiplier. The shader's time is seconds × speed. */
+  /** Clock multiplier for the wall. The shader's time is seconds × speed. */
   speed?: number
-  /** Field zoom. Higher packs the blobs tighter. */
+  /** Wall zoom. Higher packs the blobs tighter. */
   scale?: number
-  /** How far the blobs wander from the centre. */
+  /** How far the wall's blobs wander from the centre. */
   intensity?: number
   /** Domain warp. 0 keeps the blobs round. */
   warp?: number
@@ -51,12 +68,7 @@ export type MeshDriftBackgroundProps = {
   rotation?: number
   /** Mix colours in OKLab instead of sRGB. */
   oklab?: boolean
-  /** What the pointer does to the field. */
-  cursor?: MeshDriftCursor
-  cursorStrength?: number
-  /** Effect radius, in units of the canvas's short side. */
-  cursorRadius?: number
-  /** Freeze the clock. The cursor still works. */
+  /** Freeze the wall and park the light. The pointer still moves it. */
   paused?: boolean
   /**
    * Explicit height. The canvas fills this box, so it must be a definite
@@ -65,18 +77,13 @@ export type MeshDriftBackgroundProps = {
    */
   height?: string
   className?: string
-  /** Rendered above the shader. */
+  /** Always visible, above the wall and the writing (a nav, a button). */
   children?: React.ReactNode
 }
 
-const CURSOR_EFFECTS: Record<MeshDriftCursor, number> = {
-  off: -1,
-  push: 0,
-  repel: 1,
-  swirl: 2,
-  ripple: 3,
-  spotlight: 4,
-}
+// The shader's spotlight is cursor effect 4.
+const SPOTLIGHT = 4
+
 
 const VERT = `
 attribute vec2 a_position;
@@ -359,12 +366,33 @@ void main() {
 }
 `
 
-// #region hexToRgb
+// #region light
 function hexToRgb(hex: string): [number, number, number] {
   let h = hex.trim().replace(/^#/, "")
   if (h.length === 3) h = h.replace(/./g, "$&$&")
   const n = /^[0-9a-f]{6}$/i.test(h) ? parseInt(h, 16) : 0
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+}
+
+// The shader's light falls off as 1 - smoothstep(0, radius, d). These are that
+// curve sampled at 0, 1/4, 1/2, 3/4 and 1, so the CSS mask on the writing
+// matches the lit wall under it.
+const FALLOFF = [1, 0.84375, 0.5, 0.15625, 0]
+
+/** CSS mask for the writing: the spotlight's falloff, never below ghost. */
+function lightMask(x: number, y: number, radius: number, presence: number, ghost: number) {
+  const stops = FALLOFF.map(
+    (f, i) => "rgba(0,0,0," + (ghost + (1 - ghost) * f * presence).toFixed(3) + ") " + i * 25 + "%",
+  )
+  return (
+    "radial-gradient(circle " + Math.max(radius, 1).toFixed(1) + "px at " +
+    x.toFixed(1) + "px " + y.toFixed(1) + "px, " + stops.join(", ") + ")"
+  )
+}
+
+/** Where the light roams on its own, in -1..1 canvas space (y up). */
+function wanderAt(t: number): [number, number] {
+  return [0.62 * Math.sin(t * 0.37), 0.5 * Math.sin(t * 0.53 + 1.3)]
 }
 // #endregion
 
@@ -412,7 +440,15 @@ function usePrefersReducedMotion() {
   return reduced
 }
 
-export default function MeshDriftBackground({
+export default function FlashlightTextReveal({
+  text = "WHAT YOU\nSEEK IS\nSEEKING\nYOU",
+  textColor = "#ececec",
+  ghost = 0.03,
+  fontFamily = '"Anton", "Bebas Neue", "Oswald", Impact, "Arial Narrow Bold", sans-serif',
+  fontSize = "clamp(4rem, 15vw, 13rem)",
+  wander = true,
+  radius = 0.35,
+  strength = 1,
   colors = ["#101010", "#3A3A3A"],
   speed = 0.86,
   scale = 2.5,
@@ -430,15 +466,13 @@ export default function MeshDriftBackground({
   seed = 1,
   rotation = 0,
   oklab = false,
-  cursor = "spotlight",
-  cursorStrength = 1,
-  cursorRadius = 0.35,
   paused = false,
   height = "100svh",
   className = "",
   children,
-}: MeshDriftBackgroundProps) {
+}: FlashlightTextRevealProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
+  const writingRef = React.useRef<HTMLDivElement>(null)
   const reduced = usePrefersReducedMotion()
   const [generation, setGeneration] = React.useState(0)
   const [failed, setFailed] = React.useState(false)
@@ -449,6 +483,10 @@ export default function MeshDriftBackground({
   // WebGL.
   const settings = {
     palette,
+    ghost,
+    wander,
+    radius,
+    strength,
     speed,
     scale,
     intensity,
@@ -465,9 +503,6 @@ export default function MeshDriftBackground({
     seed,
     rotation,
     oklab,
-    cursor,
-    cursorStrength,
-    cursorRadius,
     paused,
   }
   const settingsRef = React.useRef(settings)
@@ -512,8 +547,11 @@ export default function MeshDriftBackground({
     const colorData = new Float32Array(24)
 
     const pointer = { x: 0, y: 0, inside: false }
+    // Where the light is, eased toward the pointer or the roaming path.
+    const light = { x: 0, y: 0 }
     let presence = 0
     let time = 0
+    let roam = 0
     let last = 0
     let raf = 0
 
@@ -535,11 +573,20 @@ export default function MeshDriftBackground({
 
       const s = settingsRef.current
       const moving = !reduced && !s.paused
-      if (moving) time += dt * s.speed
-      // Ease the spotlight in and out instead of popping it. Under reduced
-      // motion it snaps, since there is no loop to finish the ease.
-      const target = pointer.inside ? 1 : 0
-      presence = reduced ? target : presence + (target - presence) * (1 - Math.exp(-dt / 0.18))
+      if (moving) {
+        time += dt * s.speed
+        roam += dt
+      }
+
+      // Pointer first; otherwise roam, or park in the centre when nothing may
+      // move. The light is on whenever it has somewhere to be.
+      const [tx, ty] = pointer.inside ? [pointer.x, pointer.y] : s.wander && moving ? wanderAt(roam) : [0, 0]
+      const on = pointer.inside || s.wander ? 1 : 0
+      // Under reduced motion it snaps, since there is no loop to finish an ease.
+      const k = reduced ? 1 : 1 - Math.exp(-dt / (pointer.inside ? 0.08 : 0.6))
+      light.x += (tx - light.x) * k
+      light.y += (ty - light.y) * k
+      presence += (on - presence) * (reduced ? 1 : 1 - Math.exp(-dt / 0.25))
 
       colorData.fill(0)
       s.palette.forEach((hex, i) => colorData.set(hexToRgb(hex), i * 3))
@@ -551,12 +598,28 @@ export default function MeshDriftBackground({
       gl.uniform4f(loc.surface, s.detail, s.contrast, s.brightness, s.saturation)
       gl.uniform4f(loc.finish, s.hue, s.vignette, s.blur, s.grain)
       gl.uniform4f(loc.transform, s.seed, s.rotation, s.drift, s.oklab ? 1 : 0)
-      gl.uniform4f(loc.space, 0, 0, pointer.x, pointer.y)
-      const effect = CURSOR_EFFECTS[s.cursor] ?? -1
-      gl.uniform4f(loc.cursor, effect < 0 ? 0 : presence, effect, s.cursorStrength, s.cursorRadius)
+      gl.uniform4f(loc.space, 0, 0, light.x, light.y)
+      gl.uniform4f(loc.cursor, presence, SPOTLIGHT, s.strength, s.radius)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
 
-      const easing = Math.abs(target - presence) > 0.001
+      // The same light, in CSS pixels, cut out of the writing.
+      const writing = writingRef.current
+      if (writing) {
+        const w = canvas.clientWidth
+        const h = canvas.clientHeight
+        const mask = lightMask(
+          ((light.x + 1) / 2) * w,
+          ((1 - light.y) / 2) * h,
+          s.radius * Math.min(w, h),
+          presence,
+          s.ghost,
+        )
+        writing.style.maskImage = mask
+        writing.style.webkitMaskImage = mask
+      }
+
+      const easing =
+        Math.abs(on - presence) > 0.001 || Math.abs(tx - light.x) > 0.0005 || Math.abs(ty - light.y) > 0.0005
       if ((moving || easing) && !document.hidden) raf = requestAnimationFrame(draw)
     }
 
@@ -569,8 +632,8 @@ export default function MeshDriftBackground({
     const observer = new ResizeObserver(kick)
     observer.observe(canvas)
 
-    // Content sits above the canvas and would swallow its pointer events, so
-    // track the pointer on the window and map it into the canvas box.
+    // The writing and any children sit above the canvas and would swallow its
+    // pointer events, so track the pointer on the window and map it in.
     const onMove = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect()
       pointer.inside =
@@ -625,30 +688,55 @@ export default function MeshDriftBackground({
   // motion); kick() is a no-op when a frame is already queued.
   React.useEffect(() => kickRef.current())
 
+  // Before the loop paints its first mask the writing is a ghost. Without
+  // WebGL it stays lit by the fallback's fixed centre light.
+  const ghostAlpha = "rgba(0,0,0," + ghost + ")"
+  const initialMask = failed
+    ? "radial-gradient(circle at 50% 50%, #000 0%, " + ghostAlpha + " 45%)"
+    : "linear-gradient(" + ghostAlpha + ", " + ghostAlpha + ")"
+
   return (
     <section
       className={"relative w-full overflow-hidden " + className}
       style={{ height, background: palette[0] }}
     >
       {failed ? (
-        // No WebGL: a still of the same palette beats a flat box.
+        // No WebGL: the wall as a gradient, with a fixed light in the middle.
         <div
           aria-hidden="true"
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle at 30% 35%, " +
+              "radial-gradient(circle at 50% 50%, " +
               (palette[palette.length - 1] ?? palette[0]) +
-              " 0%, transparent 55%), radial-gradient(circle at 72% 68%, " +
-              (palette[1] ?? palette[0]) +
-              " 0%, transparent 50%), " +
-              palette[0],
+              " 0%, " +
+              palette[0] +
+              " 45%)",
           }}
         />
       ) : (
         <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 block h-full w-full" />
       )}
-      <div className="relative z-10 h-full w-full">{children}</div>
+
+      <div
+        ref={writingRef}
+        className="absolute inset-0 flex items-center justify-center px-6 text-center"
+        style={{
+          color: textColor,
+          fontFamily,
+          fontSize,
+          lineHeight: 0.88,
+          letterSpacing: "0.01em",
+          whiteSpace: "pre-line",
+          maskImage: initialMask,
+          WebkitMaskImage: initialMask,
+        }}
+      >
+        <p className="m-0 font-normal uppercase">{text}</p>
+      </div>
+
+      {children && <div className="relative z-10 h-full w-full">{children}</div>}
     </section>
   )
 }
+
