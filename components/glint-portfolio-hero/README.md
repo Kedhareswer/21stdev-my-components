@@ -42,7 +42,7 @@ import GlintPortfolioHero from "@/components/ui/glint-portfolio-hero"
 | Prop | Default | Notes |
 |---|---|---|
 | `title` | `"PORTFOLIO"` | Laid out to fill the width; I stays narrow, M/W wide. |
-| `name` | `"Rin Aoki"` | Top-left reads "`name`’s Portfolio". |
+| `name` | `"Kedhareswer"` | Top-left reads "`name`’s Portfolio". |
 | `caption` | none | Replaces the whole top-left line. |
 | `edition` | `"2026 ver."` | Top-right. Empty hides it. |
 | `skyFrom` / `skyTo` | `"#3a7ff6"` / `"#eceee2"` | Sky gradient. |

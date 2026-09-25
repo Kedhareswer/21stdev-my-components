@@ -468,7 +468,7 @@ const STILL = 0.56 // the pose held when paused or with reduced motion
 
 export default function GlintPortfolioHero({
   title = "PORTFOLIO",
-  name = "Rin Aoki",
+  name = "Kedhareswer",
   caption,
   edition = "2026 ver.",
   skyFrom = "#3a7ff6",
