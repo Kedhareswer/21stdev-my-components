@@ -9,65 +9,61 @@ const src = readFileSync(new URL("../components/tiger-tear-reveal/tiger-tear-rev
 const start = src.indexOf("// #region tear")
 const end = src.indexOf("// #endregion")
 assert.ok(start > -1 && end > start, "tear region markers missing")
-const { rng, smooth, easeOutBack, scrollProgress, stages, profile, tearEdges, area } = await import(
+const { rng, smooth, easeOutBack, scrollProgress, stages, tearLine, pieceMotion, fibreWidths } = await import(
   "data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end)))
 )
 
-// ---- the page starts as a plain slogan: no hole, no crack -------------------
+// ---- the page starts as a plain slogan: nothing torn, nothing moved -------------
 {
   const s = stages(0)
-  assert.deepEqual([s.crack, s.open, s.pop, s.shake], [0, 0, 0, 0], "nothing happens before the scroll")
-  const e = tearEdges(0, 560, 124)
-  assert.equal(area(e.top.concat([...e.bottom].reverse())), 0, "a closed tear has no area")
+  assert.deepEqual([s.crack, s.open, s.rise, s.pop, s.shake], [0, 0, 0, 0, 0], "nothing happens before the scroll")
+  const m = pieceMotion(0)
+  for (const side of ["top", "bottom"]) {
+    assert.deepEqual([m[side].dx, m[side].dy, m[side].rot].map(Math.abs), [0, 0, 0], `${side} half is still at rest`)
+  }
+  assert.ok(fibreWidths(40, 0).every((w) => w === 0), "no exposed paper core before the tear")
 }
 
-// ---- and ends fully torn with the eyes out ----------------------------------
+// ---- and ends torn apart, tiger up, eyes open ------------------------------------
 {
   const s = stages(1)
-  assert.equal(s.open, 1)
-  assert.equal(s.pop, 1)
-  assert.equal(s.shake, 0, "the jolt is over by the end")
+  assert.deepEqual([s.open, s.rise, s.pop, s.shake], [1, 1, 1, 0])
+  const m = pieceMotion(1)
+  assert.ok(m.top.dy < -40 && m.bottom.dy > 40, "the halves pull apart: top up, bottom down")
+  assert.ok(m.top.rot * m.bottom.rot < 0, "and tip in opposite directions, like paper being ripped")
 }
 
-// ---- the beats come in order: crack, then rip, then eyes --------------------
+// ---- the beats come in order: crack, tear, rise, eyes -----------------------------
 {
   const firstAt = (k) => { for (let p = 0; p <= 1; p += 0.001) if (stages(p)[k] > 0.01) return p; return 2 }
-  assert.ok(firstAt("crack") < firstAt("open") && firstAt("open") < firstAt("pop"), "crack, open, pop")
-  let prev = -1
-  for (let p = 0; p <= 1; p += 0.01) {
-    const o = stages(p).open
-    assert.ok(o >= prev - 1e-12, "the tear never closes while scrolling forward")
-    prev = o
-  }
-}
-
-// ---- the hole only grows, and its edges never cross -------------------------
-{
-  let prev = -1
-  for (const o of [0, 0.1, 0.3, 0.5, 0.8, 1]) {
-    const e = tearEdges(o, 560, 124)
-    for (let i = 0; i < e.top.length; i++) {
-      assert.ok(e.top[i][1] <= 0 && e.bottom[i][1] >= 0, "top edge above the axis, bottom below")
-      assert.ok(e.curlTop[i] >= 0 && e.curlTop[i] <= -e.top[i][1] * 0.42 + 1e-9, "a curl never rolls past the hole")
-      assert.ok(e.curlBottom[i] >= 0 && e.curlBottom[i] <= e.bottom[i][1] * 0.42 + 1e-9)
+  const order = ["crack", "open", "rise", "pop"].map(firstAt)
+  assert.deepEqual([...order].sort((a, b) => a - b), order, `beats out of order: ${order}`)
+  for (const k of ["open", "rise", "pop"]) {
+    let prev = -1
+    for (let p = 0; p <= 1; p += 0.01) {
+      const v = stages(p)[k]
+      assert.ok(v >= prev - 1e-12, `${k} never reverses while scrolling forward`)
+      prev = v
     }
-    const a = area(e.top.concat([...e.bottom].reverse()))
-    assert.ok(a >= prev, `hole area must grow with open (${a} < ${prev} at ${o})`)
-    prev = a
   }
-  const e = tearEdges(1, 560, 124)
-  assert.ok(Math.abs(e.top[0][1]) < 1e-9, "the tear is closed at its ends")
-  assert.ok(Math.abs(e.bottom.at(-1)[1]) < 1e-9)
 }
 
-// ---- deterministic: same tear every visit -----------------------------------
-assert.deepEqual(tearEdges(0.7, 560, 124), tearEdges(0.7, 560, 124))
+// ---- the tear crosses the whole sheet, left to right, through the word ------------
+{
+  const line = tearLine()
+  for (let i = 1; i < line.length; i++) assert.ok(line[i][0] > line[i - 1][0], "x always increases")
+  assert.ok(line[0][0] < 36 && line.at(-1)[0] > 964, "it runs off both sides of the frame")
+  const mid = line.filter(([x]) => x > 60 && x < 940)
+  assert.ok(mid.every(([, y]) => y > 227 && y < 404), "inside the frame it stays within the word's cap height")
+  assert.deepEqual(tearLine(), line, "the same tear every visit")
+}
+
+// ---- deterministic helpers ---------------------------------------------------------
 {
   const a = rng(5), b = rng(5)
   for (let i = 0; i < 10; i++) assert.equal(a(), b())
+  assert.ok(fibreWidths(80, 1).every((w) => w > 0 && w < 12), "the paper core is a thin white band")
 }
-
-// ---- small helpers -----------------------------------------------------------
 assert.equal(scrollProgress(0, 2000, 800), 0)
 assert.equal(scrollProgress(-1200, 2000, 800), 1)
 assert.equal(scrollProgress(-600, 2000, 800), 0.5)
@@ -76,7 +72,6 @@ assert.equal(scrollProgress(0, 800, 800), 1, "no scroll range: treat as revealed
 assert.equal(smooth(0, 1, 0.5), 0.5)
 assert.ok(Math.abs(easeOutBack(1) - 1) < 1e-9 && Math.abs(easeOutBack(0)) < 1e-9)
 assert.ok(Math.max(...Array.from({ length: 101 }, (_, i) => easeOutBack(i / 100))) > 1, "the eyes overshoot, then settle")
-assert.ok(profile(0) === 0 && profile(1) < 1e-6 && profile(0.5) > 0.9)
 
 // ---- install safety -----------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
@@ -91,6 +86,7 @@ assert.ok(/className="sticky top-0/.test(src), "the stage pins while the tear pl
 assert.ok(src.includes('maxWidth: "none"'), "Preflight's max-width must be overridden on the svg")
 assert.ok(src.includes("prefers-reduced-motion") && /c\.reduced \?/.test(src), "reduced motion takes its own path")
 assert.ok(src.includes("aria-label"), "the torn poster needs a text alternative")
+assert.ok(/s\.open > 0 \?/.test(src), "the sheet is drawn whole until it tears, so no seam shows at rest")
 for (const gone of ["cancelAnimationFrame(raf)", "io.disconnect()"]) assert.ok(src.includes(gone), `cleanup is missing ${gone}`)
 assert.ok(/React\.useId\(\)/.test(src), "svg ids must be unique so two instances do not share masks")
 

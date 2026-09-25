@@ -3,13 +3,14 @@
 import * as React from "react"
 
 /**
- * Tiger Tear Reveal: a poster word that rips open as you scroll.
+ * Tiger Tear Reveal: a poster that rips in two as you scroll.
  *
  * The page starts as a plain slogan: a small tagline over one huge red word.
- * Scroll, and a crack runs across the word, the paper tears open along a
- * jagged diagonal with its edges curling back, and a tiger's eyes push through
- * the hole. Once they are out they follow your pointer and blink; click them
- * and they squint at you.
+ * Scroll, and a crack runs out from the middle of the word, the sheet tears
+ * in two along it, and the halves pull apart, the top lifting and the bottom
+ * dropping, each tipping like real paper. From behind, a tiger rises into the
+ * gap and opens its eyes. Once it is looking, the eyes follow your pointer and
+ * blink; click and they squint at you. Scroll back up and the paper closes.
  *
  * Everything is SVG built from numbers: the fur, the stripes, the irises, the
  * torn paper. No images, no fonts to load, React is the only import.
@@ -22,7 +23,7 @@ export interface TigerTearRevealProps {
   tagline?: string
   /** Word colour. */
   ink?: string
-  /** Paper colour, the page behind everything. */
+  /** Paper colour, the sheet that tears. */
   paper?: string
   /** Tagline colour. */
   taglineColor?: string
@@ -66,7 +67,7 @@ export function smooth(a: number, b: number, x: number) {
   return t * t * (3 - 2 * t)
 }
 
-/** Overshoot ease: the eyes arrive a little too far, then settle. */
+/** Overshoot ease: the eyes open a little too wide, then settle. */
 export function easeOutBack(t: number) {
   const c = 1.70158
   const u = clamp01(t) - 1
@@ -80,78 +81,58 @@ export function scrollProgress(top: number, height: number, viewport: number) {
   return clamp01(-top / range)
 }
 
-/** One scroll value drives four beats. */
+/** One scroll value drives five beats. */
 export function stages(p: number) {
   return {
-    crack: smooth(0.04, 0.24, p), // a hairline runs across the word
-    open: smooth(0.2, 0.68, p), // the paper rips apart
-    pop: smooth(0.5, 0.86, p), // the eyes push through
-    shake: smooth(0.18, 0.26, p) * (1 - smooth(0.3, 0.4, p)), // the jolt of the rip
+    crack: smooth(0.03, 0.2, p), // a crack runs out from the middle of the word
+    open: smooth(0.18, 0.62, p), // the sheet tears and the halves pull apart
+    rise: smooth(0.26, 0.74, p), // the tiger comes up from behind
+    pop: smooth(0.58, 0.88, p), // and opens its eyes
+    shake: smooth(0.16, 0.22, p) * (1 - smooth(0.26, 0.36, p)), // the jolt of the rip
   }
-}
-
-/** Opening along the tear: closed at both ends, widest a little right of centre. */
-export function profile(t: number) {
-  if (t <= 0 || t >= 1) return 0 // sin(PI) is not exactly 0 in floating point
-  return Math.pow(Math.sin(Math.PI * clamp01(t)), 0.55) * (0.74 + 0.38 * t)
 }
 
 /**
- * The two torn edges, in axis space (u along the tear, v across it, y down).
- * top is always at or above 0 and bottom at or below it, so at open = 0 they
- * meet and the hole has no area. `curl` is how much paper rolls back per point.
+ * The tear, left to right across the whole sheet: a slight rising diagonal,
+ * a slow wander, fine fibres and the odd big tooth. `x` always increases.
  */
-export function tearEdges(open: number, len: number, half: number, seed = 11, n = 64) {
+export function tearLine(seed = 11, from = -800, to = 1800, step = 9, cx = 500, cy = 318, angle = -7): Pt[] {
   const r = rng(seed)
-  const top: Pt[] = []
-  const bottom: Pt[] = []
-  const curlTop: number[] = []
-  const curlBottom: number[] = []
-  const jag = 5 * Math.min(1, open * 3)
-  for (let i = 0; i <= n; i++) {
-    const t = i / n
-    const u = (t - 0.5) * len
-    const tooth = () => {
-      const v = (r() - 0.5) * 2
-      return r() < 0.12 ? v * 2.6 : v
-    }
-    const jt = tooth()
-    const jb = tooth()
-    // slow wander, so the edge reads as ripped paper rather than a saw
-    const wob = Math.sin(t * 13.3 + seed) * 1.6 + Math.sin(t * 4.1) * 2.2
-    const w = open * half * profile(t)
-    const vt = -Math.max(0, w + jag * (jt + wob * 0.6) * Math.min(1, profile(t) * 3))
-    const vb = Math.max(0, w + jag * (jb - wob * 0.4) * Math.min(1, profile(t) * 3))
-    top.push([u, vt])
-    bottom.push([u, vb])
-    // the paper rolls back in a few broad curls, not per-tooth
-    const curl = (ph: number) => Math.max(0, 0.55 + 0.55 * Math.sin(t * 8.5 + ph) + 0.25 * Math.sin(t * 21 + ph * 2))
-    const roll = open * 34 * profile(t)
-    curlTop.push(Math.min(-vt * 0.42, roll * curl(seed)))
-    curlBottom.push(Math.min(vb * 0.42, roll * curl(seed + 2.3)))
+  const slope = Math.tan((angle * Math.PI) / 180)
+  const out: Pt[] = []
+  for (let x = from; x <= to; x += step) {
+    const fibre = (r() - 0.5) * 5
+    const tooth = r() < 0.09 ? (r() - 0.5) * 26 : 0
+    const wander = Math.sin(x * 0.019 + seed) * 10 + Math.sin(x * 0.053 + seed * 2) * 4
+    out.push([x, cy + (x - cx) * slope + wander + fibre + tooth])
   }
-  return { top, bottom, curlTop, curlBottom }
+  return out
 }
 
-/** Area of a closed polygon (shoelace). */
-export function area(pts: Pt[]) {
-  let s = 0
-  for (let i = 0; i < pts.length; i++) {
-    const [x1, y1] = pts[i]
-    const [x2, y2] = pts[(i + 1) % pts.length]
-    s += x1 * y2 - x2 * y1
+/** Where each half goes as the tear opens. Both are still at open = 0. */
+export function pieceMotion(open: number) {
+  return {
+    top: { dx: -10 * open, dy: -82 * open, rot: -2.6 * open },
+    bottom: { dx: 12 * open, dy: 78 * open, rot: 2.1 * open },
   }
-  return Math.abs(s) / 2
+}
+
+/** Width of the white paper core exposed along a torn edge. */
+export function fibreWidths(n: number, open: number, seed = 5) {
+  const r = rng(seed)
+  const k = Math.min(1, open * 4)
+  return Array.from({ length: n }, (_, i) => k * (2.5 + 6 * (0.5 + 0.5 * Math.sin(i * 0.37 + seed)) * (0.6 + r() * 0.8)))
 }
 // #endregion
 
 // ---------------------------------------------------------------- geometry
 
 const VIEW_W = 1000
-const VIEW_H = 520
-// the visible frame: cropped to the artwork so it fills small screens
-const FRAME = "36 92 928 380"
-const AXIS = { cx: 492, cy: 318, angle: -12, len: 560, half: 124 }
+const CX = 500
+const CY = 318
+const FAR = 4000 // the paper halves reach well past any screen
+// the visible frame: cropped to the artwork, with room for the halves to part
+const FRAME = "36 44 928 468"
 const EYES: Pt[] = [
   [-138, 6],
   [138, -4],
@@ -179,7 +160,7 @@ function stripe(p0: Pt, p1: Pt, p2: Pt, w: number, n = 18) {
   return d(left.concat(right.reverse()))
 }
 
-/** The whole face's stripes, as one path. Deterministic. */
+/** The face's stripes, and the body stripes running off both sides. Deterministic. */
 function buildStripes() {
   const r = rng(29)
   const j = (a: number) => (r() - 0.5) * a
@@ -201,17 +182,22 @@ function buildStripes() {
     out.push(stripe([s * 182, 74], [s * 226, 120], [s * 312, 156], 12))
     // sides of the nose
     out.push(stripe([s * 64, 22], [s * 50, 88], [s * 42, 178], 8))
+    // the ruff and body beyond the face, out past the edge of any screen
+    for (let k = 0; k < 16; k++) {
+      const x = s * (390 + k * 70 + j(30))
+      out.push(stripe([x + j(40), -330], [x + s * 30 + j(40), j(60)], [x + s * 10 + j(40), 330], 20 + r() * 14))
+    }
   }
   return out.join("")
 }
 
-/** Short hairs that flow outward from the nose, in three tones. */
+/** Short hairs flowing outward from the nose, in three tones. */
 function buildHairs() {
   const r = rng(53)
   const tones = ["", "", ""]
-  for (let i = 0; i < 1300; i++) {
-    const x = (r() - 0.5) * 720
-    const y = (r() - 0.5) * 420
+  for (let i = 0; i < 2600; i++) {
+    const x = (r() - 0.5) * 1900
+    const y = (r() - 0.5) * 480
     const a = Math.atan2(y - 150, x) + (r() - 0.5) * 0.5
     const l = 9 + r() * 12
     const seg = "M" + x.toFixed(1) + " " + y.toFixed(1) + "l" + (Math.cos(a) * l).toFixed(1) + " " + (Math.sin(a) * l).toFixed(1)
@@ -237,15 +223,16 @@ function buildFibres() {
 // (drawn for the right eye; the left one is mirrored).
 const ALMOND = "M-78 10 C-52 -40 30 -56 80 -8 C44 40 -30 50 -78 10Z"
 
-// ---------------------------------------------------------------- the face
+// ---------------------------------------------------------------- the tiger
 
 const Fur = React.memo(function Fur({ id, fur }: { id: string; fur: string }) {
   const stripes = React.useMemo(buildStripes, [])
   const hairs = React.useMemo(buildHairs, [])
   return (
     <g>
-      <rect x={-380} y={-240} width={760} height={480} fill={fur} />
-      <rect x={-380} y={-240} width={760} height={480} fill={"url(#" + id + "-shade)"} />
+      <rect x={-2600} y={-420} width={5200} height={840} fill={fur} />
+      <rect x={-2600} y={-420} width={5200} height={840} fill={"url(#" + id + "-shade)"} />
+      <rect x={-2600} y={-420} width={5200} height={840} fill={"url(#" + id + "-vignette)"} />
       <g filter={"url(#" + id + "-soft)"} fill="#fbf6ec">
         {EYES.map(([x, y], i) => (
           <React.Fragment key={i}>
@@ -293,7 +280,7 @@ function Eye({
       <clipPath id={clip}>
         <path d={ALMOND} />
       </clipPath>
-      {/* dark skin around the eye and the tear-mark toward the nose */}
+      {/* dark skin around the eye, and the tear-mark toward the nose */}
       <path d={ALMOND} fill="#0c0603" stroke="#0c0603" strokeWidth={11} strokeLinejoin="round" />
       <path d="M-80 8 C-86 20 -96 30 -98 44 C-90 34 -80 24 -70 18Z" fill="#0c0603" />
       <g clipPath={"url(#" + clip + ")"}>
@@ -306,13 +293,91 @@ function Eye({
           <ellipse cx={-12} cy={-13} rx={7.5} ry={5.5} fill="#fff" opacity={0.92} />
           <circle cx={9} cy={10} r={2.6} fill="#fff" opacity={0.6} />
         </g>
-        {/* the upper lid's shadow, and the lid itself when it blinks */}
+        {/* the upper lid's shadow, and the lid itself when it closes */}
         <ellipse cx={0} cy={-46} rx={90} ry={34} fill={"url(#" + id + "-lid)"} />
-        <g transform={"translate(0 " + (-62 + blink * 70).toFixed(2) + ")"}>
+        <g transform={"translate(0 " + (-62 + blink * 72).toFixed(2) + ")"}>
           <rect x={-90} y={-80} width={180} height={80} fill="#9c5212" />
           <path d="M-90 0 H90" stroke="#0c0603" strokeWidth={8} />
         </g>
       </g>
+    </g>
+  )
+}
+
+// ---------------------------------------------------------------- the paper
+
+// Where the paper curls back over the gap: [x along the tear, half-width, depth].
+const CURLS: Record<"top" | "bottom", [number, number, number][]> = {
+  top: [
+    [300, 44, 30],
+    [575, 30, 20],
+    [790, 52, 34],
+  ],
+  bottom: [
+    [205, 50, 32],
+    [470, 34, 22],
+    [690, 40, 28],
+  ],
+}
+
+function Half({
+  id,
+  side,
+  line,
+  open,
+  children,
+}: {
+  id: string
+  side: "top" | "bottom"
+  line: Pt[]
+  open: number
+  children: React.ReactNode
+}) {
+  const up = side === "top"
+  const m = pieceMotion(open)[side]
+  const shape = up
+    ? [[line[0][0], -FAR] as Pt, [line[line.length - 1][0], -FAR] as Pt, ...[...line].reverse()]
+    : [...line, [line[line.length - 1][0], FAR] as Pt, [line[0][0], FAR] as Pt]
+  const widths = fibreWidths(line.length, open, up ? 5 : 8)
+  // the white paper core along the edge, on this half's side of it
+  const core = line.concat(line.map(([x, y], i) => [x, y + (up ? -widths[i] : widths[i])] as Pt).reverse())
+  const curls = CURLS[side].map(([cx, hw, depth]) => {
+    const pts = line.filter(([x]) => Math.abs(x - cx) <= hw)
+    const back = pts.map(([x, y]) => {
+      const s = Math.cos(((x - cx) / hw) * (Math.PI / 2))
+      return [x + (up ? 6 : -6) * s * open, y + (up ? 1 : -1) * depth * s * s * Math.min(1, open * 2.5)] as Pt
+    })
+    return d(pts.concat(back.reverse()))
+  })
+  const transform =
+    "translate(" + m.dx.toFixed(2) + " " + m.dy.toFixed(2) + ") rotate(" + m.rot.toFixed(3) + " " + CX + " " + CY + ")"
+  const clip = id + "-" + side
+  return (
+    <g transform={transform}>
+      {/* the half's own shadow on the tiger */}
+      {open > 0 ? (
+        <path
+          d={d(line, false)}
+          fill="none"
+          stroke="#000"
+          strokeOpacity={0.55 * Math.min(1, open * 3)}
+          strokeWidth={22}
+          transform={"translate(0 " + (up ? 10 : -10) + ")"}
+          filter={"url(#" + id + "-soft)"}
+        />
+      ) : null}
+      <clipPath id={clip}>
+        <path d={d(shape)} />
+      </clipPath>
+      <g clipPath={"url(#" + clip + ")"}>{children}</g>
+      {open > 0 ? (
+        <>
+          <path d={d(core)} fill="#ffffff" />
+          {curls.map((c, i) => (
+            <path key={i} d={c} fill={"url(#" + id + "-curl-" + side + ")"} stroke="#fff" strokeWidth={1} />
+          ))}
+        </>
+      ) : null}
     </g>
   )
 }
@@ -343,7 +408,7 @@ export default function TigerTearReveal({
   furColor = "#d9832c",
   fontFamily = '"Anton", Impact, "Bebas Neue", "Oswald", "Arial Narrow", "Arial Black", sans-serif',
   height = "100svh",
-  scrollDistance = "140svh",
+  scrollDistance = "160svh",
   progress,
   hint = true,
   className = "",
@@ -353,6 +418,7 @@ export default function TigerTearReveal({
   const reduced = usePrefersReducedMotion()
   const id = "ttr" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const fibres = React.useMemo(buildFibres, [])
+  const line = React.useMemo(() => tearLine(), [])
   const [f, setF] = React.useState<Frame>({ p: progress ?? 0, look: [0, 0], blink: 0, squint: 0 })
 
   const controlled = progress !== undefined
@@ -387,7 +453,7 @@ export default function TigerTearReveal({
       const target = c.controlled
         ? clamp01(c.progress ?? 0)
         : scrollProgress(root!.getBoundingClientRect().top, root!.offsetHeight, stage!.offsetHeight)
-      p = c.reduced ? (target > 0.3 ? 1 : 0) : p + (target - p) * 0.16
+      p = c.reduced ? (target > 0.3 ? 1 : 0) : p + (target - p) * 0.14
       if (Math.abs(target - p) < 0.0005) p = target
 
       // where the eyes look: the pointer if there is one, else a wandering gaze
@@ -439,20 +505,45 @@ export default function TigerTearReveal({
   }, [])
 
   const s = stages(f.p)
-  const edges = tearEdges(s.open, AXIS.len, AXIS.half)
-  const hole = edges.top.concat([...edges.bottom].reverse())
-  const flapTop = edges.top.concat(edges.top.map(([u, v], i) => [u, v + edges.curlTop[i]] as Pt).reverse())
-  const flapBottom = edges.bottom.concat(edges.bottom.map(([u, v], i) => [u, v - edges.curlBottom[i]] as Pt).reverse())
-  const crackN = Math.round(s.crack * 64)
-  const crack = tearEdges(0.02, AXIS.len, AXIS.half, 11).top.slice(0, crackN + 1).map(([u], i) => [u, Math.sin(i * 2.7) * 4 + Math.sin(i * 0.9) * 3] as Pt)
-
   const pop = reduced ? s.pop : easeOutBack(s.pop)
-  const eyeScale = 0.62 + 0.36 * pop
-  const zoom = 1.22 - 0.22 * s.open
-  const pupil = 1.25 - 0.45 * s.pop + 0.35 * f.squint
-  const blink = Math.max(f.blink, f.squint * 0.45)
-  const shake = reduced ? 0 : Math.sin(f.p * 900) * 5 * s.shake
-  const axis = "translate(" + AXIS.cx + " " + AXIS.cy + ") rotate(" + AXIS.angle + ")"
+  const eyeScale = 0.9 + 0.1 * pop
+  const pupil = 1.3 - 0.5 * s.pop + 0.35 * f.squint
+  // the eyes are shut until the tiger is up, then they open
+  const blink = Math.max(1 - clamp01(pop), f.blink, f.squint * 0.45)
+  const rise = (1 - s.rise) * 150
+  const shake = reduced ? 0 : Math.sin(f.p * 900) * 6 * s.shake
+  const crackReach = s.crack * 620
+  const crack = line.filter(([x]) => Math.abs(x - CX) <= crackReach)
+  const tiger =
+    "translate(" + CX + " " + (CY + rise).toFixed(2) + ") rotate(-7) scale(" + (1.34 - 0.06 * s.rise).toFixed(4) + ")"
+
+  const sheet = (
+    <>
+      <rect x={-FAR} y={-FAR} width={FAR * 2 + VIEW_W} height={FAR * 2} fill={paper} />
+      {tagline ? (
+        <text
+          x={CX}
+          y={150}
+          textAnchor="middle"
+          fill={taglineColor}
+          style={{ font: '700 32px "Helvetica Neue", Helvetica, Arial, sans-serif', letterSpacing: "0.42em" }}
+        >
+          {tagline}
+        </text>
+      ) : null}
+      <text
+        x={CX}
+        y={404}
+        textAnchor="middle"
+        textLength={880}
+        lengthAdjust="spacingAndGlyphs"
+        fill={ink}
+        style={{ fontFamily, fontSize: 250, fontWeight: 400, letterSpacing: 0 }}
+      >
+        {word}
+      </text>
+    </>
+  )
 
   return (
     <section
@@ -472,7 +563,7 @@ export default function TigerTearReveal({
           viewBox={FRAME}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label={(tagline ? tagline + ". " : "") + word + ", torn open to reveal a tiger's eyes."}
+          aria-label={(tagline ? tagline + ". " : "") + word + ", torn in two by a tiger looking through."}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", maxWidth: "none", display: "block" }}
         >
           <defs>
@@ -481,6 +572,10 @@ export default function TigerTearReveal({
               <stop offset="0.45" stopColor="#ffd08a" stopOpacity={0.12} />
               <stop offset="1" stopColor="#2a1203" stopOpacity={0.5} />
             </linearGradient>
+            <radialGradient id={id + "-vignette"} cx="0.5" cy="0.5" r="0.5" gradientTransform="translate(0.5 0.5) scale(0.25 1) translate(-0.5 -0.5)">
+              <stop offset="0.5" stopColor="#1a0a02" stopOpacity={0} />
+              <stop offset="1" stopColor="#1a0a02" stopOpacity={0.55} />
+            </radialGradient>
             <radialGradient id={id + "-iris"}>
               <stop offset="0" stopColor="#fff0a8" />
               <stop offset="0.35" stopColor={eyeColor} />
@@ -491,22 +586,20 @@ export default function TigerTearReveal({
               <stop offset="0" stopColor="#000" stopOpacity={0.75} />
               <stop offset="1" stopColor="#000" stopOpacity={0} />
             </linearGradient>
-            <linearGradient id={id + "-flap"} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={id + "-curl-top"} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="#ffffff" />
-              <stop offset="1" stopColor="#dedad3" />
+              <stop offset="1" stopColor="#d9d4cb" />
             </linearGradient>
-            <filter id={id + "-soft"} x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="7" />
+            <linearGradient id={id + "-curl-bottom"} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stopColor="#ffffff" />
+              <stop offset="1" stopColor="#d9d4cb" />
+            </linearGradient>
+            <filter id={id + "-soft"} x="-20%" y="-50%" width="140%" height="200%">
+              <feGaussianBlur stdDeviation="8" />
             </filter>
             <filter id={id + "-rough"} x="-10%" y="-10%" width="120%" height="120%">
               <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="4" />
               <feDisplacementMap in="SourceGraphic" scale="9" />
-            </filter>
-            <filter id={id + "-shadowDown"} x="-10%" y="-40%" width="120%" height="180%">
-              <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#000" floodOpacity="0.45" />
-            </filter>
-            <filter id={id + "-shadowUp"} x="-10%" y="-80%" width="120%" height="180%">
-              <feDropShadow dx="0" dy="-7" stdDeviation="6" floodColor="#000" floodOpacity="0.45" />
             </filter>
             <filter id={id + "-glow"} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="9" result="b" />
@@ -515,93 +608,58 @@ export default function TigerTearReveal({
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <clipPath id={id + "-hole"}>
-              <path transform={axis} d={d(hole)} />
-            </clipPath>
-            <mask id={id + "-paper"} maskUnits="userSpaceOnUse" x={0} y={0} width={VIEW_W} height={VIEW_H}>
-              <rect width={VIEW_W} height={VIEW_H} fill="#fff" />
-              <path transform={axis} d={d(hole)} fill="#000" />
-            </mask>
           </defs>
 
           <g transform={"translate(" + shake.toFixed(2) + " " + (shake * 0.4).toFixed(2) + ")"}>
-            {tagline ? (
-              <text
-                x={VIEW_W / 2}
-                y={148}
-                textAnchor="middle"
-                fill={taglineColor}
-                style={{ font: '700 32px "Helvetica Neue", Helvetica, Arial, sans-serif', letterSpacing: "0.42em" }}
-              >
-                {tagline}
-              </text>
-            ) : null}
-
-            {/* what is behind the paper */}
+            {/* behind the paper: the tiger, rising into the gap */}
             {s.open > 0 ? (
-              <g clipPath={"url(#" + id + "-hole)"}>
-                <g transform={axis + " scale(" + zoom.toFixed(4) + ")"}>
-                  <Fur id={id} fur={furColor} />
-                  <g filter={s.pop > 0.02 ? "url(#" + id + "-glow)" : undefined} opacity={0.35 + 0.65 * smooth(0, 0.4, s.pop)}>
-                    {EYES.map(([x, y], i) => (
-                      <Eye
-                        key={i}
-                        id={id}
-                        x={x}
-                        y={y}
-                        flip={i === 0}
-                        look={f.look}
-                        blink={blink}
-                        pupil={pupil}
-                        scale={eyeScale}
-                        fibres={fibres}
-                      />
-                    ))}
-                  </g>
+              <g transform={tiger}>
+                <Fur id={id} fur={furColor} />
+                <g filter={s.pop > 0.02 ? "url(#" + id + "-glow)" : undefined}>
+                  {EYES.map(([x, y], i) => (
+                    <Eye
+                      key={i}
+                      id={id}
+                      x={x}
+                      y={y}
+                      flip={i === 0}
+                      look={f.look}
+                      blink={blink}
+                      pupil={pupil}
+                      scale={eyeScale}
+                      fibres={fibres}
+                    />
+                  ))}
                 </g>
-                {/* depth: the hole is darker toward its edges */}
-                <path transform={axis} d={d(hole)} fill="none" stroke="#000" strokeOpacity={0.35} strokeWidth={26} filter={"url(#" + id + "-soft)"} />
               </g>
             ) : null}
 
-            {/* the paper with the word on it, with the hole cut out */}
-            <g mask={"url(#" + id + "-paper)"}>
-              <text
-                x={VIEW_W / 2}
-                y={404}
-                textAnchor="middle"
-                textLength={880}
-                lengthAdjust="spacingAndGlyphs"
-                fill={ink}
-                style={{ fontFamily, fontSize: 250, fontWeight: 400, letterSpacing: 0 }}
-              >
-                {word}
-              </text>
-            </g>
+            {/* the sheet: whole until it tears (two clipped halves leave a hairline seam),
+                then in two halves that part along the tear */}
+            {s.open > 0 ? (
+              <>
+                <Half id={id} side="top" line={line} open={s.open}>
+                  {sheet}
+                </Half>
+                <Half id={id} side="bottom" line={line} open={s.open}>
+                  {sheet}
+                </Half>
+              </>
+            ) : (
+              sheet
+            )}
 
-            <g transform={axis}>
-              {/* the crack, before it gives way */}
-              {s.crack > 0 && s.open < 0.2 ? (
-                <path d={d(crack, false)} fill="none" stroke="#1d0f07" strokeWidth={2.2} strokeLinejoin="bevel" opacity={1 - s.open * 5} />
-              ) : null}
-              {s.open > 0 ? (
-                <>
-                  {/* exposed paper fibres along the torn edge */}
-                  <path d={d(edges.top, false)} fill="none" stroke="#fff" strokeWidth={3} strokeLinejoin="round" opacity={Math.min(1, s.open * 4)} />
-                  <path d={d(edges.bottom, false)} fill="none" stroke="#fff" strokeWidth={3} strokeLinejoin="round" opacity={Math.min(1, s.open * 4)} />
-                  {/* the paper curling back over the hole */}
-                  <path d={d(flapTop)} fill={"url(#" + id + "-flap)"} filter={"url(#" + id + "-shadowDown)"} />
-                  <path d={d(flapBottom)} fill={"url(#" + id + "-flap)"} filter={"url(#" + id + "-shadowUp)"} />
-                </>
-              ) : null}
-            </g>
+            {/* the crack, running out from the middle before it gives way */}
+            {s.crack > 0 && s.open < 0.15 && crack.length > 1 ? (
+              <path d={d(crack, false)} fill="none" stroke="#1d0f07" strokeWidth={2.4} strokeLinejoin="bevel" opacity={1 - s.open / 0.15} />
+            ) : null}
           </g>
         </svg>
 
         {hint && !controlled ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.35em] motion-reduce:transition-none"
+            className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-2 font-mono text-[10px] uppercase tracking-[0.35em]"
             style={{ color: taglineColor, opacity: Math.max(0, 0.7 - s.crack * 3) }}
           >
             scroll
