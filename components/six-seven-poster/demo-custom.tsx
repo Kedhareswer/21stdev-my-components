@@ -12,7 +12,6 @@ export default function DemoCustom() {
         second="2"
         title="THE ANSWER"
         captions={["First, it was four.", "Then, it was two."]}
-        cast={["Deep Thought", "A Towel", "The Mice"]}
         credit="A film about the question"
         billing="Magrathea presents · a seven and a half million year production · starring a very large computer · a towel · and two small white mice · music by the vogons (regrettably)"
         release="Coming 4.2"

@@ -65,7 +65,7 @@ Give it a parent with a width and nothing else (see `demo.tsx`).
 | `first` / `second` | `"6"` / `"7"` | Any single A–Z or 0–9 glyph. |
 | `title` | `"SIX SE7EN"` | A–Z, 0–9, space, hyphen. In portrait it wraps to two lines at the best-balanced space. |
 | `captions` | six / seven lines | One per beat, joined into the tagline at the end. |
-| `cast` | three names | Top-left billing. Each word gets its own line, as on the reference. |
+| `cast` | `[]` (hidden) | Optional top-left billing, one name per entry; each word gets its own line. |
 | `credit` | `"A film by nobody in particular"` | Top right. |
 | `billing` | parody block | The small print. Hidden below `sm`. |
 | `release` | `"In cinemas 6.7"` | |

@@ -35,7 +35,7 @@ export type SixSevenPosterProps = {
   title?: string
   /** One line for each beat. Joined into the tagline on the last frame. */
   captions?: [string, string]
-  /** Top-left billing, one name per entry. Each word gets its own line. */
+  /** Top-left billing, one name per entry. Each word gets its own line. Empty (the default) shows nothing. */
   cast?: string[]
   /** Top-right credit. */
   credit?: string
@@ -688,7 +688,7 @@ export default function SixSevenPoster({
   second = "7",
   title = "SIX SE7EN",
   captions = ["First, it was six.", "Then, it was seven."],
-  cast = ["The Six", "The Seven", "The Group Chat"],
+  cast = [],
   credit = "A film by nobody in particular",
   billing = "Seven Six Pictures presents · a balanced production · a film about two numbers · starring the six · the seven · and the group chat · music by the pause between them · edited by nobody · directed by the meme",
   release = "In cinemas 6.7",
@@ -1432,7 +1432,7 @@ export default function SixSevenPoster({
       </div>
 
       <div className="sr-only">
-        <p>{cast.join(", ")}. {credit}.</p>
+        <p>{cast.length ? cast.join(", ") + ". " : ""}{credit}.</p>
         <p>{captions[0]}</p>
         <p>{captions[1]}</p>
         <p>{title}</p>
