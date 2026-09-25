@@ -208,8 +208,11 @@ const TWINKLES: [number, number, number][] = [
 
 // The upper lid: inner corner, apex, outer corner. The lash and the lid edge
 // both follow it, so a lowered lid always meets the lash exactly.
-const LID = "M-84 18Q-20 -122 98 -42"
-const SCLERA = LID + "C112 28 74 102 0 102C-62 102 -88 62 -84 18Z"
+// Near-level with a slight lift to the outer corner, and centred on x = 0 so
+// the iris sits in the middle of the eye. Drawn as the right eye; the left
+// one is mirrored so both flicks point outward.
+const LID = "M-92 8Q0 -124 96 -8"
+const SCLERA = LID + "C104 48 62 102 0 102C-62 102 -100 52 -92 8Z"
 
 function Eye({
   id,
@@ -220,10 +223,12 @@ function Eye({
   blink,
   squash,
   scale,
+  flip = false,
   iris,
   ink,
   skin,
 }: {
+  flip?: boolean
   id: string
   cx: number
   cy: number
@@ -237,16 +242,18 @@ function Eye({
   skin: string
 }) {
   const open = 1 - 0.94 * blink
-  const ix = look[0] * 30
-  const iy = 10 + look[1] * 14
+  const m = flip ? -1 : 1
+  // gaze is in screen space, so a mirrored eye moves its iris the other way
+  const ix = look[0] * 30 * m
+  const iy = 22 + look[1] * 14
   const shut = clamp01((blink - 0.55) / 0.45)
   return (
-    <g transform={"translate(" + cx + " " + cy + ") scale(" + (scale * squash).toFixed(4) + " " + scale + ")"}>
+    <g transform={"translate(" + cx + " " + cy + ") scale(" + (m * scale * squash).toFixed(4) + " " + scale + ")"}>
       {/* a shut eye is its own stroke: squashing the open one would flatten the lash too */}
       {shut > 0 ? (
         <g opacity={shut}>
-          <path d="M-84 -6Q4 26 100 -10" fill="none" stroke={ink} strokeWidth={11} strokeLinecap="round" />
-          <path d="M90 -8Q116 -20 134 -40Q122 -12 102 2Z" fill={ink} />
+          <path d="M-92 -4Q0 28 96 -8" fill="none" stroke={ink} strokeWidth={11} strokeLinecap="round" />
+          <path d="M88 -8Q114 -16 132 -34Q120 -8 100 4Z" fill={ink} />
         </g>
       ) : null}
       <g transform={"scale(1 " + open.toFixed(4) + ") translate(0 -40)"} opacity={1 - shut}>
@@ -256,23 +263,23 @@ function Eye({
         <path d={SCLERA} fill="#fdf4e2" />
         <g clipPath={"url(#" + id + ")"}>
           <g transform={"translate(" + ix.toFixed(2) + " " + iy.toFixed(2) + ")"}>
-            <ellipse rx={50} ry={74} fill={iris} />
-            <ellipse rx={50} ry={74} fill="none" stroke={ink} strokeWidth={3} opacity={0.7} />
-            <ellipse cx={2} cy={4} rx={19} ry={46} fill="#fdf0da" />
-            <ellipse cx={-22} cy={-34} rx={8} ry={11} fill="#fff" opacity={0.85} />
+            <ellipse rx={48} ry={70} fill={iris} />
+            <ellipse rx={48} ry={70} fill="none" stroke={ink} strokeWidth={3} opacity={0.7} />
+            <ellipse cy={4} rx={18} ry={44} fill="#fdf0da" />
+            <ellipse cx={-22 * m} cy={-30} rx={8} ry={11} fill="#fff" opacity={0.85} />
           </g>
           {/* the shade the lid casts, then the lid itself when it droops */}
-          <path d={LID} fill="none" stroke="#5a2f45" strokeWidth={40} opacity={0.32} transform={"translate(0 " + (lid + 12) + ")"} />
-          <path d={LID + "L98 -220L-84 -220Z"} fill={skin} transform={"translate(0 " + lid + ")"} />
+          <path d={LID} fill="none" stroke="#7a3a5a" strokeWidth={22} opacity={0.2} transform={"translate(0 " + (lid + 9) + ")"} />
+          <path d={LID + "L96 -220L-92 -220Z"} fill={skin} transform={"translate(0 " + lid + ")"} />
         </g>
-        <path d="M-58 84Q0 112 62 88" fill="none" stroke={ink} strokeWidth={3} strokeLinecap="round" opacity={0.75} />
+        <path d="M-60 88Q0 112 62 88" fill="none" stroke={ink} strokeWidth={3} strokeLinecap="round" opacity={0.75} />
         <g transform={"translate(0 " + lid + ")"}>
           <path d={LID} fill="none" stroke={ink} strokeWidth={13} strokeLinecap="round" />
           {/* the flick at the outer corner */}
-          <path d="M86 -48Q112 -62 132 -86Q118 -52 100 -30Z" fill={ink} />
+          <path d="M86 -14Q112 -24 132 -46Q122 -16 100 2Z" fill={ink} />
         </g>
         <path
-          d="M-56 -78Q10 -132 88 -84"
+          d="M-66 -62Q0 -116 80 -60"
           fill="none"
           stroke={ink}
           strokeWidth={2.5}
@@ -841,6 +848,7 @@ export default function GlintPortfolioHero({
                       blink={blink}
                       squash={squash}
                       scale={0.9}
+                      flip
                       iris={irisColor}
                       ink={ink}
                       skin={skinColor}
