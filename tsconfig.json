@@ -52,7 +52,8 @@
       "@/components/ui/etched-accretion": ["./components/etched-accretion/etched-accretion.tsx"],
       "@/components/ui/six-seven-poster": ["./components/six-seven-poster/six-seven-poster.tsx"],
       "@/components/ui/tiger-tear-reveal": ["./components/tiger-tear-reveal/tiger-tear-reveal.tsx"],
-      "@/components/ui/glint-portfolio-hero": ["./components/glint-portfolio-hero/glint-portfolio-hero.tsx"]
+      "@/components/ui/glint-portfolio-hero": ["./components/glint-portfolio-hero/glint-portfolio-hero.tsx"],
+      "@/components/ui/mesh-drift-background": ["./components/mesh-drift-background/mesh-drift-background.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
