@@ -40,13 +40,22 @@ assert.match(src, /React\.useId\(\)/, "ids come from useId")
 assert.match(src, /replace\(\/\[\^a-zA-Z0-9_-\]\/g, ""\)/, "useId colons are stripped before url(#…)")
 assert.doesNotMatch(src, /id="[a-z]/, "no hard-coded SVG ids")
 
-// ---- self-contained: drawn, not downloaded ---------------------------------
-// Photos are opt-in props; nothing ships a picture of anyone.
+// ---- self-contained: embedded, not downloaded ------------------------------
+// The default photos ride inside the file, so the capture sandbox and an
+// offline install both see them.
 const shipped = src + demo
 const urls = [...shipped.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0])
 assert.deepEqual(urls, [], `component and demo must make no network requests: ${urls.join(", ")}`)
 const hrefs = [...src.matchAll(/<image\s+href=\{(\w+)\}/g)].map((m) => m[1])
-assert.deepEqual(hrefs.sort(), ["baseSrc", "revealSrc"], "the only images are the caller's own photos")
+assert.deepEqual(hrefs.sort(), ["baseSrc", "revealSrc"], "both layers are photos, overridable by prop")
+assert.match(src, /baseSrc = BASE_PHOTO/, "the civilian photo is the default")
+assert.match(src, /revealSrc = REVEAL_PHOTO/, "the hero photo is the default")
+for (const k of ["BASE_PHOTO", "REVEAL_PHOTO"]) {
+  const m = src.match(new RegExp(`const ${k} =\\s*"(data:image/webp;base64,[A-Za-z0-9+/=]+)"`))
+  assert.ok(m, `${k} is an embedded webp`)
+  assert.ok(m[1].length < 80_000, `${k} stays small (${m[1].length} chars)`)
+}
+assert.match(src, /revealSrc === REVEAL_PHOTO \? REVEAL_FIT/, "the built-in fit is not forced onto someone else's photo")
 
 // ---- interaction wiring ----------------------------------------------------
 assert.match(src, /onPointerLeave=\{onPointerLeave\}/, "leaving the stage lets the mask melt away")
