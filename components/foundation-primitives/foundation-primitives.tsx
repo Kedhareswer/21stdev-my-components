@@ -3,22 +3,18 @@
 import * as React from "react"
 
 /**
- * Foundation Primitives — a design-system "Foundations" page whose hero is a row
- * of soft 3D primitives: an asterisk, a sphere, a stack of half-domes, an
- * hourglass and an orb, each one standing for a base material (icons, colour,
- * type, spacing, grid).
+ * Foundation Primitives: a card of soft 3D primitives, including an asterisk, a sphere, a
+ * stack of half-domes, an hourglass and an orb, shaded as frosted gradient gel.
  *
  * The shapes are real 3D: one fragment pass raymarches signed distance fields,
- * shades them as frosted gradient gel (saturated core, milky rim, soft
- * translucent edges), and lets them cast soft shadows and a coloured glow onto
- * the card. A glass lens magnifies whatever it floats over.
+ * shades them as gel (saturated core, milky rim, soft translucent edges) and
+ * lets them cast soft shadows and a coloured glow onto the card and the pale
+ * plates they sit on. A glass lens magnifies whatever it floats over.
  *
  * Interaction: the scene tilts toward the pointer and the light follows it, the
  * lens follows the pointer, hovering a shape lifts it (the asterisk spins, the
- * half-domes fan out), dragging spins it with inertia, and clicking selects it
- * and opens its row in the list below. The list drives the shapes back: hover a
- * row and its shape lifts. Every shape is a real button, so all of it works
- * from the keyboard.
+ * half-domes fan out), dragging spins it with inertia, and clicking pops it and
+ * selects it. Every shape is a real button, so all of it works from the keyboard.
  *
  * Self-contained: raw WebGL2, React is the only import. No textures, no image
  * assets, no CSS file. The canvas sizes itself from its own box, never the
@@ -26,97 +22,47 @@ import * as React from "react"
  */
 
 export type FoundationShape = "asterisk" | "sphere" | "halves" | "hourglass" | "torus" | "pill" | "cube"
-export type FoundationSpecimen = "color" | "type" | "spacing" | "grid" | "icon" | "none"
 
 export type FoundationItem = {
+  /** Accessible name of the shape's button. Never drawn. */
   label: string
-  description: React.ReactNode
   shape: FoundationShape
   /** [core, rim]: the saturated centre and the milky edge of the gel. */
   colors: [string, string]
   /** The pale plate the shape sits on. Neighbouring "square" tiles join into one strip. */
   tile?: "disc" | "square" | "none"
-  /** A built-in specimen for the open row, or your own content. */
-  specimen?: FoundationSpecimen | React.ReactNode
-  /** Short note at the right of the row, e.g. "24 tokens". */
-  meta?: React.ReactNode
 }
 
 export type FoundationPrimitivesProps = {
-  title?: React.ReactNode
-  description?: React.ReactNode
-  sectionTitle?: React.ReactNode
-  /** Up to six. Order is left to right, and top row first on narrow screens. */
+  /** Up to six. Order is left to right, and top row first on narrow cards. */
   items?: FoundationItem[]
-  /** Controlled selection (index, or null for none). */
+  /** Controlled selection (index, or null for none). A selected shape stays lifted. */
   selected?: number | null
   defaultSelected?: number | null
   onSelect?: (index: number | null) => void
-  /** Height of the 3D card. Must be a definite length. */
-  stageHeight?: string
+  /** Height of the card. Must be a definite length. */
+  height?: string
   /** The glass lens that follows the pointer. */
   lens?: boolean
   /** Idle life: floating, slow turning, the hourglass flipping over. */
   idle?: boolean
   interactive?: boolean
-  /** Small "drag to spin" hint in the card. */
-  hint?: boolean
   /** 0..1 strength of the shadows on the card. */
   shadow?: number
   /** 0..1 strength of the coloured glow each shape throws on the card. */
   glow?: number
-  /** Sample text for the typography specimen. */
-  typeSample?: string
   maxDpr?: number
+  /** Accessible name of the whole card. */
+  ariaLabel?: string
   className?: string
 }
 
 export const DEFAULT_ITEMS: FoundationItem[] = [
-  {
-    label: "Iconography",
-    description: "One set of glyphs drawn on a shared keyline grid, so every symbol carries the same weight.",
-    shape: "asterisk",
-    colors: ["#9b5cf6", "#f3b4ef"],
-    tile: "disc",
-    specimen: "icon",
-    meta: "7 glyphs",
-  },
-  {
-    label: "Color",
-    description: "Keeps colour visually consistent across products and makes design work efficient.",
-    shape: "sphere",
-    colors: ["#3b74ff", "#d6e4ff"],
-    tile: "square",
-    specimen: "color",
-    meta: "10 tokens",
-  },
-  {
-    label: "Typography",
-    description: "A type scale with clear steps, so hierarchy survives every screen size.",
-    shape: "halves",
-    colors: ["#ea4fd3", "#fbd3f1"],
-    tile: "square",
-    specimen: "type",
-    meta: "4 styles",
-  },
-  {
-    label: "Spacing",
-    description: "One 4-point rhythm between every element, inside components and between them.",
-    shape: "hourglass",
-    colors: ["#ec7a35", "#f8c29a"],
-    tile: "square",
-    specimen: "spacing",
-    meta: "8 steps",
-  },
-  {
-    label: "Grid",
-    description: "Columns, gutters and margins that hold a layout together at every width.",
-    shape: "sphere",
-    colors: ["#a15cf7", "#ecc6fc"],
-    tile: "none",
-    specimen: "grid",
-    meta: "12 columns",
-  },
+  { label: "Iconography", shape: "asterisk", colors: ["#9b5cf6", "#f3b4ef"], tile: "disc" },
+  { label: "Color", shape: "sphere", colors: ["#3b74ff", "#d6e4ff"], tile: "square" },
+  { label: "Typography", shape: "halves", colors: ["#ea4fd3", "#fbd3f1"], tile: "square" },
+  { label: "Spacing", shape: "hourglass", colors: ["#ec7a35", "#f8c29a"], tile: "square" },
+  { label: "Grid", shape: "sphere", colors: ["#a15cf7", "#ecc6fc"], tile: "none" },
 ]
 
 // #region stage
@@ -477,9 +423,9 @@ vec4 shapeShade(vec3 p, vec3 rd, int id, int skip, vec3 L) {
   float cx = 0.0;
   if (kind == 2) {
     cx = halfCentre(sub, uInfo[i].w);
-    radial = clamp(1.0 - length(lq - vec3(cx - 0.55, 0.0, 0.0)) / 1.05, 0.0, 1.0);
+    radial = clamp(1.0 - length(lq - vec3(cx - 0.55, 0.0, 0.0)) / 1.4, 0.0, 1.0);
   } else if (kind == 3) {
-    radial = clamp(1.0 - length(lq * vec3(0.8, 1.25, 1.0)) / 1.35, 0.0, 1.0);
+    radial = clamp(1.0 - length(lq * vec3(0.8, 1.1, 1.0)) / 1.85, 0.0, 1.0);
   } else {
     radial = clamp(1.0 - length(lq.xy) / 1.3, 0.0, 1.0);
   }
@@ -502,8 +448,8 @@ vec4 shapeShade(vec3 p, vec3 rd, int id, int skip, vec3 L) {
   if (kind == 2) {
     // each half-dome fades out toward its flat face
     float f = smoothstep(-0.95, 0.02, lq.x - cx);
-    a *= mix(1.0, 0.5, f);
-    col = mix(col, mix(uRim[i], vec3(1.0), 0.35), f * 0.35);
+    a *= mix(1.0, 0.55, f);
+    col = mix(col, mix(uRim[i], vec3(1.0), 0.2), f * 0.18);
   }
   return vec4(clamp(col, 0.0, 1.0) * a, a);
 }
@@ -642,26 +588,21 @@ const freshAnim = (): Anim => ({
 })
 
 export default function FoundationPrimitives({
-  title = "Foundations",
-  description = "The most atomic units every design element is built on — colour, typography, spacing and grid, the smallest pieces of a visual language.",
-  sectionTitle = "Base material",
   items = DEFAULT_ITEMS,
   selected,
-  defaultSelected = 1,
+  defaultSelected = null,
   onSelect,
-  stageHeight = "clamp(240px, 30vw, 340px)",
+  height = "clamp(240px, 30vw, 340px)",
   lens = true,
   idle = true,
   interactive = true,
-  hint = true,
   shadow = 0.5,
   glow = 0.5,
-  typeSample,
   maxDpr = 1.75,
+  ariaLabel = "Foundation primitives",
   className = "",
 }: FoundationPrimitivesProps) {
   const list = items.slice(0, MAX_SHAPES)
-  const uid = React.useId().replace(/:/g, "")
   const reduced = useReducedMotion()
 
   const [inner, setInner] = React.useState<number | null>(defaultSelected ?? null)
@@ -671,7 +612,6 @@ export default function FoundationPrimitives({
   const [failed, setFailed] = React.useState(false)
   const [generation, setGeneration] = React.useState(0)
 
-  const rootRef = React.useRef<HTMLElement>(null)
   const stageRef = React.useRef<HTMLDivElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const buttonRefs = React.useRef<(HTMLButtonElement | null)[]>([])
@@ -730,8 +670,7 @@ export default function FoundationPrimitives({
   React.useEffect(() => {
     const canvas = canvasRef.current
     const stage = stageRef.current
-    const root = rootRef.current
-    if (!canvas || !stage || !root) return
+    if (!canvas || !stage) return
     const gl = canvas.getContext("webgl2", { premultipliedAlpha: true, alpha: true, antialias: false })
     if (!gl) {
       setFailed(true)
@@ -810,7 +749,7 @@ export default function FoundationPrimitives({
     let fg: [number, number, number] = [0.1, 0.1, 0.1]
     let fgFrame = 0
     const readTheme = () => {
-      fg = readColor(getComputedStyle(root).color, fg)
+      fg = readColor(getComputedStyle(stage).color, fg)
     }
     const themeWatch = new MutationObserver(() => {
       readTheme()
@@ -922,8 +861,6 @@ export default function FoundationPrimitives({
           const r = unit * 1.12 * s
           btn.style.width = btn.style.height = Math.round(r * 2) + "px"
           btn.style.transform = "translate(" + (sx - r).toFixed(1) + "px," + (sy - r).toFixed(1) + "px)"
-          // near the top edge the label hangs below the shape instead of being clipped
-          btn.dataset.below = sy - r < 34 ? "1" : "0"
         }
       }
 
@@ -1121,360 +1058,76 @@ export default function FoundationPrimitives({
     }
   }
 
-  const sample = typeSample ?? (typeof title === "string" ? title : "Foundations")
-
   return (
-    <section
-      ref={rootRef}
-      className={"relative w-full bg-background text-foreground " + className}
-      aria-label={typeof title === "string" ? title : "Foundations"}
+    <div
+      ref={stageRef}
+      role="group"
+      aria-label={ariaLabel}
+      className={
+        "relative w-full touch-pan-y select-none overflow-hidden rounded-[28px] bg-foreground/[0.022] text-foreground ring-1 ring-inset ring-foreground/[0.035] " +
+        className
+      }
+      style={{ height }}
+      onPointerMove={interactive ? onStageMove : undefined}
+      onPointerLeave={interactive ? onStageLeave : undefined}
+      onPointerCancel={interactive ? onStageLeave : undefined}
     >
-      <div className="mx-auto w-full max-w-5xl px-5 py-14 sm:px-10 sm:py-20">
-        <h2 className="text-4xl font-bold tracking-[-0.03em] sm:text-5xl">{title}</h2>
-        {description ? (
-          <p className="mt-5 max-w-3xl break-keep text-[15px] leading-7 text-muted-foreground sm:text-base">{description}</p>
-        ) : null}
-
-        <div
-          ref={stageRef}
-          className="relative mt-10 w-full touch-pan-y select-none overflow-hidden rounded-[28px] bg-foreground/[0.022] ring-1 ring-inset ring-foreground/[0.035] sm:mt-14"
-          style={{ height: stageHeight }}
-          onPointerMove={interactive ? onStageMove : undefined}
-          onPointerLeave={interactive ? onStageLeave : undefined}
-          onPointerCancel={interactive ? onStageLeave : undefined}
-        >
-          {failed ? (
-            // No WebGL2: flat gradient discs in the same order beat an empty card.
-            <div className="absolute inset-0 flex items-center justify-center gap-[3%] px-[6%]" aria-hidden="true">
-              {list.map((it, i) => (
-                <div
-                  key={i}
-                  className="aspect-square w-[12%] min-w-10 max-w-36 rounded-full"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 42% 40%, " + it.colors[0] + " 0%, " + it.colors[0] + " 35%, " + it.colors[1] + " 100%)",
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <canvas
-              ref={canvasRef}
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 block h-full w-full"
-              style={{ maxWidth: "none" }}
+      {failed ? (
+        // No WebGL2: flat gradient discs in the same order beat an empty card.
+        <div className="absolute inset-0 flex items-center justify-center gap-[3%] px-[6%]" aria-hidden="true">
+          {list.map((it, i) => (
+            <div
+              key={i}
+              className="aspect-square w-[12%] min-w-10 max-w-36 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle at 42% 40%, " + it.colors[0] + " 0%, " + it.colors[0] + " 35%, " + it.colors[1] + " 100%)",
+              }}
             />
-          )}
-
-          {!failed
-            ? list.map((it, i) => {
-                const on = active === i
-                const lit = hovered === i
-                return (
-                  <button
-                    key={i}
-                    ref={(el) => {
-                      buttonRefs.current[i] = el
-                    }}
-                    type="button"
-                    aria-pressed={on}
-                    aria-controls={uid + "-row-" + i}
-                    aria-label={it.label}
-                    tabIndex={interactive ? (active == null ? (i === 0 ? 0 : -1) : on ? 0 : -1) : -1}
-                    disabled={!interactive}
-                    className={
-                      "group absolute left-0 top-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent " +
-                      (interactive ? "cursor-grab active:cursor-grabbing" : "cursor-default")
-                    }
-                    style={{ width: 0, height: 0, touchAction: "none" }}
-                    onPointerEnter={() => setHovered(i)}
-                    onPointerLeave={() => setHovered((h) => (h === i ? null : h))}
-                    onFocus={() => setHovered(i)}
-                    onBlur={() => setHovered((h) => (h === i ? null : h))}
-                    onPointerDown={onShapeDown(i)}
-                    onPointerUp={onShapeUp(i)}
-                    onPointerCancel={() => {
-                      live.current.drag = null
-                    }}
-                    onKeyDown={onShapeKey(i)}
-                  >
-                    <span
-                      className={
-                        "pointer-events-none absolute bottom-full left-1/2 mb-1 flex group-data-[below=1]:bottom-auto group-data-[below=1]:top-full group-data-[below=1]:mb-0 group-data-[below=1]:mt-1 -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-foreground/10 bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur transition-all duration-300 motion-reduce:transition-none " +
-                        (lit || on ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0")
-                      }
-                    >
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ background: "linear-gradient(135deg, " + it.colors[1] + ", " + it.colors[0] + ")" }}
-                      />
-                      {it.label}
-                    </span>
-                  </button>
-                )
-              })
-            : null}
-
-          {hint && interactive && !failed ? (
-            <p className="pointer-events-none absolute bottom-3 right-4 hidden text-[11px] tracking-wide text-muted-foreground/70 sm:block">
-              hover · drag to spin · click to open
-            </p>
-          ) : null}
+          ))}
         </div>
+      ) : (
+        <canvas
+          ref={canvasRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 block h-full w-full"
+          style={{ maxWidth: "none" }}
+        />
+      )}
 
-        {sectionTitle ? <h3 className="mt-14 text-2xl font-semibold tracking-[-0.02em] sm:mt-20">{sectionTitle}</h3> : null}
-
-        <ul className="mt-6 sm:mt-8">
-          {list.map((it, i) => {
+      {!failed
+        ? list.map((it, i) => {
             const on = active === i
             return (
-              <li key={i} className="border-b border-border">
-                <button
-                  type="button"
-                  aria-expanded={on}
-                  aria-controls={uid + "-panel-" + i}
-                  id={uid + "-row-" + i}
-                  className={
-                    "grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-1 rounded-xl px-2 py-5 text-left outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-foreground/30 motion-reduce:transition-none sm:grid-cols-[11rem_1fr_auto] sm:gap-x-8 sm:px-3 " +
-                    (hovered === i || on ? "bg-foreground/[0.03]" : "")
-                  }
-                  onClick={() => toggle(i)}
-                  onPointerEnter={() => setHovered(i)}
-                  onPointerLeave={() => setHovered((h) => (h === i ? null : h))}
-                >
-                  <span className="flex items-center gap-3 text-[15px] font-semibold">
-                    <Glyph shape={it.shape} colors={it.colors} id={uid + "-g-" + i} className="size-6 shrink-0" />
-                    {it.label}
-                  </span>
-                  <span className="col-span-3 row-start-2 break-keep text-[14px] leading-6 text-muted-foreground sm:col-span-1 sm:row-start-1 sm:col-start-2 sm:text-[15px]">
-                    {it.description}
-                  </span>
-                  <span className="col-start-3 row-start-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    {it.meta ? <span className="hidden tabular-nums sm:inline">{it.meta}</span> : null}
-                    <svg
-                      viewBox="0 0 16 16"
-                      className={"size-4 transition-transform duration-300 motion-reduce:transition-none " + (on ? "rotate-45" : "")}
-                      aria-hidden="true"
-                    >
-                      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-                    </svg>
-                  </span>
-                </button>
-                <div
-                  id={uid + "-panel-" + i}
-                  role="region"
-                  aria-labelledby={uid + "-row-" + i}
-                  className="grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
-                  style={{ gridTemplateRows: on ? "1fr" : "0fr", opacity: on ? 1 : 0 }}
-                  // closed panels keep their controls out of the tab order
-                  ref={(el) => {
-                    el?.toggleAttribute("inert", !on)
-                  }}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    <div className="px-2 pb-7 pt-1 sm:pl-[calc(11rem+2.75rem)] sm:pr-3">
-                      <Specimen item={it} index={i} items={list} uid={uid} sample={sample} />
-                    </div>
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-    </section>
-  )
-}
-
-// ---- glyphs: flat versions of the 3D shapes ---------------------------------------
-
-function GlyphPaths({ shape }: { shape: FoundationShape }) {
-  switch (shape) {
-    case "asterisk":
-      return (
-        <g strokeLinecap="round" strokeWidth="5.5" stroke="inherit">
-          <path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17" />
-        </g>
-      )
-    case "halves":
-      return (
-        <g>
-          <path d="M13 6a10 10 0 0 0 0 20z" />
-          <path d="M19 6a10 10 0 0 0 0 20z" opacity="0.75" />
-          <path d="M25 6a10 10 0 0 0 0 20z" opacity="0.5" />
-        </g>
-      )
-    case "hourglass":
-      return (
-        <g>
-          <path d="M6 6h20a10 10 0 0 1-20 0z" />
-          <path d="M6 26h20a10 10 0 0 0-20 0z" />
-        </g>
-      )
-    case "torus":
-      return <path fillRule="evenodd" d="M16 5a11 11 0 1 1 0 22a11 11 0 1 1 0-22zm0 6a5 5 0 1 0 0 10a5 5 0 1 0 0-10z" />
-    case "pill":
-      return <rect x="3" y="10" width="26" height="12" rx="6" />
-    case "cube":
-      return <rect x="5" y="5" width="22" height="22" rx="6" />
-    default:
-      return <circle cx="16" cy="16" r="11" />
-  }
-}
-
-function Glyph({ shape, colors, id, className }: { shape: FoundationShape; colors: [string, string]; id: string; className?: string }) {
-  const paint = "url(#" + id + ")"
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true" style={{ maxWidth: "none" }}>
-      <defs>
-        <radialGradient id={id} cx="0.45" cy="0.45" r="0.6">
-          <stop offset="0" stopColor={colors[0]} />
-          <stop offset="0.55" stopColor={colors[0]} stopOpacity="0.85" />
-          <stop offset="1" stopColor={colors[1]} />
-        </radialGradient>
-      </defs>
-      <g fill={paint} stroke={paint}>
-        <GlyphPaths shape={shape} />
-      </g>
-    </svg>
-  )
-}
-
-// ---- specimens --------------------------------------------------------------------
-
-const KNOWN = ["color", "type", "spacing", "grid", "icon", "none"]
-
-function Specimen({ item, index, items, uid, sample }: { item: FoundationItem; index: number; items: FoundationItem[]; uid: string; sample: string }) {
-  const s = item.specimen
-  if (s == null || s === "none") return null
-  if (typeof s !== "string" || !KNOWN.includes(s)) return <>{s}</>
-  const [c0, c1] = item.colors
-  const ramp = "linear-gradient(90deg, " + c0 + ", " + c1 + ")"
-  if (s === "color") return <ColorSpecimen items={items} />
-  if (s === "type") {
-    const steps = [
-      ["Display", "48 / 56", "text-4xl sm:text-5xl font-bold tracking-[-0.03em]"],
-      ["Title", "28 / 36", "text-2xl sm:text-[28px] font-semibold tracking-[-0.02em]"],
-      ["Body", "16 / 24", "text-base"],
-      ["Caption", "12 / 16", "text-xs font-medium tracking-wide"],
-    ]
-    return (
-      <div className="flex flex-col gap-4">
-        {steps.map(([name, metric, cls], k) => (
-          <div key={k} className="flex items-baseline gap-4 border-b border-dashed border-border pb-3 last:border-0">
-            <span className="w-24 shrink-0 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {name}
-              <span className="block normal-case tracking-normal tabular-nums">{metric}</span>
-            </span>
-            <span className={"min-w-0 truncate " + cls}>{sample}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-  if (s === "spacing") {
-    const steps = [4, 8, 12, 16, 24, 32, 48, 64]
-    return (
-      <div className="flex flex-col gap-2">
-        {steps.map((v, k) => (
-          <div key={k} className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="w-16 shrink-0 tabular-nums">space-{k + 1}</span>
-            <span className="h-3 rounded-full" style={{ width: v * 3, maxWidth: "100%", background: ramp, opacity: 0.55 + k * 0.06 }} />
-            <span className="tabular-nums">{v}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-  if (s === "grid") {
-    return (
-      <div>
-        <div className="grid h-24 grid-cols-6 gap-2 sm:grid-cols-12 sm:gap-3">
-          {Array.from({ length: 12 }, (_, k) => (
-            <div
-              key={k}
-              className={"rounded-md " + (k >= 6 ? "hidden sm:block" : "")}
-              style={{ background: "linear-gradient(180deg, " + c1 + ", " + c0 + ")", opacity: 0.35 + 0.05 * (k % 6) }}
-            />
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {["12 columns", "24 gutter", "80 margin", "1200 max"].map((x) => (
-            <span key={x} className="rounded-full border border-border px-2.5 py-1 tabular-nums">
-              {x}
-            </span>
-          ))}
-        </div>
-      </div>
-    )
-  }
-  // icon
-  const shapes: FoundationShape[] = ["asterisk", "sphere", "halves", "hourglass", "torus", "pill", "cube"]
-  return (
-    <div className="flex flex-wrap gap-3">
-      {shapes.map((sh, k) => (
-        <div
-          key={sh}
-          className="relative grid size-16 place-items-center rounded-2xl border border-border"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, transparent 49.5%, rgba(127,127,127,0.14) 49.5%, rgba(127,127,127,0.14) 50.5%, transparent 50.5%)," +
-              "linear-gradient(to bottom, transparent 49.5%, rgba(127,127,127,0.14) 49.5%, rgba(127,127,127,0.14) 50.5%, transparent 50.5%)",
-          }}
-          title={sh}
-        >
-          <Glyph shape={sh} colors={k === 0 ? [c0, c1] : items[k % items.length]?.colors ?? [c0, c1]} id={uid + "-i-" + index + "-" + k} className="size-9" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function ColorSpecimen({ items }: { items: FoundationItem[] }) {
-  const [copied, setCopied] = React.useState<string | null>(null)
-  const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  React.useEffect(() => () => clearTimeout(timer.current), [])
-  const copy = (v: string) => {
-    try {
-      void navigator.clipboard?.writeText(v)
-    } catch {
-      // nothing to do: the swatch still shows the value
-    }
-    setCopied(v)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => setCopied(null), 1200)
-  }
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {items.map((it, k) => (
-        <div key={k} className="rounded-2xl border border-border p-3">
-          <div
-            className="mx-auto size-14 rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle at 40% 38%, " + it.colors[0] + " 0%, " + it.colors[0] + " 38%, " + it.colors[1] + " 100%)",
-            }}
-          />
-          <p className="mt-3 text-center text-xs font-medium">{it.label}</p>
-          <div className="mt-2 flex flex-col gap-1">
-            {it.colors.map((c, j) => (
               <button
-                key={j}
+                key={i}
+                ref={(el) => {
+                  buttonRefs.current[i] = el
+                }}
                 type="button"
-                onClick={() => copy(c)}
-                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground motion-reduce:transition-none"
-                aria-label={"Copy " + c}
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="size-2.5 rounded-full ring-1 ring-inset ring-foreground/10" style={{ background: c }} />
-                  {j === 0 ? "core" : "rim"}
-                </span>
-                <span className="font-mono uppercase tabular-nums">{copied === c ? "copied" : c}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
+                aria-pressed={on}
+                aria-label={it.label}
+                tabIndex={interactive ? (active == null ? (i === 0 ? 0 : -1) : on ? 0 : -1) : -1}
+                disabled={!interactive}
+                className={
+                  "absolute left-0 top-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent " +
+                  (interactive ? "cursor-grab active:cursor-grabbing" : "cursor-default")
+                }
+                style={{ width: 0, height: 0, touchAction: "none" }}
+                onPointerEnter={() => setHovered(i)}
+                onPointerLeave={() => setHovered((h) => (h === i ? null : h))}
+                onFocus={() => setHovered(i)}
+                onBlur={() => setHovered((h) => (h === i ? null : h))}
+                onPointerDown={onShapeDown(i)}
+                onPointerUp={onShapeUp(i)}
+                onPointerCancel={() => {
+                  live.current.drag = null
+                }}
+                onKeyDown={onShapeKey(i)}
+              />
+            )
+          })
+        : null}
     </div>
   )
 }
