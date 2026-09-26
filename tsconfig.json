@@ -56,7 +56,8 @@
       "@/components/ui/flashlight-text-reveal": ["./components/flashlight-text-reveal/flashlight-text-reveal.tsx"],
       "@/components/ui/lycoris-specimen": ["./components/lycoris-specimen/lycoris-specimen.tsx"],
       "@/components/ui/dragon-type-specimen": ["./components/dragon-type-specimen/dragon-type-specimen.tsx"],
-      "@/components/ui/overlook-title-reveal": ["./components/overlook-title-reveal/overlook-title-reveal.tsx"]
+      "@/components/ui/overlook-title-reveal": ["./components/overlook-title-reveal/overlook-title-reveal.tsx"],
+      "@/components/ui/chrome-dragon-poster": ["./components/chrome-dragon-poster/chrome-dragon-poster.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
