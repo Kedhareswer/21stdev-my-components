@@ -5,9 +5,9 @@ lives only inside the letters: a red duotone ballroom bar seen through the
 glyphs, on a plain sheet of paper. Scroll, and the letters swell. The title is
 dilated outwards stroke by stroke, with a thin red rim riding its edge, until
 the picture has spread out of the words and fills the sheet. The title never
-goes away. Its letters keep a black keyline the whole way through, and once the
-picture is full the room outside them dims, so you can still read the word over
-the finished print. Then the billing block prints in underneath, and the page is
+quite goes away. Its black keyline is bold on the bare title, then thins and
+fades as the picture spreads, so over the finished print the word is only
+faintly there and the picture leads. Then the billing block prints in underneath, and the page is
 a poster.
 
 **No dependencies.** React is the only import. There is no CSS file, font, image
@@ -23,9 +23,9 @@ scroll   what happens
 -------  ------------------------------------------------------------
 0        the bare title on paper, black keyline, picture inside the letters
 0.05     the letters start to swell; a thin accent rim rides their edge,
-         the keyline stays on the original letter shapes
-0.60     the picture outside the letters starts to dim
-0.68     the picture fills the frame; the title still reads in its keyline
+         the keyline stays on the original letter shapes, thinning and fading
+0.60     the picture outside the letters dims very slightly
+0.68     the picture fills the frame; the title is a faint, thin keyline
 0.74     the billing block prints in under the frame
 1        a finished poster
 ```
@@ -75,9 +75,10 @@ content after it.
 | `scrollLength` | `3.2` | A multiple of `height`. |
 | `height` | `"100svh"` | The stage. **Must be a definite length.** |
 | `parallax` | `true` | Pointer drift and idle drift. |
-| `outline` | `"#0b0a0d"` | The keyline around the letters. It is always drawn. Once the picture spreads, a hairline of `paper` sits under it so it still shows over the darkest parts of the picture. |
-| `outlineWidth` | scales with the title | Width in px. `0` turns the keyline off. |
-| `veil` | `0.5` | How much the picture outside the letters dims once it fills the frame, from 0 to 1. `0` leaves it undimmed. |
+| `outline` | `"#0b0a0d"` | The keyline around the letters. It is always drawn. Once the picture spreads, a faint hairline of `paper` sits under it so it still shows over the darkest parts of the picture. |
+| `outlineWidth` | scales with the title | Width in px on the bare title. It thins to a third (never under 1px) as the picture spreads. `0` turns the keyline off. |
+| `ghost` | `0.4` | How visible the keyline stays over the full picture, from 0 to 1. `1` keeps it solid; `0` fades it out entirely. |
+| `veil` | `0.15` | How much the picture outside the letters dims once it fills the frame, from 0 to 1. Raise it to make the word stand out more. |
 | `credit` | `"A Kedhareswer picture"` | The top line of the billing. |
 | `billing` | a parody block | `[label, value]` pairs. |
 | `edition` | `"17 / 60"` | The print-run box. It is hidden below `sm`. |
@@ -85,7 +86,7 @@ content after it.
 | `className` | `""` | Appended to the root. |
 | `children` | none | Always on top. |
 
-`timeline`, `progressFrom`, `coverFit`, `dilation`, `bestLines`, `titleSize`,
+`timeline`, `progressFrom`, `coverFit`, `dilation`, `keylineWidth`, `keylineAlpha`, `bestLines`, `titleSize`,
 `posterFrame`, `buildLut`, `makeNoise`, `mulberry32`, `hexToRgb`, `clamp01` and
 `smoothstep` are exported.
 
@@ -96,8 +97,9 @@ content after it.
   shape masks the picture (`source-in` on a second canvas). At full spread the
   stroke is wider than the frame's diagonal, so the last frame is a plain
   rectangle and nothing snaps.
-- **The title stays.** The keyline is stroked from the undilated title every
-  frame, after the picture. The dim is a `palette[0]` sheet over the frame
+- **The title stays, quietly.** The keyline is stroked from the undilated
+  title every frame, after the picture; `keylineWidth` and `keylineAlpha` thin
+  and fade it with the spread. The dim is a `palette[0]` sheet over the frame
   with the title cut out of it (`destination-out`), so inside the letters the
   picture stays at full strength.
 - The title is fitted to 88% of the frame and grows at most 8% while

@@ -40,6 +40,7 @@ assert.doesNotMatch(src, /\bLINES\b|octagon|[Cc]onstruction line/, "no grid over
   assert.ok(at > -1 && key > at, "keyline must be drawn over the picture")
   assert.doesNotMatch(src.slice(key - 400, key), /if \(!full|T\.spread < /, "keyline must not switch off at full spread")
   assert.ok(src.includes('outline = "#0b0a0d"'), "keyline defaults to black")
+  assert.ok(src.includes("ctx.globalAlpha = ka"), "keyline must fade by keylineAlpha")
   assert.ok(src.includes('mctx.globalCompositeOperation = "destination-out"'), "the veil must be punched out by the title")
 }
 
@@ -82,6 +83,19 @@ assert.equal(L.progressFrom(-10, 900, 900), 0, "no travel must not divide by zer
 for (const [w, h] of [[1340, 734], [362, 690], [1900, 400]]) {
   assert.equal(L.dilation(0, w, h), 0)
   assert.ok(L.dilation(1, w, h) / 2 >= Math.hypot(w, h) * 0.6, `dilation too short for ${w}x${h}`)
+}
+
+// Keyline: bold at rest, thin and faint over the full picture, never gone.
+{
+  assert.equal(L.keylineWidth(6, 0), 6)
+  assert.ok(Math.abs(L.keylineWidth(6, 1) - 1.8) < 1e-9, "thins to a third")
+  assert.equal(L.keylineWidth(2, 1), 1, "never under 1px")
+  assert.equal(L.keylineAlpha(0.4, 0), 1)
+  assert.ok(Math.abs(L.keylineAlpha(0.4, 1) - 0.4) < 1e-9)
+  for (let t = 0; t < 1; t += 0.05) {
+    assert.ok(L.keylineWidth(6, t + 0.05) <= L.keylineWidth(6, t) + 1e-9, "width only thins")
+    assert.ok(L.keylineAlpha(0.4, t + 0.05) <= L.keylineAlpha(0.4, t) + 1e-9, "alpha only fades")
+  }
 }
 
 // Cover fit: any parallax offset within ±pad keeps every edge covered.

@@ -8,9 +8,8 @@ import * as React from "react"
  * seen only through the glyphs, on a plain sheet of paper. Scroll and the
  * letters swell — the title is dilated outwards, stroke by stroke — until the
  * picture has spread out of the words and fills the sheet. The title never
- * leaves: its letters stay drawn in a black keyline the whole way, and once
- * the picture is full the room outside them dims, so the word still reads
- * over the finished print. Then the billing block prints in underneath, and
+ * quite leaves: its black keyline thins and fades as the picture spreads, so
+ * over the finished print the word is only faintly there. Then the billing block prints in underneath, and
  * the page is a poster.
  *
  * Self-contained: React is the only import. The picture is painted once from
@@ -63,6 +62,8 @@ export type OverlookTitleRevealProps = {
   outlineWidth?: number
   /** How far the picture outside the letters dims once it is full, 0..1. */
   veil?: number
+  /** How visible the keyline stays over the full picture, 0..1. */
+  ghost?: number
   /** Top of the billing block. */
   credit?: string
   /** Label / value pairs, set in the billing block. */
@@ -154,6 +155,17 @@ export function coverFit(fw: number, fh: number, pad: number, fx: number, fy: nu
   const x = Math.min(-pad, Math.max(fw - w + pad, fw / 2 - fx * w))
   const y = Math.min(-pad, Math.max(fh - h + pad, fh / 2 - fy * h))
   return { x, y, w, h }
+}
+
+/** Keyline width: full on the bare title, a third of it (never under 1px) once the picture is full. */
+export function keylineWidth(base: number, spread: number) {
+  const e = clamp01(spread)
+  return base + (Math.max(1, base * 0.3) - base) * e
+}
+
+/** Keyline opacity: solid on the bare title, `ghost` once the picture is full. */
+export function keylineAlpha(ghost: number, spread: number) {
+  return 1 + (clamp01(ghost) - 1) * clamp01(spread)
 }
 
 /** Stroke width that dilates any title until it covers the whole frame. */
@@ -778,7 +790,8 @@ export default function OverlookTitleReveal({
   parallax = true,
   outline = "#0b0a0d",
   outlineWidth,
-  veil = 0.5,
+  veil = 0.15,
+  ghost = 0.4,
   credit = "A Kedhareswer picture",
   billing = DEFAULT_BILLING,
   edition = "17 / 60",
@@ -970,19 +983,23 @@ export default function OverlookTitleReveal({
         ctx.drawImage(mask, 0, 0)
       }
 
-      // The keyline: black, over a hairline of paper so it still shows where
-      // it crosses the darkest parts of the picture. Always on.
+      // The keyline: bold on the bare title, then thinning and fading as the
+      // picture spreads, so the picture leads and the word is only just there.
+      // A hairline of paper under it keeps it from vanishing on the darkest parts.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      const kw = outlineWidth ?? Math.max(2, size * 0.022)
-      if (kw > 0) {
+      const k0 = outlineWidth ?? Math.max(2, size * 0.022)
+      if (k0 > 0) {
+        const kw = keylineWidth(k0, T.spread)
+        const ka = keylineAlpha(ghost, T.spread)
         if (T.spread > 0.002) {
           ctx.strokeStyle = clear ? "rgba(255,255,255,0.85)" : paper
-          ctx.globalAlpha = smoothstep(0, 0.2, T.spread)
-          titleShape(ctx, T.zoom, 0, kw + 2.5)
-          ctx.globalAlpha = 1
+          ctx.globalAlpha = smoothstep(0, 0.2, T.spread) * ka * 0.6
+          titleShape(ctx, T.zoom, 0, kw + 1.5)
         }
+        ctx.globalAlpha = ka
         ctx.strokeStyle = outline
         titleShape(ctx, T.zoom, 0, kw)
+        ctx.globalAlpha = 1
       }
       const cr = creditsRef.current
       if (cr) {
@@ -1110,7 +1127,7 @@ export default function OverlookTitleReveal({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, image, duotone, paletteKey, paper, accent, outline, outlineWidth, veil, fontFamily, condense, seed, parallax, clear])
+  }, [title, image, duotone, paletteKey, paper, accent, outline, outlineWidth, veil, ghost, fontFamily, condense, seed, parallax, clear])
 
   // Enter jumps to the finished poster, and back to the bare title.
   const onKey = (e: React.KeyboardEvent) => {
