@@ -54,7 +54,8 @@
       "@/components/ui/tiger-tear-reveal": ["./components/tiger-tear-reveal/tiger-tear-reveal.tsx"],
       "@/components/ui/glint-portfolio-hero": ["./components/glint-portfolio-hero/glint-portfolio-hero.tsx"],
       "@/components/ui/flashlight-text-reveal": ["./components/flashlight-text-reveal/flashlight-text-reveal.tsx"],
-      "@/components/ui/lycoris-specimen": ["./components/lycoris-specimen/lycoris-specimen.tsx"]
+      "@/components/ui/lycoris-specimen": ["./components/lycoris-specimen/lycoris-specimen.tsx"],
+      "@/components/ui/dragon-type-specimen": ["./components/dragon-type-specimen/dragon-type-specimen.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
