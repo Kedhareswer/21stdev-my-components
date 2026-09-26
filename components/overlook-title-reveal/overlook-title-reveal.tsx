@@ -775,7 +775,7 @@ function scrollParent(el: HTMLElement | null): HTMLElement | null {
 }
 
 export default function OverlookTitleReveal({
-  title = "THE SHINING",
+  title = "LAST CALL",
   image,
   duotone = true,
   palette = DEFAULT_PALETTE,

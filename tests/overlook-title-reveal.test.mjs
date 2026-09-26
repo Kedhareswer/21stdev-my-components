@@ -119,10 +119,10 @@ for (const [w, h] of [[1440, 900], [390, 844], [768, 1024]]) {
 // Title fitting: monospace-ish fake measure, 55px per char at 100px.
 {
   const m = (s) => s.length * 55
-  const wide = L.bestLines("THE SHINING", m, 1340, 734, 0.84)
-  assert.ok(wide.lines.join(" ") === "THE SHINING", "words kept in order")
-  const tall = L.bestLines("THE SHINING", m, 360, 690, 0.84)
-  assert.deepEqual(tall.lines, ["THE", "SHINING"], "portrait breaks the title")
+  const wide = L.bestLines("LAST CALL", m, 1340, 734, 0.84)
+  assert.ok(wide.lines.join(" ") === "LAST CALL", "words kept in order")
+  const tall = L.bestLines("LAST CALL", m, 360, 690, 0.84)
+  assert.deepEqual(tall.lines, ["LAST", "CALL"], "portrait breaks the title")
   const forced = L.bestLines("ALL WORK\nNO PLAY", m, 1340, 734, 0.84)
   assert.deepEqual(forced.lines, ["ALL WORK", "NO PLAY"], "explicit breaks win")
   for (const r of [wide, tall, forced]) {

@@ -62,7 +62,7 @@ content after it.
 
 | Prop | Default | Notes |
 |---|---|---|
-| `title` | `"THE SHINING"` | `\n` forces breaks. Otherwise it picks the word grouping that sets largest (so it breaks to two lines in portrait). |
+| `title` | `"LAST CALL"` | `\n` forces breaks. Otherwise it picks the word grouping that sets largest (so it breaks to two lines in portrait). |
 | `image` | none | Your own picture, cover-fit. With no `image`, it paints the ballroom. |
 | `duotone` | `true` | Gradient-map `image` through `palette`. This needs the host to send CORS headers; without them the picture is shown as it is. |
 | `palette` | 7 stops, navy → red → cream | Hex, 2 to 8 stops, shadow to highlight. The first stop is also the dimming colour. |
