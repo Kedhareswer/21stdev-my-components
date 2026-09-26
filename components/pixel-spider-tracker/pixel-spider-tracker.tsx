@@ -682,7 +682,7 @@ export type PixelSpiderTrackerProps = {
 type Sfx = "tap" | "thwip" | "ping" | "error" | "type" | "sense" | "up"
 
 function useSfx(on: boolean) {
-  const ctxRef = React.useRef<AudioContext | null>(null)
+  const ctxRef = React.useRef(null as AudioContext | null)
   const onRef = React.useRef(on)
   onRef.current = on
   React.useEffect(
@@ -939,21 +939,21 @@ export default function PixelSpiderTracker({
   const pal = React.useMemo(() => ({ ...DEFAULT_PALETTE, ...colors }), [colors])
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
 
-  const [phase, setPhase] = React.useState<Phase>(intro ? "intro" : "ready")
-  const [spider, setSpider] = React.useState<"down" | "up" | "gone">(intro ? "down" : "gone")
+  const [phase, setPhase] = React.useState((intro ? "intro" : "ready") as Phase)
+  const [spider, setSpider] = React.useState((intro ? "down" : "gone") as "down" | "up" | "gone")
   const [sound, setSound] = React.useState(defaultSound)
-  const [mode, setMode] = React.useState<ViewMode>(defaultView)
+  const [mode, setMode] = React.useState(defaultView as ViewMode)
   const [layers, setLayers] = React.useState({ red: true, green: true })
-  const [results, setResults] = React.useState<Sighting[]>([])
-  const [pins, setPins] = React.useState<Sighting[]>([])
-  const [selected, setSelected] = React.useState<string | null>(null)
+  const [results, setResults] = React.useState([] as Sighting[])
+  const [pins, setPins] = React.useState([] as Sighting[])
+  const [selected, setSelected] = React.useState(null as string | null)
   const [query, setQuery] = React.useState("")
   const [caret, setCaret] = React.useState(0)
   const [focused, setFocused] = React.useState(false)
   const [hi, setHi] = React.useState(-1)
   const [status, setStatus] = React.useState(intro ? "SELECT SOUND OPTION" : "")
   const [menu, setMenu] = React.useState(false)
-  const [history, setHistory] = React.useState<{ q: string; n: number }[]>([])
+  const [history, setHistory] = React.useState([] as { q: string; n: number }[])
   const [hud, setHud] = React.useState({ lat: 20, lon: -40, zoom: 1 })
   const [sense, setSense] = React.useState(0)
   const [hop, setHop] = React.useState(0)
@@ -963,23 +963,23 @@ export default function PixelSpiderTracker({
 
   const play = useSfx(sound)
 
-  const rootRef = React.useRef<HTMLElement>(null)
-  const screenRef = React.useRef<HTMLDivElement>(null)
-  const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const barRef = React.useRef<HTMLDivElement>(null)
-  const radarDotRef = React.useRef<SVGRectElement>(null)
-  const markerEls = React.useRef(new Map<string, HTMLElement>())
-  const timers = React.useRef(new Set<ReturnType<typeof setTimeout>>())
+  const rootRef = React.useRef(null as HTMLElement | null)
+  const screenRef = React.useRef(null as HTMLDivElement | null)
+  const canvasRef = React.useRef(null as HTMLCanvasElement | null)
+  const inputRef = React.useRef(null as HTMLInputElement | null)
+  const barRef = React.useRef(null as HTMLDivElement | null)
+  const radarDotRef = React.useRef(null as SVGRectElement | null)
+  const markerEls = React.useRef(new Map() as Map<string, HTMLElement>)
+  const timers = React.useRef(new Set() as Set<ReturnType<typeof setTimeout>>)
   const reqRef = React.useRef(0)
-  const statusTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const statusTimer = React.useRef(null as ReturnType<typeof setTimeout> | null)
 
   const S = React.useRef({
     view: { mode: defaultView, lon: -40, lat: 22, zoom: 1 } as View,
     tween: null as null | { from: View; to: View; t0: number; dur: number },
     drag: null as null | { x: number; y: number; lon: number; lat: number; moved: boolean },
     pinch: null as null | { d: number; zoom: number },
-    pointers: new Map<number, { x: number; y: number }>(),
+    pointers: new Map() as Map<number, { x: number; y: number }>,
     idleAt: 0,
     dirty: true,
     W: 0,
@@ -1244,7 +1244,7 @@ export default function PixelSpiderTracker({
   }, [pixelSize])
 
   // --- pointer & keyboard on the globe ------------------------------------
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerDown = (e: React.PointerEvent) => {
     const s = S.current
     if (e.button !== 0 && e.pointerType === "mouse") return
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -1260,7 +1260,7 @@ export default function PixelSpiderTracker({
     }
     s.wake()
   }
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerMove = (e: React.PointerEvent) => {
     const s = S.current
     if (!s.pointers.has(e.pointerId)) return
     s.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -1286,7 +1286,7 @@ export default function PixelSpiderTracker({
     s.dirty = true
     s.wake()
   }
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerUp = (e: React.PointerEvent) => {
     const s = S.current
     const wasTap = s.drag && !s.drag.moved && s.pointers.size === 1
     s.pointers.delete(e.pointerId)
@@ -1325,7 +1325,7 @@ export default function PixelSpiderTracker({
     play("ping")
     flash("PIN DROPPED " + formatCoord(lat, lon))
   }
-  const onKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKey = (e: React.KeyboardEvent) => {
     const s = S.current
     const v = s.view
     const step = 12 / v.zoom

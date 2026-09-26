@@ -11,6 +11,9 @@ const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) 
 assert.deepEqual(imports, ["react"], "the only import may be react")
 assert.doesNotMatch(src, /@import|url\(["']?http|https?:\/\//, "no external assets — the world is embedded, not fetched")
 assert.doesNotMatch(src, /\bfetch\(/, "the default search must work offline")
+// The 21st CLI's dependency scanner reads every `<Name` as a JSX tag and backtracks exponentially when it never
+// closes: generic calls like useRef<T>(...) inside the component body hang `21st render`/`publish` before upload.
+assert.doesNotMatch(src, /\b(?:useRef|useState|new Map|new Set|PointerEvent|KeyboardEvent)<[A-Za-z"{]/, "no generic type arguments in the body — use `x as T`")
 
 assert.ok(src.includes('height = "100svh"'), "root height must default to a definite length")
 assert.doesNotMatch(src, /<section[\s\S]{0,300}className={"relative w-full[^"]*\bh-full\b/, "no h-full on the root")
