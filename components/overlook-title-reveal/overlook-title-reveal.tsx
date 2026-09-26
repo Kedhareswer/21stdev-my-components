@@ -7,9 +7,11 @@ import * as React from "react"
  * its title. The picture lives inside the letters: a red duotone ballroom bar,
  * seen only through the glyphs, on a plain sheet of paper. Scroll and the
  * letters swell — the title is dilated outwards, stroke by stroke — until the
- * picture has spread out of the words and fills the sheet. Then the
- * construction lines are drawn over it and the billing block prints in
- * underneath, and the page is a poster.
+ * picture has spread out of the words and fills the sheet. The title never
+ * leaves: its letters stay drawn in a black keyline the whole way, and once
+ * the picture is full the room outside them dims, so the word still reads
+ * over the finished print. Then the billing block prints in underneath, and
+ * the page is a poster.
  *
  * Self-contained: React is the only import. The picture is painted once from
  * numbers on an offscreen 2D canvas — marble walls, chandeliers, a crowd that
@@ -55,8 +57,12 @@ export type OverlookTitleRevealProps = {
   height?: string
   /** Pointer drift of the picture. */
   parallax?: boolean
-  /** Draw the construction lines over the finished poster. */
-  lines?: boolean
+  /** Keyline around the letters, kept over the finished poster. */
+  outline?: string
+  /** Keyline width in px. Default scales with the title. */
+  outlineWidth?: number
+  /** How far the picture outside the letters dims once it is full, 0..1. */
+  veil?: number
   /** Top of the billing block. */
   credit?: string
   /** Label / value pairs, set in the billing block. */
@@ -95,8 +101,9 @@ export function timeline(t: number) {
   return {
     hint: 1 - smoothstep(0, 0.06, p),
     spread: smoothstep(0.05, 0.68, p),
-    zoom: 1 + 0.16 * smoothstep(0.04, 0.68, p),
-    lines: smoothstep(0.7, 0.9, p),
+    // The title fits 88% of the frame, so it may grow 8% and still stay inside it.
+    zoom: 1 + 0.08 * smoothstep(0.04, 0.68, p),
+    veil: smoothstep(0.6, 0.85, p),
     credits: smoothstep(0.74, 0.96, p),
   }
 }
@@ -743,22 +750,6 @@ function paintArt(art: HTMLCanvasElement, palette: string[], seed: number, pictu
   gradientMap(ctx, lut, seed, true)
 }
 
-// ---------------------------------------------------------------------------
-// The construction lines laid over the finished print, in art coordinates.
-
-const octagon = (x: number, y: number, w: number, h: number, c: number) =>
-  "M" + (x + c) + " " + y + "H" + (x + w - c) + "L" + (x + w) + " " + (y + c) + "V" + (y + h - c) +
-  "L" + (x + w - c) + " " + (y + h) + "H" + (x + c) + "L" + x + " " + (y + h - c) + "V" + (y + c) + "Z"
-
-const LINES = [
-  octagon(96, 92, 148, 560, 58),
-  octagon(1096, 64, 112, 520, 44),
-  octagon(1372, 108, 118, 520, 48),
-  octagon(470, 150, 150, 360, 50),
-  "M0 250H1600", "M0 500H1600", "M0 750H1600",
-  "M160 0V1000", "M400 0V1000", "M720 0V1000", "M1040 0V1000", "M1280 0V1000",
-  "M240 1000L880 400", "M96 652L880 400", "M1490 628L1040 300", "M0 60L880 400", "M1600 860L880 400",
-]
 const MAZE = "M1 1H15V15H1V4M4 12V4H12V12H7M7 9V7H9"
 
 function scrollParent(el: HTMLElement | null): HTMLElement | null {
@@ -785,7 +776,9 @@ export default function OverlookTitleReveal({
   scrollLength = 3.2,
   height = "100svh",
   parallax = true,
-  lines = true,
+  outline = "#0b0a0d",
+  outlineWidth,
+  veil = 0.5,
   credit = "A Kedhareswer picture",
   billing = DEFAULT_BILLING,
   edition = "17 / 60",
@@ -796,8 +789,6 @@ export default function OverlookTitleReveal({
   const rootRef = React.useRef<HTMLDivElement>(null)
   const stageRef = React.useRef<HTMLDivElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const frameRef = React.useRef<HTMLDivElement>(null)
-  const svgRef = React.useRef<SVGSVGElement>(null)
   const creditsRef = React.useRef<HTMLDivElement>(null)
   const hintRef = React.useRef<HTMLDivElement>(null)
   const progressRef = React.useRef(0)
@@ -811,9 +802,7 @@ export default function OverlookTitleReveal({
     const root = rootRef.current
     const stage = stageRef.current
     const canvas = canvasRef.current
-    const frameEl = frameRef.current
-    const svg = svgRef.current
-    if (!root || !stage || !canvas || !frameEl) return
+    if (!root || !stage || !canvas) return
     const ctx = canvas.getContext("2d")
     const mask = document.createElement("canvas")
     const mctx = mask.getContext("2d")
@@ -822,7 +811,7 @@ export default function OverlookTitleReveal({
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const k = Math.max(0.5, Math.min(1, condense))
     const font = (px: number) => "900 " + px.toFixed(2) + "px " + fontFamily
-    const paths = svg ? Array.from(svg.querySelectorAll("path")) : []
+    const shade = palette[0] || "#000000"
 
     let W = 1
     let H = 1
@@ -875,14 +864,6 @@ export default function OverlookTitleReveal({
       ctx.font = font(size)
       const m = ctx.measureText(titleLines.join(""))
       cap = m.actualBoundingBoxAscent || size * 0.72
-      frameEl.style.left = f.x + "px"
-      frameEl.style.top = f.y + "px"
-      frameEl.style.width = f.w + "px"
-      frameEl.style.height = f.h + "px"
-      if (svg) {
-        svg.style.width = fit.w + "px"
-        svg.style.height = fit.h + "px"
-      }
       setLayout((l) =>
         l.margin === pf.margin && l.strip === pf.strip && l.gap === pf.gap ? l : { margin: pf.margin, strip: pf.strip, gap: pf.gap },
       )
@@ -890,7 +871,8 @@ export default function OverlookTitleReveal({
     }
 
     // The title as a shape: filled, and stroked `grow` px fat to dilate it.
-    const titleShape = (c: CanvasRenderingContext2D, zoom: number, grow: number) => {
+    // With `keyline` > 0 it is only stroked, that wide: the letters' outline.
+    const titleShape = (c: CanvasRenderingContext2D, zoom: number, grow: number, keyline = 0) => {
       const f = pf.frame
       const cx = f.x + f.w / 2
       const cy = f.y + f.h / 2
@@ -911,6 +893,13 @@ export default function OverlookTitleReveal({
         c.save()
         c.translate(0, -block / 2 + cap + i * lh)
         c.scale(k, 1)
+        if (keyline > 0) {
+          c.lineJoin = "miter"
+          c.lineWidth = keyline / zoom / Math.sqrt(k)
+          c.strokeText(line, 0, 0)
+          c.restore()
+          return
+        }
         c.fillText(line, 0, 0)
         if (grow > 0.5) {
           // Stroke width is squeezed by the condense too; fatten to keep it round-ish.
@@ -964,13 +953,36 @@ export default function OverlookTitleReveal({
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.drawImage(mask, 0, 0)
 
-      if (svg) {
-        svg.style.transform = "translate(" + (fit.x + par.x).toFixed(2) + "px," + (fit.y + par.y).toFixed(2) + "px)"
-        svg.style.opacity = T.lines > 0 ? "1" : "0"
-        paths.forEach((p, i) => {
-          const d = clamp01(T.lines * 1.5 - (i / paths.length) * 0.5)
-          p.style.strokeDashoffset = String(1 - d)
-        })
+      // Once the picture is full, dim the room outside the letters so the word
+      // still reads: a shade over the frame with the title punched out of it.
+      const dim = T.veil * clamp01(veil)
+      if (dim > 0.001) {
+        mctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        mctx.globalCompositeOperation = "source-over"
+        mctx.clearRect(0, 0, W, H)
+        mctx.globalAlpha = dim
+        mctx.fillStyle = shade
+        mctx.fillRect(f.x, f.y, f.w, f.h)
+        mctx.globalAlpha = 1
+        mctx.globalCompositeOperation = "destination-out"
+        mctx.fillStyle = "#000"
+        titleShape(mctx, T.zoom, 0)
+        ctx.drawImage(mask, 0, 0)
+      }
+
+      // The keyline: black, over a hairline of paper so it still shows where
+      // it crosses the darkest parts of the picture. Always on.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const kw = outlineWidth ?? Math.max(2, size * 0.022)
+      if (kw > 0) {
+        if (T.spread > 0.002) {
+          ctx.strokeStyle = clear ? "rgba(255,255,255,0.85)" : paper
+          ctx.globalAlpha = smoothstep(0, 0.2, T.spread)
+          titleShape(ctx, T.zoom, 0, kw + 2.5)
+          ctx.globalAlpha = 1
+        }
+        ctx.strokeStyle = outline
+        titleShape(ctx, T.zoom, 0, kw)
       }
       const cr = creditsRef.current
       if (cr) {
@@ -1098,7 +1110,7 @@ export default function OverlookTitleReveal({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, image, duotone, paletteKey, paper, accent, fontFamily, condense, seed, parallax, clear])
+  }, [title, image, duotone, paletteKey, paper, accent, outline, outlineWidth, veil, fontFamily, condense, seed, parallax, clear])
 
   // Enter jumps to the finished poster, and back to the bare title.
   const onKey = (e: React.KeyboardEvent) => {
@@ -1138,33 +1150,6 @@ export default function OverlookTitleReveal({
           style={{ width: "100%", height: "100%", maxWidth: "none" }}
         />
 
-        {lines && (
-          <div ref={frameRef} aria-hidden="true" className="pointer-events-none absolute overflow-hidden">
-            <svg
-              ref={svgRef}
-              viewBox={"0 0 " + ART_W + " " + ART_H}
-              preserveAspectRatio="none"
-              className="absolute left-0 top-0 block"
-              style={{ maxWidth: "none", opacity: 0, willChange: "transform" }}
-            >
-              {LINES.map((d, i) => (
-                <path
-                  key={i}
-                  d={d}
-                  pathLength={1}
-                  fill="none"
-                  stroke={palette[palette.length - 1] || "#f7dcaa"}
-                  strokeOpacity={i < 4 ? 0.9 : 0.42}
-                  strokeWidth={i < 4 ? 1.4 : 1}
-                  vectorEffect="non-scaling-stroke"
-                  strokeDasharray="1 1"
-                  strokeDashoffset={1}
-                />
-              ))}
-            </svg>
-          </div>
-        )}
-        {!lines && <div ref={frameRef} aria-hidden="true" className="pointer-events-none absolute" />}
 
         <div
           ref={hintRef}

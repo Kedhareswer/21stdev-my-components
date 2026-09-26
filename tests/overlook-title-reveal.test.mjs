@@ -4,7 +4,7 @@
 // The canvas cannot be asserted here. What can — and what breaks silently — is
 // the geometry: a cover fit that leaves an edge bare once the pointer drifts
 // it, a dilation that stops short of the corners (so the last frame snaps), or
-// a timeline that draws the lines before the picture has filled the frame.
+// a title that disappears (or grows off the frame) once the picture is full.
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { stripTypeScriptTypes } from "node:module"
@@ -31,6 +31,18 @@ for (const gone of [
 ]) assert.ok(src.includes(gone), `cleanup is missing ${gone}`)
 assert.ok(src.includes('className="sr-only"'), "title and billing must reach screen readers")
 
+// The title never leaves: its keyline is drawn every frame, after the picture,
+// and the old construction-line grid is gone.
+assert.doesNotMatch(src, /\bLINES\b|octagon|[Cc]onstruction line/, "no grid overlay; the title is the overlay")
+{
+  const at = src.indexOf("ctx.drawImage(mask, 0, 0)")
+  const key = src.indexOf("titleShape(ctx, T.zoom, 0, kw)")
+  assert.ok(at > -1 && key > at, "keyline must be drawn over the picture")
+  assert.doesNotMatch(src.slice(key - 400, key), /if \(!full|T\.spread < /, "keyline must not switch off at full spread")
+  assert.ok(src.includes('outline = "#0b0a0d"'), "keyline defaults to black")
+  assert.ok(src.includes('mctx.globalCompositeOperation = "destination-out"'), "the veil must be punched out by the title")
+}
+
 const demo = readFileSync(new URL("../components/overlook-title-reveal/demo.tsx", import.meta.url), "utf8")
 assert.ok(demo.includes('from "@/components/ui/overlook-title-reveal"'), "demo imports the installer path")
 assert.ok(demo.includes('className="w-full"'), "demo wrapper needs w-full")
@@ -54,14 +66,14 @@ assert.equal(L.progressFrom(-10, 900, 900), 0, "no travel must not divide by zer
 // Timeline: bare title at rest, full poster at the end, lines only once the picture fills.
 {
   const a = L.timeline(0)
-  assert.deepEqual([a.spread, a.lines, a.credits, a.hint, a.zoom], [0, 0, 0, 1, 1], "rest is the bare title")
+  assert.deepEqual([a.spread, a.veil, a.credits, a.hint, a.zoom], [0, 0, 0, 1, 1], "rest is the bare title")
   const z = L.timeline(1)
-  assert.deepEqual([z.spread, z.lines, z.credits, z.hint], [1, 1, 1, 0], "the end is the poster")
+  assert.deepEqual([z.spread, z.veil, z.credits, z.hint], [1, 1, 1, 0], "the end is the poster")
+  assert.ok(z.zoom * 0.88 <= 1, "the zoomed title must still fit the frame it was fitted to")
   let prev = L.timeline(0)
   for (let t = 0; t <= 1.0001; t += 0.01) {
     const T = L.timeline(t)
-    for (const k of ["spread", "lines", "credits", "zoom"]) assert.ok(T[k] >= prev[k] - 1e-12, `${k} runs backwards at ${t}`)
-    if (T.lines > 0) assert.ok(T.spread >= 0.999, `lines drawn before the frame is full at ${t}`)
+    for (const k of ["spread", "veil", "credits", "zoom"]) assert.ok(T[k] >= prev[k] - 1e-12, `${k} runs backwards at ${t}`)
     prev = T
   }
 }

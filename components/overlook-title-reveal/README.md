@@ -4,8 +4,10 @@ A screen-printed film poster that starts as nothing but its title. The picture
 lives only inside the letters: a red duotone ballroom bar seen through the
 glyphs, on a plain sheet of paper. Scroll, and the letters swell. The title is
 dilated outwards stroke by stroke, with a thin red rim riding its edge, until
-the picture has spread out of the words and fills the sheet. Then construction
-lines are drawn over it, the billing block prints in underneath, and the page is
+the picture has spread out of the words and fills the sheet. The title never
+goes away. Its letters keep a black keyline the whole way through, and once the
+picture is full the room outside them dims, so you can still read the word over
+the finished print. Then the billing block prints in underneath, and the page is
 a poster.
 
 **No dependencies.** React is the only import. There is no CSS file, font, image
@@ -19,10 +21,11 @@ prints in two inks. Pass `image` to reveal your own picture instead.
 ```
 scroll   what happens
 -------  ------------------------------------------------------------
-0        the bare title on paper, the picture showing through the letters
-0.05     the letters start to swell; a thin accent rim rides their edge
-0.68     the picture fills the frame
-0.70     construction lines draw in over it (octagons, grid, sight lines)
+0        the bare title on paper, black keyline, picture inside the letters
+0.05     the letters start to swell; a thin accent rim rides their edge,
+         the keyline stays on the original letter shapes
+0.60     the picture outside the letters starts to dim
+0.68     the picture fills the frame; the title still reads in its keyline
 0.74     the billing block prints in under the frame
 1        a finished poster
 ```
@@ -62,7 +65,7 @@ content after it.
 | `title` | `"THE SHINING"` | `\n` forces breaks. Otherwise it picks the word grouping that sets largest (so it breaks to two lines in portrait). |
 | `image` | none | Your own picture, cover-fit. With no `image`, it paints the ballroom. |
 | `duotone` | `true` | Gradient-map `image` through `palette`. This needs the host to send CORS headers; without them the picture is shown as it is. |
-| `palette` | 7 stops, navy → red → cream | Hex, 2 to 8 stops, shadow to highlight. The last stop also colours the construction lines. |
+| `palette` | 7 stops, navy → red → cream | Hex, 2 to 8 stops, shadow to highlight. The first stop is also the dimming colour. |
 | `paper` | `"#f2d6a2"` | The sheet, with a little tooth. `"transparent"` lets the page show through, and the text then uses `--color-foreground`. |
 | `ink` | `"#4a1d1a"` | Billing text and the scroll hint. |
 | `accent` | `"#b3241c"` | The small title, the maze mark, and the rim on the swelling letters. |
@@ -72,7 +75,9 @@ content after it.
 | `scrollLength` | `3.2` | A multiple of `height`. |
 | `height` | `"100svh"` | The stage. **Must be a definite length.** |
 | `parallax` | `true` | Pointer drift and idle drift. |
-| `lines` | `true` | The construction lines on the finished poster. |
+| `outline` | `"#0b0a0d"` | The keyline around the letters. It is always drawn. Once the picture spreads, a hairline of `paper` sits under it so it still shows over the darkest parts of the picture. |
+| `outlineWidth` | scales with the title | Width in px. `0` turns the keyline off. |
+| `veil` | `0.5` | How much the picture outside the letters dims once it fills the frame, from 0 to 1. `0` leaves it undimmed. |
 | `credit` | `"A Kedhareswer picture"` | The top line of the billing. |
 | `billing` | a parody block | `[label, value]` pairs. |
 | `edition` | `"17 / 60"` | The print-run box. It is hidden below `sm`. |
@@ -91,6 +96,12 @@ content after it.
   shape masks the picture (`source-in` on a second canvas). At full spread the
   stroke is wider than the frame's diagonal, so the last frame is a plain
   rectangle and nothing snaps.
+- **The title stays.** The keyline is stroked from the undilated title every
+  frame, after the picture. The dim is a `palette[0]` sheet over the frame
+  with the title cut out of it (`destination-out`), so inside the letters the
+  picture stays at full strength.
+- The title is fitted to 88% of the frame and grows at most 8% while
+  scrolling, so its keyline never runs off the edge.
 - The picture is painted once, about 100 ms after mount, so the title appears
   immediately in solid accent. It is repainted only when the palette, seed or
   image changes.
@@ -110,7 +121,7 @@ content after it.
 ## Credit
 
 The art direction is a homage to screen-printed alternative film posters: a
-red duotone illustration on cream stock, thin construction geometry and a
+red duotone illustration on cream stock, a keylined title and a
 billing block. The scene, its figures, the geometry and all the code are
 original and procedural. No film stills, poster art, real names, logos or
 rating marks are used.
