@@ -9,9 +9,10 @@ and watches the pointer.
 **No dependencies.** React is the only import. There are no images and no fonts
 to load:
 
-- **The dragon** is drawn on a canvas each frame: a shaded tube with a red rim
-  light, spines along its back, belly folds, four clawed legs that step as it
-  moves, horns, a thorn frill, a hinged jaw with teeth, and a glowing slit eye.
+- **The dragon** is WebGL2: its body is swept along its path every frame and
+  shaded as wet, dark clay, with broken glints on the lit side and the page's
+  colour bouncing into the shadow side. The skin texture is baked from numbers
+  at start-up.
 - **The display face** is an original angular slab serif, built from stroked
   polylines with mitred spikes, slabs, thorns and diamond beads. It comes in
   regular, bold, outline and bold outline, plus thorned stylistic alternates.
@@ -58,10 +59,10 @@ import DragonTypeSpecimen from "@/components/ui/dragon-type-specimen"
 | `studio` | `"STUDIO WYRM"` | Small line above the title. |
 | `year` | `"2026"` | |
 | `specimenWord` | `"SNARL"` | The word on the alternates page. |
-| `background` | `"#e3160f"` | Page colour. It is also the dragon's rim light. |
+| `background` | `"#e3160f"` | Page colour. It also bounces into the dragon's shadow side. |
 | `night` | `"#0b0a0b"` | Colour of the dark styles page. |
 | `ink` | `"#f7d117"` | Type colour. |
-| `dragonColor` | `"#1f1d21"` | Skin. Use a hex value: the highlights are mixed from it. |
+| `dragonColor` | `"#2b2621"` | Skin. Use a hex value: it tints the whole material. |
 | `eyeColor` | `"#ff2a1a"` | Eye glow. |
 | `defaultStyle` | `"regular"` | `regular`, `bold`, `outline` or `bold-outline`. |
 | `height` | `"100svh"` | Pinned stage height. **Must be a definite length.** |

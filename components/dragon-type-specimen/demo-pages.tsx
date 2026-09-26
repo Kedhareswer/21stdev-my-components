@@ -4,8 +4,8 @@ import * as React from "react"
 import DragonTypeSpecimen from "@/components/ui/dragon-type-specimen"
 
 const PAGES = ["Cover", "Eye", "Glyphs", "Weights", "Styles", "Alternates", "Liquid"]
-// the middle of each page, where the dragon rests
-const REST = [0.02, 0.4 / 7 + 1 / 7, 0.5 / 7 + 2 / 7, 0.5 / 7 + 3 / 7, 0.5 / 7 + 4 / 7, 0.5 / 7 + 5 / 7, 0.9]
+// where each page is at rest: the eye fully open, the last page settled
+const REST = [0.02, 1.55 / 7, 2.5 / 7, 3.5 / 7, 4.5 / 7, 5.5 / 7, 0.975]
 
 export default function DemoPages() {
   const [page, setPage] = React.useState(0)

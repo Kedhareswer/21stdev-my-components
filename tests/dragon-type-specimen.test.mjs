@@ -99,6 +99,11 @@ const m = await import("data:text/javascript," + encodeURIComponent(stripTypeScr
       const a = m.headArc(tr, 1, first, last)
       for (let j = 0; j <= 40; j++) assert.ok(offPage(m.trackAt(tr, a - (j / 40) * m.BODY_LEN), 150), `page ${s.chapter}: body still visible at exit`)
     }
+    // depth, where given, runs alongside the path point for point
+    if (s.z) {
+      assert.equal(s.z.length, s.pts.length, `page ${s.chapter}: one depth per path point`)
+      assert.equal(m.trackAt(tr, tr.restArc)[4], s.z[s.rest], `page ${s.chapter}: depth follows the path`)
+    }
     // tangents are unit vectors, past the ends too
     for (const a of [-500, 0, tr.len / 2, tr.len + 500]) {
       const [, , tx, ty] = m.trackAt(tr, a)
@@ -107,6 +112,39 @@ const m = await import("data:text/javascript," + encodeURIComponent(stripTypeScr
   }
   assert.ok(m.bodyRadius(0.2) > m.bodyRadius(0) && m.bodyRadius(0.2) > m.bodyRadius(0.95), "neck and tail are thinner than the chest")
   assert.ok(m.bodyRadius(1) > 0, "the tail tip keeps a width")
+}
+
+// ---- the legs: a two-bone reach, and legs that can reach where they are sent -------------
+{
+  const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+  const S = [10, -20, 5]
+  for (const [W, a, b, pole] of [
+    [[300, 200, -40], 250, 230, [0, -1, 0]],
+    [[40, 380, 90], 300, 200, [1, 0, 0.3]],
+    [[20, -10, 5], 120, 110, [0, 0, 1]], // almost folded shut
+    [[900, 0, 0], 200, 200, [0, 1, 0]], // out of reach
+    [[0, 300, 0], 150, 170, [0, 1, 0]], // pole along the reach: any side
+  ]) {
+    const E = m.ik2(S, W, a, b, pole)
+    assert.ok(E.every(Number.isFinite), "ik2 gives a point")
+    assert.ok(Math.abs(len(S, E) - a) < 1e-6, "the upper bone keeps its length")
+    const d = len(S, W)
+    const wrist = E.map((v, c) => v + ((W[c] - v) / len(E, W)) * b)
+    assert.ok(Math.abs(len(E, wrist) - b) < 1e-9, "the lower bone keeps its length")
+    if (d < a + b - 0.01 && d > Math.abs(a - b) + 0.01) assert.ok(Math.abs(len(E, W) - b) < 1e-6, "in reach, the wrist lands on the target")
+    else assert.ok(len(wrist, W) < d, "out of reach, it still points at the target")
+  }
+  // the elbow bends toward the pole
+  const E = m.ik2([0, 0, 0], [0, 300, 0], 200, 200, [1, 0, 0])
+  assert.ok(E[0] > 100, "the elbow goes the pole's way")
+  for (const s of m.SCENES)
+    for (const L of s.legs ?? []) {
+      assert.ok(L.u >= 0.06 && L.u <= 1, `page ${s.chapter}: a leg grows from the body, clear of the neck`)
+      assert.ok(Math.hypot(...L.at) < 1, `page ${s.chapter}: a leg's root sits inside the body`)
+      assert.ok(L.len[0] > 0 && L.len[1] > 0 && L.curl >= 0 && L.curl <= 1.2)
+    }
+  assert.ok(m.SCENES.find((s) => s.chapter === 0).legs.length === 3, "three legs on the cover")
+  assert.ok(m.SCENES.filter((s) => s.legs?.some((l) => l.front)).length >= 2, "hands grip the type on the cover and the weights page")
 }
 
 // ---- colours ---------------------------------------------------------------------
@@ -127,7 +165,8 @@ const root = src.slice(src.indexOf("<section"), src.indexOf("<canvas"))
 assert.doesNotMatch(root, /\bh-(full|screen)\b/, "no percentage height on the root or stage")
 assert.ok(/overflow: "clip"/.test(src), "root clips without becoming a scroll container, or sticky breaks")
 assert.ok(/className="sticky top-0/.test(src), "the stage pins while the book plays")
-assert.equal((src.match(/maxWidth: "none"/g) || []).length, 3, "Preflight's max-width is overridden on both svgs and the canvas")
+assert.equal((src.match(/maxWidth: "none"/g) || []).length, 4, "Preflight's max-width is overridden on both svgs and both canvases")
+assert.ok(/ref=\{frontRef\}[\s\S]{0,200}pointerEvents: "none"/.test(src), "the canvas above the type lets the pointer through")
 assert.ok(src.includes("prefers-reduced-motion") && /c\.reduced/.test(src), "reduced motion takes its own path")
 assert.ok(src.includes("motion-reduce:"), "css animations have a reduced-motion variant")
 assert.ok(src.includes("aria-label") && src.includes('role="button"') && src.includes("onKeyDown"), "the style picker is reachable by keyboard")
