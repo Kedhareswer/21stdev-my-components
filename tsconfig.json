@@ -61,7 +61,8 @@
       "@/components/ui/gothic-stamp-deck": ["./components/gothic-stamp-deck/gothic-stamp-deck.tsx"],
       "@/components/ui/scanline-bloom": ["./components/scanline-bloom/scanline-bloom.tsx"],
       "@/components/ui/halftone-nebula": ["./components/halftone-nebula/halftone-nebula.tsx"],
-      "@/components/ui/pixel-portal-404": ["./components/pixel-portal-404/pixel-portal-404.tsx"]
+      "@/components/ui/pixel-portal-404": ["./components/pixel-portal-404/pixel-portal-404.tsx"],
+      "@/components/ui/pixel-spider-tracker": ["./components/pixel-spider-tracker/pixel-spider-tracker.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
