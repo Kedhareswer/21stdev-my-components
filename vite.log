@@ -1,9 +1,0 @@
-
-  VITE v6.4.3  ready in 2008 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-8:06:49 AM [vite] (client) hmr update /@fs/home/user/21stdev-my-components/components/overlook-title-reveal/overlook-title-reveal.tsx, /styles.css
-8:07:30 AM [vite] (client) hmr update /@fs/home/user/21stdev-my-components/components/overlook-title-reveal/overlook-title-reveal.tsx, /styles.css
-8:08:22 AM [vite] (client) page reload /home/user/21stdev-my-components/components/overlook-title-reveal/README.md
-8:08:35 AM [vite] (client) page reload /home/user/21stdev-my-components/components/overlook-title-reveal/README.md
