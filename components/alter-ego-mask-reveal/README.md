@@ -7,10 +7,11 @@ trail melts back within a second, so the mask closes behind you and is gone
 once you leave. Click (or press Enter) to suit up completely; click again to
 take it off.
 
-**No dependencies.** React is the only import. Both portraits (the civilian
-and the red web mask with mesh lenses) are SVG drawn from numbers on one
-shared face geometry, so the mask lands exactly on the face. No images, no
-fonts to load. To use two photos instead, pass `baseSrc` and `revealSrc`.
+**No dependencies.** React is the only import. The civilian portrait and the
+masked hero are the defaults, embedded in the file as small webp data URIs
+(about 80 KB together), so nothing is fetched and it renders offline and in
+21st's capture sandbox. Swap in your own two shots with `baseSrc` and
+`revealSrc`.
 
 ## How it plays
 
@@ -20,7 +21,6 @@ fonts to load. To use two photos instead, pass `baseSrc` and `revealSrc`.
 | hover | a liquid blob sits under the pointer, a trail of drops follows it |
 | stop / leave | the drops swell, sag a little, and melt away over `linger` ms |
 | click / Enter / Space | the whole stage floods into hero mode; again to undo |
-| civilian eyes | follow the pointer |
 
 The goo is an SVG mask: blurred circles run through an alpha threshold (the
 classic gooey filter) plus a little turbulence so the edge wobbles like
@@ -45,7 +45,7 @@ import AlterEgoMaskReveal from "@/components/ui/alter-ego-mask-reveal"
 <AlterEgoMaskReveal
   baseSrc="/me.jpg"
   revealSrc="/me-masked.jpg"
-  revealFit={{ x: 0.7, y: -2, scale: 0.78 }}
+  revealFit={{ x: 0, y: -2, scale: 0.8 }}
 />
 ```
 
@@ -69,14 +69,14 @@ set `backdrop` / `revealBackdrop` close to each photo's own background.
 | `label` / `revealLabel` | `"File 001 · Civilian"` / `"… · Masked"` | Small kicker above each. |
 | `caption` | `"Queens, NY — …"` | Bottom-right. Empty hides it. |
 | `hint` | `"Hover his face"` | Pill shown until the first interaction. Empty hides it. |
-| `baseSrc` | none | Civilian photo; replaces the drawn civilian. |
-| `revealSrc` | none | Hero photo; replaces the drawn mask. |
-| `revealFit` | `{ x: 0, y: 0, scale: 1 }` | Aligns `revealSrc` onto the base face. |
+| `baseSrc` | built-in portrait | Civilian photo, 3:4 works best. |
+| `revealSrc` | built-in hero | Hero photo, seen through the goo. |
+| `revealFit` | tuned for the built-ins | Aligns `revealSrc` onto the base face. With your own `revealSrc` it defaults to no nudge. |
 | `brush` | `78` | Blob radius in 1/1000ths of the stage height. Shrinks with the portrait on narrow screens. |
 | `linger` | `950` | How long the trail lasts (ms). |
 | `accent` | `"#e23a44"` | Rim glow, hero word, hero kicker. |
-| `backdrop` | `"#1c2225"` | Civilian backdrop. |
-| `revealBackdrop` | `"#070708"` | Hero backdrop (a faint web is drawn over it). |
+| `backdrop` | `"#20272b"` | Civilian backdrop. |
+| `revealBackdrop` | `"#0b0b0c"` | Hero backdrop (a faint web is drawn over it). |
 | `autoPeek` | `true` | Ghost pointer until someone interacts. |
 | `fontFamily` | Anton / Bebas Neue / Oswald / Impact… | Any bold face; nothing is loaded. |
 | `height` | `"100svh"` | Stage height. **Must be a definite length.** |
