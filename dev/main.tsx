@@ -3,17 +3,17 @@ import { createRoot } from "react-dom/client"
 import "./styles.css"
 
 // Every demo in every component folder, found automatically. Adding a component
-// folder is the only step — nothing here needs editing.
+// folder is the only step — nothing here needs editing. Lazy, so each demo is
+// its own chunk and a deployed workshop only downloads the one being viewed.
 const modules = import.meta.glob<{ default: React.ComponentType }>(
   "../components/*/demo*.tsx",
-  { eager: true },
 )
 
 const demos = Object.entries(modules)
-  .map(([path, mod]) => {
+  .map(([path, load]) => {
     const [, slug, file] = path.match(/components\/([^/]+)\/(demo[^.]*)\.tsx$/) ?? []
     const variant = file === "demo" ? "default" : file.slice(5)
-    return { id: variant === "default" ? slug : slug + "/" + variant, Comp: mod.default }
+    return { id: variant === "default" ? slug : slug + "/" + variant, Comp: React.lazy(load) }
   })
   // Default demo first within each component, then extra variants.
   .sort((a, b) => a.id.localeCompare(b.id))
@@ -50,7 +50,9 @@ function Workshop() {
 
   return (
     <div key={current.id} className="h-full w-full">
-      <current.Comp />
+      <React.Suspense fallback={null}>
+        <current.Comp />
+      </React.Suspense>
     </div>
   )
 }

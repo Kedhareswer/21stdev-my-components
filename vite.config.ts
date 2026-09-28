@@ -24,4 +24,10 @@ export default defineConfig({
     // components/ and tests/ sit above dev/.
     fs: { allow: [root] },
   },
+  build: {
+    // Hosts' Vite presets (Vercel, Netlify, Cloudflare) serve <repo>/dist, not
+    // dev/dist. Outside root, Vite only clears the folder when told to.
+    outDir: "../dist",
+    emptyOutDir: true,
+  },
 })
