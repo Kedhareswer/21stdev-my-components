@@ -331,6 +331,7 @@ function harvestDebt(c: Ctx) {
 const STILLS: { item: Omit<ProjectorItem, "src">; paint: (c: Ctx) => void }[] = [
   {
     item: {
+      heading: "Conflict",
       title: "Reality Sinks",
       note: "Establishes mood: anger, urgency, tension. Stands in for a whole district and its everyday.",
       label: "Wide crop of red background + silhouettes",
@@ -340,6 +341,7 @@ const STILLS: { item: Omit<ProjectorItem, "src">; paint: (c: Ctx) => void }[] = 
   },
   {
     item: {
+      heading: "Ritual",
       title: "Queue at Dawn",
       note: "Patience as a kind of pressure. The line is the story; the box is the question.",
       label: "Low sun, long shadows, the ballot box at frame right",
@@ -349,6 +351,7 @@ const STILLS: { item: Omit<ProjectorItem, "src">; paint: (c: Ctx) => void }[] = 
   },
   {
     item: {
+      heading: "Journey",
       title: "The Long Road",
       note: "One walker, one bundle, a road that does not end. Distance becomes the argument.",
       label: "Centre the horizon, let the sun sit on the vanishing point",
@@ -358,6 +361,7 @@ const STILLS: { item: Omit<ProjectorItem, "src">; paint: (c: Ctx) => void }[] = 
   },
   {
     item: {
+      heading: "Noise",
       title: "Loudspeaker",
       note: "The volume rises before the facts do. Flags, fists and one very loud horn.",
       label: "Crowd as texture, megaphone as the single bright shape",
@@ -367,6 +371,7 @@ const STILLS: { item: Omit<ProjectorItem, "src">; paint: (c: Ctx) => void }[] = 
   },
   {
     item: {
+      heading: "Labour",
       title: "Harvest Debt",
       note: "Two people bent to the stalks while the sheaves stack up for someone else.",
       label: "Warm gold to soften the blow, hard black figures to land it",

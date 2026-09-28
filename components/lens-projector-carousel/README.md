@@ -14,7 +14,7 @@ import LensProjectorCarousel from "@/components/ui/lens-projector-carousel"
 ```
 
 ```ts
-type ProjectorItem = { src: string; title?: string; note?: string; label?: string; alt?: string }
+type ProjectorItem = { src: string; heading?: string; title?: string; note?: string; label?: string; alt?: string }
 ```
 
 **No dependencies beyond React.** One file, no CSS file, no image files. The
@@ -24,8 +24,8 @@ camera is inline SVG, the paper is CSS noise.
 
 | Prop | Default | Notes |
 |---|---|---|
-| `items` | — | Required. `title` is the condensed headline, `note` the paragraph under it, `label` the pencil annotation over the beam. |
-| `heading` | `"Conflict"` | Script heading in the corner. `""` hides it. |
+| `items` | — | Required. `heading` swaps the corner script per slide, `title` is the condensed headline, `note` the paragraph under it, `label` the pencil annotation over the beam. |
+| `heading` | `"Conflict"` | Default corner heading; a slide's own `heading` wins. `""` hides it. |
 | `cameraLabel` | `"HD"` | Text on the camera's badge plate. |
 | `height` | `"100svh"` | Total height. **Must be a definite length.** |
 | `autoplay` | `0` | Milliseconds between slides. `0` is off. |
@@ -44,7 +44,7 @@ camera is inline SVG, the paper is CSS noise.
 
 ## Install safety
 
-- The root takes an explicit `height`, never a percentage. Layout is in container units, so it fits whatever box it is given, and re-flows below 700px wide.
+- The root takes an explicit `height`, never a percentage. Layout is in container units, so it fits whatever box it is given, and re-flows below 700px wide: a bigger beam, with the camera half off the edge. The corner heading, `No. 02 / 05` counter, annotation, headline and note all change with the slide.
 - All styles are one scoped `<style>` (`.lp-*`). It uses no host tokens: the scene is a fixed print, coloured by `ink` and `paper`.
 - Images set `max-width: none` explicitly, against Tailwind Preflight.
 - Reduced motion swaps every move for a 300ms cross-fade and hides the dust and flicker.
