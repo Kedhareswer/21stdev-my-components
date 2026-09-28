@@ -9,8 +9,8 @@ import * as React from "react"
  * slot, the glyph set, a weight study, the style list, stylistic alternates and
  * a liquid page. A glossy black dragon slithers between them: it lies coiled
  * across the cover, dives off the bottom, rises from the lower right, drops in
- * from the top, climbs out of the dark, lunges from the left and coils up on
- * the right. Its body follows its head along a path, so it moves like one
+ * from the top, climbs out of the dark, lunges from the left and arches over
+ * the last page. Its body follows its head along a path, so it moves like one
  * living animal rather than a sequence of stills.
  *
  * Everything is drawn from numbers. The dragon is WebGL2: a body swept along its
@@ -56,6 +56,11 @@ export interface DragonTypeSpecimenProps {
   progress?: number
   /** Show the "scroll" cue on the cover. */
   hint?: boolean
+  /**
+   * Hide the scrollbar of whatever scrolls the page (the window, or a scrolling parent) while
+   * the book is mounted, and put it back after. Scrolling still works; the book is the scroll.
+   */
+  hideScrollbar?: boolean
   /** Extra root class names. */
   className?: string
 }
@@ -327,6 +332,13 @@ export function layoutWord(text: string, weight: number = WEIGHTS.regular, track
 
 export const SCENE_W = 1600
 export const SCENE_H = 1000
+
+/**
+ * Scene units to pixels for a w x h stage: the whole 1600 x 1000 page always fits, so no type
+ * is ever cut off at any window size (21st records its previews at 1280 x 960). A wider stage
+ * shows more of the dragon at the sides, a narrower one more above and below.
+ */
+export const fitScale = (w: number, h: number) => Math.min(w / SCENE_W, h / SCENE_H)
 /** Body length along its path, head to tail tip, in scene units at scale 1. */
 export const BODY_LEN = 4200
 /** Body radius at scale 1, in scene units. */
@@ -521,7 +533,8 @@ export const SCENES: Scene[] = [
       [1550, 700], [1700, 1200], [1850, 1600],
     ],
   },
-  // styles: rises from below the bottom edge; the face-on head hides the rest
+  // styles: rises from below the bottom edge; the face-on head hides the rest. It leaves
+  // up and away to the left in a long curve, so the neck never crosses the page as a straight pole.
   {
     chapter: 4,
     side: 1,
@@ -533,9 +546,9 @@ export const SCENES: Scene[] = [
     head: 1.5,
     horns: "mask",
     look: 0.08,
-    pts: [[800, 1700], [800, 1300], [800, 1040], [800, 760], [800, 600], [800, 300], [800, -200], [800, -900]],
+    pts: [[800, 1700], [800, 1300], [800, 1040], [800, 760], [795, 600], [760, 420], [660, 220], [470, 30], [170, -190], [-250, -450], [-800, -700]],
     // the neck comes up from behind the face-on head
-    z: [-1100, -1000, -800, -500, -500, -500, -500, -500],
+    z: [-1100, -1000, -800, -500, -500, -500, -500, -500, -500, -500, -500],
   },
   // alternates: only the neck, thick as a third of the page, in from the left edge
   {
@@ -554,25 +567,28 @@ export const SCENES: Scene[] = [
     pts: [[-1600, 775], [-900, 655], [-300, 575], [0, 525], [190, 500], [560, 575], [700, 800], [700, 1150], [600, 1600]],
   },
   // liquid: up from the bottom, an arch over the drop, down the right side and
-  // out of the right edge, head off the page
+  // out of the right edge. The head rests past the edge of even an ultrawide view
+  // (2.4:1 shows x up to 2000), so no wide screen finds it half cut off at the edge.
   {
     chapter: 6,
     side: 1,
-    rest: 15,
+    rest: 19,
     jaw: 0.3,
     dust: 1,
+    // off the page there is nothing to turn toward, and a turning neck would sway the body at the edge
+    look: 0,
     // the foreleg reaches down for the drop; the hind foot splays on the bottom edge
     legs: [
-      { u: 0.26, at: [0.05, 0.5], len: [2.2, 2.2], ref: "drop", to: [-40, -225, -60], pole: [-1, -0.8, 0.2], dir: [0.7, 0.55, 0.45], back: [-0.2, -0.75, 0.6], curl: 0.75, spread: 0.4, thick: 1.3, hand: 1.15, front: true },
-      { u: 0.1, at: [0.1, 0.5], len: [2.6, 2.6], ref: "page", to: [1390, 860, -160], pole: [0.8, -0.7, 0.5], dir: [0.45, 0.7, 0.55], back: [0.1, -0.9, 0.3], curl: 0.45, spread: 0.55, thick: 1.3, hand: 1.15 },
+      { u: 0.412, at: [0.05, 0.5], len: [2.2, 2.2], ref: "drop", to: [-40, -225, -60], pole: [-1, -0.8, 0.2], dir: [0.7, 0.55, 0.45], back: [-0.2, -0.75, 0.6], curl: 0.75, spread: 0.4, thick: 1.3, hand: 1.15, front: true },
+      { u: 0.252, at: [0.1, 0.5], len: [2.6, 2.6], ref: "page", to: [1390, 860, -160], pole: [0.8, -0.7, 0.5], dir: [0.45, 0.7, 0.55], back: [0.1, -0.9, 0.3], curl: 0.45, spread: 0.55, thick: 1.3, hand: 1.15 },
     ],
     pts: [
       [950, 1500], [840, 1120], [760, 950], [715, 860], [685, 760], [690, 640], [745, 525], [840, 410],
       [945, 305], [1040, 218], [1128, 180], [1222, 214], [1295, 300], [1365, 440], [1470, 560], [1596, 640],
-      [1710, 705], [1850, 800], [2100, 900],
+      [1720, 712], [1860, 790], [2010, 860], [2170, 920], [2340, 975], [2600, 1040],
     ],
     // the top of the arch bulges toward the viewer; both sides fall away
-    z: [-700, -700, -700, -695, -670, -610, -510, -360, -190, -40, 50, -40, -250, -400, -450, -450, -450, -450, -450],
+    z: [-700, -700, -700, -695, -670, -610, -510, -360, -190, -40, 50, -40, -250, -400, -450, -450, -450, -450, -450, -450, -450, -450],
   },
 ]
 
@@ -645,21 +661,25 @@ export function trackAt(tr: Track, a: number): [number, number, number, number, 
   return [lerp(pts[lo][0], pts[hi][0], k), lerp(pts[lo][1], pts[hi][1], k), tx, ty, z ? lerp(z[lo], z[hi], k) : 0]
 }
 
-/** Where the head is along its page's path at page time t. */
+/**
+ * Where the head is along its page's path at page time t. Each page holds its pose for
+ * about a third of its scroll: the arrival and the exit are the quick parts, so wherever
+ * the scroll stops it most likely stops on a settled page.
+ */
 export function headArc(tr: Track, t: number, first: boolean, last: boolean) {
   const rest = tr.restArc
   const exitTo = tr.len + tr.body + 700
   if (first) {
-    if (t < 0.42) return rest + DRIFT * smooth(0, 0.42, t) * 0.5
-    return rest + DRIFT * 0.5 + easeIn(smooth(0.42, 1, t)) * (exitTo - rest - DRIFT * 0.5)
+    if (t < 0.5) return rest + DRIFT * smooth(0, 0.5, t) * 0.5
+    return rest + DRIFT * 0.5 + easeIn(smooth(0.5, 1, t)) * (exitTo - rest - DRIFT * 0.5)
   }
   if (last) {
-    if (t < 0.55) return lerp(ENTER_FROM, rest, easeOut(smooth(0, 0.55, t)))
-    return rest + DRIFT * smooth(0.55, 1, t)
+    if (t < 0.5) return lerp(ENTER_FROM, rest, easeOut(smooth(0, 0.5, t)))
+    return rest + DRIFT * smooth(0.5, 1, t)
   }
-  if (t < 0.4) return lerp(ENTER_FROM, rest, easeOut(smooth(0, 0.4, t)))
-  if (t < 0.62) return rest + DRIFT * smooth(0.4, 0.62, t)
-  return rest + DRIFT + easeIn(smooth(0.62, 1, t)) * (exitTo - rest - DRIFT)
+  if (t < 0.34) return lerp(ENTER_FROM, rest, easeOut(smooth(0, 0.34, t)))
+  if (t < 0.68) return rest + DRIFT * smooth(0.34, 0.68, t)
+  return rest + DRIFT + easeIn(smooth(0.68, 1, t)) * (exitTo - rest - DRIFT)
 }
 
 /**
@@ -1354,7 +1374,10 @@ function mouth(m: HeadMesh) {
       W.push(smooth(0.6, -0.6, c))
     }
   }
-  grid(m, G, rows, cols, C, false, (j, k) => [j / rows, k / cols], () => 0, (j, k) => W[j * cols + k], true)
+  // bump carries how far into the cavity a vertex sits, measured round the pouch from its open edges
+  // (-1 at the lips, -2 halfway round), so the shader sinks the palate, cheek and floor into the dark
+  const deep = (k: number) => -1 - Math.sin((k / (cols - 1)) * Math.PI)
+  grid(m, G, rows, cols, C, false, (j, k) => [j / rows, k / cols], (_j, k) => deep(k), (j, k) => W[j * cols + k], true)
 }
 
 /** The rest of the head's parts, per page. `minR` is the thinnest a tip may get, in head units. */
@@ -1470,26 +1493,28 @@ function buildHead(scenes: Scene[], units: number[], fine: boolean) {
       tube(m, lo, 5, 8, minR, 0.2)
     }
   })
-  // needle teeth, dark like the skin: six down from each side of the upper jaw, three up from the lower
+  // needle teeth, dark like the skin and hooked back toward the throat, long enough to cross
+  // the gape as the reference's do: seven down from each side of the upper jaw, longest toward
+  // the front, long and short alternating; four short ones up from the lower
   add(6, SKULL_SPACE, true, () => {
     for (const s of [-1, 1])
-      for (let k = 0; k < 8; k++) {
-        const x = 1.45 + k * 0.31
-        const L = lerp(0.34, 0.74, k / 7) * (k % 2 ? 0.8 : 1)
+      for (let k = 0; k < 7; k++) {
+        const x = 1.5 + k * 0.34 + (s > 0 ? 0.12 : 0)
+        const L = lerp(0.45, 0.9, k / 6) * (k % 2 ? 0.68 : 1)
         const y = gapeAt(x) + 0.05
         const z = s * sectionAt(JAW, x)[0] * 0.84
-        tube(m, [[x + 0.02, y, z, 0.06], [x, y - L * 0.5, z, 0.04], [x - 0.07, y - L, z * 0.98, 0.012]], 5, 7, minR, 1)
+        tube(m, [[x + 0.02, y, z, 0.07], [x + 0.01, y - L * 0.55, z, 0.04], [x - 0.09, y - L, z * 0.97, 0.01]], 5, 7, minR, 1)
       }
   })
   add(6, JAW_SPACE, true, () => {
     for (const s of [-1, 1])
-      for (let k = 0; k < 5; k++) {
-        const x = 2.1 + k * 0.36
-        const L = lerp(0.22, 0.4, k / 4)
+      for (let k = 0; k < 4; k++) {
+        const x = 2.05 + k * 0.45 + (s > 0 ? 0.15 : 0)
+        const L = lerp(0.26, 0.46, k / 3)
         const J = sectionAt(JAW, x)
         const y = J[2] + J[1] - 0.04
         const z = s * J[0] * 0.8
-        tube(m, [[x - 0.02, y, z, 0.04], [x, y + L * 0.5, z, 0.028], [x + 0.05, y + L, z, 0.01]], 5, 7, minR, 1)
+        tube(m, [[x - 0.02, y, z, 0.05], [x, y + L * 0.55, z, 0.03], [x + 0.08, y + L, z, 0.01]], 5, 7, minR, 1)
       }
   })
   // strings of spit between the jaws, sagging toward the throat
@@ -1671,6 +1696,9 @@ type LegPose = {
   rootR: number
   girth: number
   front: boolean
+  /** the body's spine where the leg grows, and its heading there */
+  spine: V3
+  along: V3
 }
 
 /** Turns v about the unit axis k by a radians. */
@@ -1819,7 +1847,7 @@ const tubeH = new Float32Array(64)
 
 /**
  * Sweeps leg L into `out` from vertex v0: the arm, then the four fingers and the dewclaw.
- * `minR` is the thinnest a claw's point may get.
+ * `minR` is the thinnest a claw's point may get. Returns the arm's radius at its root.
  */
 function sweepLimb(L: LegPose, sh: LimbShape, minR: number, out: Float32Array, v0: number) {
   const { root, elbow, wrist, F, K, S, size, girth } = L
@@ -1924,6 +1952,7 @@ function sweepLimb(L: LegPose, sh: LimbShape, minR: number, out: Float32Array, v
     sweepTube(tubeC, row, sh.fring, tubeB, 1, out, v, null, null, S, K)
     v += (row + 1) * (sh.fring + 1)
   }
+  return R0
 }
 
 /**
@@ -2030,12 +2059,15 @@ function poseLeg(P: Q[], L: Leg, i: number, sc: Scene, tr: Track, a: number, res
   out.F = F
   out.K = K
   out.S = cross3(F, K)
-  out.curl = lerp(0.45, curl, rest)
+  // travelling, the claws hang half curled, as a relaxed hand does: straight, splayed fingers read as bones
+  out.curl = lerp(0.72, curl, rest)
   out.spread = L.spread
   out.size = 230 * zoom * (L.hand ?? 1)
   out.girth = 56 * zoom * (L.thick ?? 1)
   out.rootR = q.r
   out.front = !!L.front
+  out.spine = [q.x, q.y, q.z]
+  out.along = [q.tx, q.ty, q.tz]
 }
 
 // ---- page two's eye: a panel of folded skin with two slits in it, built once ------------------
@@ -2160,17 +2192,38 @@ const VS = [
   "layout(location=5) in float aW;",
   "uniform mat4 uModel, uJaw, uHead;",
   "uniform vec3 uStretch;",
+  // the skin's repeat: the head's uvs are in head units, so a big head scales them up to keep its
+  // gloss flecks the body's size (round it: a whole number of repeats, or a seam would show)
+  "uniform vec2 uTile;",
   "uniform vec4 uView;",
   "uniform float uD;",
-  "out vec3 vPos; out vec3 vN; out vec3 vT; out vec2 vUV; out float vBump;",
+  // per leg, four rows: the body's spine where the leg grows and its radius there; the spine's
+  // heading and the leg's radius at its root (0: no leg); the leg's root; the leg's heading
+  "uniform vec4 uLeg[12];",
+  "out vec3 vPos; out vec3 vN; out vec3 vT; out vec2 vUV; out float vBump; out float vOcc;",
   "void main() {",
   "  vec3 q = mix(uModel * vec4(aPos, 1.), uJaw * vec4(aPos, 1.), aW).xyz;",
   "  vec3 st = mix(vec3(1.), uStretch, smoothstep(0., .8, q.x));",
   "  vec4 p = uHead * vec4(q * st, 1.);",
   "  vPos = p.xyz;",
+  // where a leg grows out of the body, both skins sink into one dark crease along the line where
+  // the two tubes cut through each other, so it never shows as a hard edge: dark where a point
+  // lies close to both surfaces, the body's (a straight tube along the spine near the root) and
+  // the leg's (a straight tube from its root), and only near the root. Per vertex: it changes
+  // slowly, and software rendering would pay for it on every pixel.
+  "  vOcc = 0.;",
+  "  for (int i = 0; i < 3; i++) {",
+  "    vec4 L0 = uLeg[i * 4], L1 = uLeg[i * 4 + 1], L2 = uLeg[i * 4 + 2], L3 = uLeg[i * 4 + 3];",
+  "    if (L1.w <= 0.) continue;",
+  "    vec3 pb = p.xyz - L0.xyz, pl = p.xyz - L2.xyz;",
+  "    float ab = dot(pb, L1.xyz), al = dot(pl, L3.xyz);",
+  "    float db = length(pb - L1.xyz * ab) - L0.w, dl = length(pl - L3.xyz * al) - L1.w;",
+  "    vOcc = max(vOcc, (1. - smoothstep(0., L0.w * .5, db)) * (1. - smoothstep(0., L1.w * .6, dl))",
+  "      * (1. - smoothstep(L0.w * 1.4, L0.w * 2.4, abs(ab))) * smoothstep(-L1.w, 0., al) * (1. - smoothstep(L1.w * 2., L1.w * 3.5, al)));",
+  "  }",
   "  vN = mat3(uHead) * (mix(mat3(uModel) * aN, mat3(uJaw) * aN, aW) / st);",
   "  vT = mat3(uHead) * (mix(mat3(uModel) * aT, mat3(uJaw) * aT, aW) * st);",
-  "  vUV = aUV; vBump = aBump;",
+  "  vUV = aUV * uTile; vBump = aBump;",
   "  float w = uD - p.z, nr = uD - 2000., fr = uD + 2000., b = 2. * nr * fr / (nr - fr), a = 1. - b / fr;",
   "  gl_Position = vec4((p.x - uView.x) * uD / uView.z, -(p.y - uView.y) * uD / uView.w, a * w + b, w);",
   "}",
@@ -2189,6 +2242,7 @@ const FS = [
   "uniform vec3 uCam, uL, uBg, uAlb, uEye, uMouth;",
   // uMat: 0 skin, 1 eye slit, 2 dark pit, 3 mouth, 4 tongue, 5 spit, 6 carved skin (grooves shade), 7 page two's molten slit
   "uniform float uKey, uFade, uDust, uMat, uBlink, uGlint;",
+  "in float vOcc;",
   "out vec4 o;",
   // #060503 -> #14110f -> #2d2722 (median) -> #3c382d (lit) -> #4a453c (peak)
   "vec3 ramp(float d) {",
@@ -2233,11 +2287,18 @@ const FS = [
   "    else {",
   // wet parts: one continuous gloss, no flecks. They draw two-sided, so turn the normal to the eye
   "      if (e < 0.) { N0 = -N0; cov = uFade > .5 ? smoothstep(0., fwidth(e) * 1.25, -e) : 1.; }",
-  "      c = uMat < 3.5 ? uMouth : uMat < 4.5 ? uEye * vec3(.7, .67, .65) : mix(uEye, vec3(1.), .47);",
-  "      c *= .5 + .5 * clamp(dot(N0, uL) * .5 + .5, 0., 1.);",
-  // the mouth darkens down toward the throat
-  "      if (uMat < 3.5) c *= mix(.35, 1., smoothstep(0., .8, vUV.x));",
-  "      c += vec3(1., .92, .9) * pow(max(dot(N0, normalize(uL + V)), 0.), 48.) * .7;",
+  "      c = uMat < 3.5 ? uMouth : uMat < 4.5 ? uEye * vec3(.52, .46, .45) : mix(uEye, vec3(1.), .47);",
+  "      float hl = clamp(dot(N0, uL) * .5 + .5, 0., 1.), sp = .7;",
+  "      if (uMat < 3.5) {",
+  // the mouth reads as the page's red seen between the jaws, as the reference's does: the pouch
+  // (bump < -.5 carries how far round it a point sits) barely shades, so its flat panels cannot
+  // catch the light, dims toward the far wall and falls dark only down the throat; the gums
+  // (bump >= 0) are the dark red rim the teeth are set in
+  "        float deep = vBump < -.5 ? clamp(-vBump - 1., 0., 1.) : -1.;",
+  "        c *= deep < 0. ? .42 + .2 * hl : (.84 + .16 * hl) * mix(1., .66, smoothstep(.2, .9, deep)) * mix(.3, 1., smoothstep(0., .55, vUV.x));",
+  "        sp = deep < 0. ? .5 : .18;",
+  "      } else c *= .5 + .5 * hl;",
+  "      c += vec3(1., .92, .9) * pow(max(dot(N0, normalize(uL + V)), 0.), 48.) * sp;",
   "    }",
   "    o = vec4(c * uKey * cov, cov);",
   "    return;",
@@ -2260,11 +2321,21 @@ const FS = [
   "  float nv = clamp(dot(N0, V), 0., 1.), shade = 1. - smoothstep(-.3, .45, dot(N0, uL));",
   "  col = mix(col, uBg * .3, clamp((pow(1. - nv, 2.5) * .9 + a.b * .4) * shade, 0., .7));",
   "  col = mix(col, vec3(.024, .02, 0.), (1. - smoothstep(0., .1 + fwidth(nv) * 1.5, nv)) * (.25 + .75 * shade));",
+  // the crease where a leg grows out of the body (vOcc, from the vertex shader)
+  "  float occ = vOcc;",
+  "  col = mix(col, mix(vec3(.024, .02, .014), uBg * .2, .3), occ * .8);",
   // a sharp highlight on the bumped normal, masked by sparse flecks and the lumps' crowns
   "  float fl = smoothstep(.3, .6, a.a);",
-  "  float spec = pow(max(dot(N, normalize(uL + V)), 0.), 30.) * fl * (.25 + .75 * smoothstep(-.4, .8, vBump)) * 3. * uKey;",
+  "  float spec = pow(max(dot(N, normalize(uL + V)), 0.), 30.) * fl * (.25 + .75 * smoothstep(-.4, .8, vBump)) * 3. * uKey * (1. - occ);",
   "  col = mix(col, mix(vec3(.5, .47, .44), vec3(1., .99, .96), smoothstep(.5, 1.2, spec)), clamp(spec, 0., 1.));",
-  "  col = mix(col, vec3(.47, .45, .41), smoothstep(.5, .9, b.a) * (1. - fl) * uDust * (.3 + .7 * d));",
+  // dim grey dust specks. Software rendering reads the skin once, so there the flecks that are not
+  // glinting stand in for them (the stand-in second read's alpha is the coarse cavity: grey blotches)
+  "#ifdef SOFT",
+  "  float dm = smoothstep(.5, .9, a.a) * (1. - clamp(spec, 0., 1.));",
+  "#else",
+  "  float dm = smoothstep(.5, .9, b.a) * (1. - fl);",
+  "#endif",
+  "  col = mix(col, vec3(.47, .45, .41), dm * uDust * (.3 + .7 * d) * (1. - occ));",
   "  o = vec4(col * uKey * cov, cov);",
   "}",
 ].join("\n")
@@ -2336,6 +2407,8 @@ type EyeFrame = PageLight & { reveal: number; shut: number; glint: number; eye: 
 const headUnit = (sc: Scene) => R_BODY * (sc.scale ?? 1) * (sc.head ?? 1)
 
 const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+/** Where each leg joins the body, as the shader's uLeg rows; all zero: no legs, no crease anywhere. */
+const NO_LEGS = new Float32Array(16 * MAX_LEGS)
 
 type DragonGL = {
   /** spine samples to allocate with makeSpine */
@@ -2395,6 +2468,8 @@ function skinGL(canvas: HTMLCanvasElement, soft: boolean, msaa: boolean) {
     const U = {
       view: u("uView"), d: u("uD"), cam: u("uCam"), bg: u("uBg"), alb: u("uAlb"), key: u("uKey"), dust: u("uDust"),
       model: u("uModel"), jaw: u("uJaw"), head: u("uHead"), stretch: u("uStretch"), mat: u("uMat"), blink: u("uBlink"), eye: u("uEye"), mouth: u("uMouth"), glint: u("uGlint"),
+      legs: u("uLeg"),
+      tile: u("uTile"),
     }
     gl.useProgram(prog)
     gl.uniform3fv(u("uL"), LIGHT)
@@ -2419,8 +2494,11 @@ function skinGL(canvas: HTMLCanvasElement, soft: boolean, msaa: boolean) {
       return cur.U
     },
     mesh,
-    /** Starts a frame: clears, picks the program (the eye's, for page two) and sets the shared uniforms. False if that program will not build. */
-    frame(f: PageLight, D: number, eye = false) {
+    /**
+     * Starts a frame: clears, picks the program (the eye's, for page two) and sets the shared
+     * uniforms, `legs` where the legs join the body, for the crease there. False if that program will not build.
+     */
+    frame(f: PageLight, D: number, eye = false, legs = NO_LEGS) {
       gl.viewport(0, 0, canvas.width, canvas.height)
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
       if (eye && eyeProg === undefined) eyeProg = setup(true)
@@ -2443,6 +2521,8 @@ function skinGL(canvas: HTMLCanvasElement, soft: boolean, msaa: boolean) {
       gl.uniformMatrix4fv(U.head, false, IDENTITY)
       gl.uniform3fv(U.stretch, ONE3)
       gl.uniform1f(U.mat, 0)
+      gl.uniform4fv(U.legs, legs)
+      gl.uniform2f(U.tile, 1, 1)
       return true
     },
     /** draws an index range [first, count] of the bound mesh */
@@ -2509,6 +2589,8 @@ function createDragon(canvas: HTMLCanvasElement, top: HTMLCanvasElement): Dragon
   const legsB = B && B.mesh(lverts, limbs.index, true)
   // claws taper to needles, never thinner than this (scene units): no MSAA in software, so thicker there
   const minR = soft ? 1.5 : 1.2
+  // where each leg joins the body, for the crease the shader darkens there
+  const joins = new Float32Array(16 * MAX_LEGS)
 
   // the head: every page's parts in one static mesh, plus each vertex's pull toward the jaw
   const head = buildHead(SCENES, SCENES.map(headUnit), !soft)
@@ -2548,14 +2630,18 @@ function createDragon(canvas: HTMLCanvasElement, top: HTMLCanvasElement): Dragon
       const D = camDist(f.vh)
       sweepBody(P, ring, f.zoom, verts)
       let fronts = false
+      joins.fill(0)
       for (let l = 0; l < f.legs.length; l++) {
-        fronts ||= f.legs[l].front
-        sweepLimb(f.legs[l], shape, minR, lverts, l * perLimb)
+        const L = f.legs[l]
+        fronts ||= L.front
+        const armR = sweepLimb(L, shape, minR, lverts, l * perLimb)
+        // the shader's uLeg rows: spine + body radius, heading + leg radius, root, the leg's heading
+        joins.set([...L.spine, L.rootR, ...L.along, armR, ...L.root, 0, ...norm3(sub3(L.elbow, L.root)), 0], l * 16)
       }
       const split = fronts && !!legsB
       const nl = f.legs.length * perLimb * STRIDE
 
-      A.frame(f, D)
+      A.frame(f, D, false, joins)
       gl.bindBuffer(gl.ARRAY_BUFFER, body.vbo)
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, verts)
       gl.bindVertexArray(body.vao)
@@ -2574,6 +2660,11 @@ function createDragon(canvas: HTMLCanvasElement, top: HTMLCanvasElement): Dragon
         // the head is built once in head space and posed by its matrices
         const U = A.U
         gl.bindVertexArray(hm.vao)
+        // no leg grows near the head: skip the crease for its many vertices
+        gl.uniform4fv(U.legs, NO_LEGS)
+        // its skin at the body's scale: the placing matrix carries the head unit
+        const tile = Math.hypot(h.place[0], h.place[1], h.place[2]) / 100
+        gl.uniform2f(U.tile, tile, Math.max(1, Math.round(tile)))
         gl.uniformMatrix4fv(U.jaw, false, h.jaw)
         gl.uniformMatrix4fv(U.head, false, h.place)
         gl.uniform3fv(U.stretch, h.stretch)
@@ -2776,6 +2867,7 @@ export default function DragonTypeSpecimen({
   scrollDistance = "700svh",
   progress,
   hint = true,
+  hideScrollbar = false,
   className = "",
 }: DragonTypeSpecimenProps) {
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -2811,6 +2903,20 @@ export default function DragonTypeSpecimen({
   cfg.current = { progress, controlled, reduced, rgb, boxes }
   const pointer = React.useRef<{ x: number; y: number } | null>(null)
   const snapAt = React.useRef(-1e9)
+  // bumped when a lost WebGL context is restored, to rebuild the dragon on it
+  const [gen, setGen] = React.useState(0)
+
+  // the scrollbar: the window's, and any scrolling parent's (a preview frame's wrapper), hidden while
+  // the book is up and put back as it was after
+  React.useEffect(() => {
+    if (!hideScrollbar || controlled) return
+    const els: HTMLElement[] = [document.documentElement]
+    for (let e = rootRef.current?.parentElement; e; e = e.parentElement)
+      if (/auto|scroll/.test(getComputedStyle(e).overflowY)) els.push(e)
+    const was = els.map((e) => e.style.getPropertyValue("scrollbar-width"))
+    for (const e of els) e.style.setProperty("scrollbar-width", "none")
+    return () => els.forEach((e, k) => (was[k] ? e.style.setProperty("scrollbar-width", was[k]) : e.style.removeProperty("scrollbar-width")))
+  }, [hideScrollbar, controlled])
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -2825,7 +2931,13 @@ export default function DragonTypeSpecimen({
     let opacity = 1
     let raf = 0
     let visible = true
-    let p = cfg.current.progress ?? 0
+    // start where the page already is (a reload that keeps its scroll, a rebuilt context), not at
+    // the cover: easing up from 0 would flick through every page on the way
+    const target = () => {
+      const c = cfg.current
+      return c.controlled ? clamp01(c.progress ?? 0) : scrollProgress(root.getBoundingClientRect().top, root.offsetHeight, stage.offsetHeight)
+    }
+    let p = target()
     let intro = 0
     let last: Frame | null = null
     let look = 0
@@ -2858,11 +2970,9 @@ export default function DragonTypeSpecimen({
       raf = 0
       if (!visible) return
       const c = cfg.current
-      const target = c.controlled
-        ? clamp01(c.progress ?? 0)
-        : scrollProgress(root!.getBoundingClientRect().top, root!.offsetHeight, stage!.offsetHeight)
-      p = c.reduced ? target : p + (target - p) * 0.1
-      if (Math.abs(target - p) < 0.0002) p = target
+      const goal = target()
+      p = c.reduced ? goal : p + (goal - p) * 0.1
+      if (Math.abs(goal - p) < 0.0002) p = goal
       intro = c.reduced ? 1 : Math.min(1, (now - t0) / 1800)
       const hint = !c.reduced && now - t0 > 1500 && now - t0 < 5000 ? 1 : 0
       if (!last || Math.abs(p - last.p) > 1e-5 || intro !== last.intro || hint !== last.hint) {
@@ -2871,7 +2981,7 @@ export default function DragonTypeSpecimen({
       }
 
       const time = c.reduced ? 0 : now / 1000
-      const scale = Math.min(size.w / 1300, size.h / SCENE_H)
+      const scale = fitScale(size.w, size.h)
       const vx = SCENE_W / 2 - size.w / 2 / scale
       const vy = SCENE_H / 2 - size.h / 2 / scale
       const { i, t } = chapterAt(p)
@@ -2993,7 +3103,8 @@ export default function DragonTypeSpecimen({
             head: pose,
             blink,
             eye,
-            mouth: page.map((v, k) => lerp(v, eye[k], 0.35) * 0.62),
+            // near the page's own red, a touch toward the eyes': the open mouth reads as a gap between the jaws
+            mouth: page.map((v, k) => lerp(v, eye[k], 0.2) * 0.95),
             legs,
           })
           drew = shown = true
@@ -3006,16 +3117,28 @@ export default function DragonTypeSpecimen({
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
+    // a lost GPU context (driver reset, a long-backgrounded tab) comes back empty: ask for it back,
+    // then run this effect again, which builds the programs and meshes on the restored context
+    const lost = (e: Event) => e.preventDefault()
+    const restored = () => setGen((g) => g + 1)
+    for (const c of [glc, over]) {
+      c.addEventListener("webglcontextlost", lost)
+      c.addEventListener("webglcontextrestored", restored)
+    }
     return () => {
       cancelAnimationFrame(raf)
       io.disconnect()
       ro.disconnect()
+      for (const c of [glc, over]) {
+        c.removeEventListener("webglcontextlost", lost)
+        c.removeEventListener("webglcontextrestored", restored)
+      }
       dragon?.dispose()
     }
-  }, [tracks])
+  }, [tracks, gen])
 
   // ---- layout, in scene units; the svg and the canvas share one mapping
-  const scale = Math.min(view.w / 1300, view.h / SCENE_H)
+  const scale = fitScale(view.w, view.h)
   const vw = view.w / scale
   const vh = view.h / scale
   const viewBox = (SCENE_W / 2 - vw / 2).toFixed(1) + " " + (SCENE_H / 2 - vh / 2).toFixed(1) + " " + vw.toFixed(1) + " " + vh.toFixed(1)

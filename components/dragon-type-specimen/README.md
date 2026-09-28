@@ -23,22 +23,24 @@ to load:
 | # | Page | The dragon | Interaction |
 |---|---|---|---|
 | 01 | Cover | coiled round the title, tail across the bottom; dives off the bottom as you scroll | click anywhere: it snaps |
-| 02 | The eye | a slot opens in the page and a slit eye opens behind it | the pupil follows the pointer |
+| 02 | The eye | a slot opens in the page and a slit eye opens behind it | the wet glint follows the pointer; come close and the lids narrow |
 | 03 | Glyph set | rises from the lower right, jaws open at the alphabet | hover or tap a glyph to preview it |
 | 04 | Weights | drops in from the top left, claws hanging over four G's (thin to heavy, solid and outline) | hover a G |
 | 05 | Styles | climbs out of the dark page through a red needle cross | pick a style: every title switches to it (keyboard too) |
 | 06 | Alternates | lunges in from the left and roars at the word | |
-| 07 | Liquid | pours down the right side and curls toward the drop | the liquid drop follows the pointer, the dragon watches it |
+| 07 | Liquid | arches over the drop and out past the right edge, one hand reaching down for it | the liquid drop follows the pointer, and the hand follows the drop |
 
 The stage is `position: sticky` inside a taller section. The book plays over
-`scrollDistance`, and scrolling back up plays it in reverse.
+`scrollDistance`, and scrolling back up plays it in reverse. Each page holds
+its pose for about a third of its scroll; the arrivals and exits are the quick
+parts.
 
 ## Usage
 
 ```tsx
 import DragonTypeSpecimen from "@/components/ui/dragon-type-specimen"
 
-<DragonTypeSpecimen />                                    // DRAKON / TYPEFACE, red and yellow
+<DragonTypeSpecimen hideScrollbar />                      // DRAKON / TYPEFACE, red and yellow
 <DragonTypeSpecimen
   title="WYVERN"
   subtitle="DISPLAY"
@@ -59,9 +61,9 @@ import DragonTypeSpecimen from "@/components/ui/dragon-type-specimen"
 | `studio` | `"STUDIO WYRM"` | Small line above the title. |
 | `year` | `"2026"` | |
 | `specimenWord` | `"SNARL"` | The word on the alternates page. |
-| `background` | `"#e3160f"` | Page colour. It also bounces into the dragon's shadow side. |
-| `night` | `"#0b0a0b"` | Colour of the dark styles page. |
-| `ink` | `"#f7d117"` | Type colour. |
+| `background` | `"#de0902"` | Page colour. It also bounces into the dragon's shadow side. |
+| `night` | `"#000000"` | Colour of the dark styles page. |
+| `ink` | `"#fdc80f"` | Type colour. |
 | `dragonColor` | `"#2b2621"` | Skin. Use a hex value: it tints the whole material. |
 | `eyeColor` | `"#ff2a1a"` | Eye glow. |
 | `defaultStyle` | `"regular"` | `regular`, `bold`, `outline` or `bold-outline`. |
@@ -69,15 +71,18 @@ import DragonTypeSpecimen from "@/components/ui/dragon-type-specimen"
 | `scrollDistance` | `"700svh"` | Extra scroll the seven pages play over. |
 | `progress` | none | `0..1` to drive it yourself. This turns off the scroll. |
 | `hint` | `true` | The "scroll" cue on the cover. |
+| `hideScrollbar` | `false` | Hides the page's scrollbar (the window's, or a scrolling parent's) while the book is mounted, and restores it after. Scrolling still works. |
 | `className` | `""` | Appended to the root. |
 
 ## Notes
 
 - Do not put it inside an element with `overflow: hidden` or `auto`, because
   that breaks `position: sticky`. The root uses `overflow: clip` for this reason.
-- The page is laid out on a 1600 × 1000 scene that scales to fit. The type stays
-  inside the middle 1300 units, and on wide screens the dragon uses the extra
-  width.
+- The page is laid out on a 1600 × 1000 scene that always fits whole, so no type
+  is cut off at any window size. Wider screens show more of the dragon at the
+  sides, narrower ones more above and below. On a phone held upright the whole
+  page shows as a band across the middle of the screen: it is designed for
+  landscape.
 - Reduced motion: nothing moves on its own. The dragon appears at rest on each
   page instead of travelling, and it does not breathe, blink, drip or snap.
 - Everything is seeded or geometric, so it looks the same on every visit. The

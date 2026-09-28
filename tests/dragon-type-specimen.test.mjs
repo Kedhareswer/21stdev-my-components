@@ -63,6 +63,12 @@ const m = await import("data:text/javascript," + encodeURIComponent(stripTypeScr
     const v = m.CHAPTERS.map((_, i) => m.chapterVis(i, m.localT(p, i)))
     assert.ok(v.filter((x) => x > 0.5).length <= 1, `two pages fully shown at p=${p.toFixed(3)}`)
   }
+  // the whole designed page fits every stage, so no type is ever cut off: 21st's capture size,
+  // a 4:3 window, a laptop, an ultrawide, a phone
+  for (const [w, h] of [[1280, 960], [1024, 768], [1440, 900], [2560, 1080], [390, 844]]) {
+    const k = m.fitScale(w, h)
+    assert.ok(w / k >= m.SCENE_W - 1e-9 && h / k >= m.SCENE_H - 1e-9, `the page is cut off at ${w}x${h}`)
+  }
   assert.equal(m.scrollProgress(0, 2000, 800), 0)
   assert.equal(m.scrollProgress(-600, 2000, 800), 0.5)
   assert.equal(m.scrollProgress(-5000, 2000, 800), 1, "clamped")
@@ -80,9 +86,11 @@ const m = await import("data:text/javascript," + encodeURIComponent(stripTypeScr
     const last = s.chapter === 6
     if (!first) assert.ok(offPage(s.pts[0], 150), `page ${s.chapter}: path starts off the page`)
     if (!last) assert.ok(offPage(s.pts.at(-1), 150), `page ${s.chapter}: path ends off the page`)
-    // the head rests on the page
+    // the head rests on the page; on the last page, as in the reference, it rests off every
+    // landscape view (2.4:1 shows x up to 2000), so no wide screen finds it half cut at the edge
     const [hx, hy] = m.trackAt(tr, tr.restArc)
-    assert.ok(hx > 0 && hx < m.SCENE_W && hy > 0 && hy < m.SCENE_H, `page ${s.chapter}: head rests on the page`)
+    if (last) assert.ok(hx > m.SCENE_W / 2 + 1.2 * m.SCENE_H + 100, "last page: head rests off even an ultrawide view")
+    else assert.ok(hx > 0 && hx < m.SCENE_W && hy > 0 && hy < m.SCENE_H, `page ${s.chapter}: head rests on the page`)
     // it arrives, rests, leaves; never backs up while you scroll forward
     let prev = -Infinity
     for (let t = 0; t <= 1; t += 0.005) {

@@ -18,6 +18,7 @@ export default function DemoCustom() {
         eyeColor="#9dff3a"
         defaultStyle="bold"
         scrollDistance="600svh"
+        hideScrollbar
       />
     </div>
   )
