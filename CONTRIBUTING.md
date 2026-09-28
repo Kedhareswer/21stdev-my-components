@@ -120,10 +120,13 @@ It **auto-discovers every `components/*/demo*.tsx`** — no registration step. A
 There is deliberately **no toolbar**: a bar sitting over a full-bleed component is exactly what the workshop must not do. The demo and the theme come off the URL instead, and the available links are printed to the console on load.
 
 ```
+http://localhost:5173/                                 # index of every component
 http://localhost:5173/#zero-melt-preloader             # default demo
 http://localhost:5173/#zero-melt-preloader/strict      # a demo-*.tsx variant
 http://localhost:5173/?dark#zero-melt-preloader        # the dark check 21st requires
 ```
+
+The index (no hash, or one that names no demo) is also the deployed site's home page: one card per component, its `demo-*.tsx` variants linked under it. A card shows `media/<slug>/thumb.webp` when there is one — 640 × 400, cropped from the cover, a few KB — and the component's name when there is not. Covers themselves are too heavy to list (up to 8 MB each).
 
 `dev/styles.css` is deliberately bare: `@import "tailwindcss"` plus only the semantic tokens (`--color-background`, `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--color-primary`) a component is allowed to assume. If a piece needs anything more than that to look right, it will not survive installation.
 

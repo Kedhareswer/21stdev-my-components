@@ -22,10 +22,13 @@ node scripts/prep-publish.mjs <slug>   # emit publish-ready copy → prints its 
 Workshop URLs (no toolbar by design; demo + theme come off the URL, links print to console):
 
 ```
+http://localhost:5173/                     # index of every component (the deployed site's home)
 http://localhost:5173/#<slug>              # demo.tsx
 http://localhost:5173/#<slug>/strict       # demo-strict.tsx
 http://localhost:5173/?dark#<slug>         # the dark check 21st requires
 ```
+
+Index cards use `media/<slug>/thumb.webp` (640 × 400, cropped from the cover) when it exists, else the name. Add one when a component gets its cover.
 
 ## Layout invariants
 
