@@ -41,6 +41,9 @@ export type LensProjectorCarouselProps = {
   /** Wrap past the ends. */
   loop?: boolean
   /** Colour of the heading, headline and beam guides. */
+  /** Whether the camera starts rolling. The red button toggles it. */
+  defaultOn?: boolean
+  onPowerChange?: (on: boolean) => void
   ink?: string
   /** Colour of the paper. */
   paper?: string
@@ -90,7 +93,7 @@ const CSS = [
   "background:var(--lp-paper);color:var(--lp-ink);font-family:'Avenir Next','Century Gothic','Trebuchet MS',Verdana,sans-serif}",
   ".lp-root:focus-visible{box-shadow:inset 0 0 0 2px var(--lp-ink)}",
   ".lp-stage{position:absolute;inset:0;container-type:size}",
-  ".lp-scene{position:absolute;inset:0;--lp-cam:min(40cqh,30cqw);--lp-r:1.8;--lp-crop:.12;--lp-w:calc(var(--lp-cam)*(1.37 - var(--lp-crop)));--lp-top:10cqh;--lp-a:calc(100% * .15 / var(--lp-r))}",
+  ".lp-scene{position:absolute;inset:0;--lp-cam:min(44cqh,32cqw);--lp-r:1.75;--lp-crop:.12;--lp-w:calc(var(--lp-cam)*(1.37 - var(--lp-crop)));--lp-top:8cqh;--lp-a:calc(100% * .15 / var(--lp-r))}",
   ".lp-paper{position:absolute;inset:0;z-index:0;background-image:radial-gradient(ellipse at 28% 26%,rgba(255,250,232,.55),transparent 62%),",
   "radial-gradient(ellipse at 90% 8%,rgba(120,84,30,.18),transparent 45%)," + MOTTLE + "," + GRAIN + ";background-size:auto,auto,320px 320px,320px 320px}",
   ".lp-burn{position:absolute;inset:0;z-index:6;pointer-events:none;background:",
@@ -110,14 +113,28 @@ const CSS = [
   ".lp-cam{display:block;width:100%;height:100%;overflow:visible}",
   ".lp-cam-kick{animation:lp-kick .7s cubic-bezier(.2,.9,.3,1)}",
   ".lp-rec{animation:lp-blink 1.6s steps(1) infinite}",
+  ".lp-hit{position:absolute;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}",
+  ".lp-hit:focus-visible{outline:2px solid #ffd98a;outline-offset:2px}",
+  ".lp-hit-rec:active{background:rgba(255,80,60,.25)}",
+  ".lp-reel{position:absolute;inset:0;transition:filter .5s}",
+  ".lp-reel.lp-look-1{filter:sepia(.9) contrast(1.05) saturate(.9)}",
+  ".lp-reel.lp-look-2{filter:grayscale(1) contrast(1.15)}",
+  ".lp-beam{transition:opacity .45s,filter .45s}",
+  ".lp-halo,.lp-light,.lp-mote,.lp-glow,.lp-rec{transition:opacity .4s}",
+  ".lp-off .lp-beam{opacity:0;filter:brightness(2.5);pointer-events:none}",
+  ".lp-off .lp-guides{opacity:.16}",
+  ".lp-off .lp-halo,.lp-off .lp-light,.lp-off .lp-mote{opacity:0;animation:none}",
+  ".lp-off .lp-glow{opacity:0;animation:none}",
+  ".lp-off .lp-rec{animation:none;opacity:.14}",
+  ".lp-off .lp-beamwrap::after{content:'Press the red button to roll';position:absolute;left:30%;top:50%;transform:translateY(-50%);font-size:clamp(11px,1.9cqh,15px);letter-spacing:.24em;text-transform:uppercase;color:rgba(70,48,16,.7)}",
   ".lp-glow{transform-box:fill-box;transform-origin:center;animation:lp-breathe 2.6s ease-in-out infinite}",
 
   ".lp-beamwrap{position:relative;flex:1;min-width:0;height:100%;margin-left:calc(var(--lp-cam)*-.03)}",
   ".lp-halo{position:absolute;left:-4%;top:22%;width:60%;height:56%;background:radial-gradient(closest-side,rgba(255,226,160,.55),transparent);filter:blur(14px);pointer-events:none}",
   ".lp-beam{position:absolute;inset:0;overflow:hidden;clip-path:polygon(0 calc(50% - var(--lp-a)),100% 0,100% 100%,0 calc(50% + var(--lp-a)));cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none;background:#2a1a12}",
   ".lp-beam:active{cursor:grabbing}",
-  ".lp-guides{position:absolute;inset:0;pointer-events:none;background:rgba(70,48,16,.6);clip-path:polygon(0 calc(50% - var(--lp-a) - 2px),100% -2px,100% calc(100% + 2px),0 calc(50% + var(--lp-a) + 2px))}",
-  ".lp-count{position:absolute;z-index:3;right:4cqw;top:5cqh;margin:0;font-size:clamp(11px,1.9cqh,15px);letter-spacing:.22em;text-transform:uppercase;color:var(--lp-ink);animation:lp-rise .6s ease-out both}",
+  ".lp-guides{position:absolute;inset:0;pointer-events:none;transition:opacity .45s;background:rgba(70,48,16,.6);clip-path:polygon(0 calc(50% - var(--lp-a) - 2px),100% -2px,100% calc(100% + 2px),0 calc(50% + var(--lp-a) + 2px))}",
+  ".lp-count{position:absolute;z-index:3;right:4cqw;top:2.6cqh;margin:0;font-size:clamp(11px,1.9cqh,15px);letter-spacing:.22em;text-transform:uppercase;color:var(--lp-ink);animation:lp-rise .6s ease-out both}",
   ".lp-count i{font-style:normal;opacity:.45}",
   ".lp-card{position:absolute;inset:0;transform-origin:0 50%}",
   ".lp-card img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover;pointer-events:none;-webkit-user-drag:none}",
@@ -131,8 +148,8 @@ const CSS = [
   ".lp-mote{position:absolute;z-index:4;left:0;top:calc(50% + var(--lp-y));width:var(--lp-s);height:var(--lp-s);border-radius:50%;background:rgba(255,244,214,.85);pointer-events:none;opacity:0;animation:lp-mote var(--lp-t) linear var(--lp-d) infinite}",
 
   ".lp-label{position:absolute;z-index:3;left:calc(var(--lp-w) + 3cqw);top:calc(var(--lp-top) + var(--lp-cam)*.1);max-width:min(22ch,26cqw);margin:0;padding-bottom:5px;border-bottom:1px solid rgba(60,42,16,.55);font-size:clamp(10px,1.75cqh,15px);line-height:1.35;color:#3b2a10;animation:lp-rise .6s .12s ease-out both}",
-  ".lp-info{position:absolute;z-index:3;left:calc(var(--lp-w) + 1.5cqw);top:calc(var(--lp-top) + var(--lp-cam)*var(--lp-r)*.9);width:min(40cqw,42ch)}",
-  "@container (max-width:700px){.lp-scene{--lp-cam:min(28cqh,50cqw);--lp-r:2.05;--lp-crop:.5;--lp-top:12cqh}",
+  ".lp-info{position:absolute;z-index:3;left:3cqw;top:calc(var(--lp-top) + var(--lp-cam)*var(--lp-r)*.5 + var(--lp-cam)*.5 + 2.4cqh);width:min(31cqw,40ch)}",
+  "@container (max-width:700px){.lp-scene{--lp-cam:min(28cqh,42cqw);--lp-r:2.4;--lp-crop:.3;--lp-top:11cqh}",
   ".lp-label{left:36cqw;top:calc(var(--lp-top) + 1.5cqh);max-width:58cqw}",
   ".lp-info{left:7cqw;top:calc(var(--lp-top) + var(--lp-cam)*var(--lp-r) + 1cqh);width:86cqw}.lp-nums{bottom:1cqh}}",
   ".lp-info-in{animation:lp-rise .7s .1s cubic-bezier(.2,.8,.3,1) both}",
@@ -179,6 +196,8 @@ const CSS = [
 
 // A few dust motes drifting down the beam. Fixed values so the markup is
 // identical on the server and the client.
+const LOOKS = ["colour", "sepia", "black and white"]
+
 const MOTES = [
   { y: "-9%", dy: "-6cqh", s: "3px", t: "5.2s", d: "0s" },
   { y: "4%", dy: "3cqh", s: "2px", t: "6.4s", d: "-1.2s" },
@@ -202,7 +221,7 @@ const COIL = Array.from({ length: 27 }, (_, i) => {
   return { x: +x.toFixed(1), y: +y.toFixed(1), a: +((Math.atan2(dy, dx) * 180) / Math.PI).toFixed(1) }
 })
 
-function Camera({ uid, label, kick }: { uid: string; label: string; kick: number }) {
+function Camera({ uid, label, kick, look }: { uid: string; label: string; kick: number; look: number }) {
   const g = (n: string) => "url(#" + uid + n + ")"
   return (
     <svg className={"lp-cam" + (kick > 0 ? " lp-cam-kick" : "")} key={kick} viewBox="0 0 560 400" aria-hidden="true" focusable="false">
@@ -296,14 +315,24 @@ function Camera({ uid, label, kick }: { uid: string; label: string; kick: number
         <g key={cx}>
           <circle cx={cx} cy="256" r={i === 2 ? 11 : 17} fill="#0e0c0a" stroke="#6a6154" strokeWidth="1.5" />
           <circle cx={cx} cy="256" r={i === 2 ? 6 : 10} fill="#2a2621" stroke="#8f8577" />
-          <path d={"M" + cx + " " + (i === 2 ? 251 : 247) + " V256"} stroke="#e0d5bd" strokeWidth="1.6" strokeLinecap="round" />
+          <path
+            d={"M" + cx + " " + (i === 2 ? 251 : 247) + " V256"}
+            stroke="#e0d5bd"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            style={{ transformBox: "view-box", transformOrigin: cx + "px 256px", transform: "rotate(" + (i > 0 ? look * 90 : 0) + "deg)", transition: "transform .4s cubic-bezier(.3,1.4,.5,1)" }}
+          />
         </g>
       ))}
       {[[112, 232, 34], [112, 244, 34]].map(([x, y, w]) => (
         <rect key={y} x={x} y={y} width={w} height="7" rx="2" fill="#0a0908" stroke="#4a443c" />
       ))}
-      <circle className="lp-rec" cx="182" cy="146" r="5" fill="#ff3b2a" />
-      <circle cx="182" cy="146" r="8" fill="none" stroke="#3b352e" />
+      <circle cx="150" cy="150" r="14" fill="#0b0908" stroke="#5a5247" strokeWidth="1.5" />
+      <circle className="lp-rec" cx="150" cy="150" r="9.5" fill="#ff3b2a" stroke="#7a1208" strokeWidth="1.5" />
+      <ellipse cx="147" cy="146" rx="4" ry="2.4" fill="#fff" fillOpacity=".55" />
+      <text x="150" y="178" textAnchor="middle" fill="#7a7064" fontFamily="Arial,sans-serif" fontSize="7" letterSpacing="1.4">
+        REC
+      </text>
       {[[20, 122], [232, 122], [20, 292], [232, 292]].map(([x, y]) => (
         <circle key={x + "-" + y} cx={x} cy={y} r="2.4" fill="#5e574d" />
       ))}
@@ -349,6 +378,8 @@ export default function LensProjectorCarousel({
   cameraLabel = "HD",
   height = "100svh",
   autoplay = 0,
+  defaultOn = true,
+  onPowerChange,
   loop = true,
   ink = "#7b5a1c",
   paper = "#d8ccb1",
@@ -367,6 +398,10 @@ export default function LensProjectorCarousel({
   const [trail, setTrail] = React.useState({ cur, prev: -1, tick: 0, dir: 1 })
   if (trail.cur !== cur) setTrail({ cur, prev: trail.cur, tick: trail.tick + 1, dir: stepDirection(trail.cur, cur, n) })
 
+  const [on, setOn] = React.useState(defaultOn)
+  const [look, setLook] = React.useState(0)
+  const [rolls, setRolls] = React.useState(0)
+  const reelRef = React.useRef<HTMLDivElement>(null)
   const [stopped, setStopped] = React.useState(false)
   const [focused, setFocused] = React.useState(false)
   const [hidden, setHidden] = React.useState(false)
@@ -407,8 +442,20 @@ export default function LensProjectorCarousel({
     }
   }, [])
 
+  const togglePower = () => {
+    if (!on) setRolls((r) => r + 1)
+    onPowerChange?.(!on)
+    setOn(!on)
+  }
+  // Rack focus: the picture blurs and snaps back. Web Animations, so it never
+  // remounts the card and never replays the entrance.
+  const pullFocus = () => {
+    if (!on || reduced) return
+    reelRef.current?.animate([{ filter: "blur(10px)" }, { filter: "blur(0px)" }], { duration: 900, easing: "cubic-bezier(.2,.8,.3,1)" })
+  }
+
   const playing = autoplay > 0 && n > 1 && !reduced && !stopped
-  const paused = focused || hidden || !inView
+  const paused = focused || hidden || !inView || !on
   React.useEffect(() => {
     if (!playing || paused) return
     const id = window.setTimeout(() => goRef.current(cur + 1), autoplay)
@@ -437,7 +484,7 @@ export default function LensProjectorCarousel({
   return (
     <section
       ref={rootRef}
-      className={"lp-root " + className}
+      className={"lp-root " + (on ? "" : "lp-off ") + className}
       style={{ height, "--lp-ink": ink, "--lp-paper": paper } as React.CSSProperties}
       tabIndex={0}
       aria-roledescription="carousel"
@@ -461,7 +508,24 @@ export default function LensProjectorCarousel({
 
       <div className="lp-rig">
         <div className="lp-camwrap">
-          <Camera uid={uid} label={cameraLabel} kick={trail.tick} />
+          <Camera uid={uid} label={cameraLabel} kick={trail.tick} look={look} />
+          {[
+            { k: "rec", x: 150, y: 150, r: 20, label: on ? "Camera on. Press to switch off" : "Camera off. Press to switch on", fn: togglePower, pressed: on },
+            { k: "look", x: 72, y: 256, r: 20, label: "Film look: " + LOOKS[look] + ". Press to change", fn: () => setLook((look + 1) % LOOKS.length) },
+            { k: "look2", x: 120, y: 256, r: 16, label: "Film look: " + LOOKS[look] + ". Press to change", fn: () => setLook((look + 1) % LOOKS.length) },
+            { k: "focus", x: 304, y: 200, r: 50, label: "Pull focus", fn: pullFocus },
+          ].map((h) => (
+            <button
+              key={h.k}
+              type="button"
+              className={"lp-hit lp-hit-" + h.k}
+              aria-label={h.label}
+              title={h.label}
+              aria-pressed={h.pressed}
+              onClick={h.fn}
+              style={{ left: (h.x - h.r) / 5.6 + "%", top: (h.y - h.r) / 4 + "%", width: (h.r * 2) / 5.6 + "%", height: (h.r * 2) / 4 + "%", borderRadius: h.k === "focus" ? "10px" : "50%" }}
+            />
+          ))}
         </div>
 
         <div className="lp-beamwrap">
@@ -483,6 +547,7 @@ export default function LensProjectorCarousel({
             onPointerCancel={() => (dragX.current = null)}
             onPointerLeave={() => (dragX.current = null)}
           >
+            <div className={"lp-reel lp-look-" + look} ref={reelRef}>
             {animated && prevItem ? (
               <div className="lp-card lp-card-out" key={"o" + trail.tick}>
                 <img src={prevItem.src} alt="" />
@@ -491,9 +556,10 @@ export default function LensProjectorCarousel({
             <div className={"lp-card" + (animated ? " lp-card-in" : "")} key={"i" + trail.tick}>
               <img src={item.src} alt={item.alt ?? item.title ?? ""} />
             </div>
+            </div>
             <div className="lp-tex" />
             <div className="lp-light" />
-            {animated ? <div className="lp-flash" key={"f" + trail.tick} /> : null}
+            {on && trail.tick + look + rolls > 0 ? <div className="lp-flash" key={"w" + trail.tick + "-" + look + "-" + rolls} /> : null}
             {MOTES.map((m, i) => (
               <span
                 key={i}

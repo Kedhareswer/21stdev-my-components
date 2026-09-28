@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs"
 const dir = new URL("../components/lens-projector-carousel/", import.meta.url)
 const src = readFileSync(new URL("lens-projector-carousel.tsx", dir), "utf8")
 const demo = readFileSync(new URL("demo.tsx", dir), "utf8")
+const drawn = readFileSync(new URL("demo-drawn.tsx", dir), "utf8")
 
 // ---- install safety --------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
@@ -38,7 +39,10 @@ assert.doesNotMatch(flat, /[^.\w-](body|html|:root|\*)\s*\{/, "no global resets"
 for (const [, v] of src.matchAll(/var\((--[a-z-]+)/g)) assert.match(v, /^--lp-/, `unexpected token: ${v}`)
 
 // ---- nothing fetched --------------------------------------------------------
-for (const [name, text] of [["component", src], ["demo", demo]]) {
+// The photo demo may reach Unsplash and nothing else; the drawn one, nothing.
+const hosts = [...demo.matchAll(/https?:\/\/[^/"'`\s)]+/g)].map((m) => m[0])
+assert.ok(hosts.length > 0 && hosts.every((h) => h === "https://images.unsplash.com"), `photo demo hosts: ${hosts.join(", ")}`)
+for (const [name, text] of [["component", src], ["drawn demo", drawn]]) {
   const urls = [...text.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]).filter((u) => u !== "http://www.w3.org/2000/svg")
   assert.deepEqual(urls, [], `${name} must make no network requests: ${urls.join(", ")}`)
 }
@@ -47,8 +51,14 @@ for (const [name, text] of [["component", src], ["demo", demo]]) {
 assert.match(src, /aria-current/, "the active number is exposed")
 assert.match(src, /ArrowRight/, "arrow keys work")
 assert.match(src, /setStopped\(true\)/, "taking over stops autoplay")
-assert.match(src, /const paused = focused \|\| hidden \|\| !inView/, "autoplay pauses off-screen, hidden and on focus")
+assert.match(src, /const paused = focused \|\| hidden \|\| !inView \|\| !on/, "autoplay pauses off-screen, hidden, on focus and when the camera is off")
 assert.match(src, /prefers-reduced-motion: reduce/, "autoplay is off under reduced motion")
+
+// ---- the camera is interactive ------------------------------------------------
+assert.match(src, /const togglePower/, "the red button switches the camera")
+assert.match(src, /aria-pressed=\{h\.pressed\}/, "the power button exposes its state")
+assert.match(flat, /\.lp-off \.lp-beam\{opacity:0/, "an off camera projects nothing")
+assert.match(src, /reelRef\.current\?\.animate/, "focus pull uses the Web Animations API, not a remount")
 
 // ---- deck logic (lifted from the #region block) -----------------------------
 const region = src.match(/\/\/ #region deck([\s\S]*?)\/\/ #endregion/)

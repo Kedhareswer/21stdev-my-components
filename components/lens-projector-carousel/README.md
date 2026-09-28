@@ -30,6 +30,7 @@ camera is inline SVG, the paper is CSS noise.
 | `height` | `"100svh"` | Total height. **Must be a definite length.** |
 | `autoplay` | `0` | Milliseconds between slides. `0` is off. |
 | `loop` | `true` | Wrap past the ends. |
+| `defaultOn` / `onPowerChange` | `true` | Whether the camera starts rolling. The red button toggles it. |
 | `ink` | `"#7b5a1c"` | Heading, headline and progress line. |
 | `paper` | `"#d8ccb1"` | Paper colour. |
 | `index` / `defaultIndex` / `onIndexChange` | — | Controlled or uncontrolled. |
@@ -37,6 +38,7 @@ camera is inline SVG, the paper is CSS noise.
 
 ## Interaction
 
+- **The camera is a control panel.** The **red REC button** switches it off (the beam dies, the lens and light go dark, autoplay pauses) and back on. The **knobs** cycle the film look: colour, sepia, black and white. The **focus ring** on the lens pulls focus: the picture blurs and snaps back. All of them are real buttons with labels, so they work by keyboard.
 - **Click the beam** for the next card, **drag** it left or right (48px) to go either way.
 - **Numbers** jump to a slide; hovering or focusing one deals a tilted print of it. **‹ ›** step.
 - **← → Home End** when focused.
