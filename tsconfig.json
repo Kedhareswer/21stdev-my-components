@@ -65,7 +65,8 @@
       "@/components/ui/pixel-spider-tracker": ["./components/pixel-spider-tracker/pixel-spider-tracker.tsx"],
       "@/components/ui/alter-ego-mask-reveal": ["./components/alter-ego-mask-reveal/alter-ego-mask-reveal.tsx"],
       "@/components/ui/miss-minutes-clock": ["./components/miss-minutes-clock/miss-minutes-clock.tsx"],
-      "@/components/ui/scroll-milestone-timeline": ["./components/scroll-milestone-timeline/scroll-milestone-timeline.tsx"]
+      "@/components/ui/scroll-milestone-timeline": ["./components/scroll-milestone-timeline/scroll-milestone-timeline.tsx"],
+      "@/components/ui/lens-projector-carousel": ["./components/lens-projector-carousel/lens-projector-carousel.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
