@@ -15,11 +15,11 @@ export type HandoffAgent = {
   working?: string
   /** Routing: the furthest agent whose keyword appears in the task answers it. The first agent needs none. */
   keywords?: string[]
-  /** Built-in answer when neither a preset nor `resolve` supplies one. */
+  /** Built-in answer when neither a task's `answer` nor `resolve` supplies one. */
   reply?: (task: string) => string
 }
 
-export type HandoffPreset = { label: string; task: string; answer?: string }
+export type HandoffTask = { task: string; answer?: string }
 
 export type HandoffResult = { task: string; agent: HandoffAgent; answer: string; handoffs: number; ms: number }
 
@@ -30,17 +30,16 @@ export type HandoffColors = Partial<
 export type AgentHandoffFlowProps = {
   /** 1 to 6 agents. The first is the orchestrator and always sees the task first. */
   agents?: HandoffAgent[]
-  /** One-click tasks along the bottom. The first plays on its own when `autoPlay` is on. */
-  presets?: HandoffPreset[]
+  /** The tasks the flow plays, in order, looping. A task's `answer` is used when it routes normally. */
+  tasks?: HandoffTask[]
   /** Produce the real answer. The flow waits at the Answer card until this settles. */
   resolve?: (task: string, agent: HandoffAgent, chain: HandoffAgent[]) => string | Promise<string>
   onAnswer?: (result: HandoffResult) => void
   title?: string
   subtitle?: string
-  placeholder?: string
   theme?: "paper" | "night"
   colors?: HandoffColors
-  /** Play the first preset once the flow scrolls into view. */
+  /** Start once the flow scrolls into view, then keep cycling through `tasks`. */
   autoPlay?: boolean
   /** `auto` picks a row on wide screens and a column on narrow ones. */
   layout?: "auto" | "row" | "column"
@@ -434,19 +433,17 @@ export const DEFAULT_AGENTS: HandoffAgent[] = [
   },
 ]
 
-export const DEFAULT_PRESETS: HandoffPreset[] = [
+export const DEFAULT_TASKS: HandoffTask[] = [
   {
-    label: "Chart Paris weather",
     task: "Chart this week's weather forecast for Paris",
     answer: "Pulled the 7-day forecast for Paris, then plotted the highs and lows. Warmest day is Thursday. Chart attached as paris-week.png.",
   },
-  { label: "Say hi", task: "Say hi to the team", answer: "Hi team! Small talk stays with me, no handoff needed." },
+  { task: "Say hi to the team", answer: "Hi team! Small talk stays with me, no handoff needed." },
   {
-    label: "Latest React notes",
     task: "Find the latest React release notes",
     answer: "Found the official changelog and two write-ups. Three headline changes, one of them breaking. Links attached.",
   },
-  { label: "Sum sales.csv", task: "Sum the totals column in sales.csv", answer: "Loaded sales.csv (1,204 rows) and summed the totals column: 48,310.75." },
+  { task: "Sum the totals column in sales.csv", answer: "Loaded sales.csv (1,204 rows) and summed the totals column: 48,310.75." },
 ]
 
 const THEMES: Record<"paper" | "night", Required<HandoffColors>> = {
@@ -503,17 +500,6 @@ const CSS = `
 .ahf-caret{display:inline-block;width:.5em;height:1.05em;margin-left:3px;vertical-align:-.16em;background:var(--ahf-accent);animation:ahf-blink 1s steps(1) infinite}
 .ahf-pop{animation:ahf-pop .38s cubic-bezier(.2,1.6,.4,1) both}
 .ahf-tip{position:absolute;z-index:8;pointer-events:none;padding:10px 12px;border-radius:10px;border:2px solid var(--ahf-ink);background:var(--ahf-card);color:var(--ahf-ink);box-shadow:4px 4px 0 var(--ahf-ink);font-size:13px;line-height:1.4}
-.ahf-pill{flex:none;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:2px solid var(--ahf-ink);background:var(--ahf-card);color:var(--ahf-ink);font:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
-.ahf-pill:hover{transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--ahf-ink)}
-.ahf-pill[aria-pressed="true"]{background:var(--ahf-ink);color:var(--ahf-paper)}
-.ahf-pill:focus-visible,.ahf-btn:focus-visible,.ahf-input:focus-visible{outline:3px solid var(--ahf-accent);outline-offset:2px}
-.ahf-input{min-width:0;flex:1 1 auto;height:40px;padding:0 12px;border-radius:9px;border:2px solid var(--ahf-ink);background:var(--ahf-card);color:var(--ahf-ink);font:inherit;font-size:14px}
-.ahf-input::placeholder{color:var(--ahf-muted)}
-.ahf-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:9px;border:2px solid var(--ahf-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
-.ahf-btn:hover{transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--ahf-ink)}
-.ahf-btn:active,.ahf-pill:active{transform:none;box-shadow:none}
-.ahf-scroll{scrollbar-width:none}
-.ahf-scroll::-webkit-scrollbar{display:none}
 @keyframes ahf-bob{50%{transform:translateY(-3px)}}
 @keyframes ahf-march{to{stroke-dashoffset:-22}}
 @keyframes ahf-blink{50%{opacity:.15}}
@@ -564,12 +550,11 @@ const short = (s: string, n = 42) => (s.length > n ? s.slice(0, n - 1) + "…" :
 
 export default function AgentHandoffFlow({
   agents: agentsProp,
-  presets = DEFAULT_PRESETS,
+  tasks = DEFAULT_TASKS,
   resolve,
   onAnswer,
   title = "Agent handoffs",
   subtitle = "Each agent answers the task, or hands it to the next one with everything it learned.",
-  placeholder = "Type a task… try “plot”, “latest” or “hello”",
   theme = "paper",
   colors,
   autoPlay = true,
@@ -616,9 +601,7 @@ export default function AgentHandoffFlow({
   }, [])
 
   /* ---- run state ---- */
-  const [input, setInput] = React.useState("")
   const [pinned, setPinned] = React.useState(null as number | null)
-  const [speed, setSpeed] = React.useState(1)
   const [run, setRun] = React.useState(null as Run | null)
   const [cur, setCur] = React.useState(-1)
   const [phase, setPhase] = React.useState("idle" as "idle" | "running" | "waiting" | "done")
@@ -631,8 +614,8 @@ export default function AgentHandoffFlow({
   const steps = React.useMemo(() => (run ? buildTimeline(L, run.k) : []), [L, run])
   const stepsRef = React.useRef(steps)
   stepsRef.current = steps
-  const speedRef = React.useRef(speed)
-  speedRef.current = speed * (reduced ? 3 : 1)
+  const speedRef = React.useRef(1)
+  speedRef.current = reduced ? 3 : 1
   const agentsRef = React.useRef(agents)
   agentsRef.current = agents
   const onAnswerRef = React.useRef(onAnswer)
@@ -641,6 +624,7 @@ export default function AgentHandoffFlow({
   const runIds = React.useRef(0)
   const lineIds = React.useRef(0)
   const touched = React.useRef(false)
+  const nextTask = React.useRef(0)
 
   const start = React.useCallback(
     (raw: string) => {
@@ -650,7 +634,7 @@ export default function AgentHandoffFlow({
       const routed = routeTask(task, list)
       const k = pinned != null && pinned < list.length ? pinned : routed
       const agent = list[k]
-      const preset = presets.find((p) => p.task === task)
+      const preset = tasks.find((p) => p.task === task)
       const answer = Promise.resolve()
         .then(() => {
           if (preset?.answer && k === routed) return preset.answer
@@ -659,7 +643,6 @@ export default function AgentHandoffFlow({
         })
         .then((s) => String(s))
         .catch(() => "Something went wrong while answering. The trace above shows where it stopped.")
-      setInput(task)
       setResult(null)
       setTyped(0)
       setLog([])
@@ -667,8 +650,14 @@ export default function AgentHandoffFlow({
       setPhase("running")
       setRun({ id: ++runIds.current, task, k, answer, t0: performance.now() })
     },
-    [pinned, presets, resolve],
+    [pinned, tasks, resolve],
   )
+
+  /** The next task in the loop. */
+  const playNext = React.useCallback(() => {
+    if (!tasks.length) return
+    start(tasks[nextTask.current++ % tasks.length].task)
+  }, [start, tasks])
 
   const stop = React.useCallback(() => {
     setRun(null)
@@ -783,14 +772,20 @@ export default function AgentHandoffFlow({
     return () => clearInterval(iv)
   }, [result, reduced])
 
-  /* ---- autoplay the first preset once it is on screen ---- */
+  /* ---- autoplay: start once on screen, then the next task a beat after each answer ---- */
   React.useEffect(() => {
-    if (!autoPlay || !presets.length) return
+    if (!autoPlay || phase !== "done" || !result || typed < result.text.length) return
+    const t = setTimeout(playNext, 3200)
+    return () => clearTimeout(t)
+  }, [autoPlay, phase, result, typed, playNext])
+
+  React.useEffect(() => {
+    if (!autoPlay || !tasks.length) return
     const el = rootRef.current
     let timer = null as ReturnType<typeof setTimeout> | null
     const go = () => {
       timer = setTimeout(() => {
-        if (!touched.current) start(presets[0].task)
+        if (!touched.current) playNext()
       }, 700)
     }
     if (!el || typeof IntersectionObserver === "undefined") {
@@ -813,7 +808,7 @@ export default function AgentHandoffFlow({
       io.disconnect()
       if (timer) clearTimeout(timer)
     }
-    // Once per mount: a later preset change should not replay on its own.
+    // Once per mount: the loop above takes it from there.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -846,7 +841,7 @@ export default function AgentHandoffFlow({
       ? agents[result.by].name + " answered after " + result.handoffs + (result.handoffs === 1 ? " handoff" : " handoffs")
       : log.length
         ? log[log.length - 1].text
-        : "Idle. Pick a task or type your own."
+        : "Idle. Click the Task card to run the next task."
 
   const show = (t: Tip) => setTip(t)
   const hide = () => setTip(null)
@@ -860,12 +855,6 @@ export default function AgentHandoffFlow({
   const togglePin = (i: number) => {
     touched.current = true
     setPinned((p) => (p === i ? null : i))
-  }
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
-    touched.current = true
-    start(input || presets[0]?.task || "Say hi")
   }
 
   const vars = {
@@ -1061,10 +1050,10 @@ export default function AgentHandoffFlow({
             style={{ left: L.task.x, top: L.task.y, width: L.task.w, height: L.task.h, background: c.box, color: c.boxText }}
             onClick={() => {
               touched.current = true
-              start(input || presets[0]?.task || "Say hi")
+              playNext()
             }}
-            aria-label={"Task: " + (run?.task ?? (input || presets[0]?.task || "none")) + ". Press to run."}
-            {...hover({ box: L.task, title: "Task", body: run?.task ?? (input || presets[0]?.task || "Type a task below."), hint: "Click to run it" })}
+            aria-label={"Task: " + (run?.task ?? "none yet") + ". Press to run the next task."}
+            {...hover({ box: L.task, title: "Task", body: run?.task ?? "Nothing running yet.", hint: "Click to run the next task" })}
           >
             <span className="absolute" style={{ left: 12, top: 10, fontSize: 15 * fs }}>
               Task
@@ -1286,7 +1275,7 @@ export default function AgentHandoffFlow({
               ) : busy ? (
                 "“" + short(run?.task ?? "", 70) + "”"
               ) : (
-                "Pick a task below or type your own. Click an agent to make it the one that answers."
+                "Click the Task card to run a task. Click an agent to make it the one that answers."
               )}
             </p>
           </div>
@@ -1332,72 +1321,9 @@ export default function AgentHandoffFlow({
         </div>
       </div>
 
-      {/* ---- controls ---- */}
-      <div className="relative w-full shrink-0" style={{ borderTop: "2px solid " + c.ink, background: c.paper }}>
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-3 py-3 sm:px-5 lg:flex-row lg:items-center lg:gap-4">
-          <div className="ahf-scroll flex min-w-0 items-center gap-2 overflow-x-auto lg:flex-1" style={{ padding: "3px 4px 4px 2px" }}>
-            {pinned != null && agents[pinned] && (
-              <button
-                type="button"
-                className="ahf-pill"
-                style={{ background: c.accent, color: c.accentText }}
-                onClick={() => setPinned(null)}
-                aria-label={"Unpin " + agents[pinned].name}
-              >
-                Pinned: {agents[pinned].name} ✕
-              </button>
-            )}
-            {presets.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                className="ahf-pill"
-                aria-pressed={run?.task === p.task}
-                onClick={() => {
-                  touched.current = true
-                  start(p.task)
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <form className="flex w-full min-w-0 items-center gap-2 lg:w-[32rem]" onSubmit={submit}>
-            <input
-              className="ahf-input"
-              value={input}
-              placeholder={placeholder}
-              aria-label="Task"
-              onChange={(e) => {
-                touched.current = true
-                setInput(e.target.value)
-              }}
-            />
-            {busy ? (
-              <button type="button" className="ahf-btn" style={{ background: c.card, color: c.ink }} onClick={stop}>
-                Stop
-              </button>
-            ) : (
-              <button type="submit" className="ahf-btn" style={{ background: c.ink, color: c.paper }}>
-                <PixelIcon rows={["#...", "##..", "###.", "####", "###.", "##..", "#..."]} px={2} />
-                {phase === "done" ? "Run again" : "Run"}
-              </button>
-            )}
-            <button
-              type="button"
-              className="ahf-btn ahf-mono"
-              style={{ background: c.card, color: c.ink, padding: "0 10px", minWidth: 48 }}
-              onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}
-              aria-label={"Speed " + speed + "x. Press to change."}
-            >
-              {speed}×
-            </button>
-          </form>
-        </div>
-        <p className="sr-only" role="status">
-          {status}
-        </p>
-      </div>
+      <p className="sr-only" role="status">
+        {status}
+      </p>
     </section>
   )
 }

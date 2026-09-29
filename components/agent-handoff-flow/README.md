@@ -13,16 +13,17 @@ React is the only import.
 
 ## Interaction
 
-- **Presets.** The pills along the bottom run canned tasks. The first plays by itself
-  once the flow scrolls into view (`autoPlay={false}` turns that off).
-- **Your own task.** Type anything and press Enter or **Run**. Routing is keyword
-  based: the furthest agent whose keyword appears in the task answers it, so
-  "chart the weather" goes Router → Web search → Code.
+There are no buttons or inputs around the diagram; everything happens on it.
+
+- **It plays itself.** Once the flow scrolls into view it runs `tasks` in order,
+  pausing on each answer, and loops (`autoPlay={false}` turns that off). Routing is
+  keyword based: the furthest agent whose keyword appears in the task answers it,
+  so "chart the weather" goes Router → Web search → Code.
+- **Click the Task card** to skip to the next task.
 - **Pin an agent.** Click any agent to make it the one that answers, whatever the
-  task says. Click again, or the **Pinned** pill, to unpin.
-- **Hover** (or tab to) any card, chip or gate for a short explanation. Clicking the
-  **Task** card runs the current task.
-- **1× / 2×** changes speed. **Stop** or `Esc` cancels a run.
+  task says. Click it again to unpin.
+- **Hover** (or tab to) any card, chip or gate for a short explanation.
+- `Esc` stops the loop; clicking the Task card starts it again.
 
 The layout picks itself: a row on wide screens, a column with agent descriptions
 on phones (`layout="row" | "column"` forces one). With `prefers-reduced-motion`,
@@ -42,6 +43,7 @@ import AgentHandoffFlow, { ICONS } from "@/components/ui/agent-handoff-flow"
 <AgentHandoffFlow
   theme="night"
   title="Support desk"
+  tasks={[{ task: "I was charged twice for my plan" }, { task: "The API returns a 500 error" }]}
   agents={[
     { id: "triage", name: "Triage", icon: ICONS.mail, description: "Tags every ticket." },
     { id: "billing", name: "Billing", icon: ICONS.database, keywords: ["refund", "invoice"] },
@@ -59,21 +61,20 @@ The flow waits at the Answer card until `resolve` settles, so a slow model call
 just shows as the Answer card "typing".
 
 Also exported: `ICONS` (router, person, bubble, globe, braces, doc, checklist, dots,
-database, mail, spark), `DEFAULT_AGENTS`, `DEFAULT_PRESETS`, `routeTask`.
+database, mail, spark), `DEFAULT_AGENTS`, `DEFAULT_TASKS`, `routeTask`.
 
 ## Props
 
 | Prop | Default | Notes |
 |---|---|---|
 | `agents` | Router, Web search, Code | 1 to 6. `{ id, name, icon?, description?, working?, keywords?, reply? }`. The first is the orchestrator (painted in the accent colour). |
-| `presets` | 4 sample tasks | `{ label, task, answer? }`. A preset's `answer` is used when the task routes normally. |
+| `tasks` | 4 sample tasks | `{ task, answer? }`, played in order and looped. A task's `answer` is used when it routes normally. |
 | `resolve` | none | `(task, agent, chain) => string \| Promise<string>`. Otherwise the agent's `reply`, then a generic line. |
 | `onAnswer` | none | `({ task, agent, answer, handoffs, ms })` when the answer lands. |
 | `title` / `subtitle` | "Agent handoffs" | The subtitle shows in the row layout only. |
-| `placeholder` | a hint | For the task input. |
 | `theme` | `"paper"` | `"paper"` (cream, orange) or `"night"` (ink, mint). |
 | `colors` | from theme | Any of `paper`, `grid`, `ink`, `box`, `boxText`, `node`, `nodeText`, `accent`, `accentText`, `card`, `muted`. |
-| `autoPlay` | `true` | Run the first preset once, when the flow is first on screen. |
+| `autoPlay` | `true` | Start when the flow is first on screen, then keep cycling through `tasks`. |
 | `layout` | `"auto"` | `"auto"`, `"row"` or `"column"`. |
 | `height` | `"100svh"` | Always a definite length, never a percentage. |
 | `className` | none | Added to the root `<section>`. |

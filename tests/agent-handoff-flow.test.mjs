@@ -53,7 +53,7 @@ assert.match(src, /e\.key === "Escape"/, "Escape stops a run")
 // Demos import the installer's path and fill the width.
 const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
 assert.ok(tsconfig.includes('"@/components/ui/agent-handoff-flow"'), "tsconfig paths line is missing")
-for (const demo of ["demo.tsx", "demo-night.tsx"]) {
+for (const demo of ["demo.tsx", "demo-paper.tsx"]) {
   const d = readFileSync(new URL("../components/agent-handoff-flow/" + demo, import.meta.url), "utf8")
   assert.ok(d.includes('from "@/components/ui/agent-handoff-flow"'), demo + " must import the installed path")
   assert.ok(d.includes('className="w-full"'), demo + " must not shrink inside 21st's flex wrapper")
