@@ -1,5 +1,5 @@
-{,
-  "compilerOptions": {,
+{
+  "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
@@ -11,9 +11,9 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
-    /* tsc cannot expand a wildcard twice, so each component gets one line here.,
-       Vite resolves the same imports by pattern — see vite.config.ts. */,
-    "paths": {,
+    /* tsc cannot expand a wildcard twice, so each component gets one line here.
+       Vite resolves the same imports by pattern — see vite.config.ts. */
+    "paths": {
       "@/components/ui/zero-melt-preloader": ["./components/zero-melt-preloader/zero-melt-preloader.tsx"],
       "@/components/ui/magic-hour": ["./components/magic-hour/magic-hour.tsx"],
       "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
@@ -67,9 +67,10 @@
       "@/components/ui/miss-minutes-clock": ["./components/miss-minutes-clock/miss-minutes-clock.tsx"],
       "@/components/ui/scroll-milestone-timeline": ["./components/scroll-milestone-timeline/scroll-milestone-timeline.tsx"],
       "@/components/ui/lens-projector-carousel": ["./components/lens-projector-carousel/lens-projector-carousel.tsx"],
-    },
-  },
-  "include": ["components", "dev", "vite.config.ts"],
-},
       "@/components/ui/foundation-primitives": ["./components/foundation-primitives/foundation-primitives.tsx"],
-      "@/components/ui/agent-handoff-flow": ["./components/agent-handoff-flow/agent-handoff-flow.tsx"]
+      "@/components/ui/agent-handoff-flow": ["./components/agent-handoff-flow/agent-handoff-flow.tsx"],
+      "@/components/ui/isometric-vault-hero": ["./components/isometric-vault-hero/isometric-vault-hero.tsx"]
+    }
+  },
+  "include": ["components", "dev", "vite.config.ts"]
+}
