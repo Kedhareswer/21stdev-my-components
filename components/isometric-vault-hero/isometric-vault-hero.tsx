@@ -261,7 +261,7 @@ const DEFAULT_NAV: VaultNavLink[] = [
 ]
 
 const CSS = `
-.ivh{position:relative;overflow:hidden;isolation:isolate;container:ivh / size;color-scheme:dark;background:var(--ivh-bg);color:var(--ivh-ink);font-family:var(--ivh-font);-webkit-font-smoothing:antialiased;
+.ivh{position:relative;width:100%;overflow:hidden;isolation:isolate;container:ivh / size;color-scheme:dark;background:var(--ivh-bg);color:var(--ivh-ink);font-family:var(--ivh-font);-webkit-font-smoothing:antialiased;
   --ivh-muted:color-mix(in oklab,var(--ivh-ink) 62%,var(--ivh-bg));
   --ivh-faint:color-mix(in oklab,var(--ivh-ink) 14%,transparent);
   --ivh-line:color-mix(in oklab,var(--ivh-ink) 80%,transparent);
