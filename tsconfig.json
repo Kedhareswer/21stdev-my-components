@@ -71,4 +71,5 @@
   },
   "include": ["components", "dev", "vite.config.ts"],
 },
-      "@/components/ui/foundation-primitives": ["./components/foundation-primitives/foundation-primitives.tsx"]
+      "@/components/ui/foundation-primitives": ["./components/foundation-primitives/foundation-primitives.tsx"],
+      "@/components/ui/agent-handoff-flow": ["./components/agent-handoff-flow/agent-handoff-flow.tsx"]
