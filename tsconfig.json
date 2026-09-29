@@ -69,7 +69,8 @@
       "@/components/ui/lens-projector-carousel": ["./components/lens-projector-carousel/lens-projector-carousel.tsx"],
       "@/components/ui/foundation-primitives": ["./components/foundation-primitives/foundation-primitives.tsx"],
       "@/components/ui/agent-handoff-flow": ["./components/agent-handoff-flow/agent-handoff-flow.tsx"],
-      "@/components/ui/isometric-vault-hero": ["./components/isometric-vault-hero/isometric-vault-hero.tsx"]
+      "@/components/ui/isometric-vault-hero": ["./components/isometric-vault-hero/isometric-vault-hero.tsx"],
+      "@/components/ui/exploded-assembly-scroll": ["./components/exploded-assembly-scroll/exploded-assembly-scroll.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
