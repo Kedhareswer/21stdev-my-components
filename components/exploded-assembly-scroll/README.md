@@ -2,7 +2,7 @@
 
 An engineering-services page whose drawing builds itself as you scroll.
 
-A cream spec sheet (nav, breadcrumb, a heavy uppercase headline, three
+A full-bleed cream spec sheet (nav, breadcrumb, a heavy uppercase headline, three
 capabilities with octagon bullets) sits over an orange drawing panel ruled
 like a title block. When the panel reaches the top it pins, and scroll
 assembles a line-drawn isometric **process pump skid** in four stages:
@@ -57,7 +57,7 @@ and re-word everything through props (see `demo-graphite.tsx`):
     { title: "Vessel Install", caption: "Knock-out drum" },
     { title: "Pipe, Wire, Test", caption: "Piping & controls" },
   ]}
-  paper="#0f0d0c" surface="#1b1816" ink="#efe4d6" accent="#f06a28"
+  surface="#1b1816" ink="#efe4d6" accent="#f06a28"
 />
 ```
 
@@ -101,7 +101,7 @@ const parts: AssemblyPart[] = [
 | `tagline` / `statement` | reference copy | Italic line and the big uppercase block. `""` hides either. |
 | `company` / `year` | `"CoreAxis Technologies"` / `"2024"` | Footer row. |
 | `accent` | `#ec5d1a` | Brand colour and panel. Faces are shaded from it, so a 6-digit hex gives the best result (anything else falls back to `color-mix`). |
-| `surface` / `paper` / `ink` | cream / sand / near-black | Card, surround, card text. |
+| `surface` / `ink` | cream / near-black | Page and page text. |
 | `panelInk` | `#1c0f07` | Lines and text on the panel. |
 | `fontSans` / `fontMono` | system stacks | Headlines / everything else. No fonts are loaded. |
 | `height` | `"100svh"` | Height of the pinned panel. **Must be a definite length.** |
@@ -116,14 +116,14 @@ const parts: AssemblyPart[] = [
 
 - **The panel's height is the scroll budget:** `(1 + stages × scrollPerStep)`
   panel heights. Inside it, a `sticky` stage at `height`.
-- The card uses `overflow: clip`, not `hidden`. `hidden` would make it a
+- The page uses `overflow: clip`, not `hidden`. `hidden` would make it a
   scroll container and the panel would never pin.
 - Progress is measured from **the element**, never `window.scrollY`, so it
   works anywhere on a page.
 - Scroll schedules one rAF, which writes transforms and CSS variables
   straight to the SVG. React re-renders only when the stage or hover changes.
 - Paints its own palette and ignores the page's light/dark theme. For a dark
-  page, pass dark `paper`/`surface` and a light `ink` (see `demo-graphite.tsx`).
+  page, pass a dark `surface` and a light `ink` (see `demo-graphite.tsx`).
 - Under 720px of container width the grid stacks: drawing on top, stage
   table below, and the BOM, tagline and statement fold away.
 - `prefers-reduced-motion`: no easing, no snapping, no smooth jumps, no

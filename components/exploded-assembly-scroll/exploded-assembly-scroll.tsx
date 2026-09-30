@@ -520,11 +520,9 @@ export type ExplodedAssemblyScrollProps = {
   year?: string
   /** Brand colour: logo, active link, bullets, and the drawing panel. */
   accent?: string
-  /** The card behind the headline. */
+  /** The page behind the headline. */
   surface?: string
-  /** Around the card. */
-  paper?: string
-  /** Type on the card. */
+  /** Type on the page. */
   ink?: string
   /** Lines and type on the accent panel. */
   panelInk?: string
@@ -656,7 +654,6 @@ export default function ExplodedAssemblyScroll({
   year = "2024",
   accent = "#ec5d1a",
   surface = "#fbecd9",
-  paper = "#f2e3cf",
   ink = "#141210",
   panelInk = "#1c0f07",
   fontSans = SANS,
@@ -913,19 +910,11 @@ export default function ExplodedAssemblyScroll({
   return (
     <section
       className={"eas relative w-full " + className}
-      style={{ ...vars, background: paper, color: ink, fontFamily: fontMono, padding: "clamp(12px, 3.2vw, 56px)" }}
+      style={{ ...vars, color: ink, fontFamily: fontMono }}
       aria-label={title || brand}
     >
       <style>{styles}</style>
-      <div
-        className="relative w-full"
-        style={{
-          background: surface,
-          borderRadius: 18,
-          overflow: "clip",
-          boxShadow: "0 40px 70px -30px rgba(60,32,10,.35), 0 12px 24px -16px rgba(60,32,10,.25)",
-        }}
-      >
+      <div className="relative w-full" style={{ background: surface, overflow: "clip" }}>
         {/* ---- the spec sheet ---- */}
         <div className="px-5 pb-10 pt-6 sm:px-9 sm:pb-11 sm:pt-8">
           <nav className="flex items-center justify-between gap-4" style={{ fontSize: 13, letterSpacing: "0.04em" }}>
