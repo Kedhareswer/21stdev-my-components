@@ -65,7 +65,8 @@
       "@/components/ui/exploded-assembly-scroll": ["./components/exploded-assembly-scroll/exploded-assembly-scroll.tsx"],
       "@/components/ui/ticket-stub-footer": ["./components/ticket-stub-footer/ticket-stub-footer.tsx"],
       "@/components/ui/contribution-skyline": ["./components/contribution-skyline/contribution-skyline.tsx"],
-      "@/components/ui/memory-folder-preloader": ["./components/memory-folder-preloader/memory-folder-preloader.tsx"]
+      "@/components/ui/memory-folder-preloader": ["./components/memory-folder-preloader/memory-folder-preloader.tsx"],
+      "@/components/ui/postcard-contact": ["./components/postcard-contact/postcard-contact.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
