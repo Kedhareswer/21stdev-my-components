@@ -486,15 +486,15 @@ export default function QuietPortfolioTemplate({
   className,
 }: QuietPortfolioTemplateProps) {
   const uid = React.useId().replace(/:/g, "")
-  const rootRef = React.useRef<HTMLDivElement>(null)
+  const rootRef = React.useRef(null as HTMLDivElement | null)
   const person = fullName || name
 
   const [theme, setTheme] = React.useState<Theme>(defaultTheme === "dark" ? "dark" : "light")
   const [view, setView] = React.useState<View>({ name: "home" })
   const [paletteOpen, setPaletteOpen] = React.useState(false)
-  const [openProject, setOpenProject] = React.useState<number | null>(null)
+  const [openProject, setOpenProject] = React.useState(null as number | null)
   const [rolesOpen, setRolesOpen] = React.useState(false)
-  const [toast, setToast] = React.useState<{ id: number; text: string } | null>(null)
+  const [toast, setToast] = React.useState(null as { id: number; text: string } | null)
   const [mod, setMod] = React.useState("⌘")
 
   const sortedEssays = React.useMemo(() => [...essays].sort((a, b) => (a.date < b.date ? 1 : -1)), [essays])
@@ -839,9 +839,9 @@ function Nav({
   reading: boolean
   rootRef: React.RefObject<HTMLDivElement | null>
 }) {
-  const navRef = React.useRef<HTMLElement>(null)
-  const pillRef = React.useRef<HTMLSpanElement>(null)
-  const barRef = React.useRef<HTMLSpanElement>(null)
+  const navRef = React.useRef(null as HTMLElement | null)
+  const pillRef = React.useRef(null as HTMLSpanElement | null)
+  const barRef = React.useRef(null as HTMLSpanElement | null)
   const placed = React.useRef(false)
 
   // The active tab's pill slides between tabs rather than jumping.
@@ -935,7 +935,7 @@ function Nav({
 
 function SayHello({ email, socials, onCopy }: { email: string; socials: QuietLink[]; onCopy: () => void }) {
   const [open, setOpen] = React.useState(false)
-  const ref = React.useRef<HTMLSpanElement>(null)
+  const ref = React.useRef(null as HTMLSpanElement | null)
 
   React.useEffect(() => {
     if (!open) return
@@ -1031,8 +1031,8 @@ function ProjectList({
   onOpen: (i: number | null) => void
   uid: string
 }) {
-  const [hover, setHover] = React.useState<number | null>(null)
-  const previewRef = React.useRef<HTMLDivElement>(null)
+  const [hover, setHover] = React.useState(null as number | null)
+  const previewRef = React.useRef(null as HTMLDivElement | null)
   const target = React.useRef({ x: 0, y: 0 })
   const pos = React.useRef({ x: 0, y: 0 })
   const raf = React.useRef(0)
@@ -1071,7 +1071,7 @@ function ProjectList({
   }, [hover, tick])
 
   const shown = hover !== null && hover !== open && fine ? projects[hover] : null
-  const last = React.useRef<QuietProject | null>(null)
+  const last = React.useRef(null as QuietProject | null)
   if (shown) last.current = shown
   const card = shown ?? last.current
 
@@ -1220,8 +1220,8 @@ function Palette({
 }) {
   const [query, setQuery] = React.useState("")
   const [active, setActive] = React.useState(0)
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const listRef = React.useRef<HTMLDivElement>(null)
+  const inputRef = React.useRef(null as HTMLInputElement | null)
+  const listRef = React.useRef(null as HTMLDivElement | null)
   const results = React.useMemo(() => filterCommands(commands, query), [commands, query])
 
   React.useEffect(() => {
@@ -1337,7 +1337,7 @@ function Palette({
 /* ---------------------------------------------------------------- clock */
 
 function Clock({ timeZone, place }: { timeZone: string; place: string }) {
-  const [now, setNow] = React.useState<Date | null>(null)
+  const [now, setNow] = React.useState(null as Date | null)
   React.useEffect(() => {
     setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 15000)

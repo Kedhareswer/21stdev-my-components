@@ -716,7 +716,7 @@ function useInert(ref: React.RefObject<HTMLElement>, inert: boolean) {
 }
 
 function Fold({ open, id, children }: { open: boolean; id?: string; children: React.ReactNode }) {
-  const ref = React.useRef<HTMLDivElement>(null)
+  const ref = React.useRef(null as HTMLDivElement | null)
   useInert(ref, !open)
   return (
     <div className={"ppf-fold" + (open ? " is-open" : "")} id={id}>
@@ -758,17 +758,17 @@ export default function PocketPortfolio({
   const lang = langs.find((l) => l.code === code) ?? langs[0]
   const t: PocketLabels = { ...DEFAULT_LABELS, ...lang.labels }
 
-  const [open, setOpen] = React.useState<SectionId[]>(defaultOpen)
-  const [project, setProject] = React.useState<number | null>(null)
-  const [now, setNow] = React.useState<Date | null>(null)
+  const [open, setOpen] = React.useState(defaultOpen as SectionId[])
+  const [project, setProject] = React.useState(null as number | null)
+  const [now, setNow] = React.useState(null as Date | null)
   const [hour12, setHour12] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
   const [look, setLook] = React.useState({ x: 0, y: 0 })
 
-  const infoRef = React.useRef<HTMLElement>(null)
-  const workRef = React.useRef<HTMLElement>(null)
-  const contactRef = React.useRef<HTMLElement>(null)
-  const portraitRef = React.useRef<HTMLDivElement>(null)
+  const infoRef = React.useRef(null as HTMLElement | null)
+  const workRef = React.useRef(null as HTMLElement | null)
+  const contactRef = React.useRef(null as HTMLElement | null)
+  const portraitRef = React.useRef(null as HTMLDivElement | null)
 
   // live clock, ticking on the second
   React.useEffect(() => {
