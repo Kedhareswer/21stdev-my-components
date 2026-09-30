@@ -62,7 +62,8 @@
       "@/components/ui/halftone-nebula": ["./components/halftone-nebula/halftone-nebula.tsx"],
       "@/components/ui/alter-ego-mask-reveal": ["./components/alter-ego-mask-reveal/alter-ego-mask-reveal.tsx"],
       "@/components/ui/foundation-primitives": ["./components/foundation-primitives/foundation-primitives.tsx"],
-      "@/components/ui/exploded-assembly-scroll": ["./components/exploded-assembly-scroll/exploded-assembly-scroll.tsx"]
+      "@/components/ui/exploded-assembly-scroll": ["./components/exploded-assembly-scroll/exploded-assembly-scroll.tsx"],
+      "@/components/ui/ticket-stub-footer": ["./components/ticket-stub-footer/ticket-stub-footer.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
