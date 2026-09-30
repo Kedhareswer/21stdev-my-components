@@ -67,7 +67,8 @@
       "@/components/ui/contribution-skyline": ["./components/contribution-skyline/contribution-skyline.tsx"],
       "@/components/ui/memory-folder-preloader": ["./components/memory-folder-preloader/memory-folder-preloader.tsx"],
       "@/components/ui/postcard-contact": ["./components/postcard-contact/postcard-contact.tsx"],
-      "@/components/ui/pocket-portfolio": ["./components/pocket-portfolio/pocket-portfolio.tsx"]
+      "@/components/ui/pocket-portfolio": ["./components/pocket-portfolio/pocket-portfolio.tsx"],
+      "@/components/ui/quiet-portfolio-template": ["./components/quiet-portfolio-template/quiet-portfolio-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
