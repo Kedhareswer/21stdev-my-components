@@ -28,7 +28,6 @@ export default function DemoGraphite() {
         statement="Every skid is hydro-tested and FAT-witnessed before it leaves"
         company="Ironline Fabrication"
         year="2026"
-        paper="#0f0d0c"
         surface="#1b1816"
         ink="#efe4d6"
         accent="#f06a28"
