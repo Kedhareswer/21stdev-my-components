@@ -559,8 +559,8 @@ function ProjectArt({ project, className, square }: { project: Project; classNam
 const MELODY = [0, 4, 7, 12, 11, 7, 4, 2, 4, 7, 9, 7, 4, 0, 2, -1, 0, 4, 7, 12, 14, 12, 9, 7, 9, 7, 4, 2, 0, -1, 0, null]
 
 function useMusicBox() {
-  const ctx = React.useRef<AudioContext | null>(null)
-  const timer = React.useRef<number | null>(null)
+  const ctx = React.useRef(null as AudioContext | null)
+  const timer = React.useRef(null as number | null)
   const step = React.useRef(0)
   const [playing, setPlaying] = React.useState(false)
 
@@ -668,7 +668,7 @@ function FinderView({ win, c, go, narrow }: { win: Win; c: Ctx; go: (loc: Loc, p
   const loc = win.hist[win.hi]
   const [query, setQuery] = React.useState("")
   const [view, setView] = React.useState<"grid" | "list">("grid")
-  const [sel, setSel] = React.useState<string | null>(null)
+  const [sel, setSel] = React.useState(null as string | null)
   const folder = c.folders.find((f) => f.id === loc.folder) ?? null
   const scope = folder ? folder.projects : c.projects
   const items = filterProjects(scope, query, loc.tag)
@@ -956,8 +956,8 @@ function MessagesView({ c }: { c: Ctx }) {
   const [msgs, setMsgs] = React.useState<Msg[]>([{ me: false, text: "hey, I'm " + first + "! ask me anything ✿" }])
   const [typing, setTyping] = React.useState(false)
   const [draft, setDraft] = React.useState("")
-  const end = React.useRef<HTMLDivElement>(null)
-  const timer = React.useRef<number | null>(null)
+  const end = React.useRef(null as HTMLDivElement | null)
+  const timer = React.useRef(null as number | null)
   React.useEffect(() => {
     end.current?.scrollIntoView({ block: "end" })
   }, [msgs, typing])
@@ -1030,7 +1030,7 @@ function GalleryView({ c }: { c: Ctx }) {
 }
 
 function NotesView({ c }: { c: Ctx }) {
-  const [done, setDone] = React.useState<Record<number, boolean>>({})
+  const [done, setDone] = React.useState({} as { [k: number]: boolean })
   const date = new Date().toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" })
   return (
     <div className="cdp-notes">
@@ -1142,7 +1142,7 @@ function TrashView() {
 
 /* ---------------------------------------------------------------- windows */
 
-const SIZES: Record<Kind, { w: number; h: number; title: string }> = {
+const SIZES: { [K in Kind]: { w: number; h: number; title: string } } = {
   finder: { w: 600, h: 380, title: "Finder" },
   about: { w: 480, h: 340, title: "About Me" },
   contact: { w: 460, h: 400, title: "New Message" },
@@ -1192,7 +1192,7 @@ export default function CoquetteDesktopPortfolio({
   className = "",
 }: CoquetteDesktopPortfolioProps) {
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "")
-  const root = React.useRef<HTMLDivElement>(null)
+  const root = React.useRef(null as HTMLDivElement | null)
   const [desk, setDesk] = React.useState({ w: 1200, h: 800 })
   const compact = desk.w < 640
   const [reduced, setReduced] = React.useState(false)
@@ -1209,20 +1209,20 @@ export default function CoquetteDesktopPortfolio({
     ],
     [folders, aboutIcon.x, aboutIcon.y, aboutIcon.label, contactIcon.x, contactIcon.y, contactIcon.label],
   )
-  const [moved, setMoved] = React.useState<Record<string, { x: number; y: number }>>({})
-  const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
-  const [band, setBand] = React.useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
-  const [wins, setWins] = React.useState<Win[]>([])
+  const [moved, setMoved] = React.useState({} as { [k: string]: { x: number; y: number } })
+  const [selected, setSelected] = React.useState(() => new Set([] as string[]))
+  const [band, setBand] = React.useState(null as { x0: number; y0: number; x1: number; y1: number } | null)
+  const [wins, setWins] = React.useState([] as Win[])
   const zTop = React.useRef(20)
   const winCount = React.useRef(0)
   const [launchpad, setLaunchpad] = React.useState(false)
   const [spot, setSpot] = React.useState(false)
-  const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null)
-  const [wall, setWall] = React.useState<Wallpaper>(wallpaperIn)
-  const [bounce, setBounce] = React.useState<string | null>(null)
-  const [dockX, setDockX] = React.useState<number | null>(null)
-  const dockRefs = React.useRef<Record<string, HTMLButtonElement | null>>({})
-  const dockBase = React.useRef<Record<string, number>>({})
+  const [menu, setMenu] = React.useState(null as { x: number; y: number } | null)
+  const [wall, setWall] = React.useState(wallpaperIn as Wallpaper)
+  const [bounce, setBounce] = React.useState(null as string | null)
+  const [dockX, setDockX] = React.useState(null as number | null)
+  const dockRefs = React.useRef({} as { [k: string]: HTMLButtonElement | null })
+  const dockBase = React.useRef({} as { [k: string]: number })
   const music = useMusicBox()
 
   /* ---- measure ---- */
