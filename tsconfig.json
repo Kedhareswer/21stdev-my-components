@@ -69,7 +69,8 @@
       "@/components/ui/postcard-contact": ["./components/postcard-contact/postcard-contact.tsx"],
       "@/components/ui/pocket-portfolio": ["./components/pocket-portfolio/pocket-portfolio.tsx"],
       "@/components/ui/quiet-portfolio-template": ["./components/quiet-portfolio-template/quiet-portfolio-template.tsx"],
-      "@/components/ui/sidebar-portfolio-template": ["./components/sidebar-portfolio-template/sidebar-portfolio-template.tsx"]
+      "@/components/ui/sidebar-portfolio-template": ["./components/sidebar-portfolio-template/sidebar-portfolio-template.tsx"],
+      "@/components/ui/crimson-eclipse-landing": ["./components/crimson-eclipse-landing/crimson-eclipse-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
