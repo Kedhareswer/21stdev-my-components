@@ -72,7 +72,8 @@
       "@/components/ui/receipt-portfolio": ["./components/receipt-portfolio/receipt-portfolio.tsx"],
       "@/components/ui/receipt-work-ledger": ["./components/receipt-work-ledger/receipt-work-ledger.tsx"],
       "@/components/ui/receipt-order-form": ["./components/receipt-order-form/receipt-order-form.tsx"],
-      "@/components/ui/receipt-spike-testimonials": ["./components/receipt-spike-testimonials/receipt-spike-testimonials.tsx"]
+      "@/components/ui/receipt-spike-testimonials": ["./components/receipt-spike-testimonials/receipt-spike-testimonials.tsx"],
+      "@/components/ui/coquette-desktop-portfolio": ["./components/coquette-desktop-portfolio/coquette-desktop-portfolio.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
