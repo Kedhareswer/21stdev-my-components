@@ -1,6 +1,6 @@
-// The three preset-focused preloaders are generated from the same engine as
-// tumbling-cube-preloader, so this runs the install-safety rules over all of
-// them at once and asserts the engine has not drifted between copies.
+// The three preset-focused preloaders are generated from one shared engine,
+// so this runs the install-safety rules over all of them at once and asserts
+// the engine has not drifted between copies.
 // Run: node tests/preloader-family.test.mjs
 
 import assert from "node:assert/strict"
