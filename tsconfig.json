@@ -59,7 +59,12 @@
       "@/components/ui/pocket-portfolio": ["./components/pocket-portfolio/pocket-portfolio.tsx"],
       "@/components/ui/quiet-portfolio-template": ["./components/quiet-portfolio-template/quiet-portfolio-template.tsx"],
       "@/components/ui/sidebar-portfolio-template": ["./components/sidebar-portfolio-template/sidebar-portfolio-template.tsx"],
-      "@/components/ui/coquette-desktop-portfolio": ["./components/coquette-desktop-portfolio/coquette-desktop-portfolio.tsx"]
+      "@/components/ui/coquette-desktop-portfolio": ["./components/coquette-desktop-portfolio/coquette-desktop-portfolio.tsx"],
+      "@/components/ui/torn-postcard-portfolio": ["./components/torn-postcard-portfolio/torn-postcard-portfolio.tsx"],
+      "@/components/ui/cobalt-toile-landing": ["./components/cobalt-toile-landing/cobalt-toile-landing.tsx"],
+      "@/components/ui/folder-tab-portfolio-template": ["./components/folder-tab-portfolio-template/folder-tab-portfolio-template.tsx"],
+      "@/components/ui/editorial-folio-template": ["./components/editorial-folio-template/editorial-folio-template.tsx"],
+      "@/components/ui/fire-horse-preloader": ["./components/fire-horse-preloader/fire-horse-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
