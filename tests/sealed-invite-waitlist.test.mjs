@@ -142,7 +142,7 @@ assert.ok(/visibility:hidden/.test(src), "the hidden form leaves the tab order")
 // Gradient/filter ids are per instance; two waitlists on a page must not share one.
 assert.ok(src.includes("React.useId()"), "svg ids must be unique per mount")
 
-for (const demo of ["demo.tsx", "demo-onyx.tsx", "demo-custom.tsx"]) {
+for (const demo of ["demo.tsx", "demo-steel.tsx", "demo-custom.tsx"]) {
   const d = readFileSync(new URL("../components/sealed-invite-waitlist/" + demo, import.meta.url), "utf8")
   assert.ok(d.includes('from "@/components/ui/sealed-invite-waitlist"'), demo + " imports the installed path")
 }
