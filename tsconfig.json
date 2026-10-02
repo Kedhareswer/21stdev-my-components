@@ -28,6 +28,7 @@
       "@/components/ui/morph-gallery": ["./components/morph-gallery/morph-gallery.tsx"],
       "@/components/ui/crimson-confessional": ["./components/crimson-confessional/crimson-confessional.tsx"],
       "@/components/ui/holo-card": ["./components/holo-card/holo-card.tsx"],
+      "@/components/ui/vault-dial-reveal": ["./components/vault-dial-reveal/vault-dial-reveal.tsx"],
       "@/components/ui/cinema-grain-preloader": ["./components/cinema-grain-preloader/cinema-grain-preloader.tsx"],
       "@/components/ui/chroma-glitch-preloader": ["./components/chroma-glitch-preloader/chroma-glitch-preloader.tsx"],
       "@/components/ui/mono-contrast-preloader": ["./components/mono-contrast-preloader/mono-contrast-preloader.tsx"],
