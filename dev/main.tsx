@@ -28,13 +28,20 @@ const demos = Object.entries(modules)
 
 const nameOf = (slug: string) => slug.replace(/(^|-)(\w)/g, (_, dash, c) => (dash ? " " : "") + c.toUpperCase())
 
-// One card per component, its default demo first.
-const components = [...new Set(demos.map((d) => d.slug))].map((slug) => ({
-  slug,
-  name: nameOf(slug),
-  thumb: thumbs["../media/" + slug + "/thumb.webp"],
-  demos: demos.filter((d) => d.slug === slug),
-}))
+// slug -> unix seconds it was first committed (vite.config.ts). A folder git
+// hasn't seen yet is the newest thing here, so it sorts to the top.
+declare const __ADDED__: Record<string, number>
+const addedAt = (slug: string) => __ADDED__[slug] ?? Number.MAX_SAFE_INTEGER
+
+// One card per component, newest first (name breaks ties), its default demo first.
+const components = [...new Set(demos.map((d) => d.slug))]
+  .sort((a, b) => addedAt(b) - addedAt(a) || a.localeCompare(b))
+  .map((slug) => ({
+    slug,
+    name: nameOf(slug),
+    thumb: thumbs["../media/" + slug + "/thumb.webp"],
+    demos: demos.filter((d) => d.slug === slug),
+  }))
 
 // No chrome. A toolbar sitting over a full-bleed component is the one thing the
 // workshop must never do, so the demo and the theme come off the URL instead.
