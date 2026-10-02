@@ -67,6 +67,7 @@
       "@/components/ui/frosted-glass-menu": ["./components/frosted-glass-menu/frosted-glass-menu.tsx"],
       "@/components/ui/comeback-poster": ["./components/comeback-poster/comeback-poster.tsx"],
       "@/components/ui/onyx-glyph-preloader": ["./components/onyx-glyph-preloader/onyx-glyph-preloader.tsx"],
+      "@/components/ui/stardust-stage-preloader": ["./components/stardust-stage-preloader/stardust-stage-preloader.tsx"],
       "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"]
     }
   },
