@@ -7,7 +7,7 @@ export default function Demo() {
   // to nothing inside 21st's centring flex wrapper.
   return (
     <div className="w-full">
-      <VaultDialReveal code={[12, 30, 7]} />
+      <VaultDialReveal code={[12, 30, 7]} tone="graphite" metal="silver" symbol="Ξ" />
     </div>
   )
 }

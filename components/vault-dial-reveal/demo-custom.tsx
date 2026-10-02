@@ -16,7 +16,7 @@ const METALS: { id: CoinMetal; label: string; symbol: string }[] = [
 ]
 
 export default function Demo() {
-  const [tone, setTone] = React.useState<VaultTone>("midnight")
+  const [tone, setTone] = React.useState<VaultTone>("graphite")
   const [metal, setMetal] = React.useState<CoinMetal>("silver")
   const [log, setLog] = React.useState("No attempts yet.")
   const symbol = METALS.find((m) => m.id === metal)?.symbol ?? "₿"
