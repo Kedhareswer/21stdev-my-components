@@ -64,18 +64,10 @@
       "@/components/ui/cobalt-toile-landing": ["./components/cobalt-toile-landing/cobalt-toile-landing.tsx"],
       "@/components/ui/folder-tab-portfolio-template": ["./components/folder-tab-portfolio-template/folder-tab-portfolio-template.tsx"],
       "@/components/ui/editorial-folio-template": ["./components/editorial-folio-template/editorial-folio-template.tsx"],
-      "@/components/ui/fire-horse-preloader": ["./components/fire-horse-preloader/fire-horse-preloader.tsx"],
-      "@/components/ui/frosted-folder-window": ["./components/frosted-folder-window/frosted-folder-window.tsx"],
       "@/components/ui/frosted-glass-menu": ["./components/frosted-glass-menu/frosted-glass-menu.tsx"],
-      "@/components/ui/elsewhere-poster": ["./components/elsewhere-poster/elsewhere-poster.tsx"],
       "@/components/ui/comeback-poster": ["./components/comeback-poster/comeback-poster.tsx"],
-      "@/components/ui/cyanotype-collage-hero": ["./components/cyanotype-collage-hero/cyanotype-collage-hero.tsx"],
-      "@/components/ui/hanging-chapter-select": ["./components/hanging-chapter-select/hanging-chapter-select.tsx"],
-      "@/components/ui/cel-vortex": ["./components/cel-vortex/cel-vortex.tsx"],
-      "@/components/ui/crimson-sunburst-preloader": ["./components/crimson-sunburst-preloader/crimson-sunburst-preloader.tsx"],
       "@/components/ui/onyx-glyph-preloader": ["./components/onyx-glyph-preloader/onyx-glyph-preloader.tsx"],
-      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"],
-      "@/components/ui/hollow-tide-preloader": ["./components/hollow-tide-preloader/hollow-tide-preloader.tsx"]
+      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
