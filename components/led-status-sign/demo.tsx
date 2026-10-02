@@ -2,16 +2,44 @@
 
 import LedStatusSign from "@/components/ui/led-status-sign"
 
-// Turn the dial, press the bar on top, double-click the glass to write your own.
+// A shelf of signs: three finishes, three inks, each on its own little loop.
 export default function Demo() {
   return (
-    // w-full: 21st centres demos in a flex wrapper that would shrink this to 0px.
-    <div className="w-full">
-      <LedStatusSign>
-        <p className="pointer-events-none absolute bottom-6 left-0 right-0 px-6 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-black/45 dark:text-white/40">
-          Turn the dial · press the bar · double-click the glass to write
-        </p>
-      </LedStatusSign>
+    <div className="grid w-full md:grid-cols-3">
+      <LedStatusSign
+        height="100svh"
+        finish="graphite"
+        palette="crimson"
+        autoCycle={4}
+        statuses={[
+          { text: "ON AIR", icon: "rec", effect: "pulse" },
+          { text: "RECORDING", icon: "mic" },
+        ]}
+      />
+      <LedStatusSign
+        height="100svh"
+        finish="silver"
+        palette="amber"
+        autoCycle={5}
+        transition="wipe"
+        statuses={[
+          { text: "FOCUS", icon: "focus" },
+          { text: "LO-FI ON", icon: "music" },
+          { text: "NO MEETINGS TODAY", icon: "moon" },
+        ]}
+      />
+      <LedStatusSign
+        height="100svh"
+        finish="white"
+        palette="lime"
+        autoCycle={6}
+        transition="dissolve"
+        statuses={[
+          { text: "FREE", icon: "check" },
+          { text: "SAY HI", icon: "heart", palette: "violet" },
+          { text: "BRB", icon: "coffee", effect: "blink", palette: "ice" },
+        ]}
+      />
     </div>
   )
 }

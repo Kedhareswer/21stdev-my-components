@@ -13,10 +13,10 @@ const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) 
 assert.deepEqual(imports, ["react"], "the only import may be react")
 assert.deepEqual(
   readdirSync(dir).sort(),
-  ["README.md", "demo-custom.tsx", "demo-desk.tsx", "demo.tsx", "led-status-sign.tsx"],
+  ["README.md", "demo-custom.tsx", "demo-single.tsx", "demo.tsx", "led-status-sign.tsx"],
   "folder holds the component, its demos and a README — nothing else",
 )
-for (const demo of ["demo.tsx", "demo-custom.tsx", "demo-desk.tsx"]) {
+for (const demo of ["demo.tsx", "demo-custom.tsx", "demo-single.tsx"]) {
   const d = readFileSync(new URL(demo, dir), "utf8")
   assert.ok(d.includes('from "@/components/ui/led-status-sign"'), `${demo} imports the installer path`)
   assert.match(d, /export default function \w*Demo\w*/, `${demo} default-exports a Demo`)
