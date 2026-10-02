@@ -505,22 +505,22 @@ export default function VaultDialReveal({
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "")
   const id = (s: string) => "vdr" + uid + s
 
-  const [phase, setPhase] = React.useState<Phase>(defaultOpen ? "open" : "locked")
-  const [entered, setEntered] = React.useState<number[]>(defaultOpen ? code : [])
+  const [phase, setPhase] = React.useState((defaultOpen ? "open" : "locked") as Phase)
+  const [entered, setEntered] = React.useState((defaultOpen ? code : []) as number[])
   const [dial, setDial] = React.useState(0)
   const [scale, setScale] = React.useState(0.6)
   const [doorOpen, setDoorOpen] = React.useState(defaultOpen)
 
-  const areaRef = React.useRef<HTMLDivElement>(null)
-  const wheelRef = React.useRef<HTMLDivElement>(null)
-  const hitRef = React.useRef<HTMLDivElement>(null)
-  const coinRef = React.useRef<HTMLDivElement>(null)
+  const areaRef = React.useRef(null as HTMLDivElement | null)
+  const wheelRef = React.useRef(null as HTMLDivElement | null)
+  const hitRef = React.useRef(null as HTMLDivElement | null)
+  const coinRef = React.useRef(null as HTMLDivElement | null)
   const angleRef = React.useRef(0)
-  const phaseRef = React.useRef<Phase>(phase)
-  const enteredRef = React.useRef<number[]>(entered)
-  const timers = React.useRef<number[]>([])
-  const soundRef = React.useRef<Sound | null>(null)
-  const drag = React.useRef<{ id: number; last: number; moved: number; cx: number; cy: number } | null>(null)
+  const phaseRef = React.useRef(phase as Phase)
+  const enteredRef = React.useRef(entered as number[])
+  const timers = React.useRef([] as number[])
+  const soundRef = React.useRef(null as Sound | null)
+  const drag = React.useRef(null as { id: number; last: number; moved: number; cx: number; cy: number } | null)
   const pointer = React.useRef({ x: 0, y: 0 })
   const spin = React.useRef({ target: 0 })
 
@@ -644,7 +644,7 @@ export default function VaultDialReveal({
     }, reduced ? 350 : 1250)
   }, [later, onLock, play, reduced, setWheel, ticks])
 
-  const onDialDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onDialDown = (e: React.PointerEvent) => {
     if (phaseRef.current !== "locked") return
     const r = (hitRef.current ?? e.currentTarget).getBoundingClientRect()
     const cx = r.left + r.width / 2
@@ -654,7 +654,7 @@ export default function VaultDialReveal({
     setWheel(angleRef.current, "none")
   }
 
-  const onDialMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onDialMove = (e: React.PointerEvent) => {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     const a = pointerAngle(e.clientX, e.clientY, d.cx, d.cy)
@@ -665,7 +665,7 @@ export default function VaultDialReveal({
     syncValue()
   }
 
-  const onDialUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onDialUp = (e: React.PointerEvent) => {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
@@ -676,7 +676,7 @@ export default function VaultDialReveal({
     if (e.type === "pointerup" && d.moved >= step * 0.5) commit(v)
   }
 
-  const onDialKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const onDialKey = (e: React.KeyboardEvent) => {
     if (phaseRef.current === "open" && e.key === "Escape") {
       e.preventDefault()
       lock()
@@ -739,7 +739,7 @@ export default function VaultDialReveal({
     return () => cancelAnimationFrame(raf)
   }, [live, reduced])
 
-  const onScenePointer = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onScenePointer = (e: React.PointerEvent) => {
     if (e.pointerType === "touch" && drag.current) return
     const r = e.currentTarget.getBoundingClientRect()
     pointer.current.x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1))
