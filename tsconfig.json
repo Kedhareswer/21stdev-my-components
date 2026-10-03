@@ -75,7 +75,8 @@
       "@/components/ui/particle-dissolve-carousel": ["./components/particle-dissolve-carousel/particle-dissolve-carousel.tsx"],
       "@/components/ui/supply-flow-globe": ["./components/supply-flow-globe/supply-flow-globe.tsx"],
       "@/components/ui/agent-console-template": ["./components/agent-console-template/agent-console-template.tsx"],
-      "@/components/ui/slat-count-preloader": ["./components/slat-count-preloader/slat-count-preloader.tsx"]
+      "@/components/ui/slat-count-preloader": ["./components/slat-count-preloader/slat-count-preloader.tsx"],
+      "@/components/ui/breath-bloom": ["./components/breath-bloom/breath-bloom.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
