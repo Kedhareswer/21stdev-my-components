@@ -77,7 +77,8 @@
       "@/components/ui/agent-console-template": ["./components/agent-console-template/agent-console-template.tsx"],
       "@/components/ui/slat-count-preloader": ["./components/slat-count-preloader/slat-count-preloader.tsx"],
       "@/components/ui/breath-bloom": ["./components/breath-bloom/breath-bloom.tsx"],
-      "@/components/ui/code-curtain": ["./components/code-curtain/code-curtain.tsx"]
+      "@/components/ui/code-curtain": ["./components/code-curtain/code-curtain.tsx"],
+      "@/components/ui/anodized-ink": ["./components/anodized-ink/anodized-ink.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
