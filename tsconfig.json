@@ -80,7 +80,8 @@
       "@/components/ui/code-curtain": ["./components/code-curtain/code-curtain.tsx"],
       "@/components/ui/anodized-ink": ["./components/anodized-ink/anodized-ink.tsx"],
       "@/components/ui/beam-wordmark-footer": ["./components/beam-wordmark-footer/beam-wordmark-footer.tsx"],
-      "@/components/ui/amour-sunrise-preloader": ["./components/amour-sunrise-preloader/amour-sunrise-preloader.tsx"]
+      "@/components/ui/amour-sunrise-preloader": ["./components/amour-sunrise-preloader/amour-sunrise-preloader.tsx"],
+      "@/components/ui/particle-folio-showcase": ["./components/particle-folio-showcase/particle-folio-showcase.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
