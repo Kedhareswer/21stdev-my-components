@@ -4,12 +4,16 @@ A sheet of source code hanging from a rod, behaving like cloth. Every character
 is a point in a verlet mesh and turns with the thread it hangs from, so the text
 bends, folds and drapes as the curtain moves.
 
-- **Hover** — the code parts around the pointer and blushes toward `accentColor`.
+- **Hover** — the code parts around the pointer, blushes toward `accentColor`,
+  and the characters under it flicker through random glyphs before decoding back.
 - **Drag** a character to pull the cloth; flick and let go, it swings.
 - **Double-click** to hammer in a pin where you are, or pull one out (rod hooks
   included — unhook a corner and watch it drop).
 - **R** rehangs it, **← / →** send a gust, the **Rehang** button does the same as R.
 - With `tearable`, threads pulled too far snap.
+- **It reads as fabric:** where the cloth pleats, glyphs narrow and dim as if
+  turning away from the light; where a chain goes slack they squash vertically.
+- **It arrives:** the curtain unfurls from the rod on load and on every rehang.
 
 **No dependencies.** React is the only import: one canvas, glyphs pre-rendered
 once per character at device resolution (DPR capped at 2).
@@ -54,6 +58,9 @@ import CodeCurtain from "@/components/ui/code-curtain"
 | `tearable` | `false` | Threads snap when overstretched. |
 | `tearAt` | `4.5` | Stretch (× rest) at which a thread snaps. |
 | `wind` | `0.35` | Idle draught. `0` for still air. Off under reduced motion. |
+| `intro` | `true` | Unfurl from the rod on load and rehang. Off under reduced motion. |
+| `scramble` | `true` | Hover decode flicker. Off under reduced motion. |
+| `folds` | `true` | Pleat shading and foreshortening. |
 | `pointerRadius` | `70` | px. |
 | `pointerStrength` | `4` | How hard hovering shoves. |
 | `contain` | `false` | Keep every point inside the box. |
@@ -69,8 +76,9 @@ import CodeCurtain from "@/components/ui/code-curtain"
 
 Physics knobs (`gravity`, `damping`, `iterations`, `wind`, `tearable`, `tearAt`,
 pointer, `contain`) apply live; layout props (`text`, grid, size, `hang`,
-`stretch`, colours, font) rehang the sheet.
+`stretch`, colours, font, `intro`, `scramble`, `folds`) rehang the sheet.
 
-Reduced motion settles the curtain before first paint and stills the wind;
+Reduced motion settles the curtain before first paint, skips the drop-in,
+stops the scramble flicker and stills the wind;
 dragging, pinning and gusts still work, since the user starts them. The sheet
 also stops simulating while scrolled out of view.

@@ -45,6 +45,12 @@ export interface CodeCurtainProps {
   tearAt?: number
   /** Idle draught. 0 for still air. Off under reduced motion. */
   wind?: number
+  /** Unfurl from the rod on load and on every rehang. Off under reduced motion. */
+  intro?: boolean
+  /** Characters under the pointer flicker through random glyphs, then settle. Off under reduced motion. */
+  scramble?: boolean
+  /** Pleats squeeze and dim the glyphs in them, like fabric turning from the light. */
+  folds?: boolean
   /** Reach of the pointer, in px. */
   pointerRadius?: number
   /** How hard the pointer shoves, in px per move. */
@@ -81,7 +87,7 @@ const SOURCE =
 
 // #region physics
 export type Hang = "rod" | "loops" | "corners"
-export type Cloth = { cols: number; rows: number; x: Float64Array; y: Float64Array; px: Float64Array; py: Float64Array; pin: Uint8Array; a: Int32Array; b: Int32Array; rest: Float64Array; lo: Float64Array; hi: Float64Array; alive: Uint8Array; down: Int32Array }
+export type Cloth = { cols: number; rows: number; x: Float64Array; y: Float64Array; px: Float64Array; py: Float64Array; pin: Uint8Array; a: Int32Array; b: Int32Array; rest: Float64Array; lo: Float64Array; hi: Float64Array; alive: Uint8Array; down: Int32Array; right: Int32Array }
 
 /** Does top-row column `c` hang from the rod? */
 export function isHook(c: number, cols: number, hang: Hang) {
@@ -114,6 +120,7 @@ export function buildCloth(cols: number, rows: number, cellW: number, cellH: num
     hi: new Float64Array(m),
     alive: new Uint8Array(m).fill(1),
     down: new Int32Array(n).fill(-1),
+    right: new Int32Array(n).fill(-1),
   }
   let k = 0
   const link = (i: number, j: number, rest: number, lo: number, hi: number) => {
@@ -136,7 +143,7 @@ export function buildCloth(cols: number, rows: number, cellW: number, cellH: num
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c
       if (r < rows - 1) cl.down[i] = link(i, i + cols, cellH, 0.02, stretch)
-      if (c < cols - 1) link(i, i + 1, cellW, 0.6, r === 0 ? stretch : 4)
+      if (c < cols - 1) cl.right[i] = link(i, i + 1, cellW, 0.6, r === 0 ? stretch : 4)
     }
   }
   return cl
@@ -254,6 +261,43 @@ export function contain(cl: Cloth, x0: number, y0: number, x1: number, y1: numbe
   }
 }
 
+/**
+ * How open the weave is around point i: its left and right threads' length
+ * over their rest length, averaged. Under 1 the cloth is pleated there.
+ * 1 when the point has no live sideways thread.
+ */
+export function fold(cl: Cloth, i: number) {
+  const { x, y, a, b, rest, alive, right, cols } = cl
+  let sum = 0
+  let n = 0
+  const c = i % cols
+  const ls = [right[i], c > 0 ? right[i - 1] : -1]
+  for (const l of ls) {
+    if (l < 0 || !alive[l]) continue
+    sum += Math.hypot(x[b[l]] - x[a[l]], y[b[l]] - y[a[l]]) / rest[l]
+    n++
+  }
+  return n ? sum / n : 1
+}
+
+/** Gather every free point up under the rod, `k` of its hanging length, so it can drop. */
+export function bunch(cl: Cloth, k: number) {
+  const { cols, x, y, px, py, pin } = cl
+  for (let i = cols; i < x.length; i++) {
+    if (pin[i]) continue
+    const top = i % cols
+    y[i] = py[i] = y[top] + (y[i] - y[top]) * k
+    px[i] = x[i]
+  }
+}
+
+/** A glyph index that changes every few frames, the same for everyone at that moment. */
+export function scrambleIndex(i: number, tick: number, n: number) {
+  let h = (i * 374761393 + Math.floor(tick / 4) * 668265263) | 0
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return ((h ^ (h >>> 16)) >>> 0) % n
+}
+
 /** Hermite step from edge0 to edge1; edge0 > edge1 runs it backwards. */
 export function smoothstep(edge0: number, edge1: number, v: number) {
   const t = Math.min(1, Math.max(0, (v - edge0) / (edge1 - edge0)))
@@ -299,6 +343,9 @@ export default function CodeCurtain({
   tearable = false,
   tearAt = 4.5,
   wind = 0.35,
+  intro = true,
+  scramble = true,
+  folds = true,
   pointerRadius = 70,
   pointerStrength = 4,
   contain: containProp = false,
@@ -350,6 +397,7 @@ export default function CodeCurtain({
     let atlas: Atlas | null = null
     let ink = ""
     let userPins = new Set<number>()
+    let jumble = new Float64Array(0) // tick until which each glyph scrambles
 
     let grabbed = -1
     let grabWasPinned = 0
@@ -393,6 +441,7 @@ export default function CodeCurtain({
       }
       grabbed = -1
       userPins = new Set()
+      jumble = new Float64Array(cols * rws)
       const fs = Math.max(9, cellH * 1.2)
       if (fs !== fontSize || !atlas) {
         fontSize = fs
@@ -400,6 +449,7 @@ export default function CodeCurtain({
       }
       // reduced motion: start from where it would come to rest, no drop-in bounce
       if (mq.matches) settle(240)
+      else if (intro) bunch(cl, 0.06)
     }
 
     const tick = () => {
@@ -432,6 +482,8 @@ export default function CodeCurtain({
       const tinting = atlas.tint.length > 0
       const reach = k.pointerRadius
       const strain = Math.max(0.05, stretch * 0.6)
+      const jumbling = scramble && !mq.matches
+      const tickNow = Math.round(t * 60)
 
       // the rod, drawn first so the hem sits over it
       if (showRod) {
@@ -462,8 +514,9 @@ export default function CodeCurtain({
       }
 
       for (let i = 0; i < glyph.length; i++) {
-        const g = glyph[i]
+        let g = glyph[i]
         if (g < 0) continue
+        if (jumbling && jumble[i] > tickNow) g = scrambleIndex(i, tickNow, chars.length)
         // turn with the thread this glyph hangs on: the one below, else the one above
         let l = down[i]
         if (l < 0 || !alive[l]) l = i >= cols ? down[i - cols] : -1
@@ -489,30 +542,59 @@ export default function CodeCurtain({
           const pd = Math.hypot(x[i] - x[grabbed], y[i] - y[grabbed])
           if (pd < cell * 3) tint = Math.max(tint, 1 - pd / (cell * 3))
         }
+        // a pleat turns the weave away from us: narrower glyphs, less light
+        let sx = 1
+        let sy = 1
+        let light = 1
+        if (folds) {
+          const across = fold(cl, i)
+          // a chain gone slack is bunching up and down: squash the other way
+          const along = l >= 0 && alive[l] ? (Math.hypot(x[b[l]] - x[a[l]], y[b[l]] - y[a[l]]) / rest[l]) * 1.15 : 1
+          sx = Math.min(1, Math.max(0.3, across))
+          sy = Math.min(1, Math.max(0.3, along))
+          light = 0.3 + 0.7 * smoothstep(0.45, 0.95, Math.min(across, along))
+        }
         const tx = x[i] + ox
         const ty = y[i] + oy
-        ctx.setTransform(dpr * cos, dpr * sin, -dpr * sin, dpr * cos, dpr * tx, dpr * ty)
+        ctx.setTransform(dpr * cos * sx, dpr * sin * sx, -dpr * sin * sy, dpr * cos * sy, dpr * tx, dpr * ty)
         if (tint > 0.02) {
           tint = Math.min(1, tint)
-          ctx.globalAlpha = 1 - tint
+          ctx.globalAlpha = (1 - tint) * light
           ctx.drawImage(atlas.ink[g], -half, -half, size, size)
-          ctx.globalAlpha = tint
+          ctx.globalAlpha = tint * Math.max(light, 0.6)
           ctx.drawImage(atlas.tint[g], -half, -half, size, size)
-          ctx.globalAlpha = 1
         } else {
+          ctx.globalAlpha = light
           ctx.drawImage(atlas.ink[g], -half, -half, size, size)
         }
       }
 
-      // pins the visitor hammered in
+      ctx.globalAlpha = 1
+
+      // pins the visitor hammered in: a head, its shadow, a glint
       if (userPins.size) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        ctx.fillStyle = accentColor || ink
+        const pr = Math.max(3.5, cell * 0.42)
         for (const i of userPins) {
+          const cx = x[i] + ox
+          const cy = y[i] + oy
+          ctx.globalAlpha = 0.22
+          ctx.fillStyle = "#000"
           ctx.beginPath()
-          ctx.arc(x[i] + ox, y[i] + oy, Math.max(2.5, cell * 0.3), 0, Math.PI * 2)
+          ctx.arc(cx + pr * 0.45, cy + pr * 0.7, pr, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 1
+          ctx.fillStyle = accentColor || ink
+          ctx.beginPath()
+          ctx.arc(cx, cy, pr, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 0.7
+          ctx.fillStyle = "#fff"
+          ctx.beginPath()
+          ctx.arc(cx - pr * 0.35, cy - pr * 0.35, pr * 0.3, 0, Math.PI * 2)
           ctx.fill()
         }
+        ctx.globalAlpha = 1
       }
     }
 
@@ -590,6 +672,14 @@ export default function CodeCurtain({
       } else {
         const k = knobs.current
         push(cl, px, py, k.pointerRadius, k.pointerStrength, px - lastMx, py - lastMy)
+        if (scramble) {
+          // the inner half of the pointer's reach decodes for a moment
+          const until = Math.round(t * 60) + 14 + Math.random() * 12
+          const r2 = (k.pointerRadius * 0.5) ** 2
+          for (let i = 0; i < jumble.length; i++) {
+            if ((cl.x[i] - px) ** 2 + (cl.y[i] - py) ** 2 < r2) jumble[i] = until
+          }
+        }
         canvas.style.cursor = nearest(cl, px, py, Math.max(20, cell * 2)) >= 0 ? "grab" : "default"
       }
       lastMx = px
@@ -671,7 +761,7 @@ export default function CodeCurtain({
       canvas.removeEventListener("pointerleave", onLeave)
       canvas.removeEventListener("dblclick", onDouble)
     }
-  }, [text, cols, rws, hang, stretch, curtainWidth, curtainHeight, inkColor, accentColor, fontFamily, fontWeight, showRod])
+  }, [text, cols, rws, hang, stretch, curtainWidth, curtainHeight, inkColor, accentColor, fontFamily, fontWeight, showRod, intro, scramble, folds])
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "r" || e.key === "R") {

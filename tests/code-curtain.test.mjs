@@ -16,7 +16,7 @@ const js = src
   .slice(start, end)
   .replace(/^export type .*$/gm, "")
   .replace(/:\s*(Cloth|Hang|number)(?=[,)])/g, "")
-const { buildCloth, step, relax, push, nearest, isHook, smoothstep } = await import(
+const { buildCloth, step, relax, push, nearest, isHook, smoothstep, fold, bunch, scrambleIndex } = await import(
   "data:text/javascript," + encodeURIComponent(js)
 )
 
@@ -85,6 +85,36 @@ assert.deepEqual([0, 5, 9].map((c) => isHook(c, 10, "corners")), [true, false, t
 assert.equal(smoothstep(10, -4, 0) > 0.5, true)
 assert.equal(smoothstep(10, -4, 20), 0)
 
+// ---- folds: a squeezed weave reads under 1, an untouched one at 1 ---------
+{
+  const cl = buildCloth(10, 10, 10, 10, "rod", 1.1)
+  const i = 5 * 10 + 5
+  assert.ok(Math.abs(fold(cl, i) - 1) < 1e-9, "flat cloth is fully open")
+  cl.x[i + 1] = cl.x[i] + 4
+  cl.x[i - 1] = cl.x[i] - 4
+  assert.ok(fold(cl, i) < 0.5, "pinched neighbours read as a pleat")
+  assert.ok(Math.abs(fold(cl, 9) - 1) < 1e-9, "edge point uses its one thread")
+}
+
+// ---- intro: bunched under the rod, it drops back to full length ---------
+{
+  const cl = buildCloth(10, 10, 10, 10, "rod", 1.1)
+  bunch(cl, 0.06)
+  assert.ok(cl.y[99] < 10, "bottom row gathered under the rod")
+  assert.equal(cl.y[0], 0, "rod row untouched")
+  run(cl, 600)
+  assert.ok(finite(cl) && cl.y[99] > 90, `it unfurls, bottom y=${cl.y[99]}`)
+}
+
+// ---- scramble picks a valid glyph and holds it for a few frames ----------
+{
+  for (let i = 0; i < 200; i++) {
+    const g = scrambleIndex(i, i * 7, 13)
+    assert.ok(Number.isInteger(g) && g >= 0 && g < 13)
+  }
+  assert.equal(scrambleIndex(5, 8, 50), scrambleIndex(5, 9, 50), "holds within a 4-tick bucket")
+}
+
 // ---- install safety ------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react"], "the only import may be react")
@@ -99,6 +129,8 @@ assert.doesNotMatch(root, /\bh-(full|screen)\b/, "no percentage height on the ro
 assert.ok(src.includes('maxWidth: "none"'), "Preflight's max-width must be overridden")
 assert.ok(src.includes("prefers-reduced-motion"), "must read prefers-reduced-motion")
 assert.ok(/mq\.matches \? 0 : k\.wind/.test(src), "reduced motion stills the wind")
+assert.ok(/scramble && !mq\.matches/.test(src), "reduced motion stops the scramble flicker")
+assert.ok(/else if \(intro\) bunch/.test(src), "reduced motion skips the drop-in")
 assert.ok(/touchAction: "none"/.test(src), "dragging on touch must not scroll the page")
 assert.ok(/onKeyDown/.test(src) && /tabIndex=\{0\}/.test(src), "rehang and gusts must be reachable by keyboard")
 assert.ok(/Math\.min\(window\.devicePixelRatio \|\| 1, 2\)/.test(src), "DPR capped at 2")
