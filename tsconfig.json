@@ -68,7 +68,7 @@
       "@/components/ui/comeback-poster": ["./components/comeback-poster/comeback-poster.tsx"],
       "@/components/ui/onyx-glyph-preloader": ["./components/onyx-glyph-preloader/onyx-glyph-preloader.tsx"],
       "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"],
-      "@/components/ui/agent-machine-console": ["./components/agent-machine-console/agent-machine-console.tsx"]
+      "@/components/ui/agent-console-template": ["./components/agent-console-template/agent-console-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
