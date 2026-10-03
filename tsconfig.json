@@ -71,7 +71,8 @@
       "@/components/ui/tilt-cascade-carousel": ["./components/tilt-cascade-carousel/tilt-cascade-carousel.tsx"],
       "@/components/ui/isometric-lift-carousel": ["./components/isometric-lift-carousel/isometric-lift-carousel.tsx"],
       "@/components/ui/viewfinder-flip-carousel": ["./components/viewfinder-flip-carousel/viewfinder-flip-carousel.tsx"],
-      "@/components/ui/staircase-carousel": ["./components/staircase-carousel/staircase-carousel.tsx"]
+      "@/components/ui/staircase-carousel": ["./components/staircase-carousel/staircase-carousel.tsx"],
+      "@/components/ui/particle-dissolve-carousel": ["./components/particle-dissolve-carousel/particle-dissolve-carousel.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
