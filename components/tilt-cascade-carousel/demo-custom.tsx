@@ -2,35 +2,42 @@
 
 import TiltCascadeCarousel, { type TiltCascadeItem } from "@/components/ui/tilt-cascade-carousel"
 
-// Your own journal: new titles and captions over the built-in scenes, a
-// steeper slant, looping autoplay and an evening background.
-const trip: TiltCascadeItem[] = [
-  { title: "up the mountain", caption: "day one", art: "cable-car" },
-  { title: "the guesthouse", caption: "room 2, top floor", art: "house" },
-  { title: "first bloom", caption: "we were a week early", art: "blossoms" },
-  { title: "vending machine run", caption: "melon soda, again", art: "bottles" },
-  { title: "the long way back", caption: "4 km of shade", art: "avenue" },
-  { title: "coast line", caption: "window seat, obviously", art: "train-window" },
-  { title: "the cedar path", caption: "too quiet to talk", art: "sunbeams" },
-  { title: "harbour", caption: "they wanted my lunch", art: "seagulls" },
+const u = (id: string) =>
+  "https://images.unsplash.com/photo-" + id + "?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0"
+
+const photos: TiltCascadeItem[] = [
+  { title: "cable car station", src: u("1774565784366-72db806a40f9") },
+  { title: "light-colored house", src: u("1776031312164-f22c0edbdfb9") },
+  { title: "cherry blossoms", src: u("1777763517503-05d74f2e0008") },
+  { title: "bottles of drinks", src: u("1774651458632-17df84bad45e") },
+  { title: "tree-lined road", src: u("1778360508753-dcb2afbeadc2") },
+  { title: "train window view", src: u("1777221895589-2f81579e0dca") },
+  { title: "sunlight streams", src: u("1777763517666-b9fd2c9b6a0c") },
+  { title: "seagulls", src: u("1777221895551-844a3c1243b3") },
+  { title: "pink flowers", src: u("1777221895297-9878eb5e53f5") },
+  { title: "paddleboarding", src: u("1777908724790-2ec0d06d8ff7") },
 ]
+
+// Same photos, configured: looping autoplay, a gentler slant, larger cards,
+// captions, and a dark stage.
+const captions = ["09:12", "Room 2", "April", "¥130", "Golden hour", "Seat 7A", "Noon", "Low tide", "Garden", "7 am"]
 
 export default function DemoCustom() {
   return (
     <div className="w-full">
       <TiltCascadeCarousel
-        items={trip}
+        items={photos.map((p, i) => ({ ...p, caption: captions[i] }))}
         defaultIndex={0}
         loop
-        autoplay={2600}
-        angle={22}
-        drop={0.62}
+        autoplay={2800}
+        angle={20}
+        drop={0.4}
         inactiveScale={0.55}
-        radius={28}
-        bounce={0.3}
-        background="radial-gradient(120% 90% at 50% 10%, #2b3a55 0%, #141a26 70%)"
-        color="#f3eee6"
-        ariaLabel="Trip journal"
+        radius={24}
+        slideSize="clamp(160px, 70vmin, 380px)"
+        background="#0e0e10"
+        color="#f4f4f5"
+        ariaLabel="Travel photos"
       />
     </div>
   )

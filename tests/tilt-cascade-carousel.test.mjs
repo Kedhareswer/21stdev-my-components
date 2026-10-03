@@ -12,7 +12,7 @@ const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) 
 assert.deepEqual(imports, ["react"], "the only import may be react")
 assert.deepEqual(
   readdirSync(dir).sort(),
-  ["README.md", "demo-custom.tsx", "demo-original.tsx", "demo.tsx", "tilt-cascade-carousel.tsx"],
+  ["README.md", "demo-custom.tsx", "demo.tsx", "tilt-cascade-carousel.tsx"],
   "the folder ships the component, its demos and a README — nothing else",
 )
 
@@ -43,15 +43,11 @@ for (const m of flat.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
   rules++
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".tcc-")), "unscoped selector: " + sel)
 }
-assert.ok(rules > 30, "expected the scope check to see real rules, saw " + rules)
-assert.match(flat, /\.tcc-frame>img,\.tcc-frame>svg\{[^}]*max-width:none/, "media override Preflight's max-width")
-assert.match(flat, /prefers-reduced-motion:reduce/, "scene animations honour reduced motion")
+assert.ok(rules > 20, "expected the scope check to see real rules, saw " + rules)
+assert.match(flat, /\.tcc-frame>img\{[^}]*max-width:none/, "photos override Preflight's max-width")
+assert.match(flat, /prefers-reduced-motion:reduce/, "transitions honour reduced motion")
 assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "the springs honour reduced motion")
-// Scene animations run only on the card in front.
-for (const a of ["sway", "fall", "rise", "flap", "scroll", "pulse", "drift", "ring", "glide"]) {
-  assert.ok(flat.includes(".tcc-slide[data-active] .tcc-a-" + a + "{animation:"), "only the front card animates: " + a)
-  assert.ok(flat.includes("@keyframes tcc-" + a + "{"), "keyframes exist: " + a)
-}
+assert.doesNotMatch(src, /<svg[^>]*viewBox="0 0 300 300"/, "no drawn scenes: the cards are photos")
 
 // Only the semantic tokens in dev/styles.css survive installation.
 const allowed = new Set(["--color-background", "--color-foreground", "--color-muted-foreground", "--color-border", "--color-primary"])
@@ -60,13 +56,12 @@ for (const [, v] of src.matchAll(/var\((--[a-z-]+)/g)) {
   assert.ok(allowed.has(v), "token not guaranteed in a host: " + v)
 }
 
-// ---- nothing fetched --------------------------------------------------------------
-// 21st's capture sandbox refuses off-origin requests. The component and the
-// published demos draw their scenes; only demo-original (local) loads photos.
-for (const f of ["tilt-cascade-carousel.tsx", "demo.tsx", "demo-custom.tsx"]) {
-  const text = readFileSync(new URL(f, dir), "utf8")
-  const urls = [...text.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0])
-  assert.deepEqual(urls, [], f + " must make no network requests: " + urls.join(", "))
+// ---- nothing fetched by the component ------------------------------------------
+// The component ships no content; photos come from the caller.
+{
+  const urls = [...src.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0])
+  assert.deepEqual(urls, [], "the component must not fetch anything itself: " + urls.join(", "))
+  assert.ok(src.includes("items: TiltCascadeItem[]"), "items are required")
 }
 
 // ---- runtime hygiene ----------------------------------------------------------------
@@ -87,17 +82,13 @@ assert.ok((src.match(/setStopped\(true\)/g) ?? []).length >= 6, "every user inpu
 // Accessibility.
 assert.ok(src.includes('aria-roledescription="carousel"') && src.includes('aria-roledescription="slide"'), "carousel roles")
 assert.ok(src.includes('aria-live="polite"'), "slide changes are announced")
-assert.ok(src.includes('role="img"'), "the drawn scenes are labelled")
+assert.ok(src.includes('role="img"'), "photo-less cards are labelled")
 
 // ---- the lifted logic ---------------------------------------------------------------
 const start = src.indexOf("// #region motion")
 const end = src.indexOf("// #endregion", start)
 assert.ok(start > -1 && end > start, "motion region markers missing")
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end))))
-
-assert.equal(L.ARTS.length, 10, "ten built-in scenes")
-for (const a of L.ARTS) assert.ok(src.includes('art === "' + a + '"') || a === "paddleboard", "scene is drawn: " + a)
-assert.ok(src.includes('| "paddleboard"'), "the last scene is in the type")
 
 assert.equal(L.wrapIndex(10, 10), 0)
 assert.equal(L.wrapIndex(-1, 10), 9)
@@ -158,10 +149,11 @@ assert.equal(L.targetFor(9, 10, 10, true), 9)
 }
 
 // ---- demos ---------------------------------------------------------------------------
-for (const f of ["demo.tsx", "demo-custom.tsx", "demo-original.tsx"]) {
+for (const f of ["demo.tsx", "demo-custom.tsx"]) {
   const demo = readFileSync(new URL(f, dir), "utf8")
   assert.ok(demo.includes('from "@/components/ui/tilt-cascade-carousel"'), f + " imports the installed path")
   assert.ok(demo.includes('className="w-full"'), f + " wrapper keeps full width")
+  assert.doesNotMatch(demo, /from "\.\//, f + " imports nothing local: Studio renames demos")
 }
 
 const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
