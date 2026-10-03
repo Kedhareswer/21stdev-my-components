@@ -87,12 +87,10 @@
       "@/components/ui/led-status-sign": ["./components/led-status-sign/led-status-sign.tsx"],
       "@/components/ui/sealed-invite-waitlist": ["./components/sealed-invite-waitlist/sealed-invite-waitlist.tsx"],
       "@/components/ui/stardust-stage-preloader": ["./components/stardust-stage-preloader/stardust-stage-preloader.tsx"],
-      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"],
       "@/components/ui/spotlight-laser-preloader": ["./components/spotlight-laser-preloader/spotlight-laser-preloader.tsx"],
       "@/components/ui/hiring-rig-poster": ["./components/hiring-rig-poster/hiring-rig-poster.tsx"],
       "@/components/ui/dragon-seal-preloader": ["./components/dragon-seal-preloader/dragon-seal-preloader.tsx"],
       "@/components/ui/title-sequence-preloader": ["./components/title-sequence-preloader/title-sequence-preloader.tsx"],
-      "@/components/ui/fire-horse-preloader": ["./components/fire-horse-preloader/fire-horse-preloader.tsx"],
       "@/components/ui/hairline-bento-portfolio": ["./components/hairline-bento-portfolio/hairline-bento-portfolio.tsx"]
     }
   },
