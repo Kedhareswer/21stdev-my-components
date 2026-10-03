@@ -27,14 +27,16 @@ assert.doesNotMatch(src, /console\./, "no debug logging ships")
 for (const [name, d] of [["demo", demo], ["demo-gate", gate], ["demo-countdown", countdown]]) {
   const di = [...d.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
   assert.ok(di.every((p) => p === "react" || p === "@/components/ui/slat-count-preloader"), name + ": only react and the component")
-  // The SVG namespace is an identifier, not a fetch.
+  // Only the gate demo fetches anything, and only Unsplash stock photos.
   for (const url of d.matchAll(/https?:\/\/[^"'\s)]+/g)) {
-    assert.equal(url[0], "http://www.w3.org/2000/svg", name + ": demos fetch nothing: " + url[0])
+    assert.ok(name === "demo-gate" && url[0] === "https://images.unsplash.com/photo-", name + ": unexpected external asset: " + url[0])
   }
 }
 assert.match(demo, /<SlatCountPreloader loop \/>/, "default demo is the bare looping component")
 assert.doesNotMatch(demo, /<div/, "default demo must not wrap the component")
 assert.match(gate, /maxWidth: "none"/, "carousel images guard Preflight's max-width")
+assert.equal([...gate.matchAll(/UNSPLASH\("\d+-[0-9a-f]+"\)/g)].length, 10, "ten carousel photos")
+assert.match(gate, /onError=/, "a dead photo link keeps its frame")
 
 // ---- 2. Scoped CSS ---------------------------------------------------------
 const cssMatch = src.match(/const SCP_CSS = `([\s\S]*?)`/)

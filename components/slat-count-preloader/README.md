@@ -100,4 +100,7 @@ renders exactly its lit cells.
   is a `role="progressbar"` carrying `aria-valuenow`, and *Loaded* is announced
   politely at 100.
 - The demos import nothing but React. `demo-gate.tsx` reveals a small photo
-  carousel whose ten "photos" are painted as SVG data URIs in the demo itself.
+  carousel of ten Unsplash stock photos loaded from `images.unsplash.com`
+  (Unsplash License). They load underneath while the gate counts. 21st's cover
+  capture blocks external origins, so give that demo your own `--preview`; the
+  component and the other two demos fetch nothing.
