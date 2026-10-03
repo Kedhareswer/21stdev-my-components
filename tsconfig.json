@@ -67,7 +67,11 @@
       "@/components/ui/frosted-glass-menu": ["./components/frosted-glass-menu/frosted-glass-menu.tsx"],
       "@/components/ui/comeback-poster": ["./components/comeback-poster/comeback-poster.tsx"],
       "@/components/ui/onyx-glyph-preloader": ["./components/onyx-glyph-preloader/onyx-glyph-preloader.tsx"],
-      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"]
+      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"],
+      "@/components/ui/tilt-cascade-carousel": ["./components/tilt-cascade-carousel/tilt-cascade-carousel.tsx"],
+      "@/components/ui/isometric-lift-carousel": ["./components/isometric-lift-carousel/isometric-lift-carousel.tsx"],
+      "@/components/ui/viewfinder-flip-carousel": ["./components/viewfinder-flip-carousel/viewfinder-flip-carousel.tsx"],
+      "@/components/ui/staircase-carousel": ["./components/staircase-carousel/staircase-carousel.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
