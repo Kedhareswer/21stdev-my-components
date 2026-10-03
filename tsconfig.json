@@ -85,7 +85,9 @@
       "@/components/ui/amour-sunrise-preloader": ["./components/amour-sunrise-preloader/amour-sunrise-preloader.tsx"],
       "@/components/ui/particle-folio-showcase": ["./components/particle-folio-showcase/particle-folio-showcase.tsx"],
       "@/components/ui/led-status-sign": ["./components/led-status-sign/led-status-sign.tsx"],
-      "@/components/ui/sealed-invite-waitlist": ["./components/sealed-invite-waitlist/sealed-invite-waitlist.tsx"]
+      "@/components/ui/sealed-invite-waitlist": ["./components/sealed-invite-waitlist/sealed-invite-waitlist.tsx"],
+      "@/components/ui/stardust-stage-preloader": ["./components/stardust-stage-preloader/stardust-stage-preloader.tsx"],
+      "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
