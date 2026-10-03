@@ -1,6 +1,6 @@
 "use client"
 
-import AgentMachineConsole, { type Machine } from "@/components/ui/agent-machine-console"
+import AgentConsoleTemplate, { type Machine } from "@/components/ui/agent-console-template"
 
 // Your own brand, theme and machine: a release pipeline, waiting on approval,
 // played back at double speed.
@@ -69,14 +69,15 @@ const SHIP_RELEASE: Machine = {
   ],
 }
 
-export default function AgentMachineConsoleNightDemo() {
+export default function AgentConsoleTemplateNightDemo() {
   return (
-    <AgentMachineConsole
+    <AgentConsoleTemplate
       brand="Lantern"
       project="mobile-app"
       cwd="~/work/mobile-app"
       theme="night"
       speed={2}
+      storageKey="agent-console-template-night"
       sessions={[
         { id: "release", prompt: "Ship v4.12.0 to the app stores: test it, roll it out slowly, and back out if crashes climb.", machine: SHIP_RELEASE, status: "awaiting" },
         { id: "flaky", prompt: "Fix the flaky checkout test and prove it passes ten times in a row.", status: "done" },
