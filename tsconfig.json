@@ -90,7 +90,8 @@
       "@/components/ui/neon-katakana-preloader": ["./components/neon-katakana-preloader/neon-katakana-preloader.tsx"],
       "@/components/ui/spotlight-laser-preloader": ["./components/spotlight-laser-preloader/spotlight-laser-preloader.tsx"],
       "@/components/ui/hiring-rig-poster": ["./components/hiring-rig-poster/hiring-rig-poster.tsx"],
-      "@/components/ui/dragon-seal-preloader": ["./components/dragon-seal-preloader/dragon-seal-preloader.tsx"]
+      "@/components/ui/dragon-seal-preloader": ["./components/dragon-seal-preloader/dragon-seal-preloader.tsx"],
+      "@/components/ui/title-sequence-preloader": ["./components/title-sequence-preloader/title-sequence-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
