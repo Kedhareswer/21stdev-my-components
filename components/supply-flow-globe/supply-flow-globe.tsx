@@ -212,8 +212,8 @@ export type Model = {
   /** flows sorted widest first, so thin ones paint on top */
   order: number[]
   particles: Particle[]
-  totals: Record<Role, number>
-  roleOf: Record<string, Role>
+  totals: { [k in Role]: number }
+  roleOf: { [k: string]: Role }
   max: number
 }
 
@@ -232,7 +232,7 @@ export const buildModel = (
   const density = opts.density ?? 1
   const byId = new Map(countries.map((c) => [c.id, c]))
   const given = new Map(nodes.map((n) => [n.id, n]))
-  const index = new Map<string, number>()
+  const index = new Map([] as [string, number][])
   const out: ModelNode[] = []
   const nodeOf = (id: string): number => {
     const hit = index.get(id)
@@ -283,8 +283,8 @@ export const buildModel = (
     for (let k = 0; k < count; k++) particles.push({ flow: i, dur: 3000 + rnd() * 3000, phase: (k + rnd() * 0.8) / count })
   })
 
-  const totals: Record<Role, number> = { producer: 0, hub: 0, consumer: 0 }
-  const roleOf: Record<string, Role> = {}
+  const totals: { [k in Role]: number } = { producer: 0, hub: 0, consumer: 0 }
+  const roleOf: { [k: string]: Role } = {}
   for (const n of out) {
     totals[n.role] += n.role === "producer" ? n.out : n.role === "consumer" ? n.in : n.in
     roleOf[n.id] = n.role
@@ -325,9 +325,11 @@ export type GlobeTheme = {
 }
 export type ParticleShape = "bean" | "leaf" | "dot" | "drop" | "none"
 export type PaletteName = "coffee" | "matcha" | "cocoa" | "atlas"
-export type PaletteInput = PaletteName | Partial<GlobeTheme> | { light: Partial<GlobeTheme>; dark: Partial<GlobeTheme> }
+/** Partial<GlobeTheme>, spelled out: runs of <T> generics hang the 21st CLI tokenizer. */
+export type GlobeThemePatch = { [K in keyof GlobeTheme]?: GlobeTheme[K] }
+export type PaletteInput = PaletteName | GlobeThemePatch | { light: GlobeThemePatch; dark: GlobeThemePatch }
 
-export const PALETTES: Record<PaletteName, { particle: ParticleShape; light: GlobeTheme; dark: GlobeTheme }> = {
+export const PALETTES: { [k in PaletteName]: { particle: ParticleShape; light: GlobeTheme; dark: GlobeTheme } } = {
   coffee: {
     particle: "bean",
     light: {
@@ -404,8 +406,8 @@ export const resolveTheme = (p: PaletteInput | undefined, dark: boolean): GlobeT
   if (typeof p === "string") return (PALETTES[p] ?? PALETTES.coffee)[side]
   const base = PALETTES.coffee[side]
   if (!p) return base
-  if ("light" in p && "dark" in p && typeof p.light === "object") return { ...base, ...(p as { light: Partial<GlobeTheme>; dark: Partial<GlobeTheme> })[side] }
-  return { ...base, ...(p as Partial<GlobeTheme>) }
+  if ("light" in p && "dark" in p && typeof p.light === "object") return { ...base, ...(p as { light: GlobeThemePatch; dark: GlobeThemePatch })[side] }
+  return { ...base, ...(p as GlobeThemePatch) }
 }
 
 export const particleOf = (p: PaletteInput | undefined, shape: ParticleShape | undefined): ParticleShape =>
@@ -474,7 +476,7 @@ export type SupplyFlowGlobeProps = {
   /** Appended to every value, verbatim — `"k tonnes"` reads "350k tonnes". */
   unit?: string
   formatValue?: (value: number) => string
-  roleLabels?: Partial<Record<Role, string>>
+  roleLabels?: { [k in Role]?: string }
   palette?: PaletteInput
   /** `"auto"` follows the host's theme. */
   mode?: "auto" | "light" | "dark"
@@ -507,7 +509,7 @@ export type SupplyFlowGlobeProps = {
   className?: string
 }
 
-const DEFAULT_LABELS: Record<Role, string> = { producer: "Producers", hub: "Processing hubs", consumer: "Consumer markets" }
+const DEFAULT_LABELS: { [k in Role]: string } = { producer: "Producers", hub: "Processing hubs", consumer: "Consumer markets" }
 
 export default function SupplyFlowGlobe({
   flows,
@@ -539,17 +541,17 @@ export default function SupplyFlowGlobe({
   onFlowClick,
   className = "",
 }: SupplyFlowGlobeProps) {
-  const rootRef = React.useRef<HTMLDivElement>(null)
-  const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const tipRef = React.useRef<HTMLDivElement>(null)
-  const liveRef = React.useRef<HTMLSpanElement>(null)
-  const hintRef = React.useRef<HTMLDivElement>(null)
+  const rootRef = React.useRef(null as HTMLDivElement | null)
+  const canvasRef = React.useRef(null as HTMLCanvasElement | null)
+  const tipRef = React.useRef(null as HTMLDivElement | null)
+  const liveRef = React.useRef(null as HTMLSpanElement | null)
+  const hintRef = React.useRef(null as HTMLDivElement | null)
 
-  const [innerProjection, setInnerProjection] = React.useState<Projection>(defaultProjection)
+  const [innerProjection, setInnerProjection] = React.useState(defaultProjection as Projection)
   const view = projection ?? innerProjection
   const [dark, setDark] = React.useState(mode === "dark")
-  const [isolate, setIsolate] = React.useState<Role | null>(null)
-  const [previewRole, setPreviewRole] = React.useState<Role | null>(null)
+  const [isolate, setIsolate] = React.useState(null as Role | null)
+  const [previewRole, setPreviewRole] = React.useState(null as Role | null)
 
   const usingDefault = !flows
   const model = React.useMemo(
@@ -582,7 +584,7 @@ export default function SupplyFlowGlobe({
   }
   const cfg = React.useRef(latest)
   cfg.current = latest
-  const api = React.useRef<{ zoom: (f: number) => void; home: () => void; kick: () => void; retheme: () => void } | null>(null)
+  const api = React.useRef(null as { zoom: (f: number) => void; home: () => void; kick: () => void; retheme: () => void } | null)
 
   React.useEffect(() => api.current?.kick(), [model, theme, shape, view, isolate, previewRole])
   React.useEffect(() => api.current?.retheme(), [mode])
@@ -679,7 +681,7 @@ export default function SupplyFlowGlobe({
 
     // ---- colour helpers -----------------------------------------------------------
     let probe: CanvasRenderingContext2D | null = null
-    const parsed = new Map<string, [number, number, number, number]>()
+    const parsed = new Map([] as [string, [number, number, number, number]][])
     const rgbOf = (color: string): [number, number, number, number] => {
       const hit = parsed.get(color)
       if (hit) return hit
@@ -1256,7 +1258,7 @@ export default function SupplyFlowGlobe({
     api.current = { zoom: zoomBy, home, kick, retheme }
 
     // ---- pointer ------------------------------------------------------------------------
-    const pointers = new Map<number, { x: number; y: number }>()
+    const pointers = new Map([] as [number, { x: number; y: number }][])
     let dragging = false
     let downAt: { x: number; y: number; t: number } | null = null
     let moved = 0
@@ -1547,7 +1549,7 @@ export default function SupplyFlowGlobe({
     "--sfg-line": t.landStroke,
     "--sfg-paper": t.paper,
   } as React.CSSProperties
-  const swatch: Record<Role, string> = { producer: t.producer, hub: t.hub, consumer: t.consumer }
+  const swatch: { [k in Role]: string } = { producer: t.producer, hub: t.hub, consumer: t.consumer }
   const present = ROLES.filter((r) => model.nodes.some((n) => n.role === r))
   const btn =
     "grid size-9 cursor-pointer place-items-center rounded-lg border border-[var(--sfg-line)] bg-[var(--sfg-chip)] text-[var(--sfg-text)] shadow-sm transition-colors duration-200 hover:bg-[var(--sfg-chip-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sfg-accent)] motion-reduce:transition-none"
