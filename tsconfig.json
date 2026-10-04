@@ -95,7 +95,8 @@
       "@/components/ui/disc-cascade-carousel": ["./components/disc-cascade-carousel/disc-cascade-carousel.tsx"],
       "@/components/ui/billboard-signup-footer": ["./components/billboard-signup-footer/billboard-signup-footer.tsx"],
       "@/components/ui/sticker-hello-portfolio": ["./components/sticker-hello-portfolio/sticker-hello-portfolio.tsx"],
-      "@/components/ui/lunar-boarding-pass": ["./components/lunar-boarding-pass/lunar-boarding-pass.tsx"]
+      "@/components/ui/lunar-boarding-pass": ["./components/lunar-boarding-pass/lunar-boarding-pass.tsx"],
+      "@/components/ui/shutter-glyph-footer": ["./components/shutter-glyph-footer/shutter-glyph-footer.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
