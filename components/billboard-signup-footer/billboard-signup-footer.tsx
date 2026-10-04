@@ -510,11 +510,11 @@ export default function BillboardSignupFooter({
         }
 
   const uid = React.useId()
-  const rootRef = React.useRef<HTMLElement>(null)
-  const svgRef = React.useRef<SVGSVGElement>(null)
-  const keyRefs = React.useRef<(SVGGElement | null)[]>([])
-  const formRef = React.useRef<HTMLFormElement>(null)
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const rootRef = React.useRef(null as HTMLElement | null)
+  const svgRef = React.useRef(null as SVGSVGElement | null)
+  const keyRefs = React.useRef([] as (SVGGElement | null)[])
+  const formRef = React.useRef(null as HTMLFormElement | null)
+  const inputRef = React.useRef(null as HTMLInputElement | null)
 
   const [seen, setSeen] = React.useState(false)
   const [visible, setVisible] = React.useState(false)
@@ -553,7 +553,7 @@ export default function BillboardSignupFooter({
     px: NaN,
     revealed: false,
   })
-  const wake = React.useRef<() => void>(() => {})
+  const wake = React.useRef((() => {}) as () => void)
 
   React.useEffect(() => {
     const k = keys.current
@@ -624,7 +624,7 @@ export default function BillboardSignupFooter({
     return vb.x + ((clientX - r.left) / r.width) * vb.w
   }
 
-  const onKeysMove = (e: React.PointerEvent<SVGSVGElement>) => {
+  const onKeysMove = (e: PointerSVGSVGEv) => {
     if (e.pointerType === "touch" && e.type === "pointermove" && !e.buttons) return
     keys.current.px = toUnits(e.clientX)
     wake.current()
@@ -633,7 +633,7 @@ export default function BillboardSignupFooter({
     keys.current.px = NaN
     wake.current()
   }
-  const strike = (e: React.MouseEvent<SVGSVGElement>) => {
+  const strike = (e: MouseSVGSVGEv) => {
     const x = toUnits(e.clientX)
     let best = -1
     let gap = Infinity
@@ -657,7 +657,7 @@ export default function BillboardSignupFooter({
 
   // ---- the signup -----------------------------------------------------------
   const [email, setEmail] = React.useState("")
-  const [status, setStatus] = React.useState<Status>("idle")
+  const [status, setStatus] = React.useState("idle" as Status)
   const [note, setNote] = React.useState("")
   const [burst, setBurst] = React.useState(0)
   const alive = React.useRef(true)
@@ -676,7 +676,7 @@ export default function BillboardSignupFooter({
     f.classList.add("is-shake")
   }
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: FormHTMLFormEv) => {
     e.preventDefault()
     if (status === "loading" || status === "success") return
     const value = email.trim()
@@ -692,7 +692,7 @@ export default function BillboardSignupFooter({
     try {
       const result = onSubscribe
         ? await onSubscribe(value)
-        : await new Promise<boolean>((done) => setTimeout(() => done(true), 900))
+        : await new Promise((done: (ok: boolean) => void) => setTimeout(() => done(true), 900))
       if (result === false) throw new Error(errorMessage)
       if (!alive.current) return
       setStatus("success")
@@ -715,9 +715,9 @@ export default function BillboardSignupFooter({
   }
 
   // ---- the ticker -----------------------------------------------------------
-  const tkRef = React.useRef<HTMLDivElement>(null)
-  const trackRef = React.useRef<HTMLDivElement>(null)
-  const setRef = React.useRef<HTMLDivElement>(null)
+  const tkRef = React.useRef(null as HTMLDivElement | null)
+  const trackRef = React.useRef(null as HTMLDivElement | null)
+  const setRef = React.useRef(null as HTMLDivElement | null)
   const [period, setPeriod] = React.useState(0)
   const [copies, setCopies] = React.useState(2)
   const tk = React.useRef({ off: 0, vel: 0, hover: false, drag: false, lastX: 0, lastT: 0, moved: 0 })
@@ -770,7 +770,7 @@ export default function BillboardSignupFooter({
     return () => cancelAnimationFrame(raf)
   }, [tickKey, reduced, visible, period, speed, paintTicker])
 
-  const tkDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const tkDown = (e: PointerHTMLDivEv) => {
     if (e.button !== 0) return
     const s = tk.current
     s.drag = true
@@ -781,7 +781,7 @@ export default function BillboardSignupFooter({
     e.currentTarget.setPointerCapture?.(e.pointerId)
     e.currentTarget.dataset.drag = "true"
   }
-  const tkMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const tkMove = (e: PointerHTMLDivEv) => {
     const s = tk.current
     if (!s.drag) return
     const now = performance.now()
@@ -794,7 +794,7 @@ export default function BillboardSignupFooter({
     s.lastT = now
     paintTicker()
   }
-  const tkUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const tkUp = (e: PointerHTMLDivEv) => {
     const s = tk.current
     if (!s.drag) return
     s.drag = false
@@ -805,8 +805,8 @@ export default function BillboardSignupFooter({
 
   // ---- the chat card --------------------------------------------------------
   const [open, setOpen] = React.useState(false)
-  const chatRef = React.useRef<HTMLDivElement>(null)
-  const chatBtn = React.useRef<HTMLButtonElement>(null)
+  const chatRef = React.useRef(null as HTMLDivElement | null)
+  const chatBtn = React.useRef(null as HTMLButtonElement | null)
   React.useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -825,7 +825,7 @@ export default function BillboardSignupFooter({
     }
   }, [open])
 
-  const follow = (e: React.MouseEvent<HTMLAnchorElement>, label: string, href?: string) => {
+  const follow = (e: MouseHTMLAnchorEv, label: string, href?: string) => {
     // "#" and missing hrefs never touch the host page's URL hash.
     if (!href || href === "#") e.preventDefault()
     onLinkClick?.(label, href)
@@ -845,7 +845,7 @@ export default function BillboardSignupFooter({
   } as React.CSSProperties
 
   // The sheen follows the pointer through CSS variables; React never re-renders.
-  const onSheen = (e: React.PointerEvent<HTMLElement>) => {
+  const onSheen = (e: PointerHTMLEv) => {
     const el = e.currentTarget
     if (e.type === "pointerleave" || shine <= 0) {
       el.style.setProperty("--bsf-go", "0")
@@ -1136,3 +1136,11 @@ export default function BillboardSignupFooter({
     </footer>
   )
 }
+
+// Declared last: a run of generics ahead of the JSX stalls the 21st CLI's tokenizer.
+type PointerSVGSVGEv = React.PointerEvent<SVGSVGElement>
+type MouseSVGSVGEv = React.MouseEvent<SVGSVGElement>
+type FormHTMLFormEv = React.FormEvent<HTMLFormElement>
+type PointerHTMLDivEv = React.PointerEvent<HTMLDivElement>
+type MouseHTMLAnchorEv = React.MouseEvent<HTMLAnchorElement>
+type PointerHTMLEv = React.PointerEvent<HTMLElement>
