@@ -68,8 +68,8 @@ assert.match(src, /onProjectOpen\?\.\(projects\[i\], i\)/, "opening a case repor
 assert.match(src, /data-theme=\{theme\}/, "the theme is scoped to the root")
 assert.match(src, /classList\.contains\("dark"\)/, "system theme follows the host's .dark class")
 assert.match(src, /if \(reduced\) return\n\s+let raf = 0/, "no parallax under reduced motion")
-assert.ok(read("demo.tsx").includes("<StickerHelloPortfolio />"), "default demo is the component, full bleed")
-assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
+assert.ok(read("demo.tsx").includes('from "@/components/ui/sticker-hello-portfolio"'), "demo imports the installed path")
+assert.doesNotMatch(read("demo.tsx"), /<div/, "demo has no wrapper")
 
 /* ---------- logic, executed ---------- */
 

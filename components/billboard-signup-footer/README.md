@@ -56,7 +56,7 @@ Give it a parent with a width and nothing else (see `demo.tsx`). Its height
 comes from its content: the wordmark's height comes from its own `viewBox`, so
 nothing is measured.
 
-Re-brand and re-ink it through props (see `demo-cobalt.tsx`):
+Re-brand and re-ink it through props (see `demo.tsx`):
 
 ```tsx
 <BillboardSignupFooter

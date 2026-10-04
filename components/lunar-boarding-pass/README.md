@@ -38,7 +38,7 @@ import LunarBoardingPass from "@/components/ui/lunar-boarding-pass"
 Give it a parent with a width (see `demo.tsx`). Its height follows the
 1000 : 330 ticket.
 
-Personalise it through props (see `demo-custom.tsx`). The landing-site
+Personalise it through props (see `demo.tsx`). The landing-site
 coordinates are printed on both faces and also move the marker on the Moon:
 
 ```tsx

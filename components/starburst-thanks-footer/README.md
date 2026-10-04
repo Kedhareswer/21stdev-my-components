@@ -37,7 +37,7 @@ import StarburstThanksFooter from "@/components/ui/starburst-thanks-footer"
 ```
 
 Give it a parent with a width (see `demo.tsx`). You can re-brand and re-word
-it through props (see `demo-studio.tsx`):
+it through props (see `demo.tsx`):
 
 ```tsx
 <StarburstThanksFooter

@@ -210,7 +210,7 @@ for (const icon of ["facebook", "linkedin", "x", "instagram", "youtube", "github
   assert.ok(new RegExp("\\n  " + icon + ": \\(").test(src), "built-in icon " + icon)
 }
 
-for (const f of ["demo.tsx", "demo-cobalt.tsx"]) {
+for (const f of ["demo.tsx"]) {
   const demo = read(f)
   assert.ok(demo.includes('from "@/components/ui/billboard-signup-footer"'), f + " imports the installer path")
   for (const cls of demo.match(/className="[^"]*"/g) ?? []) assert.ok(/\bw-(full|screen|\[|\d)/.test(cls), f + ": " + cls + " has no width")

@@ -12,7 +12,7 @@ const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) 
 assert.deepEqual(imports, ["react"], "the only import may be react")
 assert.deepEqual(
   readdirSync(dir).sort(),
-  ["README.md", "demo-photos.tsx", "demo.tsx", "disc-cascade-carousel.tsx"],
+  ["README.md", "demo.tsx", "disc-cascade-carousel.tsx"],
   "the folder ships the component, its demos and a README — nothing else",
 )
 
@@ -176,15 +176,11 @@ assert.equal(L.targetFor(0, 6, 7, true), 7, "looping goes forward to wrap")
 assert.ok((src.match(/lengthAdjust="spacingAndGlyphs"/g) ?? []).length >= 2, "disc titles are pinned so a fallback font can't overflow the rim")
 
 // ---- demos ---------------------------------------------------------------------------
-for (const f of ["demo.tsx", "demo-photos.tsx"]) {
+for (const f of ["demo.tsx"]) {
   const demo = readFileSync(new URL(f, dir), "utf8")
   assert.ok(demo.includes('from "@/components/ui/disc-cascade-carousel"'), f + " imports the installed path")
   assert.ok(demo.includes('className="w-full"'), f + " wrapper keeps full width")
   assert.doesNotMatch(demo, /from "\.\//, f + " imports nothing local: Studio renames demos")
-}
-{
-  const demo = readFileSync(new URL("demo.tsx", dir), "utf8")
-  assert.doesNotMatch(demo, /https?:\/\//, "the default demo loads nothing, so 21st can capture its cover")
 }
 
 const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")

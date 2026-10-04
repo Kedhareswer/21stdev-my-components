@@ -106,12 +106,11 @@ change-over and all transitions are off. Dragging still follows the finger.
 
 ## Demos
 
-- **`demo.tsx`**: a made-up studio's seven films, every label generated. It
-  loads nothing, so 21st's server cover can capture it.
-- **`demo-photos.tsx`**: a record catalogue with Unsplash photos as labels, a
+- **`demo.tsx`**: a record catalogue with Unsplash photos as labels, a
   dark stage, looping autoplay and Google Fonts via `fontHref`. 21st's capture
-  sandbox refuses off-origin requests, so this one needs a local cover (see
-  CONTRIBUTING §4).
+  sandbox refuses off-origin requests, so it ships with a local cover (see
+  CONTRIBUTING §4). Leave out `items` and `fontHref` to get the built-in
+  generated labels, which load nothing.
 
 ## Install safety
 
