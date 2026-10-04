@@ -148,7 +148,7 @@ assert.ok(src.includes('aria-label={"Say thanks another way (now: " + word + ")"
 assert.ok(src.includes('if (!l.href || l.href === "#") e.preventDefault()'), "# links leave the page hash alone")
 assert.ok(src.includes('window.location.href = "mailto:" + email'), "no clipboard falls back to mail")
 
-for (const f of ["demo.tsx", "demo-studio.tsx"]) {
+for (const f of ["demo.tsx"]) {
   const demo = read(f)
   assert.ok(demo.includes('from "@/components/ui/starburst-thanks-footer"'), f + " imports the installer path")
   for (const cls of demo.match(/className="[^"]*"/g) ?? []) assert.ok(/\bw-(full|screen|\[|\d)/.test(cls), f + ": " + cls + " has no width")

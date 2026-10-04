@@ -228,7 +228,7 @@ const defaults = (name) => (src.match(new RegExp("const " + name + "[^=]*= \\[([
 assert.equal(defaults("DEFAULT_SOCIALS").match(/label:/g).length, 3)
 assert.equal(defaults("DEFAULT_LEGAL").match(/label:/g).length, 3)
 
-for (const f of ["demo.tsx", "demo-night.tsx"]) {
+for (const f of ["demo.tsx"]) {
   const demo = read(f)
   assert.ok(demo.includes('from "@/components/ui/shutter-glyph-footer"'), f + " imports the installer path")
   for (const cls of demo.match(/className="[^"]*"/g) ?? []) assert.ok(/\bw-(full|screen|\[|\d)/.test(cls), f + ": " + cls + " has no width")

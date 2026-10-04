@@ -199,7 +199,7 @@ assert.ok(src.includes('aria-live="polite"'), "the side change is announced")
 assert.ok(src.includes("React.useId()"), "filter ids must be unique per mount")
 
 // A demo wrapper left at width:auto collapses inside 21st's centring flex.
-for (const demo of ["demo.tsx", "demo-custom.tsx"]) {
+for (const demo of ["demo.tsx"]) {
   const d = readFileSync(new URL(demo, dir), "utf8")
   const first = d.match(/return \(\s*<div className="([^"]*)"/)
   assert.ok(first && /\bw-(full|screen)\b/.test(first[1]), demo + " wraps the ticket without a width")

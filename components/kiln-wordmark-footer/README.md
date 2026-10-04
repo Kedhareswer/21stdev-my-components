@@ -48,7 +48,7 @@ import KilnWordmarkFooter from "@/components/ui/kiln-wordmark-footer"
 Give it a parent with a width and nothing else (see `demo.tsx`). Its height
 comes from its content.
 
-Re-brand, re-word and re-ink it through props (see `demo-cobalt.tsx`):
+Re-brand, re-word and re-ink it through props (see `demo.tsx`):
 
 ```tsx
 <KilnWordmarkFooter
