@@ -140,7 +140,7 @@ assert.doesNotMatch(code, /@import/, "no @import — the host owns Tailwind and 
 assert.doesNotMatch(code, /["+]\s*(\*|body|:root|html)\s*{/, "no bare global resets")
 assert.doesNotMatch(code, /[`]/, "no backticks — CSS is built by concatenation")
 assert.doesNotMatch(code, /\$\{/, "no template interpolation")
-assert.doesNotMatch(code, /url\(/, "nothing is fetched")
+assert.doesNotMatch(code, /url\(["']?(https?:|\/\/)/, "nothing is fetched (url(#mask) is a local reference)")
 assert.doesNotMatch(code, /<img|new Image|fetch\(/, "no images or requests")
 assert.doesNotMatch(code, /innerWidth|innerHeight|scrollY/, "size from the element, not the window")
 assert.doesNotMatch(code, /\bh-(full|screen)\b|height:100%/, "no percentage heights on the root")
@@ -162,8 +162,17 @@ assert.ok(css.includes(".bsf svg{max-width:none"), "svgs opt out of Preflight's 
 
 // The wordmark: intrinsic height from its own viewBox, and no seam under it.
 assert.ok(src.includes('style={{ aspectRatio: vb.w + " / " + vb.h }}'), "the wordmark's height comes from its viewBox")
-assert.ok(css.includes(".bsf-word{display:block;width:100%;height:auto;overflow:hidden"), "width-driven, clipped")
-assert.ok(src.includes("y={CAP - 0.5}"), "the accent foot overlaps the baseline so no paper seam shows")
+assert.ok(css.includes(".bsf-word{position:relative;z-index:1;display:block;width:100%;height:auto;overflow:hidden"), "width-driven, clipped")
+// The letters are holes in a paper panel, not orange paint: the footer's own
+// background shows through them and runs on into the body.
+assert.ok(src.includes("<mask id={maskId}"), "the wordmark is a mask")
+assert.ok(src.includes('<rect x={vb.x} y={vb.y} width={vb.w} height={vb.h} fill="#fff" />'), "white keeps the paper")
+assert.ok(src.includes('stroke="#000"') && css.includes(".bsf-word path{fill:none;stroke:#000"), "letters are black in the mask: they cut")
+assert.ok(src.includes('fill={paper} mask={"url(#" + maskId + ")"}'), "only the paper is masked")
+assert.doesNotMatch(src.slice(src.indexOf('className="bsf-word"'), src.indexOf('className="bsf-body"')), /fill=\{accent\}|stroke=\{accent\}/, "nothing in the band is painted the accent")
+assert.ok(src.includes('"bsf-mask-" + uid.replace('), "mask ids are unique per instance and safe inside url()")
+assert.ok(src.includes("height={CAP - 0.5 - vb.y}"), "the paper stops half a unit above the baseline so no seam shows")
+assert.ok(css.includes(".bsf::before{") && css.includes(".bsf-word{position:relative;z-index:1"), "the sheen sits under the paper and shows through the holes")
 assert.ok(src.includes('overflow="hidden"'), "each glyph is clipped to its own box (square ends, trimmed miters)")
 assert.ok(src.includes('transform={"translate(0 " + HIDE + ")"}'), "the JSX transform is constant, so re-renders never fight the spring")
 

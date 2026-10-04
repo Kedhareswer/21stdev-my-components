@@ -7,9 +7,11 @@ import * as React from "react"
  * set as a giant condensed wordmark that grows out of the footer's body, an
  * email pill, a row of socials, four link columns and a slogan ticker.
  *
- * The wordmark is not a font. It is drawn from a built-in stroke alphabet
- * (A–Z, 0–9, a few marks) as inline SVG, so it looks the same on every
- * installer's machine and nothing is fetched. Each letter is a piano key: the
+ * The wordmark is a mask, not paint: a paper panel with the letters cut out
+ * of it, so the footer's own background shows through them and runs on
+ * unbroken into the body. The letters come from a built-in stroke alphabet
+ * (A–Z, 0–9, a few marks) drawn into an SVG mask, so they look the same on
+ * every installer's machine and nothing is fetched. Each letter is a piano key: the
  * pointer presses the keys under it, a click strikes one, and a successful
  * signup runs a glissando across the whole word.
  *
@@ -39,7 +41,7 @@ export const hexToRgb = (hex: string, fallback: string = "255, 68, 25"): string 
 export const CAP = 100
 /** Stroke weight of every glyph. Paths are centre-lines; each glyph is clipped to its own box. */
 export const STROKE = 20
-/** Accent strip under the letters, so the word and the body never show a seam. */
+/** Footer background left showing under the baseline, so the cut letters run into the body. */
 export const FOOT = 3
 
 /**
@@ -112,7 +114,7 @@ export const layoutWord = (text: string, tracking: number): { letters: PlacedGly
 }
 
 /**
- * The wordmark's viewBox. `crop` units come off the top, the accent foot goes
+ * The wordmark's viewBox. `crop` units come off the top, a strip of footer background goes
  * under the baseline, and a short word is padded sideways so it is never
  * taller than `1 / minAspect` of the footer's width.
  */
@@ -232,9 +234,11 @@ export type BillboardSignupFooterProps = {
   tracking?: number
   /** How deep a key goes under the pointer, as a fraction of cap height. `0` turns pressing off. */
   press?: number
-  /** Hex. The body, the letters, the ticker's lead word. */
+  /** Strength of the pointer sheen on the footer's background (seen through the letters), 0 → 1. `0` turns it off. */
+  shine?: number
+  /** Hex. The footer's background, which the letters are cut through to. Also the ticker's lead word. */
   accent?: string
-  /** Hex. Behind the wordmark and the ticker. */
+  /** Hex. The panel the letters are cut out of, and the ticker. */
   paper?: string
   /** Hex. Text on the accent. */
   ink?: string
@@ -347,8 +351,11 @@ const CSS =
   ".bsf svg{max-width:none;display:block}" +
   ".bsf .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}" +
   // The wordmark: one inline SVG, sized by its own viewBox, no measuring.
-  ".bsf-word{display:block;width:100%;height:auto;overflow:hidden;cursor:pointer;touch-action:pan-y;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}" +
-  ".bsf-word path{fill:none;stroke:var(--bsf-acc);stroke-linejoin:miter;stroke-miterlimit:10;stroke-linecap:butt}" +
+  ".bsf-word{position:relative;z-index:1;display:block;width:100%;height:auto;overflow:hidden;cursor:pointer;touch-action:pan-y;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}" +
+  ".bsf-word path{fill:none;stroke:#000;stroke-linejoin:miter;stroke-miterlimit:10;stroke-linecap:butt}" +
+  // A soft sheen on the footer's own background. It sits under the paper, so it
+  // only shows through the letter holes and on the body: proof they're cut out.
+  ".bsf::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle min(42cqw,560px) at var(--bsf-gx,50%) var(--bsf-gy,0px),rgba(var(--bsf-ink-rgb),var(--bsf-shine)),transparent 70%);opacity:var(--bsf-go,0);transition:opacity .6s ease}" +
   // The body.
   ".bsf-body{position:relative;z-index:1;padding:clamp(22px,4.2cqw,40px) clamp(16px,3.4cqw,40px) 0}" +
   ".bsf-form{position:relative;box-sizing:border-box;max-width:1120px;margin:0 auto;display:flex;align-items:center;height:clamp(52px,8.2cqw,68px);border-radius:999px;background:rgba(var(--bsf-ink-rgb),.2);box-shadow:inset 0 0 0 1px rgba(var(--bsf-ink-rgb),.1);transition:background .3s,box-shadow .3s}" +
@@ -404,7 +411,7 @@ const CSS =
   ".bsf-fade{transition:opacity .8s ease var(--bsf-d,0ms),translate .8s cubic-bezier(.2,.7,.1,1) var(--bsf-d,0ms)}" +
   ".bsf[data-in='false'] .bsf-fade{opacity:0;translate:0 12px}" +
   // The ticker, and the chat bubble that sits on it.
-  ".bsf-tail{position:relative}" +
+  ".bsf-tail{position:relative;z-index:2}" +
   ".bsf-tk{position:relative;overflow:hidden;background:var(--bsf-paper);color:var(--bsf-tink);padding:clamp(9px,1.5cqw,13px) 0;cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}" +
   ".bsf-tk[data-drag='true']{cursor:grabbing}" +
   ".bsf-tk-track{display:flex;width:max-content;will-change:transform}" +
@@ -440,7 +447,7 @@ const CSS =
   ".bsf-pop-x svg{width:14px;height:14px}" +
   "@container (max-width: 640px){.bsf-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}" +
   "@container (max-width: 420px){.bsf-btn{padding:0 14px;min-width:0}.bsf-input,.bsf-done{padding-left:18px}}" +
-  "@media (prefers-reduced-motion: reduce){.bsf .bsf-fade,.bsf .bsf-h::after,.bsf .bsf-btn,.bsf .bsf-soc,.bsf .bsf-link,.bsf .bsf-done,.bsf .bsf-note,.bsf .bsf-pop,.bsf .bsf-chat-btn,.bsf .bsf-tk-item b,.bsf .bsf-form{transition:none!important;animation:none!important}.bsf .bsf-chat-btn::after,.bsf .bsf-burst{display:none}.bsf .bsf-dots i{animation-duration:2.4s}.bsf[data-in='false'] .bsf-fade{opacity:1;translate:none}.bsf[data-in='false'] .bsf-h::after{--bsf-line:1}}"
+  "@media (prefers-reduced-motion: reduce){.bsf .bsf-fade,.bsf .bsf-h::after,.bsf .bsf-btn,.bsf .bsf-soc,.bsf .bsf-link,.bsf .bsf-done,.bsf .bsf-note,.bsf .bsf-pop,.bsf .bsf-chat-btn,.bsf .bsf-tk-item b,.bsf .bsf-form,.bsf::before{transition:none!important;animation:none!important}.bsf .bsf-chat-btn::after,.bsf .bsf-burst{display:none}.bsf .bsf-dots i{animation-duration:2.4s}.bsf[data-in='false'] .bsf-fade{opacity:1;translate:none}.bsf[data-in='false'] .bsf-h::after{--bsf-line:1}}"
 
 const Check = () => (
   <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -474,6 +481,7 @@ export default function BillboardSignupFooter({
   crop = 6,
   tracking = 3,
   press = 0.3,
+  shine = 0.14,
   accent = "#ff4419",
   paper = "#f6f5f2",
   ink = "#ffffff",
@@ -833,15 +841,37 @@ export default function BillboardSignupFooter({
     "--bsf-tink": tickerInk,
     "--bsf-sans": fontSans,
     "--bsf-n": String(Math.max(1, columns.length)),
+    "--bsf-shine": String(clamp(Number.isFinite(shine) ? shine : 0, 0, 1)),
   } as React.CSSProperties
+
+  // The sheen follows the pointer through CSS variables; React never re-renders.
+  const onSheen = (e: React.PointerEvent<HTMLElement>) => {
+    const el = e.currentTarget
+    if (e.type === "pointerleave" || shine <= 0) {
+      el.style.setProperty("--bsf-go", "0")
+      return
+    }
+    const r = el.getBoundingClientRect()
+    el.style.setProperty("--bsf-gx", (e.clientX - r.left).toFixed(0) + "px")
+    el.style.setProperty("--bsf-gy", (e.clientY - r.top).toFixed(0) + "px")
+    el.style.setProperty("--bsf-go", "1")
+  }
 
   let d = 0
   const delay = () => ({ "--bsf-d": (d += 60) + "ms" }) as React.CSSProperties
   const busy = status === "loading" || status === "success"
   const noteId = uid + "-note"
+  const maskId = "bsf-mask-" + uid.replace(/[^\w-]/g, "")
 
   return (
-    <footer ref={rootRef} className={"bsf " + className} style={vars} data-in={seen || reduced ? "true" : "false"}>
+    <footer
+      ref={rootRef}
+      className={"bsf " + className}
+      style={vars}
+      data-in={seen || reduced ? "true" : "false"}
+      onPointerMove={onSheen}
+      onPointerLeave={onSheen}
+    >
       <style>{CSS}</style>
       <p className="sr-only">{word}</p>
 
@@ -859,25 +889,33 @@ export default function BillboardSignupFooter({
         onPointerCancel={onKeysLeave}
         onClick={strike}
       >
-        <rect x={vb.x} y={vb.y} width={vb.w} height={vb.h} fill={paper} />
-        {layout.letters.map((l, i) =>
-          l.d ? (
-            <g
-              key={i + l.ch}
-              ref={(el) => {
-                keyRefs.current[i] = el
-              }}
-              transform={"translate(0 " + HIDE + ")"}
-            >
-              <svg x={l.x} y={0} width={l.w} height={CAP} viewBox={"0 0 " + l.w + " " + CAP} overflow="hidden">
-                <path d={l.d} strokeWidth={STROKE} />
-              </svg>
-            </g>
-          ) : null,
-        )}
-        {/* Starts half a unit above the baseline: two anti-aliased edges on one
-            line would leave a paper-coloured seam under the letters. */}
-        <rect x={vb.x} y={CAP - 0.5} width={vb.w} height={FOOT + 1.5} fill={accent} />
+        <defs>
+          {/* The letters are holes, not paint: white keeps the paper, black cuts
+              it away, and the footer's own background shows through the cut. */}
+          <mask id={maskId} maskUnits="userSpaceOnUse" x={vb.x} y={vb.y} width={vb.w} height={vb.h}>
+            <rect x={vb.x} y={vb.y} width={vb.w} height={vb.h} fill="#fff" />
+            {layout.letters.map((l, i) =>
+              l.d ? (
+                <g
+                  key={i + l.ch}
+                  ref={(el) => {
+                    keyRefs.current[i] = el
+                  }}
+                  transform={"translate(0 " + HIDE + ")"}
+                >
+                  <svg x={l.x} y={0} width={l.w} height={CAP} viewBox={"0 0 " + l.w + " " + CAP} overflow="hidden">
+                    <path d={l.d} strokeWidth={STROKE} stroke="#000" />
+                  </svg>
+                </g>
+              ) : null,
+            )}
+          </mask>
+        </defs>
+        {/* The paper stops half a unit above the baseline. Letter and paper edges
+            on the same line would anti-alias twice and leave a paper seam. */}
+        <rect x={vb.x} y={vb.y} width={vb.w} height={CAP - 0.5 - vb.y} fill={paper} mask={"url(#" + maskId + ")"} />
+        {/* Unpainted holes aren't hit-testable everywhere; this keeps the whole band live. */}
+        <rect x={vb.x} y={vb.y} width={vb.w} height={vb.h} fill="transparent" />
       </svg>
 
       <div className="bsf-body">

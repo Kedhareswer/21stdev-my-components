@@ -5,15 +5,21 @@ wordmark that grows out of the footer's body, cropped by the top edge. Under it
 sit an email pill, a row of socials, four link columns and a slogan ticker,
 with a chat bubble parked on the ticker.
 
-The wordmark is **not a font**. It is drawn from a built-in stroke alphabet
-(A–Z, 0–9, space, `- . ! '`) as inline SVG, so it looks the same on every
-installer's machine and nothing is downloaded.
+The wordmark is **a mask, not paint**. A paper panel sits on top with the
+letters cut out of it. The orange you see through them is the footer's own
+background, the same surface the pill and columns sit on, so the letters run
+straight into the body. The cut-out shapes come from a built-in stroke alphabet
+(A–Z, 0–9, space, `- . ! '`) drawn into an SVG `<mask>`, so it looks the same
+on every installer's machine and no font is downloaded.
 
 **No dependencies.** React is the only import. No images, fonts or requests.
 
 ## Interaction
 
-- **Piano-key letters**: the letters under the pointer sink into the body,
+- **Sheen**: a soft light follows the pointer across the footer's background.
+  The paper hides it, so it shows only through the letter holes and on the
+  body. That's how you can tell the letters are cut out.
+- **Piano-key letters**: the holes under the pointer slide down into the body,
   falling off smoothly with distance. **Click** a letter and it gets struck: it
   dips and springs back. On touch, drag across the word.
 - **Reveal**: the first time the footer is on screen, the letters rise out of
@@ -78,8 +84,9 @@ Re-brand and re-ink it through props (see `demo-cobalt.tsx`):
 | `crop` | `6` | Glyph units (of a 100-unit cap) cut off the top of the wordmark. `0` shows the full letters. |
 | `tracking` | `3` | Glyph units between letters. |
 | `press` | `0.3` | How deep a key goes under the pointer, as a fraction of cap height. `0` turns hover pressing off. Clicks still strike. |
-| `accent` | `#ff4419` | Hex. The body, the letters, the ticker's lead word, the chat bubble. |
-| `paper` | `#f6f5f2` | Hex. Behind the wordmark and the ticker. |
+| `shine` | `0.14` | Strength of the pointer sheen on the background, 0 → 1. `0` turns it off. |
+| `accent` | `#ff4419` | Hex. The footer's background, which shows through the letters. Also the ticker's lead word and the chat bubble. |
+| `paper` | `#f6f5f2` | Hex. The panel the letters are cut out of, and the ticker. |
 | `ink` | `#ffffff` | Hex. Text on the accent and the button's fill. |
 | `tickerInk` | `#141414` | Hex. Ticker text. |
 | `fontSans` | grotesque stack, ending in the system sans | Nothing is loaded. Pass a family your page already loads. The wordmark doesn't use it. |
@@ -90,13 +97,18 @@ Re-brand and re-ink it through props (see `demo-cobalt.tsx`):
 - **Intrinsic height.** No `height` prop and no percentage heights. The
   wordmark is an `<svg>` at `width: 100%` with an `aspect-ratio` from its
   `viewBox`.
+- **The mask.** Inside the `<mask>`, a white rect keeps the paper and the
+  letters, stroked black, cut it away. Only the paper rect is masked. Nothing
+  in the band is painted the accent, so a background you put on the footer
+  (via `className` or `accent`) shows through the letters too. Each instance
+  gets its own mask id.
 - **The alphabet** is centre-line paths with a 20-unit stroke on a 100-unit
   cap. Each glyph is a nested `<svg>` that clips to its own box. That trims
   miters and squares off strokes that run past the edge, which is how the `Z`,
   `T` and `V` get their flat ends.
-- **No seam.** An accent strip starts half a unit above the baseline, so the
-  letters and the body never show a paper-coloured hairline between them at
-  fractional sizes.
+- **No seam.** The paper stops half a unit above the baseline. If the letter
+  holes and the paper ended on the same line, both edges would be smoothed
+  and leave a paper-coloured hairline under the letters at fractional sizes.
 - The keys and the ticker write SVG transforms and CSS straight to the DOM from
   `requestAnimationFrame`, so React never re-renders. The key loop sleeps once
   every spring settles. The ticker only runs while it is on screen.
@@ -110,7 +122,8 @@ Re-brand and re-ink it through props (see `demo-cobalt.tsx`):
   `http(s)` links open in a new tab.
 - `prefers-reduced-motion`: the letters are in place at once and never press
   or bounce, the ticker holds still (dragging still works), and there are no
-  shakes, confetti, pulses or transitions.
+  shakes, confetti, pulses or transitions. The sheen still follows the
+  pointer, without easing in.
 
 ## Credit
 
