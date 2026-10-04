@@ -114,12 +114,9 @@ assert.ok(src.includes("prefers-reduced-motion"), "must read prefers-reduced-mot
 assert.ok(/if \(reduced\)/.test(src), "reduced motion must take its own path")
 assert.ok(/^\s*paint\(\)\s*$/m.test(src), "paint once before the first rAF")
 
-// Overlay buttons must keep their clicks instead of firing a pulse.
-assert.ok(src.includes('closest("a,button'), "clicks on overlay controls must not pulse")
-
 // A demo wrapper left at width:auto collapses the canvas inside 21st's
 // centring flex.
-for (const name of ["demo.tsx", "demo-studio.tsx"]) {
+for (const name of ["demo.tsx"]) {
   const demo = readFileSync(new URL(`../components/isoline-bloom/${name}`, import.meta.url), "utf8")
   assert.match(demo, /from "@\/components\/ui\/isoline-bloom"/, `${name} imports the installed path`)
   for (const cls of demo.match(/className="[^"]*"/g) ?? []) {

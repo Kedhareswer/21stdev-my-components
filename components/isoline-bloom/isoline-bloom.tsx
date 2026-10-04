@@ -360,8 +360,6 @@ export type IsolineBloomProps = {
   touch?: "scroll" | "draw"
   /** Device-pixel-ratio cap. The shader is per-pixel, so 2 is plenty. */
   maxDpr?: number
-  /** Content laid over the field. Pointer events pass through unless opted in. */
-  children?: React.ReactNode
   className?: string
 }
 
@@ -372,7 +370,6 @@ export default function IsolineBloom({
   interactive = true,
   touch = "scroll",
   maxDpr = 2,
-  children,
   className = "",
 }: IsolineBloomProps) {
   const rootRef = React.useRef<HTMLElement>(null)
@@ -521,8 +518,6 @@ export default function IsolineBloom({
     }
     const onDown = (e: PointerEvent) => {
       if (!interactive || e.button > 0) return
-      // Let buttons and links in the overlay keep their clicks.
-      if ((e.target as HTMLElement | null)?.closest("a,button,input,textarea,select,label,[role=button]")) return
       const [x, y] = toUv(e)
       targetX = x
       targetY = y
@@ -684,9 +679,6 @@ export default function IsolineBloom({
       ) : (
         <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full" />
       )}
-      {children ? (
-        <div className="pointer-events-none relative z-10 flex h-full w-full flex-col">{children}</div>
-      ) : null}
     </section>
   )
 }

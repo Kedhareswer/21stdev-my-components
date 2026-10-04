@@ -26,9 +26,6 @@ import IsolineBloom from "@/components/ui/isoline-bloom"
 <IsolineBloom />                                     // full-bleed ultraviolet
 <IsolineBloom preset="solar-flare" height="520px" /> // inside a section
 <IsolineBloom params={{ lobes: 5, rings: 18, flow: -0.3 }} />
-<IsolineBloom>
-  <h1 className="m-auto text-white">Overlay content</h1>
-</IsolineBloom>
 ```
 
 ## Props
@@ -41,7 +38,6 @@ import IsolineBloom from "@/components/ui/isoline-bloom"
 | `interactive` | `true` | Pointer lenses the lines; click sends a pulse. |
 | `touch` | `"scroll"` | `scroll` keeps the page scrollable on touch; `draw` takes the gesture. |
 | `maxDpr` | `2` | Device-pixel-ratio cap. |
-| `children` | — | Overlay. Pointer events pass through unless a child sets `pointer-events-auto`; clicks on links and buttons never fire a pulse. |
 | `className` | `""` | Appended to the root. |
 
 `ISOLINE_DEFAULTS` and `ISOLINE_PRESETS` are exported; a preset is just a
@@ -59,8 +55,6 @@ partial overlay, so `{ ...ISOLINE_PRESETS.abyss, rings: 20 }` is a valid `params
 - **Pointer** — `pull`, `lens`, `lensRadius`, `lensGlow`, `energy`,
   `pulseSpeed`, `pulseGain`.
 - **Post** — `speed`, `vignette`, `grain`.
-
-The `studio` demo has sliders for the main ones and prints the matching JSX.
 
 ## Notes
 
