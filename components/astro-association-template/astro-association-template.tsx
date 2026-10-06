@@ -518,9 +518,6 @@ const AA_CSS = `
 .aa-mono{font-family:var(--aa-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 .aa-label{font-family:var(--aa-display);font-weight:800;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--aa-blue)}
 .aa-echo{display:inline-block;white-space:nowrap}
-.aa-echo-t{position:relative;display:inline-block}
-.aa-echo-g{position:absolute;left:0;top:.5em;clip-path:inset(56% 0 0 0);pointer-events:none;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
-.aa-echo:hover .aa-echo-g{transform:translateY(.14em)}
 .aa-title{display:flex;flex-direction:column;font-family:var(--aa-display);font-weight:800;letter-spacing:-.01em;line-height:.9;text-transform:none}
 .aa-title>span:last-child{padding-bottom:.42em}
 
@@ -774,7 +771,7 @@ const AA_CSS = `
 .aa-root,.aa-root :where(*){scroll-behavior:auto}
 .aa-reveal{opacity:1;transform:none;transition:none}
 .aa-marq,.aa-orbit-spin,.aa-pop-dot,.aa-chip i,.aa-event,.aa-printed,.aa-mobile{animation:none}
-.aa-logo-arrow,.aa-logo-spin,.aa-rib,.aa-card,.aa-card-fill,.aa-member,.aa-ast,.aa-echo-g,.aa-bar i,.aa-more{transition:none}
+.aa-logo-arrow,.aa-logo-spin,.aa-rib,.aa-card,.aa-card-fill,.aa-member,.aa-ast,.aa-bar i,.aa-more{transition:none}
 }
 `
 
@@ -918,22 +915,9 @@ function Asterisk({ size = 22, className = "", style }: { size?: number; classNa
   )
 }
 
-function Echo({ text, tail = 4 }: { text: string; tail?: number }) {
-  const n = Math.min(tail, Math.max(0, text.length - 1))
-  if (!n) return <span className="aa-echo">{text}</span>
-  const head = text.slice(0, text.length - n)
-  const end = text.slice(text.length - n)
-  return (
-    <span className="aa-echo">
-      {head}
-      <span className="aa-echo-t">
-        {end}
-        <span className="aa-echo-g" aria-hidden="true">
-          {end}
-        </span>
-      </span>
-    </span>
-  )
+// the last line of a title, kept on one line
+function Echo({ text }: { text: string }) {
+  return <span className="aa-echo">{text}</span>
 }
 
 function Title({ text, className = "", as = "div" }: { text: string; className?: string; as?: "div" | "h1" | "h2" }) {
@@ -1382,7 +1366,9 @@ function StatValue({ value, run, reduced }: { value: string; run: boolean; reduc
 /* ------------------------------------------------------------------ marquee */
 
 function Marquee({ text, reverse, duration = 26, big }: { text: string; reverse?: boolean; duration?: number; big?: boolean }) {
-  const items = Array.from({ length: 4 })
+  // each half must outrun the longest ribbon (190% of the stage), or its tail shows mid-loop
+  const REPS = 10
+  const items = Array.from({ length: REPS })
   const run = (key: string) => (
     <div key={key} style={{ display: "flex" }} aria-hidden={key === "b" ? true : undefined}>
       {items.map((_, i) => (
@@ -1394,7 +1380,7 @@ function Marquee({ text, reverse, duration = 26, big }: { text: string; reverse?
     </div>
   )
   return (
-    <div className={"aa-marq" + (reverse ? " aa-marq-r" : "")} style={{ ["--d" as string]: duration + "s" } as React.CSSProperties}>
+    <div className={"aa-marq" + (reverse ? " aa-marq-r" : "")} style={{ ["--d" as string]: (duration * REPS) / 4 + "s" } as React.CSSProperties}>
       {run("a")}
       {run("b")}
     </div>
@@ -1862,16 +1848,16 @@ export default function AstroAssociationTemplate({
                 </span>
               ))}
             </div>
-            <div className="aa-rib" style={{ ["--x" as string]: "26%", ["--y" as string]: "62%", ["--w" as string]: "78%", ["--r" as string]: "-32deg", ["--k" as string]: "10" } as React.CSSProperties}>
+            <div className="aa-rib" style={{ ["--x" as string]: "26%", ["--y" as string]: "62%", ["--w" as string]: "190%", ["--r" as string]: "-32deg", ["--k" as string]: "10" } as React.CSSProperties}>
               <Bubbles seed={seed + 2} colors={colors} density={1.8} scale={0.7} reduced={reduced} interactive={false} />
             </div>
-            <div className="aa-rib aa-rib-ink" style={{ ["--x" as string]: "33%", ["--y" as string]: "56%", ["--w" as string]: wide ? "62%" : "120%", ["--r" as string]: "70deg", ["--k" as string]: "-14" } as React.CSSProperties}>
+            <div className="aa-rib aa-rib-ink" style={{ ["--x" as string]: "33%", ["--y" as string]: "56%", ["--w" as string]: "190%", ["--r" as string]: "70deg", ["--k" as string]: "-14" } as React.CSSProperties}>
               <Marquee text={lines(PC.title).slice(-1)[0] ?? ""} duration={30} big />
             </div>
-            <div className="aa-rib" style={{ ["--x" as string]: "56%", ["--y" as string]: "62%", ["--w" as string]: "52%", ["--r" as string]: "16deg", ["--k" as string]: "8" } as React.CSSProperties}>
+            <div className="aa-rib" style={{ ["--x" as string]: "56%", ["--y" as string]: "62%", ["--w" as string]: "190%", ["--r" as string]: "16deg", ["--k" as string]: "8" } as React.CSSProperties}>
               <Bubbles seed={seed + 3} colors={colors} density={1.8} scale={0.7} reduced={reduced} interactive={false} />
             </div>
-            <div className="aa-rib aa-rib-ink" style={{ ["--x" as string]: "86%", ["--y" as string]: "64%", ["--w" as string]: "60%", ["--r" as string]: "38deg", ["--k" as string]: "-18" } as React.CSSProperties}>
+            <div className="aa-rib aa-rib-ink" style={{ ["--x" as string]: "86%", ["--y" as string]: "64%", ["--w" as string]: "190%", ["--r" as string]: "38deg", ["--k" as string]: "-18" } as React.CSSProperties}>
               <Marquee text={PC.ribbonText} reverse duration={22} />
             </div>
             <div className="aa-stage-foot">
