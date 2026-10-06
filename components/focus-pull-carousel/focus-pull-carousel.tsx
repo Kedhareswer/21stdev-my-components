@@ -229,7 +229,7 @@ const FP_CSS = [
   ".fp-card{flex:0 0 var(--fp-w);aspect-ratio:var(--fp-aspect);max-height:calc(var(--fp-h) * .68);scroll-snap-align:center;position:relative;border:0;padding:0;margin:0;background:transparent;cursor:inherit;will-change:transform,filter;transform-origin:center}",
   ".fp-card img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;border-radius:var(--fp-radius);pointer-events:none}",
   ".fp-meta{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:16px;padding-inline:clamp(20px,4vw,56px)}",
-  ".fp-cap{min-height:2.6em;overflow:hidden}",
+  ".fp-cap{min-height:2.6em;overflow:hidden;padding-bottom:.2em}",
   ".fp-cap>*{display:block;animation:fp-in .7s cubic-bezier(.2,.8,.2,1) both}",
   ".fp-title{font:500 clamp(20px,2.6vw,30px)/1.1 ui-serif,Georgia,'Times New Roman',serif;letter-spacing:-.01em}",
   ".fp-sub{margin-top:6px;font:400 13px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--fp-muted)}",
