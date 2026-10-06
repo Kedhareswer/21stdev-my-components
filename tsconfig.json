@@ -100,7 +100,8 @@
       "@/components/ui/kiln-wordmark-footer": ["./components/kiln-wordmark-footer/kiln-wordmark-footer.tsx"],
       "@/components/ui/starburst-thanks-footer": ["./components/starburst-thanks-footer/starburst-thanks-footer.tsx"],
       "@/components/ui/isoline-bloom": ["./components/isoline-bloom/isoline-bloom.tsx"],
-      "@/components/ui/concierge-morph-chat": ["./components/concierge-morph-chat/concierge-morph-chat.tsx"]
+      "@/components/ui/concierge-morph-chat": ["./components/concierge-morph-chat/concierge-morph-chat.tsx"],
+      "@/components/ui/design-process-template": ["./components/design-process-template/design-process-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
