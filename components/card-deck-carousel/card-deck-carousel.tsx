@@ -235,7 +235,7 @@ const CD_CSS = [
   ".cd-card[data-snap='1']{transition:none}",
   ".cd-card img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;pointer-events:none;user-select:none}",
   ".cd-meta{display:flex;align-items:center;gap:clamp(16px,3vw,32px);width:min(var(--cd-w),100%);max-width:560px}",
-  ".cd-cap{flex:1;min-width:0;overflow:hidden}",
+  ".cd-cap{flex:1;min-width:0;overflow:hidden;padding-bottom:.2em}",
   ".cd-cap>*{display:block;animation:cd-in .6s cubic-bezier(.2,.8,.2,1) both}",
   ".cd-title{font:500 clamp(18px,2.2vw,24px)/1.15 ui-serif,Georgia,'Times New Roman',serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
   ".cd-sub{margin-top:4px;font:400 13px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--cd-muted);animation-delay:.05s}",
