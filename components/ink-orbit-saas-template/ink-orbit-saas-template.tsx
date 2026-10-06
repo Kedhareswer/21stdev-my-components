@@ -831,11 +831,10 @@ function Title({ text, className = "nf-h2", as = "h2" }: { text: string; classNa
 }
 
 function Mark({ size = 18 }: { size?: number }) {
-  // the brand glyph: a folded N, two strokes and a bridge
+  // the brand glyph: a folded N
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 21V3h4.2l9.6 12.2V3H21v18h-4.2L7.2 8.8V21z" fill="currentColor" />
-      <path d="M11 3h3.2L11 7.2z" fill="currentColor" opacity=".45" />
     </svg>
   )
 }
@@ -1339,7 +1338,7 @@ function InkSculpture({
 
 /* ---------------------------------------------------------------- features */
 
-function FlowCard({ features, uid, reduced, inView }: { features: InkFeatures; uid: string; reduced: boolean; inView: boolean }) {
+function FlowCard({ brand, features, uid, reduced, inView }: { brand: string; features: InkFeatures; uid: string; reduced: boolean; inView: boolean }) {
   const [reports, setReports] = React.useState(128)
   const [side, setSide] = React.useState("" as "" | "left" | "right")
   React.useEffect(() => {
@@ -1358,13 +1357,15 @@ function FlowCard({ features, uid, reduced, inView }: { features: InkFeatures; u
   const L2 = "M190,128 C222,128 226,120 262,120"
   const R1 = "M378,100 C412,100 414,86 446,86"
   const R2 = "M378,120 C412,120 414,134 446,134"
+  const chip = brand.split(" ")[0].toUpperCase()
+  const chipLong = chip.length * 6.7 > 58 // ~6.7px per char at 8.5px + 1.4 tracking
   const rays = uid + "rays"
   const glow = uid + "glow"
   return (
     <div className="nf-frame nf-frame-hover nf-wide">
       <Brackets />
       <div className="nf-card" style={{ padding: 0, overflow: "hidden" }}>
-        <svg className="nf-diagram" viewBox="0 0 640 178" role="img" aria-label="Your team's edits flow through NeuraForge into finished reports">
+        <svg className="nf-diagram" viewBox="0 0 640 178" role="img" aria-label={"Your team's edits flow through " + brand + " into finished reports"}>
           <defs>
             <radialGradient id={glow} cx="320" cy="110" r="190" gradientUnits="userSpaceOnUse">
               <stop offset="0" stopColor="var(--nf-raise)" stopOpacity="1" />
@@ -1435,8 +1436,9 @@ function FlowCard({ features, uid, reduced, inView }: { features: InkFeatures; u
             <g transform="translate(13,14)" style={{ color: "var(--nf-ink)" }}>
               <Mark size={16} />
             </g>
-            <text x="36" y="26" fontSize="8.5" letterSpacing="1.4" fontWeight="600" fill="var(--nf-soft)" fontFamily="var(--nf-sans)">
-              NEURAFORGE
+            {/* 36→94 is all the room before the chevron; a long name is squeezed rather than run into it */}
+            <text x="36" y="26" fontSize="8.5" letterSpacing="1.4" fontWeight="600" fill="var(--nf-soft)" fontFamily="var(--nf-sans)" textLength={chipLong ? 58 : undefined} lengthAdjust={chipLong ? "spacingAndGlyphs" : undefined}>
+              {chip}
             </text>
             <path d="M100 18l4 4-4 4" fill="none" stroke="var(--nf-muted)" strokeWidth="1.3" />
           </g>
@@ -2102,7 +2104,7 @@ export default function InkOrbitSaasTemplate({
               <Title text={F.title} />
             </div>
             <div className="nf-bento">
-              <FlowCard features={F} uid={uid} reduced={reduced} inView={featIn} />
+              <FlowCard brand={brand} features={F} uid={uid} reduced={reduced} inView={featIn} />
               <IntegrationsCard copy={F.integrations} reduced={reduced} />
               <InsightsCard copy={F.insights} uid={uid} reduced={reduced} />
             </div>
