@@ -14,6 +14,7 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/maroon-fintech-landing": ["./components/maroon-fintech-landing/maroon-fintech-landing.tsx"],
       "@/components/ui/zero-melt-preloader": ["./components/zero-melt-preloader/zero-melt-preloader.tsx"],
       "@/components/ui/magic-hour": ["./components/magic-hour/magic-hour.tsx"],
       "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
