@@ -16,7 +16,7 @@ export type InkOrbitFaqProps = {
   /** `auto` follows prefers-color-scheme. */
   theme?: "light" | "dark" | "auto"
   /** `null` hides the about panel; the FAQ then takes the full width. */
-  about?: Partial<InkAbout> | null
+  about?: { [K in keyof InkAbout]?: InkAbout[K] } | null
   faq?: InkFaq[]
   /** Small mono label above the questions. Empty hides it. */
   faqLabel?: string

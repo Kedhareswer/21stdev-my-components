@@ -19,7 +19,7 @@ export type InkOrbitFooterProps = {
   /** Logo before the brand name. Defaults to a drawn mark. */
   logo?: React.ReactNode
   /** `null` hides the sign-up band. */
-  cta?: Partial<InkCta> | null
+  cta?: { [K in keyof InkCta]?: InkCta[K] } | null
   /** Called with the email. A rejected promise shows an error. */
   onSubscribe?: (email: string) => void | Promise<unknown>
   tagline?: string
