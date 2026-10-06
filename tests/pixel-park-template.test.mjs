@@ -172,7 +172,12 @@ assert.ok(L.getPx(g, 4, 4)[0] > 0, "glow lights its centre")
 assert.equal(L.getPx(g, 0, 0)[0], 0, "and not its corners")
 
 assert.match(L.formatClock(new Date(Date.UTC(2026, 0, 15, 5, 7)), "America/New_York"), /^12:07\sAM$/)
-assert.match(L.formatClock(new Date(Date.UTC(2026, 0, 15, 5, 7)), "Not/AZone"), /^\d{1,2}:07\s[AP]M$/, "a bad zone falls back to local time")
+{
+  // local minutes depend on the machine's UTC offset (India is +5:30), so compare against local time itself
+  const d = new Date(Date.UTC(2026, 0, 15, 5, 7))
+  const mm = String(d.getMinutes()).padStart(2, "0")
+  assert.match(L.formatClock(d, "Not/AZone"), new RegExp("^\\d{1,2}:" + mm + "\\s[AP]M$"), "a bad zone falls back to local time")
+}
 assert.equal(L.hourIn(new Date(Date.UTC(2026, 6, 1, 16, 0)), "America/New_York"), 12)
 assert.equal(L.hourIn(new Date(Date.UTC(2026, 6, 1, 4, 0)), "America/New_York"), 0, "midnight is 0, not 24")
 assert.equal(L.postmarkDate(new Date(2026, 9, 6)), "OCT 06 2026")
