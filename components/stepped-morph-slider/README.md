@@ -6,10 +6,10 @@ its own blocky shape; moving to the next one morphs the mask column by column
 lifts the column under the pointer.
 
 Click, drag or swipe the image, use the arrows, the progress dots or ←/→.
-Autoplay runs a progress line and pauses on hover, on focus and off-screen.
+It slides on its own with a story-style timeline under the picture (it only stops off-screen); click a segment to jump.
 
 **No dependencies.** Slides without an `image` get one painted on a canvas at
-runtime — abstract architecture with lit beams, glass grids and film grain, in
+runtime — layered ridges fading into haze under a low sun, with mist and film grain, in
 four palettes — so it works with no assets at all.
 
 ## Usage
@@ -33,7 +33,7 @@ import SteppedMorphSlider from "@/components/ui/stepped-morph-slider"
 | Prop | Default | Notes |
 |---|---|---|
 | `slides` | 4 painted slides | `{ image?, title, caption?, seed?, palette? }[]` |
-| `columns` | `9` | Steps per shape, 3–16. |
+| `columns` | `7` | Steps per shape, 3–16. |
 | `autoplay` | `5200` | ms per slide; `0` turns it off. |
 | `duration` | `1100` | Morph length, ms. |
 | `aspect` | `5 / 3` | Width ÷ height of the window. |
@@ -41,7 +41,7 @@ import SteppedMorphSlider from "@/components/ui/stepped-morph-slider"
 | `background` / `ink` / `muted` / `accent` | warm white / near-black | Page, text, secondary text, progress. |
 | `onChange` | — | `(index) => void` |
 
-`palette`: `"concrete"` · `"dusk"` · `"glass"` · `"rose"`. `seed` picks both the
+`palette`: `"dawn"` · `"alpine"` · `"dusk"` · `"mist"`. `seed` picks both the
 slide's shape and its painted image, so a slide always looks the same.
 
 ## Notes
