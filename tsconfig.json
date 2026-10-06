@@ -110,6 +110,7 @@
       "@/components/ui/ink-orbit-navbar": ["./components/ink-orbit-navbar/ink-orbit-navbar.tsx"],
       "@/components/ui/perforated-stripe-curtain": ["./components/perforated-stripe-curtain/perforated-stripe-curtain.tsx"],
       "@/components/ui/stepped-morph-slider": ["./components/stepped-morph-slider/stepped-morph-slider.tsx"],
+      "@/components/ui/grid-loupe-shader": ["./components/grid-loupe-shader/grid-loupe-shader.tsx"],
       "@/components/ui/ink-orbit-footer": ["./components/ink-orbit-footer/ink-orbit-footer.tsx"],
       "@/components/ui/concierge-morph-chat": ["./components/concierge-morph-chat/concierge-morph-chat.tsx"],
       "@/components/ui/design-process-template": ["./components/design-process-template/design-process-template.tsx"],
