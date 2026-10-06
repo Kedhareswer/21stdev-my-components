@@ -101,6 +101,7 @@
       "@/components/ui/kiln-wordmark-footer": ["./components/kiln-wordmark-footer/kiln-wordmark-footer.tsx"],
       "@/components/ui/starburst-thanks-footer": ["./components/starburst-thanks-footer/starburst-thanks-footer.tsx"],
       "@/components/ui/isoline-bloom": ["./components/isoline-bloom/isoline-bloom.tsx"],
+      "@/components/ui/ink-orbit-sculpture": ["./components/ink-orbit-sculpture/ink-orbit-sculpture.tsx"],
       "@/components/ui/concierge-morph-chat": ["./components/concierge-morph-chat/concierge-morph-chat.tsx"],
       "@/components/ui/design-process-template": ["./components/design-process-template/design-process-template.tsx"],
       "@/components/ui/ink-orbit-saas-template": ["./components/ink-orbit-saas-template/ink-orbit-saas-template.tsx"]
