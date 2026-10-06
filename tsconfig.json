@@ -110,7 +110,8 @@
       "@/components/ui/design-process-template": ["./components/design-process-template/design-process-template.tsx"],
       "@/components/ui/ink-orbit-saas-template": ["./components/ink-orbit-saas-template/ink-orbit-saas-template.tsx"],
       "@/components/ui/iris-folio-template": ["./components/iris-folio-template/iris-folio-template.tsx"],
-      "@/components/ui/lilac-meadow-landing": ["./components/lilac-meadow-landing/lilac-meadow-landing.tsx"]
+      "@/components/ui/lilac-meadow-landing": ["./components/lilac-meadow-landing/lilac-meadow-landing.tsx"],
+      "@/components/ui/stencil-labs-template": ["./components/stencil-labs-template/stencil-labs-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
