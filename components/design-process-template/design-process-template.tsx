@@ -180,7 +180,7 @@ const SANS =
 /* ------------------------------------------------------------------ styles */
 
 const DP_CSS = `
-.dp-root{--dp-bg:var(--color-background,#fff);--dp-fg:var(--color-foreground,#111);--dp-muted:var(--color-muted-foreground,#71717a);--dp-line:var(--color-border,#e7e7e7);--dp-ink:color-mix(in oklab,var(--dp-accent) 80%,var(--dp-fg));--dp-chip:color-mix(in oklab,var(--dp-fg) 42%,transparent);--dp-soft:color-mix(in oklab,var(--dp-accent) 9%,transparent);position:relative;background:var(--dp-bg);color:var(--dp-fg);font-family:var(--dp-body);container-type:inline-size;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.dp-root{--dp-bg:var(--color-background,#fff);--dp-fg:var(--color-foreground,#111);--dp-muted:var(--color-muted-foreground,#71717a);--dp-line:var(--color-border,#e7e7e7);--dp-ink:color-mix(in oklab,var(--dp-accent) 80%,var(--dp-fg));--dp-chip:color-mix(in oklab,var(--dp-fg) 42%,transparent);--dp-soft:color-mix(in oklab,var(--dp-accent) 9%,transparent);position:relative;width:100%;background:var(--dp-bg);color:var(--dp-fg);font-family:var(--dp-body);container-type:inline-size;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .dp-root :where(h2,h3,p,ol,li){margin:0;padding:0}
 .dp-root :where(ol){list-style:none}
 .dp-root :where(button){font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
