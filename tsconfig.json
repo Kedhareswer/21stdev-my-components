@@ -98,7 +98,8 @@
       "@/components/ui/lunar-boarding-pass": ["./components/lunar-boarding-pass/lunar-boarding-pass.tsx"],
       "@/components/ui/shutter-glyph-footer": ["./components/shutter-glyph-footer/shutter-glyph-footer.tsx"],
       "@/components/ui/kiln-wordmark-footer": ["./components/kiln-wordmark-footer/kiln-wordmark-footer.tsx"],
-      "@/components/ui/starburst-thanks-footer": ["./components/starburst-thanks-footer/starburst-thanks-footer.tsx"]
+      "@/components/ui/starburst-thanks-footer": ["./components/starburst-thanks-footer/starburst-thanks-footer.tsx"],
+      "@/components/ui/lilac-meadow-landing": ["./components/lilac-meadow-landing/lilac-meadow-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
