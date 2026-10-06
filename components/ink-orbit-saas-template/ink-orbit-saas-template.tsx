@@ -1351,12 +1351,12 @@ function FlowCard({ brand, features, uid, reduced, inView }: { brand: string; fe
     { x: 104, y: 22, name: "Liyana · reviewing" },
     { x: 150, y: 40, name: "Aaron · shipping v2.4" },
     { x: 46, y: 92, name: "Priya · in Insights" },
-    { x: 152, y: 96, name: "Marcus · idle" },
+    { x: 146, y: 114, name: "Marcus · idle" },
   ]
-  const L1 = "M190,108 C222,108 226,100 262,100"
-  const L2 = "M190,128 C222,128 226,120 262,120"
-  const R1 = "M378,100 C412,100 414,86 446,86"
-  const R2 = "M378,120 C412,120 414,134 446,134"
+  const L1 = "M117,67 C196,67 210,100 262,100" // out of the team node …
+  const L2 = "M117,73 C186,73 206,120 262,120" // … into the hub chip
+  const R1 = "M378,100 C412,100 418,86 450,86" // hub → front report sheet
+  const R2 = "M378,120 C412,120 418,134 450,134"
   const chip = brand.split(" ")[0].toUpperCase()
   const chipLong = chip.length * 6.7 > 58 // ~6.7px per char at 8.5px + 1.4 tracking
   const rays = uid + "rays"
