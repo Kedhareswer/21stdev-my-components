@@ -117,7 +117,15 @@
       "@/components/ui/iris-folio-template": ["./components/iris-folio-template/iris-folio-template.tsx"],
       "@/components/ui/lilac-meadow-landing": ["./components/lilac-meadow-landing/lilac-meadow-landing.tsx"],
       "@/components/ui/stencil-labs-template": ["./components/stencil-labs-template/stencil-labs-template.tsx"],
-      "@/components/ui/astro-association-template": ["./components/astro-association-template/astro-association-template.tsx"]
+      "@/components/ui/astro-association-template": ["./components/astro-association-template/astro-association-template.tsx"],
+      "@/components/ui/astro-navbar": ["./components/astro-navbar/astro-navbar.tsx"],
+      "@/components/ui/astro-bubble-hero": ["./components/astro-bubble-hero/astro-bubble-hero.tsx"],
+      "@/components/ui/astro-mission-band": ["./components/astro-mission-band/astro-mission-band.tsx"],
+      "@/components/ui/astro-ribbon-stage": ["./components/astro-ribbon-stage/astro-ribbon-stage.tsx"],
+      "@/components/ui/astro-project-cards": ["./components/astro-project-cards/astro-project-cards.tsx"],
+      "@/components/ui/astro-sky-nights": ["./components/astro-sky-nights/astro-sky-nights.tsx"],
+      "@/components/ui/astro-member-card": ["./components/astro-member-card/astro-member-card.tsx"],
+      "@/components/ui/astro-footer": ["./components/astro-footer/astro-footer.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
