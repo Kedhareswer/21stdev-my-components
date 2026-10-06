@@ -2,27 +2,27 @@
 
 import SteppedMorphSlider from "@/components/ui/stepped-morph-slider"
 
-// Real architecture photography (Unsplash), finer steps, a thin outline and a
-// warmer page — the same slider dressed for a studio's portfolio.
+// Real landscape photography (Unsplash) on a warm page with a thin outline —
+// a travel journal's cover carousel.
 const U = (id: string) => "https://images.unsplash.com/photo-" + id + "?q=80&w=1800&auto=format&fit=crop"
 
 export default function DemoPhotos() {
   return (
     <div className="w-full">
       <SteppedMorphSlider
-        columns={11}
-        autoplay={4600}
+        autoplay={4800}
         outline="#1b1a17"
         background="#efe9df"
         ink="#1b1a17"
         muted="#8b8172"
         accent="#c2410c"
         slides={[
-          { image: U("1488972685288-c3fd157d7c7a"), title: "Ribbon Facade", caption: "Steel bands folded over a glass core.", seed: 5 },
-          { image: U("1609869644293-6714a930d4f4"), title: "Stacked Light", caption: "Balconies that read like a bar chart.", seed: 9 },
-          { image: U("1486718448742-163732cd1544"), title: "White Curve", caption: "A single line, poured in concrete.", seed: 21 },
-          { image: U("1511818966892-d7d671e672a2"), title: "Grid & Sky", caption: "Curtain wall looking straight up.", seed: 33 },
-          { image: U("1487958449943-2429e8be8625"), title: "Quiet Volume", caption: "Sun, shadow and nothing else.", seed: 48 },
+          { image: U("1506905925346-21bda4d32df4"), title: "Above the Clouds", caption: "Valais, Switzerland — sunrise at 3,100 m.", seed: 5 },
+          { image: U("1501785888041-af3ef285b470"), title: "Glass Lake", caption: "Lago di Braies, a rowboat at noon.", seed: 9 },
+          { image: U("1469474968028-56623f02e42e"), title: "Gold Valley", caption: "Late light pouring over the ridge.", seed: 21 },
+          { image: U("1464822759023-fed622ff2c3b"), title: "Snow Line", caption: "Pines, river flats and the high range.", seed: 33 },
+          { image: U("1500534314209-a25ddb2bd429"), title: "Blue Ridges", caption: "Seven layers of haze before dusk.", seed: 48 },
+          { image: U("1433086966358-54859d0ed716"), title: "Falls Bridge", caption: "Multnomah Falls after the rain.", seed: 57 },
         ]}
       />
     </div>

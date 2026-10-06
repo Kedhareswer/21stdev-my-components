@@ -3,28 +3,29 @@
 // An image slider whose window is a stepped, skyline-like mask. Every slide
 // has its own blocky shape; going to the next one morphs the mask column by
 // column into the new shape while the picture cross-fades and drifts. Hover
-// lifts the column under the pointer; click, drag, swipe, the arrows, the dots
-// or ←/→ move between slides, and autoplay runs a progress line.
+// lifts the column under the pointer. It slides on its own, with a story-style
+// timeline under the picture; click, drag, swipe, the arrows, a timeline
+// segment or ←/→ jump around.
 //
-// Slides without an image get one painted on a canvas — abstract architecture
-// (lit beams, glass grids, film grain) — so it works with no assets at all.
+// Slides without an image get one painted on a canvas — layered ridges fading
+// into haze under a low sun — so it works with no assets at all.
 //
 // No dependencies. React is the only import.
 
 import React from "react"
 
 export type SteppedSlide = {
-  /** Image URL. Omit to use a painted architecture abstract. */
+  /** Image URL. Omit to use a painted landscape. */
   image?: string
   title: string
   caption?: string
   /** Seed for this slide's shape (and painted image). */
   seed?: number
-  /** Palette for the painted image: "concrete" | "dusk" | "glass" | "rose". */
-  palette?: ArchPalette
+  /** Palette for the painted landscape: "dawn" | "alpine" | "dusk" | "mist". */
+  palette?: LandPalette
 }
 
-export type ArchPalette = "concrete" | "dusk" | "glass" | "rose"
+export type LandPalette = "dawn" | "alpine" | "dusk" | "mist"
 
 export type SteppedMorphSliderProps = {
   slides?: SteppedSlide[]
@@ -140,113 +141,132 @@ function wrap(i: number, n: number): number {
 /* ------------------------------------------------------- painted images */
 
 const PALETTES = {
-  concrete: { sky: ["#141619", "#2a2e33"], beams: ["#c9ccd0", "#8e949b", "#5d636a", "#e6e7e8"], glass: "#1d2a33", glow: "#f3f1ea" },
-  dusk: { sky: ["#1c0f10", "#4a2117"], beams: ["#e9a36b", "#b8643e", "#7a3a25", "#f4d3a6"], glass: "#2b1714", glow: "#ffd9a8" },
-  glass: { sky: ["#07161d", "#123543"], beams: ["#9fd3dd", "#5a9fb0", "#2f6878", "#d9f1f4"], glass: "#0b2430", glow: "#e8fbff" },
-  rose: { sky: ["#1d1216", "#4a2a33"], beams: ["#f0c4c6", "#c98a91", "#8d5560", "#fbe3df"], glass: "#2a1a1f", glow: "#fff0ec" },
+  dawn: { top: "#e7b7a5", bottom: "#f8e8d6", sun: "#fff4df", far: "#d2b2bb", near: "#3a2a3b", mist: "255,240,232" },
+  alpine: { top: "#7ea5c8", bottom: "#e3ecf2", sun: "#ffffff", far: "#a9bfd0", near: "#1c3044", mist: "236,244,250" },
+  dusk: { top: "#2a2450", bottom: "#ef8d60", sun: "#ffd9a6", far: "#93607c", near: "#18121f", mist: "255,196,160" },
+  mist: { top: "#c4d0cb", bottom: "#eef1ec", sun: "#ffffff", far: "#aebcb5", near: "#2c3a33", mist: "246,248,245" },
 }
 
-function paintArchitecture(seed: number, palette: ArchPalette, w = 1600, h = 960): string {
+function hexRgb(h: string): [number, number, number] {
+  const v = parseInt(h.replace("#", ""), 16)
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+}
+function mixRgb(a: string, b: string, t: number): string {
+  const A = hexRgb(a)
+  const B = hexRgb(b)
+  return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")"
+}
+
+// a layered-ridge landscape: sky, a low sun, five ridges fading into haze with
+// mist between them, a tree line on the nearest, film grain — painted once
+function paintLandscape(seed: number, palette: LandPalette, w = 1600, h = 960): string {
   if (typeof document === "undefined") return ""
   const c = document.createElement("canvas")
   c.width = w
   c.height = h
   const g = c.getContext("2d")
   if (!g) return ""
-  const P = PALETTES[palette] ?? PALETTES.concrete
+  const P = PALETTES[palette] ?? PALETTES.dawn
   const r = mulberry32(seed * 104729 + 7)
 
-  // sky
-  const sky = g.createLinearGradient(0, 0, w * 0.3, h)
-  sky.addColorStop(0, P.sky[1])
-  sky.addColorStop(1, P.sky[0])
+  // sky and sun
+  const sky = g.createLinearGradient(0, 0, 0, h * 0.72)
+  sky.addColorStop(0, P.top)
+  sky.addColorStop(1, P.bottom)
   g.fillStyle = sky
   g.fillRect(0, 0, w, h)
+  const sx = w * (0.22 + r() * 0.56)
+  const sy = h * (0.26 + r() * 0.16)
+  const halo = g.createRadialGradient(sx, sy, 0, sx, sy, w * 0.45)
+  halo.addColorStop(0, "rgba(" + hexRgb(P.sun).join(",") + ",.85)")
+  halo.addColorStop(0.08, "rgba(" + hexRgb(P.sun).join(",") + ",.55)")
+  halo.addColorStop(1, "rgba(" + hexRgb(P.sun).join(",") + ",0)")
+  g.fillStyle = halo
+  g.fillRect(0, 0, w, h)
+  g.fillStyle = P.sun
+  g.beginPath()
+  g.arc(sx, sy, h * 0.045, 0, Math.PI * 2)
+  g.fill()
 
-  // two families of beams: one steep, one shallow — like a facade of fins
-  const families = [-0.62 + r() * 0.2, 0.28 + r() * 0.25]
-  const count = 16 + Math.floor(r() * 6)
-  for (let n = 0; n < count; n++) {
-    const fam = families[n % 2]
-    const ang = fam + (r() - 0.5) * 0.08
-    const len = Math.hypot(w, h) * (0.8 + r() * 0.7)
-    const thick = 26 + r() * (n % 3 === 0 ? 150 : 80)
-    const cx = w * (r() * 1.2 - 0.1)
-    const cy = h * (r() * 1.2 - 0.1)
-    g.save()
-    g.translate(cx, cy)
-    g.rotate(ang)
-    // cast shadow first, then the lit body
-    g.shadowColor = "rgba(0,0,0,.55)"
-    g.shadowBlur = 40
-    g.shadowOffsetY = 18
-    const tone = P.beams[Math.floor(r() * P.beams.length)]
-    const body = g.createLinearGradient(0, -thick / 2, 0, thick / 2)
-    body.addColorStop(0, P.glow)
-    body.addColorStop(0.12, tone)
-    body.addColorStop(0.7, tone)
-    body.addColorStop(1, "rgba(0,0,0,.55)")
-    g.fillStyle = body
-    g.fillRect(-len / 2, -thick / 2, len, thick)
-    g.shadowColor = "transparent"
-    // glass bands on the fat slabs
-    if (thick > 110) {
-      g.fillStyle = P.glass
-      const band = thick * 0.34
-      g.fillRect(-len / 2, -band / 2, len, band)
-      g.strokeStyle = "rgba(255,255,255,.08)"
-      g.lineWidth = 2
-      for (let x = -len / 2; x < len / 2; x += 46 + r() * 30) {
-        g.beginPath()
-        g.moveTo(x, -band / 2)
-        g.lineTo(x, band / 2)
-        g.stroke()
-      }
-      const sheen = g.createLinearGradient(-len / 2, 0, len / 2, 0)
-      sheen.addColorStop(0, "rgba(255,255,255,0)")
-      sheen.addColorStop(0.5 + (r() - 0.5) * 0.4, "rgba(255,255,255,.18)")
-      sheen.addColorStop(1, "rgba(255,255,255,0)")
-      g.fillStyle = sheen
-      g.fillRect(-len / 2, -band / 2, len, band)
+  // ridges, far to near
+  const layers = 5
+  for (let L = 0; L < layers; L++) {
+    const k = L / (layers - 1)
+    const base = h * (0.42 + k * 0.4)
+    const amp = h * (0.07 + k * 0.1)
+    const ph = Array.from({ length: 4 }, () => r() * Math.PI * 2)
+    const fr = [1.3 + r(), 3.1 + r() * 2, 7 + r() * 4, 17 + r() * 8]
+    const ridge = (x: number) => {
+      const u = x / w
+      return (
+        base -
+        amp *
+          (0.55 * Math.sin(u * fr[0] + ph[0]) +
+            0.28 * Math.sin(u * fr[1] + ph[1]) +
+            0.12 * Math.abs(Math.sin(u * fr[2] + ph[2])) +
+            0.05 * Math.sin(u * fr[3] + ph[3]))
+      )
     }
-    // a crisp lit edge
-    g.fillStyle = "rgba(255,255,255,.55)"
-    g.fillRect(-len / 2, -thick / 2, len, Math.max(1.5, thick * 0.025))
-    g.restore()
+    // mist rising off the ridge behind
+    const mist = g.createLinearGradient(0, base - amp * 1.4, 0, base + amp * 0.4)
+    mist.addColorStop(0, "rgba(" + P.mist + ",0)")
+    mist.addColorStop(1, "rgba(" + P.mist + "," + (0.55 - k * 0.35).toFixed(2) + ")")
+    g.fillStyle = mist
+    g.fillRect(0, base - amp * 1.4, w, amp * 1.8)
+    // the ridge itself: atmospheric perspective from haze to near-black
+    const body = g.createLinearGradient(0, base - amp, 0, h)
+    body.addColorStop(0, mixRgb(P.far, P.near, Math.pow(k, 1.3)))
+    body.addColorStop(1, mixRgb(P.far, P.near, Math.min(1, Math.pow(k, 1.3) + 0.18)))
+    g.fillStyle = body
+    g.beginPath()
+    g.moveTo(0, h)
+    for (let x = 0; x <= w; x += 6) g.lineTo(x, ridge(x))
+    g.lineTo(w, h)
+    g.closePath()
+    g.fill()
+    // a tree line on the two nearest ridges
+    if (L >= layers - 2) {
+      g.fillStyle = mixRgb(P.far, P.near, Math.min(1, Math.pow(k, 1.3) + 0.08))
+      for (let x = 0; x < w; x += 7 + r() * 9) {
+        if (r() < 0.35) continue
+        const y = ridge(x) + 2
+        const th = h * (0.025 + r() * 0.035) * (0.6 + k)
+        const tw = th * 0.32
+        g.beginPath()
+        g.moveTo(x, y - th)
+        g.lineTo(x + tw, y)
+        g.lineTo(x - tw, y)
+        g.closePath()
+        g.fill()
+      }
+    }
   }
 
-  // atmosphere: a soft key light and a vignette
-  const key = g.createRadialGradient(w * (0.3 + r() * 0.4), h * 0.2, 0, w * 0.5, h * 0.4, w * 0.9)
-  key.addColorStop(0, "rgba(255,255,255,.16)")
-  key.addColorStop(1, "rgba(255,255,255,0)")
-  g.fillStyle = key
-  g.fillRect(0, 0, w, h)
-  const vig = g.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, w * 0.75)
+  // a soft vignette and film grain
+  const vig = g.createRadialGradient(w / 2, h * 0.45, h * 0.3, w / 2, h / 2, w * 0.78)
   vig.addColorStop(0, "rgba(0,0,0,0)")
-  vig.addColorStop(1, "rgba(0,0,0,.5)")
+  vig.addColorStop(1, "rgba(0,0,0,.32)")
   g.fillStyle = vig
   g.fillRect(0, 0, w, h)
-
-  // film grain
   const grain = g.getImageData(0, 0, w, h)
   const d = grain.data
   for (let i = 0; i < d.length; i += 4) {
-    const v = (r() - 0.5) * 18
+    const v = (r() - 0.5) * 14
     d[i] += v
     d[i + 1] += v
     d[i + 2] += v
   }
   g.putImageData(grain, 0, 0)
-  return c.toDataURL("image/jpeg", 0.88)
+  return c.toDataURL("image/jpeg", 0.9)
 }
 
 /* --------------------------------------------------------------- defaults */
 
 const D_SLIDES: SteppedSlide[] = [
-  { title: "Fin Facade", caption: "Aluminium fins catching the last light.", palette: "concrete", seed: 3 },
-  { title: "Copper Hour", caption: "A stair core turned amber at dusk.", palette: "dusk", seed: 11 },
-  { title: "Cold Glass", caption: "Curtain wall, harbour side, 7 a.m.", palette: "glass", seed: 27 },
-  { title: "Soft Concrete", caption: "Board-formed walls in winter sun.", palette: "rose", seed: 42 },
+  { title: "Lavender Dawn", caption: "First light over the far ridges.", palette: "dawn", seed: 4 },
+  { title: "Alpine Blue", caption: "Clear air, five valleys deep.", palette: "alpine", seed: 12 },
+  { title: "Ember Dusk", caption: "The sun going down behind the pass.", palette: "dusk", seed: 23 },
+  { title: "Morning Fog", caption: "Pines standing in the cloud line.", palette: "mist", seed: 31 },
 ]
 
 /* -------------------------------------------------------------- component */
@@ -255,7 +275,7 @@ const VW = 1000
 
 export default function SteppedMorphSlider({
   slides = D_SLIDES,
-  columns = 9,
+  columns = 7,
   autoplay = 5200,
   duration = 1100,
   aspect = 5 / 3,
@@ -284,9 +304,9 @@ export default function SteppedMorphSlider({
 
   // painted stand-ins for slides without an image (client-only)
   const [painted, setPainted] = React.useState([] as string[])
-  const paintKey = slides.map((s, i) => (s.image ? "img" : (s.palette ?? "concrete") + (s.seed ?? i))).join("|")
+  const paintKey = slides.map((s, i) => (s.image ? "img" : (s.palette ?? "dawn") + (s.seed ?? i))).join("|")
   React.useEffect(() => {
-    setPainted(slides.map((s, i) => (s.image ? "" : paintArchitecture(s.seed ?? i + 1, s.palette ?? "concrete"))))
+    setPainted(slides.map((s, i) => (s.image ? "" : paintLandscape(s.seed ?? i + 1, s.palette ?? "dawn"))))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paintKey])
   const src = (i: number) => slides[wrap(i, n)]?.image || painted[wrap(i, n)] || ""
@@ -303,7 +323,6 @@ export default function SteppedMorphSlider({
   const [lift, setLift] = React.useState(new Array(K).fill(0) as number[])
   const [hover, setHover] = React.useState(-1)
   const indexRef = React.useRef(0)
-  const [paused, setPaused] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
 
   const go = (to: number) => {
@@ -338,7 +357,7 @@ export default function SteppedMorphSlider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index])
 
-  // autoplay with a progress line; paused on hover, focus, or off-screen
+  // autoplay with a progress line; it only stops off-screen or under reduced motion
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const [visible, setVisible] = React.useState(true)
   React.useEffect(() => {
@@ -349,7 +368,7 @@ export default function SteppedMorphSlider({
     return () => io.disconnect()
   }, [])
   React.useEffect(() => {
-    if (!autoplay || reduced || paused || !visible || n < 2) return
+    if (!autoplay || reduced || !visible || n < 2) return
     let raf = 0
     const t0 = performance.now() - progress * autoplay
     const tick = (now: number) => {
@@ -365,7 +384,7 @@ export default function SteppedMorphSlider({
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplay, reduced, paused, visible, n, index])
+  }, [autoplay, reduced, visible, n, index])
 
   // hover lifts the column under the pointer (springy, settles back)
   React.useEffect(() => {
@@ -440,10 +459,6 @@ export default function SteppedMorphSlider({
       ref={rootRef}
       className={"sm-root " + className}
       style={{ background, color: ink, ["--sm-ink" as string]: ink, ["--sm-muted" as string]: muted, ["--sm-accent" as string]: accent, ["--sm-bg" as string]: background } as React.CSSProperties}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
     >
       <style>{SM_CSS}</style>
       <div className="sm-stage" role="region" aria-roledescription="carousel" aria-label="Image slider" tabIndex={0} onKeyDown={onKey}>
@@ -494,6 +509,19 @@ export default function SteppedMorphSlider({
         </svg>
       </div>
 
+      {/* story-style timeline: done, filling, still to come — each one a button */}
+      <div className="sm-timeline" role="tablist" aria-label="Slides">
+        {slides.map((s, i) => {
+          const at = wrap(index, n)
+          const fill = i < at ? 1 : i > at ? 0 : autoplay && !reduced ? progress : 1
+          return (
+            <button key={i} type="button" role="tab" className="sm-seg" aria-label={"Slide " + (i + 1) + ": " + s.title} aria-selected={i === at} onClick={() => go(i)}>
+              <i style={{ transform: "scaleX(" + fill + ")" }} />
+            </button>
+          )
+        })}
+      </div>
+
       <div className="sm-bar">
         <div className="sm-count" aria-hidden="true">
           <b>{pad(wrap(index, n) + 1)}</b>
@@ -515,13 +543,6 @@ export default function SteppedMorphSlider({
               <path d="M11 4 6 9l5 5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <div className="sm-dots">
-            {slides.map((s, i) => (
-              <button key={i} type="button" className="sm-dot" aria-label={"Go to " + s.title} aria-current={i === wrap(index, n) ? "true" : undefined} onClick={() => go(i)}>
-                <i style={{ transform: "scaleX(" + (i === wrap(index, n) ? (autoplay && !reduced ? progress : 1) : 0) + ")" }} />
-              </button>
-            ))}
-          </div>
           <button type="button" className="sm-arrow" onClick={next} aria-label="Next slide">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
               <path d="m7 4 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -541,22 +562,23 @@ const SM_CSS = `
 .sm-root :focus-visible{outline:2px solid var(--sm-accent);outline-offset:3px}
 .sm-stage{position:relative;width:100%;max-width:1180px;margin:0 auto;outline:none}
 .sm-svg{display:block;width:100%;height:auto;max-width:none;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.sm-bar{display:grid;grid-template-columns:auto 1fr;gap:12px 24px;align-items:end;max-width:1180px;margin:clamp(14px,2.4vw,26px) auto 0}
-.sm-count{display:flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums;color:var(--sm-muted);font-size:13px;letter-spacing:.04em}
+.sm-timeline{display:flex;gap:6px;max-width:1180px;margin:clamp(12px,2vw,20px) auto 0}
+.sm-seg{position:relative;flex:1;height:16px}
+.sm-seg::before,.sm-seg i{content:"";position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;border-radius:3px}
+.sm-seg::before{background:color-mix(in srgb,var(--sm-ink) 14%,transparent);transition:background-color .2s}
+.sm-seg:hover::before{background:color-mix(in srgb,var(--sm-ink) 30%,transparent)}
+.sm-seg i{background:var(--sm-accent);transform-origin:0 50%}
+.sm-bar{display:flex;align-items:center;gap:clamp(12px,2.4vw,28px);max-width:1180px;margin:clamp(10px,1.6vw,16px) auto 0}
+.sm-count{flex:none;display:flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums;color:var(--sm-muted);font-size:13px;letter-spacing:.04em}
 .sm-count b{color:var(--sm-ink);font-size:clamp(28px,4vw,46px);font-weight:600;letter-spacing:-.03em;line-height:.9}
-.sm-text{min-width:0;overflow:hidden}
-.sm-title{font-size:clamp(18px,2.2vw,26px);font-weight:600;letter-spacing:-.02em;line-height:1.15;animation:sm-up .6s cubic-bezier(.2,.8,.2,1) both}
-.sm-caption{margin-top:4px;font-size:14px;color:var(--sm-muted);animation:sm-up .6s .08s cubic-bezier(.2,.8,.2,1) both}
-.sm-nav{grid-column:1 / -1;display:flex;align-items:center;gap:14px}
-.sm-arrow{display:grid;place-items:center;width:40px;height:40px;border:1px solid color-mix(in srgb,var(--sm-ink) 22%,transparent);border-radius:99px;transition:border-color .2s,background-color .2s,color .2s}
+.sm-text{flex:1;min-width:0;overflow:hidden}
+.sm-title{font-size:clamp(17px,2vw,24px);font-weight:600;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:sm-up .6s cubic-bezier(.2,.8,.2,1) both}
+.sm-caption{margin-top:3px;font-size:13.5px;color:var(--sm-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:sm-up .6s .08s cubic-bezier(.2,.8,.2,1) both}
+.sm-nav{flex:none;display:flex;gap:8px}
+.sm-arrow{display:grid;place-items:center;width:42px;height:42px;border:1px solid color-mix(in srgb,var(--sm-ink) 22%,transparent);border-radius:99px;transition:border-color .2s,background-color .2s,color .2s}
 .sm-arrow:hover{border-color:var(--sm-ink);background:var(--sm-ink);color:var(--sm-bg)}
-.sm-dots{display:flex;flex:1;gap:6px}
-.sm-dot{position:relative;flex:1;height:18px}
-.sm-dot::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:color-mix(in srgb,var(--sm-ink) 16%,transparent)}
-.sm-dot i{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--sm-accent);transform-origin:0 50%}
-@media (min-width:720px){.sm-bar{grid-template-columns:auto 1fr auto}.sm-nav{grid-column:auto;min-width:260px}}
 @keyframes sm-up{from{opacity:0;transform:translateY(60%)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.sm-title,.sm-caption{animation:none}.sm-arrow{transition:none}}
+@media (prefers-reduced-motion:reduce){.sm-title,.sm-caption{animation:none}.sm-arrow,.sm-seg::before{transition:none}}
 `
 
 // event alias lives after the JSX so the 21st CLI tokenizer stays linear

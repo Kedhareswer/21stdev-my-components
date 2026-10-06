@@ -1,11 +1,11 @@
 "use client"
 
-// A curtain of punched-tape strips that plays music. Idle, the strips hang
-// grey and ragged with a play button over them. Press play and they turn
-// white, a stage lights up behind them — a moving spotlight and big captions
-// you only ever see through the gaps and the punched holes — and every strip
-// stretches with its own slice of the spectrum, jolting on each kick. Move
-// over the curtain and the strips swing aside around the pointer.
+// A curtain of punched-tape strips hung in front of a picture. Idle, the
+// strips hang grey and ragged over a dimmed image, with a play button. Move
+// over it and the strips part around the pointer like a bead curtain, hinged
+// at the top. Press play and the music starts, the strips turn to your colour,
+// the picture brightens and the whole curtain swings open from the middle,
+// swaying with the beat — so you watch the image, not just peek through holes.
 //
 // The music is an original groove synthesized live with Web Audio (no file,
 // no network), or any audio file you pass as `audioSrc`.
@@ -25,9 +25,15 @@ export type PerforatedStripeCurtainProps = {
   idleColor?: string
   /** Page colour behind the curtain. */
   background?: string
-  /** Spotlight colour on the stage behind the strips. */
+  /** Glow colour washed over the picture while playing. */
   lightColor?: string
-  /** Words shown on the stage behind the strips, one per bar while playing. */
+  /** The picture behind the curtain. Omit to use a painted landscape. */
+  image?: string
+  /** Palette of the painted landscape when there's no `image`. */
+  backdrop?: "dawn" | "alpine" | "dusk" | "mist"
+  /** Swing the curtain open while the music plays. */
+  openOnPlay?: boolean
+  /** Words shown over the picture, one per bar while playing. Empty = none. */
   captions?: string[]
   /** Small label, bottom-left. Empty hides it. */
   title?: string
@@ -75,24 +81,26 @@ function restLengths(n: number, seed = 7): number[] {
   return out
 }
 
-// strip i of n → the [lo, hi) spectrum bins it listens to, spread on a log scale
-// so the bass doesn't own the whole curtain
-function bandOf(i: number, n: number, bins: number): [number, number] {
-  const lo = Math.floor(Math.pow(bins, i / n)) - 1
-  const hi = Math.max(lo + 1, Math.floor(Math.pow(bins, (i + 1) / n)) - 1)
-  return [clamp(lo, 0, bins - 1), clamp(hi, 1, bins)]
-}
-
-// how far a strip swings away from the pointer, in radians (signed)
+// how far a strip swings away from the pointer, in radians (signed). A real
+// parting: wide reach, up to ~30° at the hem, strongest low on the curtain.
 function swingFor(stripX: number, pointerX: number, pointerY: number, height: number, reach: number): number {
   if (!(pointerY >= 0) || pointerY > height * 1.05) return 0
   const dx = stripX - pointerX
   const d = Math.abs(dx)
   if (d >= reach) return 0
   const fall = 1 - d / reach
-  // strips are hinged at the top: a pointer low on the curtain moves them most
-  const depth = clamp(pointerY / height, 0.15, 1)
-  return Math.sign(dx || 1) * 0.22 * fall * fall * depth
+  const depth = clamp(pointerY / height, 0.2, 1)
+  return Math.sign(dx || 1) * 0.55 * Math.pow(fall, 1.4) * depth
+}
+
+// the curtain opening from the middle: strip i of n swings outward by up to
+// `max` radians, the centre strips most, the edges barely
+function openAngle(i: number, n: number, open: number, max = 0.62): number {
+  if (n < 2 || open <= 0) return 0
+  const c = (n - 1) / 2
+  const u = (i - c) / c // -1 … 1
+  if (u === 0) return 0
+  return Math.sign(u) * max * clamp(open, 0, 1) * Math.pow(1 - Math.abs(u), 0.55) * Math.min(1, Math.abs(u) * 6)
 }
 
 // 16-step patterns for the built-in groove (an original riff)
@@ -115,7 +123,10 @@ export default function PerforatedStripeCurtain({
   idleColor = "#8d8d8b",
   background = "#0b0b0c",
   lightColor = "#d21f1f",
-  captions = ["SEVEN", "STRIPES", "LOUDER", "AGAIN"],
+  image,
+  backdrop = "dusk",
+  openOnPlay = true,
+  captions = [],
   title = "WHITE STRIPES · LIVE",
   credit = "Press play — the curtain listens.",
   audioSrc,
@@ -142,8 +153,6 @@ export default function PerforatedStripeCurtain({
   const n = clamp(Math.round(strips), 4, 64)
   const st = React.useRef({
     n,
-    len: [] as number[],
-    vel: [] as number[],
     ang: [] as number[],
     angVel: [] as number[],
     rest: [] as number[],
@@ -160,23 +169,47 @@ export default function PerforatedStripeCurtain({
     captions,
     analyser: null as AnalyserNode | null,
     freq: null as Uint8Array | null,
+    img: null as HTMLImageElement | HTMLCanvasElement | null,
+    open: 0,
+    openOnPlay,
   })
   const s0 = st.current
   s0.colors = { stripColor, idleColor, background, lightColor }
-  s0.captions = captions.length ? captions : [""]
+  s0.captions = captions
   s0.playing = playing
   s0.reduced = reduced
+  s0.openOnPlay = openOnPlay
   if (s0.n !== n || s0.rest.length !== n) {
     s0.n = n
     s0.rest = restLengths(n)
-    s0.len = s0.rest.slice()
-    s0.vel = new Array(n).fill(0)
     s0.ang = new Array(n).fill(0)
     s0.angVel = new Array(n).fill(0)
   }
 
   const interactiveRef = React.useRef(interactive)
   interactiveRef.current = interactive
+
+  React.useEffect(() => {
+    const s = st.current
+    if (!image) {
+      s.img = paintBackdrop(backdrop)
+      return
+    }
+    let alive = true
+    const el = new Image()
+    el.crossOrigin = "anonymous"
+    el.decoding = "async"
+    el.onload = () => {
+      if (alive) s.img = el
+    }
+    el.onerror = () => {
+      if (alive) s.img = paintBackdrop(backdrop)
+    }
+    el.src = image
+    return () => {
+      alive = false
+    }
+  }, [image, backdrop])
 
   /* ------------------------------------------------------------- audio */
   const audio = React.useRef({
@@ -383,32 +416,47 @@ export default function PerforatedStripeCurtain({
       }
       s.level += (level - s.level) * Math.min(1, dt * 8)
 
-      // background + the stage behind the strips
+      // the curtain opens while playing (springy), and closes when it stops
+      const openTarget = s.playing && s.openOnPlay && !s.reduced ? 1 : 0
+      s.open += (openTarget - s.open) * Math.min(1, dt * 1.6)
+
+      // the picture behind, cover-fitted; dimmed until the music starts
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, W, H)
+      const img = s.img
+      const iw = img ? (img as HTMLImageElement).naturalWidth || (img as HTMLCanvasElement).width : 0
+      const ih = img ? (img as HTMLImageElement).naturalHeight || (img as HTMLCanvasElement).height : 0
+      if (img && iw && ih) {
+        const zoom = 1.04 - 0.04 * s.on + 0.008 * s.beat
+        const k = Math.max(W / iw, H / ih) * zoom
+        ctx.drawImage(img, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k)
+      }
+      // a colour wash that breathes with the beat, and the idle dimming
       if (s.on > 0.01) {
-        const sx = W * (0.5 + 0.32 * Math.sin(t * 0.7))
-        const sy = H * (0.45 + 0.1 * Math.cos(t * 0.9))
-        const rad = Math.max(W, H) * (0.55 + 0.25 * s.level + 0.1 * s.beat)
-        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad)
-        g.addColorStop(0, lc)
-        g.addColorStop(0.45, lc + "66")
-        g.addColorStop(1, bg)
-        ctx.globalAlpha = s.on * (0.75 + 0.25 * s.beat)
+        const sx = W * (0.5 + 0.28 * Math.sin(t * 0.5))
+        const g = ctx.createRadialGradient(sx, H * 0.4, 0, sx, H * 0.4, Math.max(W, H) * 0.7)
+        g.addColorStop(0, lc + "55")
+        g.addColorStop(1, lc + "00")
+        ctx.globalAlpha = s.on * (0.55 + 0.45 * s.beat)
         ctx.fillStyle = g
         ctx.fillRect(0, 0, W, H)
-        // the caption for this bar, huge, seen only through the gaps
-        const word = s.captions[s.bar % s.captions.length] ?? ""
-        if (word) {
-          ctx.globalAlpha = s.on * 0.9
-          ctx.fillStyle = "#ffffff"
-          ctx.textAlign = "center"
-          ctx.textBaseline = "middle"
-          const fs = Math.min(W / Math.max(3, word.length) * 1.45, H * 0.42)
-          ctx.font = "900 " + Math.round(fs * (1 + 0.04 * s.beat)) + "px Impact, 'Arial Black', ui-sans-serif, system-ui, sans-serif"
-          ctx.fillText(word, W / 2, H * 0.5)
-        }
+        ctx.globalAlpha = 1
+      }
+      ctx.fillStyle = bg
+      ctx.globalAlpha = 0.62 * (1 - s.on)
+      ctx.fillRect(0, 0, W, H)
+      ctx.globalAlpha = 1
+      // the caption for this bar, over the picture
+      const word = s.captions.length ? s.captions[s.bar % s.captions.length] : ""
+      if (word && s.on > 0.01) {
+        ctx.globalAlpha = s.on * 0.92
+        ctx.fillStyle = "#ffffff"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        const fs = Math.min((W / Math.max(3, word.length)) * 1.3, H * 0.34)
+        ctx.font = "900 " + Math.round(fs * (1 + 0.03 * s.beat)) + "px Impact, 'Arial Black', ui-sans-serif, system-ui, sans-serif"
+        ctx.fillText(word, W / 2, H * 0.5)
         ctx.globalAlpha = 1
       }
 
@@ -417,41 +465,29 @@ export default function PerforatedStripeCurtain({
       const sw = (W - gap * (N + 1)) / N
       const holeR = sw * 0.2
       const pitch = sw * 1.12
-      const reach = W * 0.16
+      const reach = W * 0.24
       const px = s.px * dpr
       const py = s.py * dpr
       ctx.fillStyle = mixHex(ic, sc, s.on)
+      const sway = s.reduced ? 0 : s.on * (0.012 + 0.05 * s.level + 0.035 * s.beat)
 
       for (let i = 0; i < N; i++) {
-        const x = gap + i * (sw + gap)
-        const cx = x + sw / 2
+        const cx = gap + i * (sw + gap) + sw / 2
 
-        // target length: rest, plus this strip's band, plus a jolt on the kick
-        let e = 0
-        if (s.freq && s.on > 0.01) {
-          const [lo, hi] = bandOf(i, N, s.freq.length)
-          let sum = 0
-          for (let k = lo; k < hi; k++) sum += s.freq[k]
-          e = sum / ((hi - lo) * 255)
-        }
-        const target = s.reduced
-          ? s.rest[i]
-          : s.rest[i] + s.on * (e * 0.22 - 0.1 + 0.05 * s.beat) + (1 - s.on) * 0.012 * Math.sin(t * 1.3 + i)
-        // spring
-        const k = 90
-        const c = 11
-        s.vel[i] += (k * (target - s.len[i]) - c * s.vel[i]) * dt
-        s.len[i] = clamp(s.len[i] + s.vel[i] * dt, 0.3, 1.08)
-
-        // swing away from the pointer, hinged at the top
-        const swing = interactiveRef.current && !s.reduced ? swingFor(cx, px, py, H, reach) : 0
-        s.angVel[i] += (60 * (swing - s.ang[i]) - 7 * s.angVel[i]) * dt
+        // where the strip wants to hang: open from the middle, part around the
+        // pointer, and sway with the music — the length never changes
+        const target =
+          (s.reduced ? 0 : openAngle(i, N, s.open)) +
+          (interactiveRef.current && !s.reduced ? swingFor(cx, px, py, H, reach) : 0) +
+          sway * Math.sin(t * 2.4 + i * 0.7)
+        s.angVel[i] += (55 * (target - s.ang[i]) - 7.5 * s.angVel[i]) * dt
         s.ang[i] += s.angVel[i] * dt
 
-        const L = s.len[i] * H
+        const L = s.rest[i] * H
         ctx.save()
         ctx.translate(cx, 0)
-        ctx.rotate(s.ang[i])
+        // canvas rotation is clockwise: a positive angle would swing the hem left, so negate
+        ctx.rotate(-s.ang[i])
         // the strip with its holes punched out (even-odd: holes show what's behind)
         ctx.beginPath()
         ctx.rect(-sw / 2, -2, sw, L + 2)
@@ -515,6 +551,93 @@ export default function PerforatedStripeCurtain({
       )}
     </div>
   )
+}
+
+const BACKDROPS = {
+  dawn: { top: "#e7b7a5", bottom: "#f8e8d6", sun: "#fff4df", far: "#d2b2bb", near: "#3a2a3b", mist: "255,240,232" },
+  alpine: { top: "#7ea5c8", bottom: "#e3ecf2", sun: "#ffffff", far: "#a9bfd0", near: "#1c3044", mist: "236,244,250" },
+  dusk: { top: "#2a2450", bottom: "#ef8d60", sun: "#ffd9a6", far: "#93607c", near: "#18121f", mist: "255,196,160" },
+  mist: { top: "#c4d0cb", bottom: "#eef1ec", sun: "#ffffff", far: "#aebcb5", near: "#2c3a33", mist: "246,248,245" },
+}
+
+// a layered-ridge landscape painted once onto a canvas: sky, a low sun, five
+// ridges fading into haze with mist between, a tree line on the nearest
+function paintBackdrop(name: keyof typeof BACKDROPS, w = 1600, h = 1000): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null
+  const c = document.createElement("canvas")
+  c.width = w
+  c.height = h
+  const g = c.getContext("2d")
+  if (!g) return null
+  const P = BACKDROPS[name] ?? BACKDROPS.dusk
+  const r = mulberry32(17)
+  const rgb = (hex: string) => {
+    const v = parseInt(hex.replace("#", ""), 16)
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+  }
+  const mix = (a: string, b: string, t: number) => {
+    const A = rgb(a)
+    const B = rgb(b)
+    return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")"
+  }
+  const sky = g.createLinearGradient(0, 0, 0, h * 0.72)
+  sky.addColorStop(0, P.top)
+  sky.addColorStop(1, P.bottom)
+  g.fillStyle = sky
+  g.fillRect(0, 0, w, h)
+  const sx = w * 0.58
+  const sy = h * 0.36
+  const halo = g.createRadialGradient(sx, sy, 0, sx, sy, w * 0.45)
+  halo.addColorStop(0, "rgba(" + rgb(P.sun).join(",") + ",.85)")
+  halo.addColorStop(0.08, "rgba(" + rgb(P.sun).join(",") + ",.5)")
+  halo.addColorStop(1, "rgba(" + rgb(P.sun).join(",") + ",0)")
+  g.fillStyle = halo
+  g.fillRect(0, 0, w, h)
+  g.fillStyle = P.sun
+  g.beginPath()
+  g.arc(sx, sy, h * 0.045, 0, Math.PI * 2)
+  g.fill()
+  for (let L = 0; L < 5; L++) {
+    const k = L / 4
+    const base = h * (0.46 + k * 0.38)
+    const amp = h * (0.07 + k * 0.1)
+    const ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28]
+    const fr = [1.3 + r(), 3.1 + r() * 2, 7 + r() * 4, 17 + r() * 8]
+    const ridge = (x: number) => {
+      const u = x / w
+      return base - amp * (0.55 * Math.sin(u * fr[0] + ph[0]) + 0.28 * Math.sin(u * fr[1] + ph[1]) + 0.12 * Math.abs(Math.sin(u * fr[2] + ph[2])) + 0.05 * Math.sin(u * fr[3] + ph[3]))
+    }
+    const mist = g.createLinearGradient(0, base - amp * 1.4, 0, base + amp * 0.4)
+    mist.addColorStop(0, "rgba(" + P.mist + ",0)")
+    mist.addColorStop(1, "rgba(" + P.mist + "," + (0.55 - k * 0.35).toFixed(2) + ")")
+    g.fillStyle = mist
+    g.fillRect(0, base - amp * 1.4, w, amp * 1.8)
+    const body = g.createLinearGradient(0, base - amp, 0, h)
+    body.addColorStop(0, mix(P.far, P.near, Math.pow(k, 1.3)))
+    body.addColorStop(1, mix(P.far, P.near, Math.min(1, Math.pow(k, 1.3) + 0.18)))
+    g.fillStyle = body
+    g.beginPath()
+    g.moveTo(0, h)
+    for (let x = 0; x <= w; x += 6) g.lineTo(x, ridge(x))
+    g.lineTo(w, h)
+    g.closePath()
+    g.fill()
+    if (L >= 3) {
+      g.fillStyle = mix(P.far, P.near, Math.min(1, Math.pow(k, 1.3) + 0.08))
+      for (let x = 0; x < w; x += 7 + r() * 9) {
+        if (r() < 0.35) continue
+        const y = ridge(x) + 2
+        const th = h * (0.025 + r() * 0.035) * (0.6 + k)
+        g.beginPath()
+        g.moveTo(x, y - th)
+        g.lineTo(x + th * 0.32, y)
+        g.lineTo(x - th * 0.32, y)
+        g.closePath()
+        g.fill()
+      }
+    }
+  }
+  return c
 }
 
 function mixHex(a: string, b: string, t: number): string {
