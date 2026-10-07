@@ -15,8 +15,7 @@ import * as React from "react"
  *
  * The pointer drags the silk: the haze gathers under it, smears along the
  * gesture and pushes the shadow back. A click sends a refractive ring through
- * it. Outside the frame, a drop shadow and a violet glow sit opposite the light
- * and swing as it moves — the shadow the piece casts onto the page.
+ * it.
  *
  * Self-contained: raw WebGL2, React is the only import. No textures, no image
  * assets, no CSS file. The canvas sizes itself from its own box, never the
@@ -62,9 +61,6 @@ export type HazeParams = {
   drag: number
   /** Pointer reach, as a fraction of the box's short side. */
   reach: number
-  // the cast shadow, outside the frame
-  /** Opacity of the drop shadow and violet glow around the box. 0 hides both. */
-  cast: number
   // palette, dark to bright
   inkColor: string
   shadowColor: string
@@ -97,8 +93,6 @@ export const HAZE_DEFAULTS: HazeParams = {
   lens: 0.6,
   drag: 1,
   reach: 0.42,
-
-  cast: 1,
 
   inkColor: "#111112",
   shadowColor: "#060506",
@@ -316,15 +310,6 @@ export function driftPos(t: number) {
   return [Math.min(Math.max(x, 0.08), 0.92), Math.min(Math.max(y, 0.08), 0.92)]
 }
 
-/**
- * Where the cast shadow sits, in px, for a lamp at (x, y) in 0..1. It falls
- * away from the light, always somewhat downward, like a card lit from above.
- */
-export function castOffset(x: number, y: number, depth: number) {
-  const cx = Math.min(Math.max(x, 0), 1) - 0.5
-  const cy = Math.min(Math.max(y, 0), 1) - 0.5
-  return [-cx * depth, depth * 0.55 - cy * depth * 0.6]
-}
 // #endregion
 
 export type VelvetHazeProps = {
@@ -337,10 +322,8 @@ export type VelvetHazeProps = {
   preset?: keyof typeof HAZE_PRESETS
   /** Overrides layered over the preset. */
   params?: Partial<HazeParams>
-  /** Pointer drags the silk and swings the cast shadow; click sends a ring. */
+  /** Pointer drags the silk and pushes the shadow back; click sends a ring. */
   interactive?: boolean
-  /** Corner radius of the frame, any CSS length. */
-  radius?: string
   /** Device-pixel-ratio cap. Grain is per-pixel, so 2 is plenty. */
   maxDpr?: number
   /** Content laid over the haze. Pointer events pass through unless opted in. */
@@ -353,15 +336,12 @@ export default function VelvetHaze({
   preset = "velvet",
   params,
   interactive = true,
-  radius = "0px",
   maxDpr = 2,
   children,
   className = "",
 }: VelvetHazeProps) {
   const rootRef = React.useRef<HTMLElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const castRef = React.useRef<HTMLDivElement>(null)
-  const glowRef = React.useRef<HTMLDivElement>(null)
   const [failed, setFailed] = React.useState(false)
   const [generation, setGeneration] = React.useState(0)
   const [reduced, setReduced] = React.useState(false)
@@ -518,24 +498,6 @@ export default function VelvetHaze({
     canvas.addEventListener("webglcontextlost", onLost)
     canvas.addEventListener("webglcontextrestored", onRestored)
 
-    // ---- the shadow it casts onto the page ---------------------------------
-    let castKey = ""
-    const placeCast = (x: number, y: number, amount: number) => {
-      const cast = castRef.current
-      const glow = glowRef.current
-      if (!cast || !glow) return
-      const depth = Math.min(Math.max(Math.min(cssW, cssH) * 0.06, 10), 48)
-      const [dx, dy] = castOffset(x, y, depth)
-      // Only touch the DOM when the shadow has visibly moved.
-      const key = Math.round(dx) + ":" + Math.round(dy) + ":" + Math.round(amount * 50)
-      if (key === castKey) return
-      castKey = key
-      cast.style.transform = "translate3d(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px,0) scale(0.96)"
-      cast.style.opacity = String(0.55 * amount)
-      glow.style.transform = "translate3d(" + (-dx * 0.5).toFixed(1) + "px," + (-dy * 0.35).toFixed(1) + "px,0)"
-      glow.style.opacity = String(0.6 * amount)
-    }
-
     // ---- one frame ----------------------------------------------------------
     const paint = () => {
       const p = paramsRef.current
@@ -583,8 +545,6 @@ export default function VelvetHaze({
       gl.uniform2f(U.smear, smearX, smearY)
       gl.uniform4fv(U.ripple, ripples)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
-
-      placeCast(lampX, lampY, Math.max(p.cast, 0))
     }
 
     // ---- loop, paused whenever nobody can see it -----------------------------
@@ -629,68 +589,33 @@ export default function VelvetHaze({
     }
   }, [interactive, reduced, generation, maxDpr])
 
-  const cast = Math.max(P.cast, 0)
-
   return (
-    <div className={"relative isolate w-full " + className}>
-      {cast > 0 ? (
-        <>
-          {/* The drop shadow: a blurred dark card, shifted away from the light. */}
-          <div
-            ref={castRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500 motion-reduce:transition-none"
-            style={{
-              borderRadius: radius,
-              background: P.shadowColor,
-              filter: "blur(28px)",
-              opacity: 0.55 * cast,
-              transform: "translate3d(0px,18px,0) scale(0.96)",
-              willChange: "transform",
-            }}
-          />
-          {/* The light leaking past the frame: violet top right, silver top left. */}
-          <div
-            ref={glowRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-[3%] -z-10 transition-opacity duration-500 motion-reduce:transition-none"
-            style={{
-              borderRadius: radius,
-              background:
-                "radial-gradient(40% 32% at 74% 4%, " + P.violetColor + " 0%, transparent 72%)," +
-                "radial-gradient(36% 30% at 28% 6%, " + P.lavenderColor + " 0%, transparent 70%)",
-              filter: "blur(36px)",
-              opacity: 0.6 * cast,
-              willChange: "transform",
-            }}
-          />
-        </>
+    <section
+      ref={rootRef}
+      className={
+        "relative w-full overflow-hidden " + (interactive ? "cursor-crosshair touch-pan-y " : "") + className
+      }
+      style={{ height, background: P.inkColor }}
+      aria-label="A soft silver and violet light leak on grainy black film"
+    >
+      {failed ? (
+        // No WebGL2: a still picture of the same light beats a black box.
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(40% 30% at 74% 0%, " + P.violetColor + " 0%, transparent 70%)," +
+              "linear-gradient(160deg, transparent 52%, " + P.shadowColor + " 70%)," +
+              "radial-gradient(60% 50% at 34% 26%, " + P.silverColor + " 0%, " + P.lavenderColor + " 30%, transparent 72%)," +
+              P.inkColor,
+          }}
+        />
+      ) : (
+        <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full" />
+      )}
+      {children ? (
+        <div className="pointer-events-none relative z-10 flex h-full w-full flex-col">{children}</div>
       ) : null}
-      <section
-        ref={rootRef}
-        className={"relative w-full overflow-hidden " + (interactive ? "cursor-crosshair touch-pan-y" : "")}
-        style={{ height, borderRadius: radius, background: P.inkColor }}
-        aria-label="A soft silver and violet light leak on grainy black film"
-      >
-        {failed ? (
-          // No WebGL2: a still picture of the same light beats a black box.
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(40% 30% at 74% 0%, " + P.violetColor + " 0%, transparent 70%)," +
-                "linear-gradient(160deg, transparent 52%, " + P.shadowColor + " 70%)," +
-                "radial-gradient(60% 50% at 34% 26%, " + P.silverColor + " 0%, " + P.lavenderColor + " 30%, transparent 72%)," +
-                P.inkColor,
-            }}
-          />
-        ) : (
-          <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full" />
-        )}
-        {children ? (
-          <div className="pointer-events-none relative z-10 flex h-full w-full flex-col">{children}</div>
-        ) : null}
-      </section>
-    </div>
+    </section>
   )
 }
