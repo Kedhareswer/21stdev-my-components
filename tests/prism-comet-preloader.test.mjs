@@ -48,7 +48,7 @@ for (const match of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s
     `unscoped CSS selector would leak into the host app: ${sel}`,
   )
 }
-assert.ok(rules >= 50, `expected a full scoped sheet, saw ${rules} rules`)
+assert.ok(rules >= 40, `expected a full scoped sheet, saw ${rules} rules`)
 
 // The page behind the gate is the host's: nothing here may style it.
 assert.doesNotMatch(css, /\.pcp-root \*|\.pcp-dest [^{]/, "nothing reaches into the children the gate guards")
@@ -64,7 +64,6 @@ assert.match(css, /\[data-phase="lift"\]\[data-hole="true"\] \.pcp-gate \{[^}]*b
 
 const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"))
 assert.match(reduced, /\.pcp-letter \{ filter: none; transform: none;/, "letters fade instead of racking focus")
-assert.match(reduced, /\.pcp-rec, \.pcp-chip \{ animation: none; \}/, "blink and wipe hold still")
 
 // ---- 3. Shader --------------------------------------------------------------
 const frag = src.match(/const FRAG = `([\s\S]*?)`/)[1]
@@ -86,7 +85,7 @@ const start = src.indexOf("// #region timeline")
 const end = src.indexOf("// #endregion")
 assert.ok(start > -1 && end > start, "timeline region markers missing")
 const js = src.slice(start, end).replace(/:\s*(number|string)(?=[,)])/g, "")
-const { pcpSimulated, pcpEase, pcpMorph, pcpPass, pcpView, pcpHead, pcpRig, pcpIgnite, pcpTimecode, pcpHex } =
+const { pcpSimulated, pcpEase, pcpMorph, pcpPass, pcpView, pcpHead, pcpRig, pcpIgnite, pcpHex } =
   await import("data:text/javascript," + encodeURIComponent(js))
 
 const TAU = Math.PI * 2
@@ -202,11 +201,6 @@ for (const aspect of ASPECTS) {
   }
 }
 
-assert.equal(pcpTimecode(0), "00:00:00:00")
-assert.equal(pcpTimecode(-50), "00:00:00:00")
-assert.equal(pcpTimecode(1000), "00:00:01:00")
-assert.equal(pcpTimecode(61500), "00:01:01:12")
-assert.equal(pcpTimecode(3600000), "01:00:00:00")
 
 assert.deepEqual(pcpHex("#ffffff"), [1, 1, 1])
 assert.deepEqual(pcpHex("#000"), [0, 0, 0])

@@ -45,13 +45,13 @@ export interface PrismCometPreloaderProps {
   progress?: number
   /** Length of the simulated load. Defaults to 6500ms. */
   durationMs?: number
-  /** Wordmark set under the portal, and in the top-left of the HUD. */
+  /** Wordmark set under the portal. */
   word?: string
   /** Line under the wordmark. */
   caption?: string
   /**
-   * Labels for the passes, shown in the corner chip as the morph reaches each
-   * one. The last is shown once loaded. Use "\n" to stack lines. `[]` hides it.
+   * Labels for the passes, announced to screen readers as the morph reaches
+   * each one. The last is announced once loaded.
    */
   passes?: string[]
   /** Colour overrides (hex), merged over the defaults. */
@@ -64,7 +64,7 @@ export interface PrismCometPreloaderProps {
   quality?: number
   /** The faint compositing grid behind the load. Defaults to true. */
   grid?: boolean
-  /** Counter, pass chip, timecode and title bar. Defaults to true. */
+  /** The loading counter. Defaults to true. */
   hud?: boolean
   /** Film grain over the frame. Defaults to true. */
   grain?: boolean
@@ -260,13 +260,6 @@ export function pcpIgnite(i: number, aspect: number) {
     lines: 1 - sm(clamp01((x - 0.4) / 0.4)),
     bloom: Math.exp(-Math.pow((x - 0.32) / 0.08, 2)),
   }
-}
-
-// Frames at 24 fps as a compositor timecode, HH:MM:SS:FF.
-export function pcpTimecode(ms: number) {
-  const f = Math.max(0, Math.floor((ms / 1000) * 24))
-  const two = (n: number) => (n < 10 ? "0" : "") + n
-  return two(Math.floor(f / 86400) % 100) + ":" + two(Math.floor(f / 1440) % 60) + ":" + two(Math.floor(f / 24) % 60) + ":" + two(f % 24)
 }
 
 // "#rgb" / "#rrggbb" → [r, g, b] in 0–1, or null for anything else.
@@ -662,37 +655,6 @@ const PCP_CSS = `
   transition: opacity 0.7s ease;
 }
 .pcp-root[data-phase="lift"] .pcp-hud { opacity: 0; }
-.pcp-corner {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 0.9em;
-  white-space: nowrap;
-  transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.6, 0, 0.2, 1);
-}
-.pcp-tl { left: calc(var(--pcp-u) * 0.05); top: calc(var(--pcp-u) * 0.05); }
-.pcp-tr { right: calc(var(--pcp-u) * 0.05); top: calc(var(--pcp-u) * 0.05); }
-.pcp-root:not([data-phase="load"]) .pcp-tl, .pcp-root:not([data-phase="load"]) .pcp-tr {
-  transform: translateY(calc(var(--pcp-u) * 0.075));
-}
-.pcp-mark {
-  width: 1.15em;
-  height: 1.15em;
-  fill: currentColor;
-  filter: drop-shadow(0 0 4px var(--pcp-magenta));
-}
-.pcp-dim { color: rgba(220, 222, 255, 0.5); }
-.pcp-rec {
-  display: inline-block;
-  width: 0.6em;
-  height: 0.6em;
-  border-radius: 50%;
-  background: #ff3b5c;
-  box-shadow: 0 0 8px #ff3b5c;
-  animation: pcp-blink 1.2s steps(2, jump-none) infinite;
-}
-.pcp-tc { font-variant-numeric: tabular-nums; }
-
 .pcp-bl {
   position: absolute;
   left: calc(var(--pcp-u) * 0.05);
@@ -722,32 +684,6 @@ const PCP_CSS = `
   transform: scaleX(clamp(0, calc(var(--pcp-p) * 4 - var(--k)), 1));
 }
 
-.pcp-br {
-  position: absolute;
-  right: calc(var(--pcp-u) * 0.05);
-  bottom: calc(var(--pcp-u) * 0.05);
-  transition: opacity 0.8s ease, transform 0.9s cubic-bezier(0.6, 0, 0.2, 1);
-}
-.pcp-root[data-phase="ignite"] .pcp-br, .pcp-root[data-phase="reveal"] .pcp-br { transform: translateY(calc(var(--pcp-u) * -0.075)); }
-.pcp-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  animation: pcp-wipe 0.55s cubic-bezier(0.7, 0, 0.2, 1) both;
-}
-.pcp-chip span {
-  display: block;
-  padding: 0.42em 0.7em 0.36em;
-  background: rgba(8, 34, 52, 0.86);
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: none;
-  font-size: 1.15em;
-  box-shadow: 0 0 0 1px rgba(134, 230, 255, 0.08);
-}
-.pcp-chip[data-last="true"] span { font-size: 1.5em; padding: 0.4em 0.8em; }
 
 /* ---- the wordmark under the portal ---- */
 .pcp-title {
@@ -811,19 +747,13 @@ const PCP_CSS = `
   white-space: nowrap;
 }
 
-@keyframes pcp-blink { 0% { opacity: 1; } 100% { opacity: 0.15; } }
-@keyframes pcp-wipe {
-  from { clip-path: inset(0 0 0 100%); transform: translateX(12px); }
-  to { clip-path: inset(0 0 0 0); transform: none; }
-}
 @keyframes pcp-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pcp-rec, .pcp-chip { animation: none; }
   .pcp-root[data-phase="reveal"] .pcp-hint { animation: none; }
   .pcp-letter { filter: none; transform: none; transition: opacity 0.4s ease; }
   .pcp-root[data-phase="lift"] .pcp-title { transform: none; filter: none; }
-  .pcp-bar, .pcp-corner, .pcp-bl, .pcp-br, .pcp-fbstar { transition-duration: 0.01s; }
+  .pcp-bar, .pcp-bl, .pcp-fbstar { transition-duration: 0.01s; }
   .pcp-root[data-phase="lift"][data-hole="true"] .pcp-gate { transition-delay: 0s; }
 }
 `
@@ -859,7 +789,6 @@ export default function PrismCometPreloader({
 
   const rootRef = React.useRef<HTMLDivElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const tcRef = React.useRef<HTMLSpanElement>(null)
   const pointerRef = React.useRef<{ x: number; y: number } | null>(null)
   const rushRef = React.useRef(false)
   const shownRef = React.useRef(0)
@@ -999,7 +928,6 @@ export default function PrismCometPreloader({
     let mShown = 0
     let igShown = 0
     let lastPass = -1
-    let lastTc = ""
     let visible = true
     const ptr = { x: 0, y: 0, on: 0, nx: 0, ny: 0 }
 
@@ -1050,11 +978,6 @@ export default function PrismCometPreloader({
       if (nextPass !== lastPass) {
         lastPass = nextPass
         setPass(nextPass)
-      }
-      const tc = pcpTimecode(now - cycleAtRef.current)
-      if (tc !== lastTc && tcRef.current) {
-        lastTc = tc
-        tcRef.current.textContent = tc
       }
 
       // the pointer, eased, in shader units
@@ -1200,7 +1123,6 @@ export default function PrismCometPreloader({
   const at = failed ? (loading ? pcpPass(pcpMorph(pct / 100), passes.length) : passes.length - 1) : pass
   const label = at >= 0 && at < passes.length ? passes[at] : ""
   const hint = loop ? "Click to replay" : "Click to enter"
-  const two = (n: number) => (n < 10 ? "0" : "") + n
 
   return (
     <div
@@ -1281,26 +1203,6 @@ export default function PrismCometPreloader({
 
           {hud ? (
             <div className="pcp-hud" aria-hidden="true">
-              <div className="pcp-corner pcp-tl">
-                <svg className="pcp-mark" viewBox="-1 -1 2 2">
-                  <path d={SPARK} />
-                </svg>
-                <span>{word}</span>
-                {passes.length ? (
-                  <span className="pcp-dim">
-                    Pass {two(Math.max(0, at) + 1)}/{two(passes.length)}
-                  </span>
-                ) : null}
-              </div>
-              {failed ? null : (
-                <div className="pcp-corner pcp-tr">
-                  <i className="pcp-rec" />
-                  <span className="pcp-dim">Render</span>
-                  <span ref={tcRef} className="pcp-tc">
-                    00:00:00:00
-                  </span>
-                </div>
-              )}
               <div className="pcp-bl">
                 <p className="pcp-count">
                   {String(pct).padStart(3, "0")}
@@ -1312,15 +1214,6 @@ export default function PrismCometPreloader({
                   ))}
                 </div>
               </div>
-              {label ? (
-                <div className="pcp-br">
-                  <div key={cycle + ":" + at} className="pcp-chip" data-last={at === passes.length - 1}>
-                    {label.split("\n").map((line, i) => (
-                      <span key={i}>{line}</span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
