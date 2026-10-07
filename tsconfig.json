@@ -145,7 +145,8 @@
       "@/components/ui/astro-member-card": ["./components/astro-member-card/astro-member-card.tsx"],
       "@/components/ui/astro-footer": ["./components/astro-footer/astro-footer.tsx"],
       "@/components/ui/velvet-haze": ["./components/velvet-haze/velvet-haze.tsx"],
-      "@/components/ui/dappled-canopy": ["./components/dappled-canopy/dappled-canopy.tsx"]
+      "@/components/ui/dappled-canopy": ["./components/dappled-canopy/dappled-canopy.tsx"],
+      "@/components/ui/holo-sticker-logo": ["./components/holo-sticker-logo/holo-sticker-logo.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
