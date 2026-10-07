@@ -8,7 +8,7 @@ import * as React from "react"
  * featured plan lit from inside by a painted afterglow: a dark card washed in
  * amber, coral and rose, with film grain, star specks and a warm bleed under
  * it. The glow drifts, follows the pointer, and moves to whichever plan is
- * subscribed to. A small app bar sits on top and an FAQ accordion underneath.
+ * subscribed to. A small app bar sits on top.
  *
  * The glow is painted on a canvas at runtime (CSS gradients until it lands),
  * so there are no assets and no requests. React is the only import.
@@ -29,12 +29,6 @@ export type AfterglowPlan = {
   featured?: boolean
   /** Button label. Default "Subscribe". */
   cta?: string
-}
-
-export type AfterglowFaq = {
-  question: string
-  /** A string, or one string per paragraph. */
-  answer: string | string[]
 }
 
 /** Five light colours over a dark base: highlight, body, left wash, right wash, hot core. */
@@ -73,12 +67,6 @@ export type AfterglowPricingProps = {
   /** Right-hand button in the app bar; empty hides it. */
   action?: string
   onAction?: () => void
-
-  faqTitle?: string
-  /** An empty list hides the FAQ. */
-  faqs?: AfterglowFaq[]
-  /** Which question starts open; -1 for none. */
-  defaultOpenFaq?: number
 
   className?: string
   style?: React.CSSProperties
@@ -324,28 +312,6 @@ const D_PLANS: AfterglowPlan[] = [
   },
 ]
 
-const D_FAQS: AfterglowFaq[] = [
-  {
-    question: "How many interiors can I generate with a basic plan?",
-    answer: [
-      "Forty renders a month, each in up to four styles. Unused renders roll over for one month.",
-      "Need more mid-cycle? Top up twenty renders for $4 without changing plans — or move to Advanced and keep what you have left.",
-    ],
-  },
-  {
-    question: "Can I switch plans later?",
-    answer: "Any time. Upgrades apply at once and are prorated to the day; downgrades take effect on your next billing date.",
-  },
-  {
-    question: "What does the annual discount cover?",
-    answer: "Every plan, billed once a year at 15% off the monthly price. Cancel within 14 days of renewal for a full refund.",
-  },
-  {
-    question: "Do I own the interiors I generate?",
-    answer: "Yes. Every render is yours to use commercially — mood boards, client decks, listings — with no attribution required.",
-  },
-]
-
 /* ------------------------------------------------------------------ icons */
 
 function Wand() {
@@ -501,26 +467,6 @@ const AG_CSS = [
   ".ag-cta:hover .ag-spark-b,.ag-action:hover .ag-spark-b{transform:scale(1.45) rotate(-30deg);transition-delay:.05s}",
   ".ag-cta:hover .ag-spark-c,.ag-action:hover .ag-spark-c{transform:scale(1.6) rotate(30deg);transition-delay:.1s}",
 
-  /* faq */
-  ".ag-faq{margin-top:66px}",
-  ".ag-faq-title{margin:0;max-width:9.6em;font-size:clamp(22px,2.2vw,26px);font-weight:500;letter-spacing:-.03em;line-height:1.16}",
-  ".ag-faq-list{margin:30px 0 0 34%;max-width:500px;padding:0;list-style:none}",
-  ".ag-faq-item{display:grid;grid-template-columns:minmax(0,160px) minmax(0,1fr) 22px;column-gap:28px;padding:14px 0}",
-  ".ag-faq-item+.ag-faq-item{border-top:1px dashed var(--ag-dash)}",
-  ".ag-q{grid-column:1;grid-row:1;align-self:start;padding:0;border:0;background:none;text-align:left;color:var(--ag-fg);font-size:13px;font-weight:600;",
-  "line-height:1.38;cursor:pointer;border-radius:2px}",
-  ".ag-q:hover{color:color-mix(in oklab,var(--ag-fg) 72%,transparent)}",
-  ".ag-a{grid-column:2;grid-row:1;display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(-4px);",
-  "transition:grid-template-rows .5s var(--ag-ease),opacity .35s,transform .5s var(--ag-ease)}",
-  ".ag-faq-item[data-open=\"true\"] .ag-a{grid-template-rows:1fr;opacity:1;transform:none}",
-  ".ag-a-in{min-height:0;overflow:hidden}",
-  ".ag-a p{margin:0;font-size:13px;line-height:1.48;color:color-mix(in oklab,var(--ag-fg) 70%,transparent)}",
-  ".ag-a p+p{margin-top:10px}",
-  ".ag-x{grid-column:3;grid-row:1;justify-self:end;align-self:start;display:grid;place-items:center;width:22px;height:22px;margin-top:-2px;padding:0;",
-  "border:0;border-radius:50%;background:none;color:var(--ag-fg);cursor:pointer;transition:transform .55s var(--ag-spring),background .25s}",
-  ".ag-x:hover{background:var(--ag-soft2)}",
-  ".ag-faq-item[data-open=\"true\"] .ag-x{transform:rotate(45deg)}",
-
   /* motion */
   "@keyframes ag-breathe{0%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.06) rotate(1.2deg)}100%{transform:scale(1.03) translate(-2%,2%)}}",
   "@keyframes ag-drift-a{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-14%,10%) scale(1.15)}}",
@@ -531,17 +477,14 @@ const AG_CSS = [
   "@keyframes ag-spark{0%{transform:scale(.2) rotate(-90deg);opacity:0}100%{transform:none;opacity:1}}",
 
   /* layout */
-  "@media (max-width:1023px){.ag-grid{grid-template-columns:repeat(min(var(--ag-cols,4),2),minmax(0,1fr));gap:14px}",
-  ".ag-faq-list{margin-left:0;max-width:640px}.ag-faq-item{grid-template-columns:minmax(0,200px) minmax(0,1fr) 22px}}",
+  "@media (max-width:1023px){.ag-grid{grid-template-columns:repeat(min(var(--ag-cols,4),2),minmax(0,1fr));gap:14px}}",
   "@media (max-width:639px){.ag-wrap{padding:20px 16px 64px}.ag-head{grid-template-columns:1fr auto}",
   ".ag-seg{grid-column:1 / -1;grid-row:2;justify-self:center}.ag-titlerow{margin-top:44px}",
-  ".ag-grid{grid-template-columns:minmax(0,1fr)}.ag-card{min-height:0}.ag-fill{min-height:22px}",
-  ".ag-faq{margin-top:52px}.ag-faq-item{grid-template-columns:minmax(0,1fr) 22px;column-gap:16px}",
-  ".ag-x{grid-column:2}.ag-a{grid-column:1 / -1;grid-row:2}.ag-a-in{padding-top:10px}}",
+  ".ag-grid{grid-template-columns:minmax(0,1fr)}.ag-card{min-height:0}.ag-fill{min-height:22px}}",
 
   "@media (prefers-reduced-motion:reduce){.ag-base,.ag-blob,.ag-tw,.ag-num,.ag-was,.ag-yearly,.ag-spark,.ag-cta::after{animation:none!important}",
   ".ag-slot[data-lit=\"true\"] .ag-card{transform:none}.ag-base{translate:none}.ag-tw{opacity:.6}",
-  ".ag-thumb[data-ready=\"true\"],.ag-card,.ag-glow,.ag-bleed,.ag-a,.ag-x,.ag-feats li,.ag-tab,.ag-dot{transition-duration:.01ms!important}}",
+  ".ag-thumb[data-ready=\"true\"],.ag-card,.ag-glow,.ag-bleed,.ag-feats li,.ag-tab,.ag-dot{transition-duration:.01ms!important}}",
 ].join("")
 
 /* -------------------------------------------------------------- helpers */
@@ -592,9 +535,6 @@ export default function AfterglowPricing({
   onTabChange,
   action = "Reimagine interior",
   onAction,
-  faqTitle = "Frequently asked questions",
-  faqs = D_FAQS,
-  defaultOpenFaq = 0,
   className,
   style,
 }: AfterglowPricingProps) {
@@ -603,7 +543,6 @@ export default function AfterglowPricing({
   const [tab, setTab] = React.useState(defaultTab)
   const [selected, setSelected] = React.useState(-1)
   const [pop, setPop] = React.useState(0)
-  const [open, setOpen] = React.useState(defaultOpenFaq)
   const palette = resolveGlow(glow)
   const [art, setArt] = React.useState({ glow: "", grain: "" })
   const segRef = React.useRef(null as HTMLDivElement | null)
@@ -840,45 +779,6 @@ export default function AfterglowPricing({
             )
           })}
         </ul>
-
-        {faqs.length ? (
-          <div className="ag-faq">
-            <h3 className="ag-faq-title">{faqTitle}</h3>
-            <ul className="ag-faq-list">
-              {faqs.map((f, i) => {
-                const isOpen = i === open
-                const toggle = () => setOpen(isOpen ? -1 : i)
-                const paras = Array.isArray(f.answer) ? f.answer : [f.answer]
-                return (
-                  <li key={i} className="ag-faq-item" data-open={isOpen}>
-                    <button
-                      type="button"
-                      className="ag-q"
-                      id={uid + "-q" + i}
-                      aria-expanded={isOpen}
-                      aria-controls={uid + "-a" + i}
-                      onClick={toggle}
-                    >
-                      {f.question}
-                    </button>
-                    <div className="ag-a" id={uid + "-a" + i} role="region" aria-labelledby={uid + "-q" + i}>
-                      <div className="ag-a-in" aria-hidden={!isOpen}>
-                        {paras.map((p, k) => (
-                          <p key={k}>{p}</p>
-                        ))}
-                      </div>
-                    </div>
-                    <button type="button" className="ag-x" tabIndex={-1} aria-hidden="true" onClick={toggle}>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </section>
   )

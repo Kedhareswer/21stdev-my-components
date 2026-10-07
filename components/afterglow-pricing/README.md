@@ -5,7 +5,7 @@ Monthly / Annual switch with a sliding thumb and a discount chip, and a
 featured plan lit from inside by a painted afterglow: a near-black card washed
 in amber, coral and rose, with film grain, star specks that twinkle, and a
 warm bleed underneath. A small app bar (brand, segmented tabs, action) sits on
-top and an FAQ accordion sits underneath.
+top.
 
 **No dependencies, no assets.** The glow and grain are painted on a canvas at
 runtime (CSS gradients stand in until they land, and on the server). React is
@@ -37,11 +37,9 @@ import AfterglowPricing from "@/components/ui/afterglow-pricing"
 | `currentLabel` | `"Current plan"` | button label on the subscribed plan |
 | `showHeader` | `true` | the app bar |
 | `brand` / `tabs` / `defaultTab` / `action` | Roomservice · Generate, History, Account · Reimagine interior | empty `action` hides the button |
-| `faqTitle` / `faqs` / `defaultOpenFaq` | four questions, first open | `faqs={[]}` hides the FAQ; `-1` opens none |
 | `onBillingChange`, `onSubscribe`, `onTabChange`, `onAction` | | callbacks |
 
 Annual billing shows the discounted monthly price (cents only when there are
 some), the struck-through original, and the yearly total. The lit card gets a
 pointer-following light and parallax; the wand's sparkles twinkle on hover.
-Keyboard: arrows flip the billing period; FAQ questions are buttons with
-`aria-expanded`. Reduced motion stops the drift, twinkles and number roll.
+Keyboard: arrows flip the billing period. Reduced motion stops the drift, twinkles and number roll.

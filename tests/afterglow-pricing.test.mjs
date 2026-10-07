@@ -29,7 +29,7 @@ assert.match(src, /cssGlow\(palette\)/, "CSS gradients stand in until the canvas
 }
 assert.match(src, /role="radiogroup"/, "the billing switch is a radio group")
 assert.match(src, /ArrowLeft[\s\S]*ArrowRight/, "arrow keys flip the billing period")
-assert.match(src, /aria-expanded=\{isOpen\}/, "FAQ questions announce their state")
+assert.doesNotMatch(src, /faq/i, "pricing only: no FAQ section")
 assert.match(src, /aria-pressed=\{current\}/, "the subscribed plan's button is pressed")
 for (const d of ["demo.tsx", "demo-custom.tsx"]) {
   const demo = read(d)

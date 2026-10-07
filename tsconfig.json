@@ -148,7 +148,9 @@
       "@/components/ui/velvet-haze": ["./components/velvet-haze/velvet-haze.tsx"],
       "@/components/ui/dappled-canopy": ["./components/dappled-canopy/dappled-canopy.tsx"],
       "@/components/ui/holo-sticker-logo": ["./components/holo-sticker-logo/holo-sticker-logo.tsx"],
-      "@/components/ui/pixel-park-template": ["./components/pixel-park-template/pixel-park-template.tsx"]
+      "@/components/ui/pixel-park-template": ["./components/pixel-park-template/pixel-park-template.tsx"],
+      "@/components/ui/lilac-dusk-canopy": ["./components/lilac-dusk-canopy/lilac-dusk-canopy.tsx"],
+      "@/components/ui/moonlit-canopy": ["./components/moonlit-canopy/moonlit-canopy.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]

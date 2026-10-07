@@ -40,13 +40,6 @@ export default function DemoCustom() {
           cta: "Talk to us",
         },
       ]}
-      faqTitle="Questions, answered"
-      faqs={[
-        { question: "Is there a free trial?", answer: "Pro comes with 14 days free. No card needed until the trial ends." },
-        { question: "Can I keep my presets if I cancel?", answer: "Yes — export them as .cube files any time, on any plan." },
-        { question: "Do you offer education pricing?", answer: "Students and teachers get Pro at half price with a school email." },
-      ]}
-      defaultOpenFaq={-1}
     />
   )
 }
