@@ -125,6 +125,7 @@
       "@/components/ui/contact-sheet-carousel": ["./components/contact-sheet-carousel/contact-sheet-carousel.tsx"],
       "@/components/ui/split-pane-carousel": ["./components/split-pane-carousel/split-pane-carousel.tsx"],
       "@/components/ui/lens-zoom-carousel": ["./components/lens-zoom-carousel/lens-zoom-carousel.tsx"],
+      "@/components/ui/keycap-orb": ["./components/keycap-orb/keycap-orb.tsx"],
       "@/components/ui/shutter-blinds-carousel": ["./components/shutter-blinds-carousel/shutter-blinds-carousel.tsx"],
       "@/components/ui/ink-orbit-footer": ["./components/ink-orbit-footer/ink-orbit-footer.tsx"],
       "@/components/ui/concierge-morph-chat": ["./components/concierge-morph-chat/concierge-morph-chat.tsx"],
