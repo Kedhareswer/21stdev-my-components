@@ -24,13 +24,8 @@ violet → cyan) round the rim, set in a dark spiralling membrane with light
 rays. The wordmark racks into focus under it. Then the camera pushes through
 the portal, and your page is on the other side.
 
-A compositor HUD runs over the whole thing:
-
-- a `000%` counter with one segment per pass
-- the pass-label chip in the corner, which wipes in as each pass is reached
-- a `PASS 02/05` readout
-- a 24 fps render timecode
-- letterbox bars that close in for the ignition
+A `000%` counter with one segment per pass sits in the bottom-left corner, and
+letterbox bars close in for the ignition.
 
 **Interactive.** While it loads, the pointer is a displacement pass. It drags
 a small eddy through the light wherever it goes. Once the portal is lit, the
@@ -52,7 +47,6 @@ import PrismCometPreloader from "@/components/ui/prism-comet-preloader"
 <PrismCometPreloader
   word="Solstice"
   caption="Festival of light · Night one"
-  passes={["Kindling", "Bloom", "Flame", "Meteor", "Solstice"]}
   palette={{ background: "#070302", blue: "#b3261e", violet: "#ff6a1a", magenta: "#ffb02e", cyan: "#fff1c2", gold: "#ffd36b" }}
   speed={1.4}
   grid={false}
@@ -75,15 +69,15 @@ portal is a superellipse star with a swirl and a projective tilt.
 | `loop` | `false` | Cycle forever. The push-through whites out into the next load. `onComplete` never fires. |
 | `progress` | — | Real progress, `0`–`100`. Leave it out to run a simulated load. The star waits for `100`. |
 | `durationMs` | `6500` | Length of the simulated load. It surges and stalls like a real one. |
-| `word` | `"Prisma"` | Wordmark under the portal, and in the HUD. |
+| `word` | `"Prisma"` | Wordmark under the portal. |
 | `caption` | `"Five passes · One light"` | Line under the wordmark. |
-| `passes` | five labels | Chip labels, one per pass. The last one shows once loaded. `"\n"` stacks lines. `[]` hides the chip. |
+| `passes` | five labels | Pass labels, announced to screen readers as the load reaches each one. |
 | `palette` | see below | Partial overrides, as hex. |
 | `intensity` | `1` | Brightness of the light, `0.4`–`2`. |
 | `speed` | `1` | Speed of the flow, `0`–`3`. `0` freezes the noise but not the load. |
 | `quality` | `0.6` | Render scale, `0.35`–`1`. The light is soft, so `0.6` looks the same as `1` at about a third of the cost. |
 | `grid` | `true` | The faint compositing grid behind the load. |
-| `hud` | `true` | Counter, pass chip, timecode and title bar. |
+| `hud` | `true` | The loading counter. |
 | `grain` | `true` | Film grain. |
 | `fontFamily` | sans stack | Face for the wordmark and counter. Nothing is fetched. Pass one the host already loads. |
 | `height` | `"100svh"` | Root height. Always a definite length, never `h-full`. |
@@ -111,7 +105,7 @@ Anything else falls back to the default for that key.
 - When it renders `children`, the canvas goes transparent inside the star as
   the camera pushes in. The page you pass is mounted the whole time and shows
   through the portal. Nothing in the stylesheet reaches into it, and the
-  HUD's type and colour live on the gate, not the root.
+  counter's type and colour live on the gate, not the root.
 - The canvas renders at `quality × devicePixelRatio` (capped at 2) and the
   browser scales it up. It stops drawing while off screen or in a hidden tab.
 - Without WebGL, a CSS fallback plays the same story: a glow that gathers

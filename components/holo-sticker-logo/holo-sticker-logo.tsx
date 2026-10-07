@@ -6,21 +6,15 @@ import * as React from "react"
  * Holo Sticker Logo — a die-cut holographic foil sticker with its corner
  * peeling up, as a living logo mark.
  *
- * It opens on a print-shop preloader: registration marks, a dashed die-cut
- * line and a wireframe of the mark, with the cut ring closing as the load
- * climbs. At 100% the foil is stamped from the centre out behind a white-hot
- * edge, the ink draws itself on stroke by stroke, the corner curls up and a
- * band of light crosses the sheet.
- *
- * Then it is live. The sticker leans toward the pointer and the rainbow moves
- * because the *view* moved, not on a timer. Click it (or Enter) and the mark
+ * The sticker leans toward the pointer and the rainbow moves because the
+ * *view* moved, not on a timer. Click it (or Enter) and the mark
  * morphs — the strokes are cubic Béziers interpolated point for point, while
  * the sheet dips, spins back and the foil runs a full turn of the spectrum.
  * Grab the curled corner and peel it: the flap is a real cylinder curl
  * computed per pixel, with the back of the sticker on the outside of the roll.
  *
  * One file, React only. Raw WebGL2 for the sheet, a 2D canvas for the ink
- * mask, procedural SVG for the press marks. Nothing is fetched.
+ * mask. Nothing is fetched.
  */
 
 export type GlyphName = "waves" | "play" | "bars" | "broadcast" | "spark" | "smile"
@@ -72,18 +66,8 @@ export type HoloStickerLogoProps = {
   peelAngle?: number
   /** Largest pointer tilt, degrees. */
   tilt?: number
-  /** Real loading progress 0–100. Leave out to simulate over `durationMs`. */
-  progress?: number
-  /** Length of the simulated load. */
-  durationMs?: number
-  /** Open on the finished sticker, no preloader. */
-  skipIntro?: boolean
-  /** Fired once the press sequence is over. */
-  onLoaded?: () => void
-  /** Accessible name, also set small in the caption. */
+  /** Accessible name. */
   label?: string
-  /** Show the caption row under the sticker. */
-  caption?: boolean
   className?: string
 }
 
@@ -660,7 +644,6 @@ const UNIFORMS = [
 ] as const
 
 type Spring = { x: number; v: number }
-type Phase = "load" | "press" | "live"
 
 const CSS = `
 .hsk-root { position: relative; width: 100%; overflow: hidden; container-type: size; isolation: isolate;
@@ -672,9 +655,7 @@ const CSS = `
 .hsk-clear { background: transparent; color: inherit; }
 .hsk-slot { --hsk-d: min(60vmin, 440px); position: relative; width: var(--hsk-d); height: var(--hsk-d); perspective: 900px; flex: none; }
 @supports (width: 1cqmin) { .hsk-slot { --hsk-d: min(64cqmin, 440px); } }
-.hsk-glow { position: absolute; inset: -38%; border-radius: 50%; pointer-events: none; opacity: 0;
-  transition: opacity 1.6s ease; filter: blur(8px); }
-.hsk-root[data-phase="press"] .hsk-glow, .hsk-root[data-phase="live"] .hsk-glow { opacity: 1; }
+.hsk-glow { position: absolute; inset: -38%; border-radius: 50%; pointer-events: none; filter: blur(8px); }
 .hsk-body { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
 .hsk-canvas { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; display: block; pointer-events: none; }
 .hsk-fallback { position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
@@ -684,41 +665,9 @@ const CSS = `
   cursor: pointer; touch-action: pan-y; appearance: none; -webkit-appearance: none; color: inherit; }
 .hsk-hit:focus { outline: none; }
 .hsk-hit:focus-visible { outline: 1.5px solid currentColor; outline-offset: 10px; }
-.hsk-root[data-phase="load"] .hsk-hit { cursor: progress; }
 .hsk-corner { position: absolute; width: 26%; height: 26%; border-radius: 50%; transform: translate(-50%, -50%);
   cursor: grab; touch-action: none; }
 .hsk-corner:active { cursor: grabbing; }
-.hsk-root[data-phase="load"] .hsk-corner { display: none; }
-.hsk-press { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.hsk-press * { transform-box: view-box; transform-origin: 0 0; }
-.hsk-die { fill: none; stroke: currentColor; stroke-width: 0.6; stroke-dasharray: 1.6 3.2; opacity: 0.38;
-  animation: hsk-spin 22s linear infinite; transition: opacity 0.5s ease; }
-.hsk-arc { fill: none; stroke-width: 1.4; stroke-linecap: round; transition: stroke-dashoffset 0.25s ease-out, opacity 0.9s ease 0.15s, stroke-width 0.5s ease; }
-.hsk-wire path { fill: none; stroke: currentColor; stroke-width: 0.7; stroke-linecap: round; opacity: 0.5;
-  transition: stroke-dashoffset 0.3s ease-out, opacity 0.6s ease; }
-.hsk-marks { transition: transform 1.1s cubic-bezier(0.2, 0.7, 0.1, 1), opacity 0.8s ease; }
-.hsk-marks line, .hsk-marks circle { fill: none; stroke: currentColor; stroke-width: 0.55; }
-.hsk-marks .hsk-dot { fill: currentColor; stroke: none; }
-.hsk-label { fill: currentColor; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 5.2px; letter-spacing: 0.9px; opacity: 0.62; }
-.hsk-count { fill: currentColor; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; }
-.hsk-root:not([data-phase="load"]) .hsk-die, .hsk-root:not([data-phase="load"]) .hsk-wire path { opacity: 0; }
-.hsk-root:not([data-phase="load"]) .hsk-arc { opacity: 0; stroke-width: 7; }
-.hsk-root:not([data-phase="load"]) .hsk-marks { transform: scale(1.35); opacity: 0; }
-.hsk-caption { position: absolute; left: 0; right: 0; bottom: max(18px, 4.5cqh); display: flex; justify-content: center;
-  align-items: center; gap: 14px; padding: 0 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0; transform: translateY(6px);
-  transition: opacity 0.9s ease 0.2s, transform 0.9s cubic-bezier(0.2, 0.7, 0.1, 1) 0.2s; pointer-events: none; white-space: nowrap; }
-.hsk-root[data-phase="live"] .hsk-caption { opacity: 1; transform: none; }
-.hsk-caption b { font-weight: 600; }
-.hsk-caption i { font-style: normal; opacity: 0.5; }
-.hsk-caption .hsk-hint { opacity: 0.42; }
-.hsk-rule { width: 22px; height: 1px; background: currentColor; opacity: 0.3; }
-@container (max-width: 520px) { .hsk-caption .hsk-hint, .hsk-caption .hsk-rule.hsk-r2 { display: none; } }
-@keyframes hsk-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .hsk-die { animation: none; }
-  .hsk-arc, .hsk-wire path, .hsk-marks, .hsk-caption, .hsk-glow { transition: none; }
-}
 `
 
 export default function HoloStickerLogo({
@@ -737,12 +686,7 @@ export default function HoloStickerLogo({
   peel = 0.3,
   peelAngle = 48,
   tilt = 14,
-  progress,
-  durationMs = 2600,
-  skipIntro = false,
-  onLoaded,
   label = "Holo sticker",
-  caption = true,
   className,
 }: HoloStickerLogoProps) {
   const glyphKey = JSON.stringify(glyphs ?? null)
@@ -753,8 +697,6 @@ export default function HoloStickerLogo({
   const current = (((index ?? ownIndex) % count) + count) % count
   const glyph = list[current]
 
-  const [phase, setPhase] = React.useState<Phase>(skipIntro ? "live" : "load")
-  const [pct, setPct] = React.useState(skipIntro ? 100 : 0)
   const [failed, setFailed] = React.useState(false)
   const [reduced, setReduced] = React.useState(false)
 
@@ -762,10 +704,6 @@ export default function HoloStickerLogo({
   const slotRef = React.useRef<HTMLDivElement>(null)
   const bodyRef = React.useRef<HTMLDivElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const onLoadedRef = React.useRef(onLoaded)
-  onLoadedRef.current = onLoaded
-  const phaseRef = React.useRef(phase)
-  phaseRef.current = phase
   const reducedRef = React.useRef(reduced)
   reducedRef.current = reduced
 
@@ -780,7 +718,7 @@ export default function HoloStickerLogo({
     ax: { x: 0, v: 0 } as Spring,
     ay: { x: 0, v: 0 } as Spring,
     spin: { x: 0, v: 0 } as Spring,
-    scale: { x: skipIntro ? 1 : 0.86, v: 0 } as Spring,
+    scale: { x: 1, v: 0 } as Spring,
     qx: { x: 0, v: 0 } as Spring,
     qy: { x: 0, v: 0 } as Spring,
     seeded: false,
@@ -788,14 +726,12 @@ export default function HoloStickerLogo({
     hoverCorner: false,
     drag: null as null | { id: number; ox: number; oy: number; sx: number; sy: number; travel: number },
     dragTarget: [0, 0] as [number, number],
-    pressAt: skipIntro ? -1e9 : Infinity,
-    sweepAt: skipIntro ? -1e9 : Infinity,
+    sweepAt: -1e9,
     phase: 0,
     phaseFrom: 0,
     phaseAt: -1e9,
     shown: null as StickerGlyph | null,
     morph: null as null | { from: StickerGlyph; to: StickerGlyph; at: number },
-    draw: skipIntro ? 1 : 0,
     dirty: true,
     kickSign: 1,
   })
@@ -809,49 +745,9 @@ export default function HoloStickerLogo({
     return () => mq.removeEventListener("change", sync)
   }, [])
 
-  // -- the load --------------------------------------------------------------
-  const controlled = progress !== undefined
-  React.useEffect(() => {
-    if (phase !== "load") return
-    if (controlled) {
-      setPct(Math.round(clamp(Number(progress), 0, 100)))
-      return
-    }
-    let raf = 0
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const t = clamp((now - t0) / Math.max(200, durationMs), 0, 1)
-      // eased, with a few stalls, the way a real queue arrives
-      const v = t >= 1 ? 100 : Math.round(100 * easeOutCubic(clamp(t + 0.035 * Math.sin(t * 18), 0, 1)))
-      setPct((p) => Math.max(p, Math.min(v, 100)))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [phase, controlled, progress, durationMs])
-
-  React.useEffect(() => {
-    if (phase !== "load" || pct < 100) return
-    const a = anim.current
-    a.pressAt = performance.now() - (reducedRef.current ? 1e5 : 0)
-    a.sweepAt = a.pressAt + 1450
-    setPhase("press")
-  }, [pct, phase])
-
-  React.useEffect(() => {
-    if (phase !== "press") return
-    const t = setTimeout(() => setPhase("live"), reduced ? 0 : 2300)
-    return () => clearTimeout(t)
-  }, [phase, reduced])
-
-  React.useEffect(() => {
-    if (phase === "live") onLoadedRef.current?.()
-  }, [phase])
-
   // -- the mark ----------------------------------------------------------------
   const go = React.useCallback(
     (step: number) => {
-      if (phaseRef.current === "load") return
       const next = (((current + step) % count) + count) % count
       onIndexChange?.(next)
       if (index === undefined) setOwnIndex(next)
@@ -869,7 +765,7 @@ export default function HoloStickerLogo({
     const target = a.morph ? a.morph.to : a.shown
     if (target === glyph) return
     const now = performance.now()
-    if (phaseRef.current !== "live" || reducedRef.current) {
+    if (reducedRef.current) {
       a.shown = glyph
       a.morph = null
       a.dirty = true
@@ -901,14 +797,14 @@ export default function HoloStickerLogo({
 
   // auto-cycle, paused while someone is handling it
   React.useEffect(() => {
-    if (phase !== "live" || !cycle || cycle < 600 || reduced || count < 2) return
+    if (!cycle || cycle < 600 || reduced || count < 2) return
     const t = setInterval(() => {
       const a = anim.current
       if (a.drag || a.pointer || document.hidden) return
       go(1)
     }, cycle)
     return () => clearInterval(t)
-  }, [phase, cycle, reduced, count, go])
+  }, [cycle, reduced, count, go])
 
   // -- the sheet -----------------------------------------------------------
   React.useEffect(() => {
@@ -1008,16 +904,6 @@ export default function HoloStickerLogo({
       const P = props.current
       const still = reducedRef.current
 
-      // timeline of the press
-      const e = now - a.pressAt
-      const reveal = easeOutCubic((e - 120) / 1000)
-      const heat = 1 - clamp((e - 850) / 450, 0, 1)
-      const draw = clamp((e - 650) / 1100, 0, 1)
-      if (draw !== a.draw) {
-        a.draw = draw
-        a.dirty = true
-      }
-
       // tilt: toward the pointer, or a slow drift when nobody is there
       const time = (now - t0) / 1000
       let tx = 0
@@ -1037,24 +923,18 @@ export default function HoloStickerLogo({
       step(a.ax, tx, 60, 11, dt)
       step(a.ay, ty, 60, 11, dt)
       step(a.spin, 0, 80, 8.5, dt)
-      step(a.scale, e < 0 ? 0.86 : 1 + (a.hoverCorner || a.drag ? 0.015 : 0), 170, 13, dt)
+      step(a.scale, 1 + (a.hoverCorner || a.drag ? 0.015 : 0), 170, 13, dt)
 
       // the corner
       const ang = P.peelAngle
-      const cRad = (ang * Math.PI) / 180
       if (!a.seeded) {
-        a.qx.x = Math.cos(cRad)
-        a.qy.x = Math.sin(cRad)
-        if (e > 1250) {
-          const r = restCorner(ang, P.peel)
-          a.qx.x = r[0]
-          a.qy.x = r[1]
-        }
+        const r = restCorner(ang, P.peel)
+        a.qx.x = r[0]
+        a.qy.x = r[1]
         a.seeded = true
       }
       let qt: [number, number]
-      if (e < 1250) qt = [Math.cos(cRad), Math.sin(cRad)]
-      else if (a.drag && a.pointer) qt = a.dragTarget
+      if (a.drag && a.pointer) qt = a.dragTarget
       else qt = restCorner(ang, P.peel + (a.hoverCorner ? 0.12 : 0))
       const soft = a.drag ? 300 : 120
       step(a.qx, qt[0], soft, a.drag ? 30 : 10, dt)
@@ -1072,7 +952,7 @@ export default function HoloStickerLogo({
         }
       }
       if (a.dirty && a.shown) {
-        paintMask(mctx, a.morph ? a.morph.from : null, a.morph ? a.morph.to : a.shown, mt, a.draw)
+        paintMask(mctx, a.morph ? a.morph.from : null, a.morph ? a.morph.to : a.shown, mt, 1)
         gl.bindTexture(gl.TEXTURE_2D, tex)
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas)
@@ -1084,7 +964,7 @@ export default function HoloStickerLogo({
       const phaseNow = a.phaseFrom + (pk < 1 ? pk * pk * (3 - 2 * pk) : 1)
       if (pk >= 1) a.phase = a.phaseFrom + 1
       // and a band of light on cue, plus now and then on its own
-      if (!still && a.pressAt < now - 4000 && now - a.sweepAt > 7000) a.sweepAt = now
+      if (!still && now - a.sweepAt > 7000) a.sweepAt = now
       const sweep = -1.9 + 3.8 * easeOutCubic((now - a.sweepAt) / 1100)
 
       // view in sticker space: un-spin it, so the light stays in the room
@@ -1113,8 +993,8 @@ export default function HoloStickerLogo({
       gl.uniform2f(loc.uDir, geo.dx, geo.dy)
       gl.uniform1f(loc.uFold, geo.fold)
       gl.uniform1f(loc.uCurl, geo.r)
-      gl.uniform1f(loc.uReveal, reveal)
-      gl.uniform1f(loc.uHeat, heat)
+      gl.uniform1f(loc.uReveal, 1)
+      gl.uniform1f(loc.uHeat, 0)
       gl.uniform1f(loc.uPhase, phaseNow)
       gl.uniform1f(loc.uSweep, sweep)
       gl.uniform1f(loc.uLift, clamp((a.scale.x - 1) * 40, 0, 1))
@@ -1206,7 +1086,6 @@ export default function HoloStickerLogo({
   }
 
   const onCornerDown = (ev: React.PointerEvent) => {
-    if (phaseRef.current === "load") return
     ev.preventDefault()
     ev.stopPropagation()
     const a = anim.current
@@ -1246,10 +1125,7 @@ export default function HoloStickerLogo({
 
   // -- markup ----------------------------------------------------------------
   const corner = restCorner(peelAngle, peel * 0.5)
-  const gid = "hsk" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "")
-  const wire = list[current].strokes ?? GLYPHS.waves
   const wk = 2 * BOX
-  const pad = (n: number) => String(n).padStart(2, "0")
   const glowRgb = tintRgb.map((c) => Math.round(c * 255)).join(",")
 
   return (
@@ -1257,7 +1133,6 @@ export default function HoloStickerLogo({
       ref={rootRef}
       className={"hsk-root hsk-" + tone + (className ? " " + className : "")}
       style={{ height }}
-      data-phase={phase}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
     >
@@ -1282,7 +1157,7 @@ export default function HoloStickerLogo({
           />
         ) : null}
 
-        <div ref={bodyRef} className="hsk-body" style={{ transform: skipIntro ? undefined : "scale(0.86)" }}>
+        <div ref={bodyRef} className="hsk-body">
           {failed ? (
             <div
               className="hsk-fallback"
@@ -1313,79 +1188,11 @@ export default function HoloStickerLogo({
           )}
         </div>
 
-        {/* The press sheet: die line, wireframe and registration marks. */}
-        <svg className="hsk-press" viewBox="-100 -100 200 200" aria-hidden="true">
-          <defs>
-            <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor={tint} />
-              <stop offset="0.35" stopColor="#7fd9ff" />
-              <stop offset="0.6" stopColor="#c08cff" />
-              <stop offset="0.85" stopColor="#ff9ad5" />
-              <stop offset="1" stopColor="#ffe38a" />
-            </linearGradient>
-          </defs>
-          <circle className="hsk-die" r="100" />
-          <circle
-            className="hsk-arc"
-            r="100"
-            pathLength={100}
-            stroke={"url(#" + gid + ")"}
-            strokeDasharray="100 100"
-            strokeDashoffset={100 - pct}
-            transform="rotate(-90)"
-          />
-          <g className="hsk-wire">
-            {wire.map((s, i) => {
-              const n = wire.length
-              const local = clamp((pct / 100 - (i / n) * 0.7) / 0.4, 0, 1)
-              return (
-                <path
-                  key={i}
-                  d={strokePath(s, wk, 50)}
-                  pathLength={1}
-                  strokeDasharray="1 1"
-                  strokeDashoffset={1 - local}
-                />
-              )
-            })}
-          </g>
-          <g className="hsk-marks">
-            {[
-              [-128, -128],
-              [128, -128],
-              [-128, 128],
-              [128, 128],
-            ].map(([x, y], i) => (
-              <g key={i} transform={"translate(" + x + " " + y + ")"}>
-                <circle r="6" />
-                <circle r="2.2" className="hsk-dot" />
-                <line x1="-11" y1="0" x2="11" y2="0" />
-                <line x1="0" y1="-11" x2="0" y2="11" />
-              </g>
-            ))}
-            <g transform="translate(-112 121)">
-              {["#00b7eb", "#ff2f92", "#ffe600", "#111", tint].map((c, i) => (
-                <rect key={i} x={i * 7.5} y="0" width="6" height="6" fill={c} />
-              ))}
-            </g>
-            <text className="hsk-label" x="-112" y="-114">
-              HOLO FOIL · DIE {pad(current + 1)}
-            </text>
-            <text className="hsk-label" x="112" y="-114" textAnchor="end">
-              {phase === "load" ? "PRESSING" : "PRESSED"}
-            </text>
-            <text className="hsk-count" x="112" y="129" textAnchor="end">
-              {String(pct).padStart(3, "0")}
-            </text>
-          </g>
-        </svg>
-
         <button
           type="button"
           className="hsk-hit"
           aria-label={label + ": " + glyph.name + ". Press to change the mark."}
           aria-roledescription="sticker"
-          disabled={phase === "load"}
           onClick={() => go(1)}
           onKeyDown={onKey}
         />
@@ -1398,29 +1205,13 @@ export default function HoloStickerLogo({
           onPointerCancel={onCornerUp}
         />
       </div>
+      <span
+        aria-live="polite"
+        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)" }}
+      >
+        {glyph.name}
+      </span>
 
-      {phase === "load" ? (
-        <div
-          role="progressbar"
-          aria-label={"Loading " + label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
-          style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)" }}
-        />
-      ) : null}
-
-      {caption ? (
-        <div className="hsk-caption" aria-live="polite">
-          <b>{glyph.name}</b>
-          <span className="hsk-rule" />
-          <i>
-            {pad(current + 1)} / {pad(count)}
-          </i>
-          <span className="hsk-rule hsk-r2" />
-          <span className="hsk-hint">Click to morph · drag the corner</span>
-        </div>
-      ) : null}
     </div>
   )
 }

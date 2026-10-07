@@ -2,7 +2,7 @@
 
 import PrismCometPreloader from "@/components/ui/prism-comet-preloader"
 
-// Your own words and light: an ember palette, your own pass labels, a faster
+// Your own words and light: an ember palette, a faster
 // flow, and no compositing grid.
 export default function DemoEmber() {
   return (
@@ -10,7 +10,6 @@ export default function DemoEmber() {
       loop
       word="Solstice"
       caption="Festival of light · Night one"
-      passes={["Kindling", "Bloom", "Flame", "Meteor", "Solstice"]}
       palette={{
         background: "#070302",
         blue: "#b3261e",

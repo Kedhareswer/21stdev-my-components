@@ -1,24 +1,17 @@
 # Holo Sticker Logo
 
 A die-cut holographic foil sticker with its corner peeling up, as a living logo
-mark. It opens on a print-shop preloader, stamps itself in, and then morphs
-between marks while it catches the light.
+mark. It morphs between marks while it catches the light.
 
-**No dependencies.** Raw WebGL2 for the sheet, a 2D canvas for the ink mask,
-procedural SVG for the press marks. React is the only import and nothing is
-fetched.
+**No dependencies.** Raw WebGL2 for the sheet, and a 2D canvas for the ink
+mask. React is the only import and nothing is fetched.
 
-## The sequence
+## Interaction
 
-1. **Pressing.** Registration marks, a dashed die line turning slowly, the
-   mark as a wireframe, and the cut ring closing as the load climbs.
-2. **Stamped.** At 100% the foil is stamped from the centre outward behind a
-   white-hot edge. The ink draws on stroke by stroke and the corner curls up.
-   Then a band of light crosses the sheet.
-3. **Live.** The sticker leans toward the pointer. Click, tap or Enter morphs
-   the mark: the sheet dips, spins back and swings, and the foil runs a full
-   turn of the spectrum. Grab the curled corner and peel it. A tap flicks it,
-   and a hard peel swaps the mark.
+The sticker leans toward the pointer. Click, tap or Enter morphs the mark:
+the sheet dips, spins back and swings, and the foil runs a full turn of the
+spectrum. Grab the curled corner and peel it. A tap flicks it,
+and a hard peel swaps the mark.
 
 ## Why it looks like a sticker and not a gradient
 
@@ -52,8 +45,7 @@ import HoloStickerLogo from "@/components/ui/holo-sticker-logo"
 
 <HoloStickerLogo />
 <HoloStickerLogo tone="studio" tint="#8b6bff" peelAngle={132} />
-<HoloStickerLogo glyphs={["play", "bars"]} cycle={0} skipIntro />
-<HoloStickerLogo progress={loaded} onLoaded={() => setReady(true)} />
+<HoloStickerLogo glyphs={["play", "bars"]} cycle={0} />
 ```
 
 ### Your own mark
@@ -89,18 +81,14 @@ is a dot.
 | `tilt` | `14` | Largest pointer lean, degrees. |
 | `size` | `min(64cqmin, 440px)` | Sticker diameter. |
 | `height` | `100svh` | Stage height. Must be a definite length. |
-| `progress` | — | Real load, 0–100. Leave out to simulate over `durationMs` (`2600`). |
-| `skipIntro` | `false` | Open on the finished sticker. |
-| `onLoaded` | — | Fired once the press sequence is over. |
 | `label` | `"Holo sticker"` | Accessible name. |
-| `caption` | `true` | The mark name, index and hint under the sticker. |
 
 ## Notes
 
 - **Accessibility.** The sticker is a real button with a label that names the
-  current mark. The arrow keys step through marks. The caption is `aria-live`,
-  and the load is a `progressbar`.
-- **Reduced motion.** The press resolves at once, and the idle drift,
+  current mark. The arrow keys step through marks. Each new mark is
+  announced through a polite live region.
+- **Reduced motion.** The idle drift,
   auto-cycle, light sweeps and glitter stop. The pointer lean still works,
   because that motion is the reader's own.
 - **No WebGL2?** It falls back to a conic-gradient disc with the mark on it

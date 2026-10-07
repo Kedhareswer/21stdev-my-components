@@ -162,8 +162,7 @@ assert.doesNotMatch(src, /https?:\/\/(?!www\.w3\.org)/, "nothing fetched: every 
 assert.ok(src.includes('height = "100svh"'), "height defaults to a definite length")
 assert.doesNotMatch(src, /className=["'][^"']*\bh-full\b/, "no h-full")
 assert.ok(src.includes("prefers-reduced-motion"), "honours reduced motion")
-assert.ok(src.includes('role="progressbar"') && src.includes("aria-valuenow={pct}"), "reports progress")
-assert.ok(src.includes("onLoadedRef.current"), "onLoaded through a ref, not an effect dependency")
+assert.doesNotMatch(src, /skipIntro|progressbar|hsk-press/, "no loading intro: it opens on the live sticker")
 assert.doesNotMatch(src, /console\./, "no debug logging ships")
 
 const css = src.match(/const CSS = `([\s\S]*?)`/)
@@ -175,10 +174,6 @@ for (const x of css[1].replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s*
   if (sel.startsWith("@") || /^(from|to|[\d.]+%)/.test(sel)) continue
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".hsk-")), `unscoped selector: ${sel}`)
 }
-// view-box puts the reference box's origin at user (0,0), which for a
-// -100..100 viewBox is the centre. 50% 50% would be (100,100) and swings the
-// progress arc and the die line off the sticker.
-assert.ok(css[1].includes(".hsk-press * { transform-box: view-box; transform-origin: 0 0; }"), "press marks rotate about the centre")
 
 for (const gone of [
   "cancelAnimationFrame(raf)",
