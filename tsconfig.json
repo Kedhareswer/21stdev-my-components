@@ -141,7 +141,8 @@
       "@/components/ui/astro-project-cards": ["./components/astro-project-cards/astro-project-cards.tsx"],
       "@/components/ui/astro-sky-nights": ["./components/astro-sky-nights/astro-sky-nights.tsx"],
       "@/components/ui/astro-member-card": ["./components/astro-member-card/astro-member-card.tsx"],
-      "@/components/ui/astro-footer": ["./components/astro-footer/astro-footer.tsx"]
+      "@/components/ui/astro-footer": ["./components/astro-footer/astro-footer.tsx"],
+      "@/components/ui/dappled-canopy": ["./components/dappled-canopy/dappled-canopy.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
