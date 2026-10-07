@@ -120,6 +120,7 @@
       "@/components/ui/rgb-glitch-carousel": ["./components/rgb-glitch-carousel/rgb-glitch-carousel.tsx"],
       "@/components/ui/ink-blot-carousel": ["./components/ink-blot-carousel/ink-blot-carousel.tsx"],
       "@/components/ui/water-ripple-carousel": ["./components/water-ripple-carousel/water-ripple-carousel.tsx"],
+      "@/components/ui/afterglow-pricing": ["./components/afterglow-pricing/afterglow-pricing.tsx"],
       "@/components/ui/tile-flip-carousel": ["./components/tile-flip-carousel/tile-flip-carousel.tsx"],
       "@/components/ui/polaroid-line-carousel": ["./components/polaroid-line-carousel/polaroid-line-carousel.tsx"],
       "@/components/ui/contact-sheet-carousel": ["./components/contact-sheet-carousel/contact-sheet-carousel.tsx"],
