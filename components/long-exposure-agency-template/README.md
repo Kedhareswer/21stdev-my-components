@@ -1,8 +1,9 @@
 # Long Exposure Agency Template
 
-A complete automation-agency site in one component. A pale frame holds a quiet
-serif, ink buttons and soft grey cards. Every picture is a long-exposure blur
-of a landscape that was never photographed, drawn live in WebGL.
+A complete automation-agency site in one component, full screen and edge to
+edge: a pale page with a quiet serif, ink buttons and soft grey cards. Every
+picture is a long-exposure blur of a landscape that was never photographed,
+drawn live in WebGL.
 
 It has three pages behind one nav. They switch in place and never touch the
 host URL:
@@ -93,7 +94,7 @@ Anything else (`/pricing`, `https://…`) is an ordinary link.
 | `serif`, `sans` | Newsreader / Figtree stacks | CSS font-family lists. Load a webfont in your app, then name it here. |
 | `ink` | `#121719` | Button and heading ink in the light theme. |
 | `defaultTheme` | `"system"` | `"system"` follows the host's `.dark` class, then the OS. The footer switch overrides it. |
-| `maxWidth` | `"1280px"` | Width of the frame. |
+| `maxWidth` | `"1120px"` | Width of the content column. The page background always fills the screen; on wider screens the content stays centred. |
 | `height` | `"100svh"` | Minimum height of the page. |
 
 ### Pictures
