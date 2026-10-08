@@ -1,7 +1,7 @@
 "use client"
 
 // Long Exposure Agency Template — a whole automation-agency site in one file:
-// a pale frame, a quiet serif, ink buttons, and every picture a long-exposure
+// a full-screen pale page, a quiet serif, ink buttons, and every picture a long-exposure
 // blur of some landscape that was never photographed.
 //
 // Three pages behind one nav, switched in place: home (hero over a live prism,
@@ -91,6 +91,7 @@ export type LongExposureAgencyTemplateProps = {
   /** Button and ink colour in the light theme. */
   ink?: string
   defaultTheme?: "system" | "light" | "dark"
+  /** Width of the content column. The page itself always fills the screen. */
   maxWidth?: string
   height?: string
   className?: string
@@ -1859,7 +1860,7 @@ export default function LongExposureAgencyTemplate({
   sans = SANS,
   ink,
   defaultTheme = "system",
-  maxWidth = "1280px",
+  maxWidth = "1120px",
   height = "100svh",
   className,
 }: LongExposureAgencyTemplateProps) {
@@ -2111,8 +2112,8 @@ export default function LongExposureAgencyTemplate({
 /* ------------------------------------------------------------------ styles */
 
 const LX_CSS = `
-.lx-root{--lx-page:#e9eff0;--lx-card:#f8fafa;--lx-soft:#eff3f3;--lx-soft2:#e6ecec;--lx-ink:#111618;--lx-ink2:#2a3235;--lx-muted:#5e686c;--lx-faint:#8e979b;--lx-line:rgba(17,22,24,.08);--lx-btn:#121719;--lx-btn-ink:#ffffff;--lx-glass:rgba(24,27,30,.42);--lx-shadow:0 1px 2px rgba(17,22,24,.05),0 8px 24px -12px rgba(17,22,24,.12);position:relative;isolation:isolate;box-sizing:border-box;width:100%;padding:clamp(8px,2.2vw,32px);background:var(--lx-page);color:var(--lx-ink);font-family:var(--lx-sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:clip;transition:background-color .4s ease,color .4s ease}
-.lx-root[data-theme=dark]{--lx-page:#07090a;--lx-card:#0f1213;--lx-soft:#161a1c;--lx-soft2:#1d2225;--lx-ink:#edf1f2;--lx-ink2:#cdd4d6;--lx-muted:#98a2a6;--lx-faint:#6b7579;--lx-line:rgba(255,255,255,.08);--lx-btn:#eef2f3;--lx-btn-ink:#0e1214;--lx-glass:rgba(10,12,14,.5);--lx-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -12px rgba(0,0,0,.6)}
+.lx-root{--lx-card:#f8fafa;--lx-soft:#eff3f3;--lx-soft2:#e6ecec;--lx-ink:#111618;--lx-ink2:#2a3235;--lx-muted:#5e686c;--lx-faint:#8e979b;--lx-line:rgba(17,22,24,.08);--lx-btn:#121719;--lx-btn-ink:#ffffff;--lx-glass:rgba(24,27,30,.42);--lx-shadow:0 1px 2px rgba(17,22,24,.05),0 8px 24px -12px rgba(17,22,24,.12);position:relative;isolation:isolate;box-sizing:border-box;width:100%;background:var(--lx-card);color:var(--lx-ink);font-family:var(--lx-sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:clip;transition:background-color .4s ease,color .4s ease}
+.lx-root[data-theme=dark]{--lx-card:#0f1213;--lx-soft:#161a1c;--lx-soft2:#1d2225;--lx-ink:#edf1f2;--lx-ink2:#cdd4d6;--lx-muted:#98a2a6;--lx-faint:#6b7579;--lx-line:rgba(255,255,255,.08);--lx-btn:#eef2f3;--lx-btn-ink:#0e1214;--lx-glass:rgba(10,12,14,.5);--lx-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -12px rgba(0,0,0,.6)}
 .lx-root :where(*,*::before,*::after){box-sizing:border-box}
 .lx-root :where(h1,h2,h3,p,ul,figure,blockquote){margin:0;padding:0}
 .lx-root :where(ul){list-style:none}
@@ -2122,11 +2123,11 @@ const LX_CSS = `
 .lx-root :where(svg,canvas){display:block;max-width:none}
 .lx-root :where(a,button,input,textarea):focus-visible{outline:2px solid var(--lx-ink);outline-offset:2px}
 .lx-serif{font-family:var(--lx-serif);font-weight:400}
-.lx-frame{position:relative;max-width:var(--lx-max);margin:0 auto;background:var(--lx-card);border-radius:clamp(18px,2.4vw,30px);container-type:inline-size;container-name:lx;overflow:clip;box-shadow:0 0 0 1px var(--lx-line);transition:background-color .4s ease}
-.lx-main{display:block;padding:0 clamp(16px,6.5cqw,96px)}
+.lx-frame{position:relative;width:100%;container-type:inline-size;container-name:lx;overflow:clip}
+.lx-main{display:block;padding:0 max(clamp(16px,6.5cqw,96px),calc((100cqw - var(--lx-max)) / 2))}
 
 /* ---------- nav ---------- */
-.lx-nav{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:22px clamp(16px,6.5cqw,96px);background:color-mix(in oklab,var(--lx-card) 82%,transparent);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
+.lx-nav{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:22px max(clamp(16px,6.5cqw,96px),calc((100cqw - var(--lx-max)) / 2));background:color-mix(in oklab,var(--lx-card) 82%,transparent);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
 .lx-brand{display:inline-flex;align-items:center;gap:8px;justify-self:start;font-size:24px;line-height:1;letter-spacing:-.02em}
 .lx-brand .lx-dots{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .lx-brand:hover .lx-dots{transform:rotate(45deg)}
@@ -2350,7 +2351,7 @@ const LX_CSS = `
 .lx-cta small{margin-top:16px;font-size:12px;opacity:.7}
 
 /* ---------- footer ---------- */
-.lx-footer{padding:clamp(72px,9cqw,120px) clamp(16px,10cqw,150px) 36px}
+.lx-footer{padding:clamp(72px,9cqw,120px) max(clamp(16px,10cqw,150px),calc((100cqw - var(--lx-max)) / 2 + 48px)) 36px}
 .lx-foot-top{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:32px}
 .lx-foot-brand{display:flex;flex-direction:column;align-items:flex-start}
 .lx-foot-brand p{margin-top:24px;color:var(--lx-ink2);font-size:14px;line-height:1.6}
