@@ -152,7 +152,8 @@
       "@/components/ui/pixel-park-template": ["./components/pixel-park-template/pixel-park-template.tsx"],
       "@/components/ui/lilac-dusk-canopy": ["./components/lilac-dusk-canopy/lilac-dusk-canopy.tsx"],
       "@/components/ui/moonlit-canopy": ["./components/moonlit-canopy/moonlit-canopy.tsx"],
-      "@/components/ui/onward-summit-template": ["./components/onward-summit-template/onward-summit-template.tsx"]
+      "@/components/ui/onward-summit-template": ["./components/onward-summit-template/onward-summit-template.tsx"],
+      "@/components/ui/constellation-turntable": ["./components/constellation-turntable/constellation-turntable.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
