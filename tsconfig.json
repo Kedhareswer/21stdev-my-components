@@ -155,6 +155,7 @@
       "@/components/ui/moonlit-canopy": ["./components/moonlit-canopy/moonlit-canopy.tsx"],
       "@/components/ui/onward-summit-template": ["./components/onward-summit-template/onward-summit-template.tsx"],
       "@/components/ui/constellation-turntable": ["./components/constellation-turntable/constellation-turntable.tsx"],
+      "@/components/ui/holo-chrome-flow": ["./components/holo-chrome-flow/holo-chrome-flow.tsx"],
       "@/components/ui/bento-portfolio-template": ["./components/bento-portfolio-template/bento-portfolio-template.tsx"],
       "@/components/ui/connectome-arc-explorer": ["./components/connectome-arc-explorer/connectome-arc-explorer.tsx"],
       "@/components/ui/glass-folder-cards": ["./components/glass-folder-cards/glass-folder-cards.tsx"],
