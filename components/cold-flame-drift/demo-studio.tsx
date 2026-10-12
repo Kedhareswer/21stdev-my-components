@@ -20,9 +20,9 @@ const KNOBS: Knob[] = [
 
 // Every prop live: pick a palette, drag the knobs, reshuffle the layout.
 export default function DemoStudio() {
-  const [palette, setPalette] = React.useState("cobalt" as FlamePalette)
-  const [seed, setSeed] = React.useState(0)
-  const [v, setV] = React.useState({ scale: 110, angle: 42, speed: 1, turbulence: 1, thickness: 1, forks: 0.55, dashes: 0.6, grain: 1 })
+  const [palette, setPalette] = React.useState("ember" as FlamePalette)
+  const [seed, setSeed] = React.useState(71)
+  const [v, setV] = React.useState({ scale: 50, angle: 42, speed: 4, turbulence: 0, thickness: 1.04, forks: 0.5, dashes: 0.32, grain: 0.54 })
   const [open, setOpen] = React.useState(true)
   const ink = PALETTES[palette]
 

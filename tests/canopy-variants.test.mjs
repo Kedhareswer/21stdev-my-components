@@ -1,6 +1,6 @@
-// lilac-dusk-canopy and moonlit-canopy are dappled-canopy with another default
-// preset, published as their own listings. tests/dappled-canopy.test.mjs covers
-// the shader and install safety; this keeps the copies from drifting off it.
+// lilac-dusk-canopy is dappled-canopy with another default preset, published
+// as its own listing. tests/dappled-canopy.test.mjs covers
+// the shader and install safety; this keeps the copy from drifting off it.
 // Run: node tests/canopy-variants.test.mjs
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
@@ -13,7 +13,6 @@ const base = body(read("dappled-canopy"))
 
 for (const [slug, comp, preset] of [
   ["lilac-dusk-canopy", "LilacDuskCanopy", "lilac-dusk"],
-  ["moonlit-canopy", "MoonlitCanopy", "moonlit"],
 ]) {
   const src = read(slug)
   assert.match(src, new RegExp(`preset = "${preset}"`), `${slug} defaults to ${preset}`)

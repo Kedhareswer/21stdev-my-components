@@ -13,9 +13,9 @@ import * as React from "react"
  * of large overlapping circles — drawn in CSS pixels so they stay crisp, then
  * fine grain over everything, as if the whole sheet were printed.
  *
- * The pointer is a drafting tool: a dashed crosshair follows it, snaps to any
- * guide it comes near (lighting that guide up), and the royal bloom leans
- * toward it. A click drops a ring that expands through the mist.
+ * The royal bloom leans toward the pointer and a click drops a ring that
+ * expands through the mist. Opt in with `crosshair` for a dashed drafting
+ * crosshair that snaps to any guide it comes near, lighting that guide up.
  *
  * Self-contained: raw WebGL2, React is the only import. No textures, no image
  * assets, no CSS file. The canvas sizes itself from its own box, never the
@@ -435,7 +435,7 @@ export type MeridianMistProps = {
   params?: Partial<MistParams>
   /** Bloom follows the pointer, guides glint, click drops a ring. */
   interactive?: boolean
-  /** The snapping crosshair and its coordinate readout. */
+  /** The snapping crosshair and its coordinate readout. Off by default. */
   crosshair?: boolean
   /** Device-pixel-ratio cap. Grain is per-pixel, so 2 is plenty. */
   maxDpr?: number
@@ -446,10 +446,10 @@ export type MeridianMistProps = {
 
 export default function MeridianMist({
   height = "100svh",
-  preset = "cobalt",
+  preset = "glacier",
   params,
   interactive = true,
-  crosshair = true,
+  crosshair = false,
   maxDpr = 2,
   children,
   className = "",
@@ -784,10 +784,10 @@ export default function MeridianMist({
     <section
       ref={rootRef}
       className={
-        "relative w-full overflow-hidden " + (interactive ? "cursor-crosshair touch-pan-y " : "") + className
+        "relative w-full overflow-hidden " + (interactive ? (crosshair ? "cursor-crosshair " : "") + "touch-pan-y " : "") + className
       }
       style={{ height, background: P.slateColor }}
-      aria-label="A grainy cobalt mesh gradient under hairline drafting guides"
+      aria-label="A grainy mesh gradient under hairline drafting guides"
     >
       {failed ? (
         // No WebGL2: a still print of the same sheet beats a flat box.

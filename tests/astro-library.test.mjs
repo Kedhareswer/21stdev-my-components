@@ -1,4 +1,4 @@
-// Install-safety checks for every Astro library piece, plus the logic they all
+// Install-safety checks for the free Astro library pieces, plus the logic they all
 // share with astro-association-template.
 // Run: node tests/astro-library.test.mjs
 //
@@ -14,14 +14,8 @@ const read = (slug, f = slug + ".tsx") =>
   readFileSync(new URL(`../components/${slug}/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n")
 
 const PIECES = [
-  "astro-navbar",
   "astro-bubble-hero",
   "astro-mission-band",
-  "astro-ribbon-stage",
-  "astro-project-cards",
-  "astro-sky-nights",
-  "astro-member-card",
-  "astro-footer",
 ]
 
 for (const slug of PIECES) {
@@ -47,12 +41,8 @@ for (const slug of PIECES) {
 }
 
 /* piece-specific */
-assert.match(read("astro-navbar"), /\.aa-sticky\{position:sticky;top:0/, "navbar: sticky lives on the root, where it can work")
 assert.match(read("astro-bubble-hero"), /kind: "text" as const, text: wordmark/, "hero: the bubbles are masked to the wordmark")
 assert.match(read("astro-mission-band"), /kind: "logo" as const/, "mission: the logo is knocked out of the band")
-assert.match(read("astro-ribbon-stage"), /"--w": "190%"/, "ribbons run past every edge of the stage")
-assert.match(read("astro-sky-nights"), /moonPhase\(skyDay\)/, "nights: the sky card shows the real phase")
-assert.match(read("astro-member-card"), /memberNumber\(name \|\| "guest", email\)/, "member card: the number follows the name")
 
 /* shared logic (identical in every piece; check it once, from the hero) */
 const src = read("astro-bubble-hero")

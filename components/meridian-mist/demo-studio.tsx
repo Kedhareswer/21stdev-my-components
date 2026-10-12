@@ -6,7 +6,7 @@ import MeridianMist, { MIST_PRESETS } from "@/components/ui/meridian-mist"
 const PRESETS = Object.keys(MIST_PRESETS)
 
 export default function DemoStudio() {
-  const [preset, setPreset] = React.useState("cobalt")
+  const [preset, setPreset] = React.useState("glacier")
 
   return (
     <div className="relative w-full">

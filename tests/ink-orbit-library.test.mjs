@@ -1,5 +1,5 @@
-// Install-safety checks shared by every ink-orbit library piece, plus the logic
-// of the three pieces lifted out last (hero, features, navbar).
+// Install-safety checks shared by the free ink-orbit library pieces, plus the
+// logic of the hero and features.
 // Run: node tests/ink-orbit-library.test.mjs
 //
 // Each piece must survive installation on its own: React is the only import,
@@ -14,14 +14,10 @@ const read = (slug, f = slug + ".tsx") =>
   readFileSync(new URL(`../components/${slug}/${f}`, import.meta.url), "utf8").replace(/\r\n/g, "\n")
 
 const PIECES = [
-  "ink-orbit-navbar",
   "ink-orbit-hero",
-  "ink-orbit-sculpture",
   "ink-orbit-features",
   "ink-orbit-testimonials",
   "ink-orbit-pricing",
-  "ink-orbit-faq",
-  "ink-orbit-footer",
 ]
 
 for (const slug of PIECES) {
@@ -75,19 +71,6 @@ for (const slug of PIECES) {
   assert.ok(flat.points.every((p) => Number.isFinite(p[1])), "a flat series doesn't divide by zero")
   assert.equal(L.nearestIndex([0, 100, 200], 140), 1)
   assert.equal(L.nearestIndex([0, 100, 200], 999), 2)
-}
-
-/* ---------- navbar ---------- */
-{
-  const src = read("ink-orbit-navbar")
-  const a = src.indexOf("// #region logic\n")
-  const b = src.indexOf("// #endregion logic\n")
-  const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b)) + "\nexport { sectionId }"))
-  assert.equal(L.sectionId("#pricing"), "pricing")
-  assert.equal(L.sectionId(" #faq-2 "), "faq-2")
-  for (const notSection of ["#", "/pricing", "https://x.io/#a", "#1abc", "pricing", ""]) assert.equal(L.sectionId(notSection), null, notSection)
-  assert.match(src, /\.in-sticky\{position:sticky;top:0\}/, "sticky lives on the root, where it can work")
-  assert.match(src, /aria-expanded=\{menu\}/, "the menu button reports its state")
 }
 
 console.log("ink-orbit-library: ok")
