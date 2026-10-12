@@ -374,6 +374,7 @@ export default function RangoliPreloader({
     let h = 1
     let dpr = 1
     let unit = 1
+    let gpx = 1.6
     let cx = 0
     let cy = 0
     let raf = 0
@@ -408,8 +409,9 @@ export default function RangoliPreloader({
       cy = h / 2
       unit = Math.min(w, h) * 0.46
       // Grain density: ~0.8 of the area covered by 1.9px grains, capped for big screens.
-      const px = 1.6
-      const density = Math.min(42000, ((unit * unit) / (px * px)) * 1.15)
+      // Grains grow with the pattern so big screens stay as dense as small ones.
+      gpx = Math.max(1.6, Math.min(3.2, unit / 190))
+      const density = Math.min(70000, ((unit * unit) / (gpx * gpx)) * 1.15)
       grains = rgpBuild(o.folds, density, o.seed)
 
       // Floor: the base colour, a soft vignette and stone grain, drawn once.
@@ -455,7 +457,7 @@ export default function RangoliPreloader({
       p.setTransform(dpr, 0, 0, dpr, 0, 0)
       const end = Math.min(grains.count, upto)
       for (let i = drawn; i < end; i++) {
-        const s = 1.6 * grains.size[i]
+        const s = gpx * grains.size[i]
         p.fillStyle = grainColor(i)
         p.globalAlpha = 0.9
         p.fillRect(cx + grains.xs[i] * unit - s / 2, cy + grains.ys[i] * unit - s / 2, s, s)
@@ -532,7 +534,7 @@ export default function RangoliPreloader({
           const dy = -e * (h * 0.12 + r2 * h * 0.25) + Math.sin(local * 9 + r1 * 6) * 10 * local
           ctx.globalAlpha = (1 - local) * 0.92
           ctx.fillStyle = grainColor(i)
-          const s = 1.5 * grains.size[i]
+          const s = gpx * 0.94 * grains.size[i]
           ctx.fillRect(gx + dx, gy + dy, s, s)
         }
         ctx.globalAlpha = 1
