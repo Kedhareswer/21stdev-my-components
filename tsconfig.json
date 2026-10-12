@@ -155,7 +155,9 @@
       "@/components/ui/moonlit-canopy": ["./components/moonlit-canopy/moonlit-canopy.tsx"],
       "@/components/ui/onward-summit-template": ["./components/onward-summit-template/onward-summit-template.tsx"],
       "@/components/ui/constellation-turntable": ["./components/constellation-turntable/constellation-turntable.tsx"],
-      "@/components/ui/cold-flame-drift": ["./components/cold-flame-drift/cold-flame-drift.tsx"]
+      "@/components/ui/cold-flame-drift": ["./components/cold-flame-drift/cold-flame-drift.tsx"],
+      "@/components/ui/meridian-mist": ["./components/meridian-mist/meridian-mist.tsx"],
+      "@/components/ui/bento-portfolio-template": ["./components/bento-portfolio-template/bento-portfolio-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
