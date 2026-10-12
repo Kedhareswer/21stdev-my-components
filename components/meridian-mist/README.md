@@ -14,11 +14,10 @@ no three.js, no textures, no image assets.
 
 ## Interaction
 
-- **Move.** A dashed crosshair follows the pointer with a live `x × y` readout.
-  It **snaps** to any guide it comes near, landing on intersections and onto
-  circle outlines, and the guide it caught lights up (`◆` in the readout). The
-  royal bloom leans toward the pointer and the circles drift with it for depth.
-- **Click.** A ring drops from the crosshair and expands through the mist,
+- **Move.** The royal bloom leans toward the pointer, nearby guides glint, and
+  the circles drift with it for depth. Pass `crosshair` to add a dashed
+  crosshair with a live `x × y` readout that **snaps** to the guides.
+- **Click.** A ring drops where you click and expands through the mist,
   refracting it as it goes.
 - **Leave it.** The mesh keeps breathing on slow fbm and the bloom drifts home.
 
@@ -31,7 +30,7 @@ import MeridianMist from "@/components/ui/meridian-mist"
 <MeridianMist height="640px" />
 <MeridianMist preset="dusk" params={{ grain: 0.08 }} />
 <MeridianMist params={{ columns: [0.25, 0.5, 0.75], rows: [0.5], circles: 1 }} />
-<MeridianMist crosshair={false} />                       // keep the bloom, drop the tool
+<MeridianMist crosshair />                               // add the snapping drafting tool
 
 <MeridianMist>
   <h1 className="mt-auto p-10 text-7xl font-light text-white">Drawn on the grid.</h1>
@@ -48,10 +47,10 @@ and form controls never drop a ring.
 | Prop | Default | Notes |
 |---|---|---|
 | `height` | `"100svh"` | **Must be a definite length.** The canvas fills this box. |
-| `preset` | `"cobalt"` | `cobalt` \| `dusk` \| `glacier` \| `sage` \| `graphite`. |
+| `preset` | `"glacier"` | `cobalt` \| `dusk` \| `glacier` \| `sage` \| `graphite`. |
 | `params` | none | `Partial<MistParams>` layered over the preset. Live, never restarts WebGL. |
 | `interactive` | `true` | Bloom follows the pointer, guides glint, click drops a ring. |
-| `crosshair` | `true` | The snapping crosshair and its coordinate readout. |
+| `crosshair` | `false` | Opt-in snapping crosshair with an `x × y` coordinate readout. |
 | `maxDpr` | `2` | Device-pixel-ratio cap. |
 | `children` | none | Content over the mist. |
 | `className` | `""` | Appended to the root. |

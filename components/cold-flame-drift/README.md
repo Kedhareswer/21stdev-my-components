@@ -23,8 +23,8 @@ No textures, no image assets, no fonts.
 ```tsx
 import ColdFlameDrift from "@/components/ui/cold-flame-drift"
 
-<ColdFlameDrift />                                  // cobalt, full screen
-<ColdFlameDrift palette="ember" angle={90} />       // upright orange fire
+<ColdFlameDrift />                                  // ember, full screen
+<ColdFlameDrift palette="cobalt" angle={90} />      // upright blue flames
 <ColdFlameDrift light="#ff4fa3" dark="#7a1250" background="#0b0207" />
 <ColdFlameDrift scale={70} forks={1} dashes={0} grain={0} height={480} />
 
@@ -35,20 +35,20 @@ import ColdFlameDrift from "@/components/ui/cold-flame-drift"
 
 | Prop | Default | |
 |---|---|---|
-| `palette` | `"cobalt"` | `cobalt` · `ember` · `jade` · `violet` · `bone` |
+| `palette` | `"ember"` | `cobalt` · `ember` · `jade` · `violet` · `bone` |
 | `background` / `light` / `dark` / `dashColor` | from palette | Hex colours that override one slot of the palette |
 | `angle` | `42` | Direction the flames point and travel, in degrees counter-clockwise from → (`90` = straight up) |
-| `scale` | `110` | Row spacing in CSS px, which sets the size of the whole pattern |
+| `scale` | `50` | Row spacing in CSS px, which sets the size of the whole pattern |
 | `length` | `3.6` | Flame length, in rows |
-| `thickness` | `1` | Flame width multiplier |
-| `turbulence` | `1` | How hard the current bends the rows (`0` = straight) |
-| `speed` | `1` | Drift speed (`0` holds the field still while the flames keep flickering) |
-| `forks` | `0.55` | Share of flames with split tips and side licks, from 0 to 1 |
-| `dashes` | `0.6` | Density of the dash marks, from 0 to 1 |
-| `grain` | `1` | `0` gives clean vector edges and `1` gives full print stipple |
+| `thickness` | `1.04` | Flame width multiplier |
+| `turbulence` | `0` | How hard the current bends the rows (`0` = straight) |
+| `speed` | `4` | Drift speed (`0` holds the field still while the flames keep flickering) |
+| `forks` | `0.5` | Share of flames with split tips and side licks, from 0 to 1 |
+| `dashes` | `0.32` | Density of the dash marks, from 0 to 1 |
+| `grain` | `0.54` | `0` gives clean vector edges and `1` gives full print stipple |
 | `grainSize` | `1` | Size of one speck in CSS px |
 | `boil` | `true` | Re-roll the grain at 12 fps |
-| `seed` | `0` | Reshuffles which flames appear where |
+| `seed` | `71` | Reshuffles which flames appear where |
 | `interactive` / `pointerRadius` | `true` / `220` | Pointer curl, speed-up and click flare, and how far they reach |
 | `paused` | `false` | Freeze on the current frame |
 | `height` | `"100svh"` | Any CSS length |
