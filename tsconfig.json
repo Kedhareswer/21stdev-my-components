@@ -137,7 +137,8 @@
       "@/components/ui/weight-sweep-preloader": ["./components/weight-sweep-preloader/weight-sweep-preloader.tsx"],
       "@/components/ui/halftone-wordmark-footer": ["./components/halftone-wordmark-footer/halftone-wordmark-footer.tsx"],
       "@/components/ui/rangoli-preloader": ["./components/rangoli-preloader/rangoli-preloader.tsx"],
-      "@/components/ui/murmuration-wordmark": ["./components/murmuration-wordmark/murmuration-wordmark.tsx"]
+      "@/components/ui/murmuration-wordmark": ["./components/murmuration-wordmark/murmuration-wordmark.tsx"],
+      "@/components/ui/alice-scroll-story": ["./components/alice-scroll-story/alice-scroll-story.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
