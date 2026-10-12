@@ -135,7 +135,8 @@
       "@/components/ui/cold-flame-drift": ["./components/cold-flame-drift/cold-flame-drift.tsx"],
       "@/components/ui/meridian-mist": ["./components/meridian-mist/meridian-mist.tsx"],
       "@/components/ui/weight-sweep-preloader": ["./components/weight-sweep-preloader/weight-sweep-preloader.tsx"],
-      "@/components/ui/halftone-wordmark-footer": ["./components/halftone-wordmark-footer/halftone-wordmark-footer.tsx"]
+      "@/components/ui/halftone-wordmark-footer": ["./components/halftone-wordmark-footer/halftone-wordmark-footer.tsx"],
+      "@/components/ui/rangoli-preloader": ["./components/rangoli-preloader/rangoli-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
