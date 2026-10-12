@@ -133,7 +133,9 @@
       "@/components/ui/connectome-arc-explorer": ["./components/connectome-arc-explorer/connectome-arc-explorer.tsx"],
       "@/components/ui/glass-folder-cards": ["./components/glass-folder-cards/glass-folder-cards.tsx"],
       "@/components/ui/cold-flame-drift": ["./components/cold-flame-drift/cold-flame-drift.tsx"],
-      "@/components/ui/meridian-mist": ["./components/meridian-mist/meridian-mist.tsx"]
+      "@/components/ui/meridian-mist": ["./components/meridian-mist/meridian-mist.tsx"],
+      "@/components/ui/weight-sweep-preloader": ["./components/weight-sweep-preloader/weight-sweep-preloader.tsx"],
+      "@/components/ui/halftone-wordmark-footer": ["./components/halftone-wordmark-footer/halftone-wordmark-footer.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
