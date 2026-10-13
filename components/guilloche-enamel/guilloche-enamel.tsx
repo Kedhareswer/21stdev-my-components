@@ -47,7 +47,7 @@ export type GuillocheEnamelProps = {
   /** Named finish. `colors` overrides either field on top of it. */
   preset?: GuillochePreset
   /** enamel / metal as hex (#rgb or #rrggbb). */
-  colors?: { [K in keyof GuillocheColors]?: string }
+  colors?: { enamel?: string; metal?: string }
   /** Where the rosette sits. "right" leaves the left side quiet for copy. */
   align?: "left" | "center" | "right"
   /** Size of the rosette. The groove pitch never changes, only the zones. */
