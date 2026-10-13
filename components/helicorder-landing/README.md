@@ -7,14 +7,17 @@ it becomes smoked paper, with white scratches in soot. The rest of the page stay
 on the same ruled paper, with the drum's left time margin, three-component trace
 bands between sections, and a pen that lifts off the roll in the footer.
 
-- **Hero drum** (Canvas 2D): hours of record are already on the paper on the first
-  frame. A recorded M5.8 is annotated in red pen (ALERT, P, S and a bracket for the
+- **Hero drum** (Canvas 2D): the record of one day (`quake.at`, 14 Mar 2026 by
+  default) is already on the paper on the first frame. A recorded M5.8 is annotated in
+  red pen (ALERT, P, S and a bracket for the
   17.1 s of warning). Ground noise, the quake (band-limited P, S and coda with real
   arrival times) and knocks come from one seeded seismometer model, so the record
   looks the same on every visit. The pen keeps writing in real time and sleeps off
-  screen. **Tap or click the record** and the pen writes your knock as a damped
+  screen. The lines above the quake and its coda are the archive and never move.
+  Only the lines below feed, sliding up one line when the last one fills. **Tap or click the record** and the pen writes your knock as a damped
   two-mode seismometer response. **Replay the M5.8** records the quake live and
-  raises the alert a building would get, with a countdown to the S-wave. The
+  raises the alert a building would get. The countdown to the S-wave appears beside
+  the pen and on the button. The
   canvas holds a pixel budget (about 2.2 MP), so big screens and software
   renderers stay light. Times print in UTC on the left and local time on the right.
 - **Where the seconds come from**: the four steps from rupture to alert, beside a
@@ -24,11 +27,21 @@ bands between sections, and a pen that lifts off the roll in the footer.
 - **Site playbooks**: tabs for factory, school, hospital and rail (arrow keys,
   Home and End work). Each one is a timed log of actions, drawn as red ticks on the
   last seconds before the S-wave. Hover a row to find its tick.
-- **Network**: three facts and six stations with live, scrolling traces.
-- **Customer quote**, **pricing estimator** (a building stepper with a volume
-  price), a disclosure **FAQ**, and a **footer** whose red trace runs through the
-  wordmark. Strum it with the pointer and it ripples like a plucked string, then
+- **Network**: a station table with live, scrolling traces. The network's
+  readings are the table's footer.
+- **Drill record**: the customer quote, with the campus sensor's trace of the drill
+  under it. The tone, a burst of footsteps and a red bracket mark the seconds to
+  under the desks.
+- **Rate card**: a building stepper with a volume price, laid out as a calibration
+  card with a pen note.
+- **FAQ**: each question has a trace fragment in the margin, and each answer is a
+  pen note.
+- **Footer**: the record ends, and the pen lifts off along the wordmark's baseline.
+  Strum the trace with the pointer and it ripples like a plucked string, then
   settles and stops.
+
+Each section heading has a UTC time stamp in the left margin, as if the page were
+one continuous record.
 
 Theme: `defaultTheme="system"` follows the host's `.dark` class, then the OS. The
 round button in the header switches paper. Under `prefers-reduced-motion` the pen

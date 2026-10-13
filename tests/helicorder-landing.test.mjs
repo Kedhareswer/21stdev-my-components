@@ -43,10 +43,10 @@ assert.match(css[1], /\.fsk :where\(svg,canvas,img\)\{display:block;max-width:no
 
 /* ---------- the drum is wired and cleans up ---------- */
 
-for (const gone of ["cancelAnimationFrame(raf)", "ro.disconnect()", "io.disconnect()", "canvas.remove()", 'heroEl?.removeEventListener("pointerdown", knock)']) {
+for (const gone of ["cancelAnimationFrame(raf)", "ro.disconnect()", "io.disconnect()", "canvas.remove()", 'heroEl.removeEventListener("pointerdown", knock)']) {
   assert.ok(src.includes(gone), "cleanup is missing " + gone)
 }
-assert.match(src, /Math\.sqrt\(budget \/ Math\.max\(1, w \* h\)\)/, "the drum canvas holds a pixel budget")
+assert.match(src, /Math\.sqrt\(2\.2e6 \/ Math\.max\(1, w \* h\)\)/, "the drum canvas holds a pixel budget")
 assert.match(src, /if \(!reduced\) raf = requestAnimationFrame\(tick\)/, "the pen stands still under reduced motion")
 assert.match(src, /visible = e\.isIntersecting/, "the pen sleeps off screen")
 assert.match(src, /data-theme=\{theme\}/, "the theme is scoped to the root")
@@ -54,6 +54,10 @@ assert.match(src, /classList\.contains\("dark"\)/, "system theme follows the hos
 assert.match(src, /role="tablist"/, "site playbooks are tabs")
 assert.match(src, /aria-expanded=\{menu\}/, "the phone menu is a disclosure")
 assert.match(src, /role="status" aria-live="polite"/, "the live alert is announced")
+assert.match(src, /React\.useId\(\)/, "ids are unique per instance")
+assert.doesNotMatch(src, /id="fsk-(hatch|km|main|drawer|panel)/, "no hard-coded ids that would collide")
+assert.match(src, /rows\.splice\(liveFrom, 1\)/, "only the live lines feed; the recorded quake stays put")
+assert.match(src, /ctx\.strokeText\(text, x0, y\)/, "pen notes are haloed, not boxed")
 assert.match(src, /className="fsk-skip"/, "skip link")
 assert.ok(read("demo.tsx").includes("<HelicorderLanding />"), "default demo is the component, full bleed")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
@@ -67,7 +71,7 @@ const a = src.indexOf("// #region drum\n")
 const b = src.indexOf("// #endregion drum\n")
 assert.ok(a > -1 && b > a, "region drum missing")
 const M = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b))))
-const { fskRandom, fskWarning, fskBlindZone, fskLayout, fskEventSlot, fskPrice, fskSynth, fskTracePath, FSK_SR } = M
+const { fskRandom, fskWarning, fskBlindZone, fskLayout, fskEventSlot, fskLiveFrom, fskPrice, fskSynth, fskTracePath, FSK_SR } = M
 
 const r1 = fskRandom(3), r2 = fskRandom(3)
 for (let i = 0; i < 8; i++) assert.equal(r1(), r2(), "the PRNG is deterministic")
@@ -90,13 +94,16 @@ for (const [w, h] of [[320, 568], [375, 748], [768, 960], [1440, 836], [2560, 13
   const L = fskLayout(w, h)
   assert.ok(L.top + L.rows * L.rowH <= h - 40 || L.rows === 6, "rows fit at " + w + "x" + h)
   assert.ok(L.left + L.plotW + L.right === w || L.plotW === 40, "plot spans the width at " + w)
-  const [row, frac] = fskEventSlot(L.rows, L.wide)
+  const [row, frac] = fskEventSlot(L.rows, L.wide, L.phone)
   assert.ok(row >= 2 && row <= L.rows - 3, "quake row on the drum at " + w)
   const alertFrac = frac - (w76.s - w76.alert) / L.spr
   if (L.wide) assert.ok(alertFrac > 0.3, "alert mark lands right of the hero copy at " + w)
-  assert.ok(frac < 1, "S arrives inside its row")
+  assert.ok(alertFrac >= 0, "ALERT, P and S share one line at " + w)
+  assert.ok(frac < 0.75, "S leaves room for its first seconds on the line at " + w)
+  const live = fskLiveFrom(L.rows, row)
+  assert.ok(live > row + 1 && live <= L.rows - 2, "the quake and its coda stay in the archive, two or more lines feed live at " + w)
 }
-assert.equal(fskLayout(375, 800).spr, 30, "phones get 30 s per line")
+assert.equal(fskLayout(375, 800).spr, 40, "phones get 40 s per line")
 assert.equal(fskLayout(1440, 900).spr, 60, "desktops get a minute per line")
 
 // pricing

@@ -28,7 +28,7 @@ export type FskStation = { code: string; name: string; channel: string; latency:
 export type FskMetric = { value: string; unit?: string; label: string }
 export type FskFaq = { question: string; answer: string }
 export type FskColumn = { title: string; links: FskLink[] }
-
+export type FskQuake = { magnitude: number; distanceKm: number; place: string; at?: string }
 export type HelicorderLandingProps = {
   /** Hero height: the header plus the drum. A definite length, never a percentage. */
   height?: string
@@ -45,13 +45,15 @@ export type HelicorderLandingProps = {
     /** The station the drum records, printed in the header. */
     station: string
   }
-  quake?: { magnitude: number; distanceKm: number; place: string }
+  /** The recorded quake on the drum. `at` is when its S-wave reached the building (ISO, UTC). */
+  quake?: FskQuake
   how?: { title: string; intro: string; steps: FskStep[] }
   sitesTitle?: string
   sitesIntro?: string
   sites?: FskSite[]
   network?: { title: string; intro: string; metrics: FskMetric[]; stations: FskStation[] }
-  quote?: { text: string; name: string; role: string; note: string }
+  /** A customer's drill, drawn as the campus sensor recorded it. */
+  quote?: { text: string; name: string; role: string; note: string; seconds?: number; tone?: string }
   pricing?: {
     title: string
     intro: string
@@ -86,7 +88,7 @@ const DEF_HERO = {
   hint: "Tap or click the record. The pen writes your knock too.",
   station: "FS.KDKY HHZ · Kadıköy campus",
 }
-const DEF_QUAKE = { magnitude: 5.8, distanceKm: 76, place: "Sea of Marmara" }
+const DEF_QUAKE: FskQuake = { magnitude: 5.8, distanceKm: 76, place: "Sea of Marmara", at: "2026-03-14T09:31:37Z" }
 const DEF_HOW = {
   title: "Where the seconds come from",
   intro:
@@ -170,7 +172,9 @@ const DEF_QUOTE = {
   text: "On the March drill, 1,140 students were under their desks nine seconds after the tone. We never managed that with a bell.",
   name: "Ayşe Demir",
   role: "Facilities lead, Kadıköy Lisesi",
-  note: "Drill · 4 Mar 2026 · 10:02 UTC",
+  note: "Campus sensor FS.KDKY · drill, 4 Mar 2026",
+  seconds: 9,
+  tone: "10:02:00",
 }
 const DEF_PRICING = {
   title: "One box per building",
@@ -261,20 +265,25 @@ export function fskBlindZone() {
 export function fskLayout(w: number, h: number) {
   const phone = w < 640
   const wide = w >= 1100
-  const spr = wide ? 60 : phone ? 30 : 45
+  const spr = wide ? 60 : phone ? 40 : 45
   const rowH = phone ? 22 : wide ? 28 : 26
-  const left = phone ? 46 : 70
-  const right = phone ? 14 : wide ? 70 : 24
+  const left = phone ? 60 : 76
+  const right = phone ? 12 : wide ? 76 : 24
   const top = phone ? 26 : 34
   const bottom = phone ? 52 : 56
-  const rows = Math.max(6, Math.floor((h - top - bottom) / rowH))
+  const rows = Math.max(7, Math.floor((h - top - bottom) / rowH))
   return { spr, rowH, rows, left, right, top, plotW: Math.max(40, w - left - right), phone, wide }
 }
 
-/** Where the recorded quake's S-wave lands on a fresh drum: [row, fraction of the row]. */
-export function fskEventSlot(rows: number, wide: boolean) {
-  const row = Math.max(2, Math.min(rows - 4, Math.round(rows * (wide ? 0.7 : 0.66))))
-  return [row, wide ? 0.62 : 0.9]
+/** Where the recorded quake's S-wave sits on the drum: [row, fraction of the row]. */
+export function fskEventSlot(rows: number, wide: boolean, phone: boolean) {
+  const row = Math.max(2, Math.min(rows - 5, Math.round(rows * (wide ? 0.7 : 0.66))))
+  return [row, wide ? 0.62 : phone ? 0.62 : 0.7]
+}
+
+/** The first live row: everything above it (the quake and its coda) stays on the drum. */
+export function fskLiveFrom(rows: number, eventRow: number) {
+  return Math.max(1, Math.min(rows - 2, eventRow + 3))
 }
 
 /** Cost of `n` buildings a month, with the volume price from `from` buildings up. */
@@ -428,15 +437,17 @@ const FSK_CSS = `
 .fsk-btn:hover::before,.fsk-btn:focus-visible::before{transform:none}
 .fsk-btn:active{transform:scale(.97)}
 .fsk-btn--ink{background:var(--ink);color:var(--paper)}
-.fsk-btn--ink:not([disabled]):hover{color:#fff}
+.fsk-btn--ink:not([data-busy="true"]):hover{color:#fff}
 .fsk-btn--line{border:1px solid var(--ink);color:var(--ink)}
-.fsk-btn--line:not([disabled]):hover{color:#fff;border-color:var(--red)}
-.fsk[data-theme="dark"] .fsk-btn--ink:not([disabled]):hover,.fsk[data-theme="dark"] .fsk-btn--line:not([disabled]):hover{color:#121211}
+.fsk-btn--line:not([data-busy="true"]):hover{color:#fff;border-color:var(--red)}
+.fsk[data-theme="dark"] .fsk-btn--ink:not([data-busy="true"]):hover,.fsk[data-theme="dark"] .fsk-btn--line:not([data-busy="true"]):hover{color:#121211}
 .fsk-btn--sm{height:40px;padding:0 16px;font-size:14px}
 .fsk-btn svg{width:16px;height:10px;transition:transform .26s var(--ease)}
 .fsk-btn:hover svg{transform:translateX(4px)}
-.fsk-btn[disabled]{opacity:.55;cursor:default}
-.fsk-btn[disabled]::before{display:none}
+.fsk-btn[data-busy="true"]{cursor:default;border-color:var(--red);color:var(--red)}
+.fsk-btn[data-busy="true"]::before{display:none}
+.fsk-dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:fsk-blink 1s steps(2,jump-none) infinite}
+@keyframes fsk-blink{50%{opacity:.25}}
 
 .fsk-hero{position:relative;overflow:hidden;touch-action:manipulation;cursor:crosshair}
 .fsk-drum,.fsk-drum canvas{position:absolute;inset:0}
@@ -445,20 +456,21 @@ const FSK_CSS = `
 .fsk-pen{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;will-change:transform}
 .fsk-pen::before{content:"";position:absolute;left:-1px;bottom:0;width:2px;height:30px;background:var(--ink);transform-origin:bottom;transform:rotate(24deg);border-radius:2px}
 .fsk-pen::after{content:"";position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--red)}
-.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--paper) 93%,transparent) 0,color-mix(in srgb,var(--paper) 93%,transparent) 40%,transparent 57%);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%);mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%)}
+.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,var(--paper) 0,var(--paper) 39%,color-mix(in srgb,var(--paper) 70%,transparent) 47%,transparent 58%);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%);mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%)}
 .fsk-copy{position:absolute;left:var(--gut);top:clamp(28px,7%,84px);width:min(600px,40%);cursor:auto}
 .fsk-copy h1{font-size:clamp(44px,5.3vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:700;margin-left:-.04em;text-wrap:balance}
 .fsk-lede{margin-top:24px;font-size:19px;line-height:1.5;color:var(--soft);max-width:30ch}
 .fsk-ctas{margin-top:32px;display:flex;flex-wrap:wrap;gap:12px}
 .fsk-hfoot{position:absolute;left:var(--gut);right:24px;bottom:16px;display:flex;justify-content:space-between;gap:24px;color:var(--muted);pointer-events:none}
-.fsk-toast{position:absolute;right:24px;top:20px;z-index:5;max-width:340px;padding:12px 16px;background:var(--chip);border:1.5px solid var(--red);color:var(--ink);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
+.fsk-toast{position:absolute;left:clamp(16px,calc(var(--pen-x,60%) + 20px),calc(100% - 270px));top:calc(var(--pen-y,70%) - 92px);z-index:5;width:250px;padding:12px 16px;background:var(--chip);border:1.5px solid var(--red);color:var(--ink);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
 .fsk-toast[data-on="true"]{opacity:1;transform:none}
 .fsk-toast b{color:var(--red);font-weight:700}
-.fsk-toast .fsk-count{font:700 34px/1 var(--sans);letter-spacing:-.03em;margin-top:6px;color:var(--red)}
+.fsk-toast .fsk-count{font:700 28px/1 var(--sans);letter-spacing:-.03em;margin-top:6px;color:var(--red)}
 
 .fsk-page{position:relative;background-image:linear-gradient(90deg,transparent calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 13px),transparent calc(var(--gut) - 13px)),repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--faint) 31px,var(--faint) 32px)}
 .fsk-sec{position:relative;padding:112px 24px 112px var(--gut)}
-.fsk-sec--tight{padding-top:80px;padding-bottom:80px}
+.fsk-stamp{position:absolute;left:0;top:124px;width:calc(var(--gut) - 22px);text-align:right;color:var(--muted)}
+.fsk-stamp::after{content:"";position:absolute;right:-14px;top:50%;width:10px;height:1.5px;background:var(--red)}
 .fsk-band{position:relative;padding:6px 24px 6px var(--gut);--i0:#16181b;--i1:#1d4aa6;--i2:#b8321f;--i3:#1d6b42}
 .fsk[data-theme="dark"] .fsk-band{--i0:#efeee8;--i1:#c9c8c1;--i2:#efeee8;--i3:#b0afa8}
 .fsk-band div{position:relative;height:22px}
@@ -509,18 +521,27 @@ const FSK_CSS = `
 .fsk-strip-ax span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
 .fsk-strip-ax span:last-child{transform:translateX(-100%);color:var(--red)}
 .fsk-log li{transition:background .2s}
-.fsk-log li[data-hot="true"]{background:linear-gradient(90deg,var(--faint),transparent)}
+.fsk-log li{position:relative}
+.fsk-log li::before{content:"";position:absolute;left:-14px;top:12px;bottom:12px;width:2px;background:var(--red);transform:scaleY(0);transition:transform .2s var(--ease)}
+.fsk-log li[data-hot="true"]::before{transform:none}
+.fsk-log li[data-hot="true"] .fsk-t{color:var(--ink);font-weight:700}
 .fsk-log .fsk-t{color:var(--red)}
 .fsk-log .fsk-sys{color:var(--muted);text-align:right}
 .fsk-log .fsk-zero b{color:var(--red)}
 @keyframes fsk-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-.fsk-net{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:64px;margin-top:56px}
-.fsk-metrics{display:grid;gap:28px;align-content:start}
-.fsk-metrics dt{font-size:clamp(44px,4.4vw,68px);line-height:.9;letter-spacing:-.05em;font-weight:700;font-variant-numeric:tabular-nums}
-.fsk-metrics dt small{font-size:.4em;letter-spacing:-.01em;margin-left:.12em;color:var(--muted);font-weight:600}
-.fsk-metrics dd{color:var(--muted);font-size:15px;margin-top:6px;max-width:24ch}
-.fsk-stations{border-top:1.5px solid var(--ink)}
+.fsk-net-head{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:64px;align-items:end}
+.fsk-net-head .fsk-intro{margin-top:0}
+.fsk-stations{margin-top:56px;border-top:1.5px solid var(--ink)}
+.fsk-st--head{height:40px !important;color:var(--muted);font-weight:400}
+.fsk-st--head span:last-child{text-align:right}
+.fsk-readings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1.5px solid var(--ink)}
+.fsk-readings div{padding:20px 20px 22px 0;border-right:1px solid var(--line)}
+.fsk-readings div+div{padding-left:20px}
+.fsk-readings div:last-child{border-right:0}
+.fsk-readings dt{color:var(--muted);max-width:26ch}
+.fsk-readings dd{margin-top:10px;font-size:clamp(40px,4vw,60px);line-height:.9;letter-spacing:-.05em;font-weight:700}
+.fsk-readings dd small{font-size:.42em;letter-spacing:-.01em;margin-left:.12em;color:var(--muted);font-weight:600}
 .fsk-st{display:grid;grid-template-columns:88px 112px minmax(0,1fr) 64px;gap:16px;align-items:center;height:64px;border-bottom:1px solid var(--line)}
 .fsk-st .fsk-mono:first-child{font-weight:700}
 .fsk-st .fsk-nm{font-size:15px}
@@ -529,39 +550,52 @@ const FSK_CSS = `
 .fsk-wave svg{position:absolute;left:0;top:0;width:200%;height:40px;animation:fsk-scroll linear infinite}
 @keyframes fsk-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
-.fsk-quote{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,3fr);gap:48px;align-items:end}
-.fsk-quote blockquote{font-size:clamp(30px,3.4vw,52px);line-height:1.08;letter-spacing:-.035em;font-weight:600;text-indent:-.42em;text-wrap:pretty}
+.fsk-quote{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,3fr);gap:28px 48px;align-items:end}
+.fsk-quote blockquote{grid-column:1 / -1;max-width:24ch;font-size:clamp(30px,3.6vw,56px);line-height:1.06;letter-spacing:-.035em;font-weight:600;text-indent:-.42em;text-wrap:pretty}
 .fsk-quote figcaption{border-top:1.5px solid var(--red);padding-top:12px}
-.fsk-quote figcaption b{display:block;font-size:16px}
+.fsk-quote figcaption b{display:block;font-size:16px;margin-top:8px}
 .fsk-quote figcaption span{display:block;color:var(--muted);font-size:15px}
-.fsk-quote .fsk-mono{color:var(--red);margin-top:12px}
+.fsk-quote figcaption .fsk-mono{color:var(--red);font-size:12px}
+.fsk-drill{position:relative;margin-top:24px;height:150px;border-bottom:1px solid var(--line)}
+.fsk-drill svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:120px;overflow:visible}
+.fsk-drill span{position:absolute;white-space:nowrap;color:var(--red)}
+.fsk-drill-n{top:0;transform:translateX(-50%);font-weight:700}
+.fsk-drill-t{bottom:-22px;transform:translateX(-2px)}
+.fsk-drill-e{right:0;bottom:-22px;color:var(--muted) !important}
 
-.fsk-price{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:64px;margin-top:56px;align-items:start}
+.fsk-price{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:64px;align-items:start}
+.fsk-incl{margin-top:32px;border-top:1px solid var(--line)}
 .fsk-incl li{display:grid;grid-template-columns:28px 1fr;padding:14px 0;border-bottom:1px solid var(--line);font-size:16px}
 .fsk-incl li::before{content:"";width:12px;height:1.5px;background:var(--red);margin-top:12px}
-.fsk-sheet{border:1.5px solid var(--ink);padding:28px;background:var(--paper)}
-.fsk-sheet h3{font-size:15px;font-weight:600}
-.fsk-step{display:flex;align-items:center;gap:0;margin-top:14px;border:1px solid var(--line);border-radius:999px;width:max-content}
-.fsk-step button{width:48px;height:48px;font-size:22px;border-radius:999px;transition:background .2s,transform .12s}
+.fsk-card{position:relative;border:1.5px solid var(--ink);background:var(--paper);margin-top:8px}
+.fsk-card-h{display:flex;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1.5px solid var(--ink);background:repeating-linear-gradient(135deg,transparent 0,transparent 6px,var(--faint) 6px,var(--faint) 7px);font-weight:700}
+.fsk-card-h span:last-child{color:var(--muted);font-weight:400}
+.fsk-field{display:grid;grid-template-columns:112px 1fr;align-items:center;gap:16px;min-height:64px;padding:8px 20px;border-bottom:1px solid var(--line)}
+.fsk-field>.fsk-mono:first-child{color:var(--muted)}
+.fsk-field small{color:var(--muted);font-size:14px}
+.fsk-field--total{min-height:96px}
+.fsk-field--total strong{font-size:clamp(48px,5vw,76px);line-height:.9;letter-spacing:-.05em;font-weight:700}
+.fsk-step{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:999px;width:max-content}
+.fsk-step button{width:44px;height:44px;font-size:22px;border-radius:999px;transition:background .2s,transform .12s}
 .fsk-step button:hover{background:var(--faint)}
 .fsk-step button:active{transform:scale(.92)}
-.fsk-step input{width:72px;height:48px;text-align:center;background:transparent;border:0;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.fsk-step input{width:64px;height:44px;text-align:center;background:transparent;border:0;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .fsk-step input::-webkit-inner-spin-button,.fsk-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-.fsk-total{margin-top:28px;padding-top:20px;border-top:1px solid var(--line);display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.fsk-total strong{font-size:clamp(48px,5vw,76px);line-height:.9;letter-spacing:-.05em;font-weight:700;font-variant-numeric:tabular-nums}
-.fsk-total span{color:var(--muted);font-size:15px}
-.fsk-sheet .fsk-btn{margin-top:28px;width:100%;justify-content:center}
-.fsk-note{margin-top:12px;color:var(--muted)}
+.fsk-pnote{padding:14px 20px 0;color:var(--red);transform:rotate(-1deg);transform-origin:left}
+.fsk-card .fsk-btn{margin:16px 20px 20px;width:calc(100% - 40px);justify-content:center}
 
-.fsk-faq{margin-top:48px;border-top:1.5px solid var(--ink);max-width:880px}
+.fsk-faq{margin-top:48px;border-top:1.5px solid var(--ink);max-width:960px}
 .fsk-faq details{border-bottom:1px solid var(--line)}
-.fsk-faq summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 0;cursor:pointer;font-size:20px;letter-spacing:-.015em;font-weight:600}
+.fsk-faq summary{list-style:none;display:grid;grid-template-columns:120px minmax(0,1fr) 16px;align-items:center;gap:24px;padding:22px 0;cursor:pointer;font-size:20px;letter-spacing:-.015em;font-weight:600}
 .fsk-faq summary::-webkit-details-marker{display:none}
+.fsk-frag{width:120px;height:24px;color:var(--muted);overflow:visible}
+.fsk-faq details[open] .fsk-frag{color:var(--red)}
 .fsk-faq summary i{position:relative;flex:none;width:16px;height:16px}
-.fsk-faq summary i::before,.fsk-faq summary i::after{content:"";position:absolute;left:0;right:0;top:7px;height:2px;background:var(--red);transition:transform .3s var(--ease)}
+.fsk-faq summary i::before,.fsk-faq summary i::after{content:"";position:absolute;left:0;right:0;top:7px;height:2px;background:var(--red);transition:transform .25s var(--ease)}
 .fsk-faq summary i::after{transform:rotate(90deg)}
 .fsk-faq details[open] summary i::after{transform:rotate(0)}
-.fsk-faq p{padding:0 48px 24px 0;color:var(--soft);max-width:62ch;animation:fsk-in .32s var(--ease)}
+.fsk-faq summary:hover span{text-decoration:underline;text-decoration-color:var(--red);text-decoration-thickness:1.5px;text-underline-offset:4px}
+.fsk-faq p{margin:0 40px 24px 144px;padding-left:16px;border-left:2px solid var(--red);color:var(--soft);max-width:62ch;animation:fsk-in .3s var(--ease)}
 
 .fsk-foot{position:relative;padding:96px 24px 32px var(--gut);border-top:1.5px solid var(--ink)}
 .fsk-end{position:absolute;left:var(--gut);top:-11px;background:var(--paper);padding-right:12px;color:var(--muted)}
@@ -574,7 +608,7 @@ const FSK_CSS = `
 .fsk-cols h3{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px}
 .fsk-cols a{display:block;padding:5px 0;font-size:15px;transition:color .2s}
 .fsk-cols a:hover{color:var(--red)}
-.fsk-word{position:relative;margin-top:96px;user-select:none;touch-action:pan-y}
+.fsk-word{position:relative;margin-top:96px;padding-bottom:40px;user-select:none;touch-action:pan-y}
 .fsk-word span{display:block;font-size:clamp(64px,17.2vw,300px);line-height:.78;letter-spacing:-.065em;font-weight:700;margin-left:-.05em;white-space:nowrap}
 .fsk-word svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .fsk-legal{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted)}
@@ -585,13 +619,14 @@ const FSK_CSS = `
 .fsk-menu{display:inline-flex;align-items:center}
 .fsk-head{padding-left:20px;padding-right:16px;justify-content:space-between}
 .fsk-head .fsk-cta-head{display:none}
-.fsk-veil{background:linear-gradient(180deg,color-mix(in srgb,var(--paper) 94%,transparent) 0,color-mix(in srgb,var(--paper) 94%,transparent) 44%,transparent 60%);-webkit-mask-image:none;mask-image:none}
+.fsk-veil{background:linear-gradient(180deg,var(--paper) 0,var(--paper) 46%,color-mix(in srgb,var(--paper) 70%,transparent) 52%,transparent 60%);-webkit-mask-image:none;mask-image:none}
 .fsk-hfoot span:last-child{display:none}
 .fsk-copy{left:var(--gut);right:24px;width:auto;max-width:640px}
 .fsk-copy h1{font-size:clamp(40px,7.4vw,72px)}
 .fsk-how,.fsk-play,.fsk-net,.fsk-price,.fsk-fgrid{grid-template-columns:1fr;gap:48px}
 .fsk-quote{grid-template-columns:1fr;gap:28px}
-.fsk-toast{top:auto;bottom:56px;left:var(--gut);right:24px;max-width:none}
+.fsk-net-head{grid-template-columns:1fr;gap:20px}
+.fsk-stamp{display:none}
 }
 @media (max-width:639px){
 .fsk{--gut:20px;font-size:16px}
@@ -617,13 +652,25 @@ const FSK_CSS = `
 .fsk-log .fsk-sys{grid-column:2;text-align:left}
 .fsk-st{grid-template-columns:84px minmax(0,1fr) 52px;grid-template-rows:auto auto;height:auto;padding:10px 0;gap:2px 10px}
 .fsk-st .fsk-wave{grid-column:1 / -1;grid-row:2}
-.fsk-sheet{padding:20px}
+.fsk-field{grid-template-columns:88px 1fr;padding:8px 14px}
+.fsk-card-h{padding:12px 14px}
+.fsk-pnote{padding:12px 14px 0}
+.fsk-card .fsk-btn{margin:14px;width:calc(100% - 28px)}
+.fsk-readings{grid-template-columns:1fr}
+.fsk-readings div{border-right:0;border-bottom:1px solid var(--line);padding:16px 0 !important}
+.fsk-readings div:last-child{border-bottom:0}
+.fsk-st--head{display:none !important}
+.fsk-faq summary{grid-template-columns:56px minmax(0,1fr) 16px;gap:14px}
+.fsk-frag{width:56px}
+.fsk-faq p{margin:0 0 20px 0}
+.fsk-strip-ax span:nth-last-child(2){display:none}
+.fsk-drill{height:130px}
+.fsk-drill svg{height:100px}
+.fsk-word{margin-top:64px;padding-bottom:28px}
 .fsk-faq summary{font-size:18px;padding:18px 0}
-.fsk-faq p{padding-right:0}
 .fsk-foot{padding:72px 20px 24px var(--gut)}
 .fsk-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
-.fsk-word{margin-top:64px}
-.fsk-toast{bottom:52px}
+.fsk-toast{width:240px;left:clamp(12px,calc(var(--pen-x,50%) - 120px),calc(100% - 252px))}
 }
 @media (prefers-reduced-motion:reduce){
 .fsk *,.fsk *::before,.fsk *::after{animation:none !important;transition-duration:.01ms !important}
@@ -662,11 +709,12 @@ type DrumApi = { replay: () => void }
 type Toast = { on: boolean; phase: "alert" | "shake"; left: number }
 
 const INK_LIGHT = ["#16181b", "#1d4aa6", "#b8321f", "#1d6b42"]
+const MONO_2D = "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
 
 function Drum(props: {
   theme: Theme
   reduced: boolean
-  quake: { magnitude: number; distanceKm: number; place: string }
+  quake: FskQuake
   apiRef: { current: DrumApi | null }
   onToast: (t: Toast) => void
   onBusy: (b: boolean) => void
@@ -685,7 +733,8 @@ function Drum(props: {
   React.useEffect(() => {
     const host = hostRef.current
     const pen = penRef.current
-    if (!host || !pen) return
+    const heroEl = host?.parentElement
+    if (!host || !pen || !heroEl) return
     const canvas = document.createElement("canvas")
     canvas.setAttribute("aria-hidden", "true")
     host.insertBefore(canvas, host.firstChild)
@@ -697,22 +746,25 @@ function Drum(props: {
     const W = fskWarning(quake.distanceKm)
     const lead = W.s - W.alert
     const pAfterAlert = W.p - W.alert
+    // the recorded quake has a fixed date: its S-wave reached this building at `at`
+    const parsed = Date.parse(quake.at || "")
+    const sAt = Number.isFinite(parsed) ? parsed / 1000 : Date.UTC(2026, 2, 14, 9, 31, 37) / 1000
 
     let L = fskLayout(host.clientWidth || 1, host.clientHeight || 1)
     let dpr = 1
     let synth = fskSynth(1983)
-    let data = new Float32Array(1)
-    let gen = 0 // samples written since t0
-    let drawn = 0 // samples drawn
-    let t0 = 0 // epoch seconds at the left of row 0
-    let rowOffset = 0 // absolute index of row 0, for the ink cycle
+    // one record row per drum line; rows above `liveFrom` are the archive, the rest feed
+    let rows: { t: number; v: Float32Array; n: number }[] = []
+    let liveFrom = 1
     let marks: { alert: number; p: number; s: number; live: boolean }[] = []
+    let clock = 0 // fractional sample position of the pen in the last row
     let raf = 0
     let last = 0
     let visible = true
     let busyUntil = 0
-    let lastRow = -1
-    let clock = 0 // fractional sample position of the pen
+    let feedAt = -1 // when the live rows last stepped up, for the feed animation
+    let feedY = 0
+    const per = () => L.spr * FSK_SR
 
     const palette = () => {
       const dark = themeRef.current === "dark"
@@ -722,99 +774,99 @@ function Drum(props: {
         label: dark ? "#a09f98" : "#596067",
         rule: dark ? "rgba(235,234,228,.07)" : "rgba(19,21,23,.06)",
         red: dark ? "#ff6d58" : "#c0281a",
-        chip: dark ? "#121211" : "#f4f5f3",
+        paper: dark ? "#121211" : "#f4f5f3",
       }
     }
 
-    const cap = () => L.rows * L.spr * FSK_SR
-    const gain = () => L.rowH * 0.4
-    const limit = () => L.rowH * 1.7
-    const pos = (tRel: number) => {
-      const row = Math.floor(tRel / L.spr)
-      const x = L.left + ((tRel - row * L.spr) / L.spr) * L.plotW
-      const y = L.top + row * L.rowH + L.rowH / 2
-      return { row, x, y }
+    const gain = () => L.rowH * (L.phone ? 0.28 : 0.4)
+    const limitFor = (r: number) => {
+      const base = L.rowH * (L.phone ? 1.15 : 1.7)
+      // the last line has the hint strip below it: keep its swing on the paper
+      return r === L.rows - 1 ? Math.min(base, L.rowH * 1.1) : base
+    }
+    const rowY = (r: number) => L.top + r * L.rowH + L.rowH / 2 + (r >= liveFrom ? feedY : 0)
+    const sx = (j: number) => L.left + (j / per()) * L.plotW
+    const sy = (r: number, j: number) => {
+      const lim = limitFor(r)
+      return rowY(r) + lim * Math.tanh((rows[r].v[j] * gain()) / lim)
+    }
+    const pos = (t: number) => {
+      for (let r = 0; r < rows.length; r++) {
+        const d = t - rows[r].t
+        if (d >= 0 && d < L.spr) return { row: r, x: L.left + (d / L.spr) * L.plotW, y: rowY(r) }
+      }
+      return null
     }
 
-    const fill = (upto: number) => {
-      const end = Math.min(upto, cap())
-      for (; gen < end; gen++) data[gen] = synth.next(t0 + gen / FSK_SR)
+    const fillRow = (r: number, upto: number) => {
+      const row = rows[r]
+      const end = Math.min(upto, per())
+      for (; row.n < end; row.n++) row.v[row.n] = synth.next(row.t + row.n / FSK_SR)
     }
 
-    // a fresh record: hours of trace already written, the quake on it, the pen mid-row
+    // a fresh drum: the archive with the quake on it, the pen a third of the way along the last line
     const build = () => {
       const w = host.clientWidth || 1
       const h = host.clientHeight || 1
       L = fskLayout(w, h)
-      const budget = 2.2e6
-      dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(budget / Math.max(1, w * h)))
+      dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2.2e6 / Math.max(1, w * h)))
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
-      const now = Date.now() / 1000
-      const rowStart = Math.floor(now / L.spr) * L.spr
-      t0 = rowStart - (L.rows - 1) * L.spr
-      rowOffset = Math.floor(t0 / L.spr)
-      const penAt = (L.rows - 1) * L.spr + Math.min(0.42, Math.max(0.12, (now - rowStart) / L.spr))
-      const slot = fskEventSlot(L.rows, L.wide)
-      const sRel = (slot[0] + slot[1]) * L.spr
+      const slot = fskEventSlot(L.rows, L.wide, L.phone)
+      liveFrom = fskLiveFrom(L.rows, slot[0])
+      const t0 = sAt - slot[1] * L.spr - slot[0] * L.spr
       synth = fskSynth(1983)
-      synth.quakes.push({ p: t0 + sRel - lead + pAfterAlert, s: t0 + sRel, amp: 1 })
-      marks = [{ alert: sRel - lead, p: sRel - lead + pAfterAlert, s: sRel, live: false }]
-      data = new Float32Array(cap())
-      gen = 0
-      fill(Math.floor(penAt * FSK_SR))
-      clock = gen
-      drawn = 0
-      lastRow = -1
+      synth.quakes.push({ p: sAt - lead + pAfterAlert, s: sAt, amp: 1 })
+      marks = [{ alert: sAt - lead, p: sAt - lead + pAfterAlert, s: sAt, live: false }]
+      rows = []
+      for (let r = 0; r < L.rows; r++) {
+        rows.push({ t: t0 + r * L.spr, v: new Float32Array(per()), n: 0 })
+        fillRow(r, r < L.rows - 1 ? per() : Math.floor(per() * 0.3))
+      }
+      clock = rows[L.rows - 1].n
+      feedAt = -1
+      feedY = 0
       redraw()
     }
 
-    const strokeRange = (from: number, to: number) => {
+    const strokeRow = (r: number, from: number, to: number) => {
       const pal = palette()
-      const g = gain()
-      const lim = limit()
+      const k = ((Math.round(rows[r].t / L.spr) % 4) + 4) % 4
+      ctx.strokeStyle = pal.ink[k]
+      ctx.globalAlpha = pal.dark ? (k % 2 ? 0.78 : 0.95) : 0.92
       ctx.lineWidth = pal.dark ? 1 : 1.15
       ctx.lineJoin = "round"
       ctx.lineCap = "round"
-      let i = Math.max(0, from)
-      while (i < to) {
-        const row = Math.floor(i / (L.spr * FSK_SR))
-        const rowEnd = Math.min(to, (row + 1) * L.spr * FSK_SR)
-        const k = (((row + rowOffset) % 4) + 4) % 4
-        ctx.strokeStyle = pal.ink[k]
-        ctx.globalAlpha = pal.dark ? (k % 2 ? 0.78 : 0.95) : 0.92
-        ctx.beginPath()
-        const y0 = L.top + row * L.rowH + L.rowH / 2
-        for (let j = i; j < rowEnd; j++) {
-          const x = L.left + ((j / FSK_SR - row * L.spr) / L.spr) * L.plotW
-          const v = data[j] * g
-          const y = y0 + lim * Math.tanh(v / lim)
-          if (j === i) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-        ctx.stroke()
-        i = rowEnd
+      ctx.beginPath()
+      for (let j = Math.max(0, from); j < to; j++) {
+        if (j === Math.max(0, from)) ctx.moveTo(sx(j), sy(r, j))
+        else ctx.lineTo(sx(j), sy(r, j))
       }
+      ctx.stroke()
       ctx.globalAlpha = 1
     }
 
-    const chip = (text: string, x: number, y: number, align: "left" | "center" | "right", color: string) => {
+    // pen notes keep the trace: a paper-coloured halo instead of a box
+    const note = (text: string, x: number, y: number, align: "left" | "center", color: string, bold: boolean) => {
       const pal = palette()
-      ctx.font = "600 " + (L.phone ? 10 : 11) + "px ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
+      ctx.font = (bold ? "700 " : "600 ") + (L.phone ? 10 : 11) + "px " + MONO_2D
       const w = ctx.measureText(text).width
-      const want = align === "center" ? x - w / 2 : align === "right" ? x - w : x
-      const x0 = Math.max(L.left + 4, Math.min(L.left + L.plotW - w - 4, want))
-      ctx.fillStyle = pal.chip
-      ctx.fillRect(x0 - 4, y - 8, w + 8, 15)
-      ctx.fillStyle = color
-      ctx.textBaseline = "middle"
+      const want = align === "center" ? x - w / 2 : x
+      const x0 = Math.max(L.left + 2, Math.min(L.left + L.plotW - w - 2, want))
       ctx.textAlign = "left"
+      ctx.textBaseline = "middle"
+      ctx.lineJoin = "round"
+      ctx.lineWidth = 4
+      ctx.strokeStyle = pal.paper
+      ctx.strokeText(text, x0, y)
+      ctx.fillStyle = color
       ctx.fillText(text, x0, y)
     }
 
     const drawMarks = () => {
       const pal = palette()
-      const penT = gen / FSK_SR
+      const lastRow = rows[rows.length - 1]
+      const penT = lastRow.t + lastRow.n / FSK_SR
       for (const m of marks) {
         const ticks: [number, string][] = [
           [m.alert, "ALERT"],
@@ -822,29 +874,28 @@ function Drum(props: {
           [m.s, "S"],
         ]
         for (const [t, name] of ticks) {
-          if (t < 0 || t > penT) continue
+          if (t > penT) continue
           const q = pos(t)
-          if (q.row >= L.rows) continue
+          if (!q) continue
           ctx.strokeStyle = pal.red
           ctx.lineWidth = name === "P" ? 1 : 1.5
           ctx.beginPath()
           ctx.moveTo(q.x, q.y - L.rowH * 0.9)
-          ctx.lineTo(q.x, q.y + L.rowH * 0.62)
+          ctx.lineTo(q.x, q.y + L.rowH * 0.6)
           ctx.stroke()
-          chip(name, q.x + 4, q.y + L.rowH * 0.62, "left", pal.red)
+          note(name, q.x + 4, q.y + L.rowH * 0.62, "left", pal.red, true)
         }
-        if (m.s > penT || m.alert < 0) continue
-        // the bracket, in pen, above the row: alert to S
+        if (m.s > penT) continue
         const a = pos(m.alert)
         const s = pos(m.s)
-        const yA = a.y - L.rowH * 0.9
-        const segs: [number, number, number][] =
-          a.row === s.row
-            ? [[a.x, s.x, yA]]
-            : [
-                [a.x, L.left + L.plotW, yA],
-                [L.left, s.x, s.y - L.rowH * 0.9],
-              ]
+        if (!a && !s) continue
+        // the bracket, in pen, above the line: alert to S
+        const segs: [number, number, number][] = []
+        if (a && s && a.row === s.row) segs.push([a.x, s.x, a.y - L.rowH * 0.92])
+        else {
+          if (a) segs.push([a.x, L.left + L.plotW, a.y - L.rowH * 0.92])
+          if (s) segs.push([L.left, s.x, s.y - L.rowH * 0.92])
+        }
         ctx.strokeStyle = pal.red
         ctx.lineWidth = 1.5
         for (const [x1, x2, y] of segs) {
@@ -856,11 +907,11 @@ function Drum(props: {
           ctx.stroke()
         }
         const longest = segs.reduce((b, sg) => (sg[1] - sg[0] > b[1] - b[0] ? sg : b), segs[0])
-        const when = clockUTC(t0 + m.alert, true)
+        const when = clockUTC(m.alert, true)
         const txt = L.phone
-          ? lead.toFixed(1) + " s warning · M" + quake.magnitude.toFixed(1)
+          ? lead.toFixed(1) + " s warning · M" + quake.magnitude.toFixed(1) + " · " + when
           : lead.toFixed(1) + " s of warning · M" + quake.magnitude.toFixed(1) + " " + quake.place + " · " + quake.distanceKm + " km · alert " + when + " UTC"
-        chip(txt, (longest[0] + longest[1]) / 2, longest[2] - 9, "center", pal.red)
+        note(txt, (longest[0] + longest[1]) / 2, longest[2] - 9, "center", pal.red, true)
       }
     }
 
@@ -869,33 +920,28 @@ function Drum(props: {
       const w = canvas.width / dpr
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, canvas.height / dpr)
-      // row rules and the time margins
-      ctx.font = (L.phone ? "10px" : "11px") + " ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
+      ctx.font = (L.phone ? "9.5px " : "11px ") + MONO_2D
       ctx.textBaseline = "middle"
       const withSec = L.spr % 60 !== 0
-      for (let r = 0; r < L.rows; r++) {
-        const y = L.top + r * L.rowH + L.rowH / 2
+      for (let r = 0; r < rows.length; r++) {
+        const y = rowY(r)
         ctx.fillStyle = pal.rule
         ctx.fillRect(L.left, Math.round(y), L.plotW, 1)
         ctx.fillStyle = pal.label
         ctx.textAlign = "right"
-        const rs = t0 + r * L.spr
-        const lab = L.phone ? (rs % 60 === 0 ? clockUTC(rs, false) : ":30") : clockUTC(rs, withSec)
-        ctx.fillText(lab, L.left - 10, y)
+        ctx.fillText(clockUTC(rows[r].t, withSec), L.left - 10, y)
         if (L.wide) {
           ctx.textAlign = "left"
-          ctx.fillText(clockLocal(t0 + r * L.spr, withSec), L.left + L.plotW + 10, y)
+          ctx.fillText(clockLocal(rows[r].t, withSec), L.left + L.plotW + 10, y)
         }
       }
       // seconds scale along the top
-      ctx.fillStyle = pal.label
       ctx.textAlign = "center"
-      const step = L.spr >= 45 ? 5 : 5
-      for (let s = 0; s <= L.spr; s += step) {
-        const x = L.left + (s / L.spr) * L.plotW
-        const major = s % (step * 2) === 0
+      for (let sec = 0; sec <= L.spr; sec += 5) {
+        const x = L.left + (sec / L.spr) * L.plotW
+        const major = sec % 10 === 0
         ctx.fillRect(Math.round(x), L.top - (major ? 9 : 5), 1, major ? 6 : 3)
-        if (major && (!L.phone || s % 10 === 0)) ctx.fillText(s + (s === 0 ? " s" : ""), x, L.top - 18)
+        if (major) ctx.fillText(sec + (sec === 0 ? " s" : ""), x, L.top - 18)
       }
       ctx.textAlign = "right"
       if (!L.phone) ctx.fillText("UTC", L.left - 10, L.top - 18)
@@ -905,64 +951,63 @@ function Drum(props: {
       }
     }
 
+    const placePen = () => {
+      const r = rows.length - 1
+      const j = Math.max(0, rows[r].n - 1)
+      const x = sx(j)
+      const y = sy(r, j)
+      pen.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px)"
+      heroEl.style.setProperty("--pen-x", x.toFixed(0) + "px")
+      heroEl.style.setProperty("--pen-y", (L.top + r * L.rowH).toFixed(0) + "px")
+    }
+
     function redraw() {
       drawFrame()
-      strokeRange(0, gen)
-      drawn = gen
+      for (let r = 0; r < rows.length; r++) strokeRow(r, 0, rows[r].n)
       drawMarks()
       placePen()
     }
     redrawRef.current = redraw
 
-    const placePen = () => {
-      const t = Math.max(0, gen - 1) / FSK_SR
-      const q = pos(t)
-      const v = data[Math.max(0, gen - 1)] * gain()
-      const lim = limit()
-      const y = q.y + lim * Math.tanh(v / lim)
-      pen.style.transform = "translate(" + q.x.toFixed(1) + "px," + y.toFixed(1) + "px)"
-    }
-
-    const shift = () => {
-      const per = L.spr * FSK_SR
-      data.copyWithin(0, per)
-      gen -= per
-      clock -= per
-      t0 += L.spr
-      rowOffset += 1
-      marks = marks
-        .map((m) => ({ ...m, alert: m.alert - L.spr, p: m.p - L.spr, s: m.s - L.spr }))
-        .filter((m) => m.s > -L.spr * 2)
-      redraw()
+    // the last line is full: the live lines step up one, the archive stays put
+    const feed = () => {
+      const lastRow = rows[rows.length - 1]
+      rows.splice(liveFrom, 1)
+      rows.push({ t: lastRow.t + L.spr, v: new Float32Array(per()), n: 0 })
+      clock -= per()
+      if (!reduced) feedAt = performance.now()
     }
 
     const advance = (by: number) => {
       clock += by
-      while (clock > cap()) {
-        fill(cap())
-        shift()
-      }
-      const before = gen
-      fill(Math.floor(clock))
-      if (gen > before) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        strokeRange(Math.max(0, drawn - 1), gen)
-        drawn = gen
-        const row = Math.floor(gen / (L.spr * FSK_SR))
-        const penT = gen / FSK_SR
-        const passed = marks.some((m) => m.live && [m.alert, m.p, m.s].some((t) => t > before / FSK_SR && t <= penT))
-        if (row !== lastRow || passed) {
-          lastRow = row
-          drawMarks()
+      let fed = false
+      for (;;) {
+        const r = rows.length - 1
+        const target = Math.min(per(), Math.floor(clock))
+        const before = rows[r].n
+        fillRow(r, target)
+        if (!fed && rows[r].n > before) {
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+          strokeRow(r, Math.max(0, before - 1), rows[r].n)
+          const t0 = rows[r].t
+          if (marks.some((m) => m.live && [m.alert, m.p, m.s].some((t) => t > t0 + before / FSK_SR && t <= t0 + rows[r].n / FSK_SR))) drawMarks()
         }
-        placePen()
+        if (clock < per()) break
+        feed()
+        fed = true
       }
-      // the live alert: tell the page, count down to the S-wave
-      const penT = gen / FSK_SR
+      if (fed) {
+        feedY = feedAt > 0 ? L.rowH : 0
+        redraw()
+      }
+      placePen()
+      const lastRow = rows[rows.length - 1]
+      const penT = lastRow.t + lastRow.n / FSK_SR
       const live = marks.find((m) => m.live && penT >= m.alert && penT < m.s + 6)
       if (live) onToast({ on: true, phase: penT < live.s ? "alert" : "shake", left: Math.max(0, live.s - penT) })
       else if (busyUntil && penT > busyUntil) {
         busyUntil = 0
+        for (const m of marks) m.live = false
         onToast({ on: false, phase: "shake", left: 0 })
         onBusy(false)
       }
@@ -976,6 +1021,16 @@ function Drum(props: {
       }
       const dt = Math.min(0.1, (now - (last || now)) / 1000)
       last = now
+      // the feed: live lines glide up one line over 360 ms, ease-out
+      if (feedAt > 0) {
+        const k = Math.min(1, (now - feedAt) / 360)
+        feedY = L.rowH * Math.pow(1 - k, 3)
+        if (k >= 1) {
+          feedAt = -1
+          feedY = 0
+        }
+        redraw()
+      }
       advance(dt * FSK_SR)
     }
 
@@ -986,27 +1041,25 @@ function Drum(props: {
       const el = e.target as HTMLElement
       if (el.closest("a,button,input,.fsk-copy")) return
       synth.knock(0.7 + Math.random() * 0.5)
-      if (reduced) {
-        advance(FSK_SR * 4)
-      }
+      if (reduced) advance(FSK_SR * 4)
     }
-    const heroEl = host.parentElement
-    heroEl?.addEventListener("pointerdown", knock)
+    heroEl.addEventListener("pointerdown", knock)
 
     apiRef.current = {
       replay() {
         if (busyUntil) return
-        const penT = gen / FSK_SR
-        const alert = penT + 0.8
-        synth.quakes.push({ p: t0 + alert + pAfterAlert, s: t0 + alert + lead, amp: 1 })
+        const lastRow = rows[rows.length - 1]
+        const alert = lastRow.t + clock / FSK_SR + 0.8
+        synth.quakes.push({ p: alert + pAfterAlert, s: alert + lead, amp: 1 })
         marks.push({ alert, p: alert + pAfterAlert, s: alert + lead, live: true })
         busyUntil = alert + lead + 6
         onBusy(true)
         if (reduced) {
-          advance(Math.ceil((alert + lead + 30) * FSK_SR) - gen)
+          advance((lead + 30) * FSK_SR)
+          busyUntil = 0
           for (const m of marks) m.live = false
           redraw()
-          busyUntil = 0
+          onToast({ on: false, phase: "shake", left: 0 })
           onBusy(false)
         }
       },
@@ -1032,12 +1085,12 @@ function Drum(props: {
       cancelAnimationFrame(raf)
       ro.disconnect()
       io.disconnect()
-      heroEl?.removeEventListener("pointerdown", knock)
+      heroEl.removeEventListener("pointerdown", knock)
       apiRef.current = null
       redrawRef.current = null
       canvas.remove()
     }
-  }, [reduced, quake.distanceKm, quake.magnitude, quake.place])
+  }, [reduced, quake.distanceKm, quake.magnitude, quake.place, quake.at])
 
   return (
     <div className="fsk-drum" ref={hostRef}>
@@ -1112,7 +1165,8 @@ function StationRow(props: { st: FskStation; i: number }) {
 }
 
 /** Warning-time calculator, drawn as the seismogram the site would record. */
-function Calculator(props: { defaultKm: number }) {
+function Calculator(props: { defaultKm: number; uid: string }) {
+  const { uid } = props
   const [km, setKm] = React.useState(props.defaultKm)
   const W = fskWarning(km)
   const span = 45
@@ -1153,11 +1207,11 @@ function Calculator(props: { defaultKm: number }) {
       <div className="fsk-gram">
         <svg viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true">
           <defs>
-            <pattern id="fsk-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <pattern id={uid + "-hatch"} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="2" height="8" fill="var(--red)" opacity=".22" />
             </pattern>
           </defs>
-          {!blind && <rect x={x(W.alert) * 10} y="0" width={(x(W.s) - x(W.alert)) * 10} height="220" fill="url(#fsk-hatch)" />}
+          {!blind && <rect x={x(W.alert) * 10} y="0" width={(x(W.s) - x(W.alert)) * 10} height="220" fill={"url(#" + uid + "-hatch)"} />}
           <path d={path} fill="none" stroke="var(--ink)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
           {marks.map(([k, t]) => (
             <line
@@ -1198,12 +1252,12 @@ function Calculator(props: { defaultKm: number }) {
         ))}
       </div>
       <div className="fsk-range">
-        <label htmlFor="fsk-km">
+        <label htmlFor={uid + "-km"}>
           <span>Your distance from the epicentre</span>
           <b className="fsk-num">{km} km</b>
         </label>
         <input
-          id="fsk-km"
+          id={uid + "-km"}
           type="range"
           min={5}
           max={150}
@@ -1221,8 +1275,8 @@ function Calculator(props: { defaultKm: number }) {
 }
 
 /** The playbook on the clock: the last seconds before the S-wave, one red tick per action. */
-function PlayStrip(props: { steps: FskPlay[]; lead: number; pAfterAlert: number; hot: number }) {
-  const { steps, lead, pAfterAlert, hot } = props
+function PlayStrip(props: { steps: FskPlay[]; lead: number; pAfterAlert: number; hot: number; uid: string }) {
+  const { steps, lead, pAfterAlert, hot, uid } = props
   const from = -Math.ceil(lead + 1)
   const span = -from + 3
   const x = (t: number) => ((t - from) / span) * 1000
@@ -1242,9 +1296,9 @@ function PlayStrip(props: { steps: FskPlay[]; lead: number; pAfterAlert: number;
   return (
     <div className="fsk-strip" aria-hidden="true">
       <svg viewBox="0 0 1000 92" preserveAspectRatio="none">
-        <rect x={x(-lead)} y="0" width={x(0) - x(-lead)} height="92" fill="url(#fsk-hatch2)" />
+        <rect x={x(-lead)} y="0" width={x(0) - x(-lead)} height="92" fill={"url(#" + uid + "-hatch2)"} />
         <defs>
-          <pattern id="fsk-hatch2" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <pattern id={uid + "-hatch2"} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="2" height="8" fill="var(--red)" opacity=".16" />
           </pattern>
         </defs>
@@ -1306,7 +1360,7 @@ function Wordmark(props: { word: string; reduced: boolean }) {
     const draw = () => {
       const w = box.clientWidth
       const h = box.clientHeight
-      const mid = h * 0.56
+      const mid = h - 20
       let d = ""
       for (let i = 0; i < N; i++) {
         d += (i ? "L" : "M") + ((i / (N - 1)) * w).toFixed(1) + " " + (mid + base[i] + y[i]).toFixed(1)
@@ -1354,9 +1408,9 @@ function Wordmark(props: { word: string; reduced: boolean }) {
       if (lastX >= 0) {
         const i = Math.round((px / rect.width) * (N - 1))
         const dy = py - lastY
-        const near = Math.abs(py - rect.height * 0.56) < rect.height * 0.5
+        const near = Math.abs(py - (rect.height - 20)) < 90
         if (near && i > 1 && i < N - 2) {
-          const f = Math.max(-14, Math.min(14, dy * 0.6))
+          const f = Math.max(-30, Math.min(30, dy * 1.6))
           for (let k = -3; k <= 3; k++) v[i + k] = (v[i + k] || 0) + f * (1 - Math.abs(k) / 4)
           wake()
         }
@@ -1392,6 +1446,87 @@ function Wordmark(props: { word: string; reduced: boolean }) {
 
 /* ------------------------------------------------------------------ the page */
 
+/** One FAQ entry: a short trace fragment in the margin, the answer as a pen note. */
+function FaqItem(props: { f: FskFaq; i: number }) {
+  const { f, i } = props
+  const d = React.useMemo(() => fskTracePath(90 + i * 13, 120, 24, 60, 3.4), [i])
+  return (
+    <details open={i === 0}>
+      <summary>
+        <svg className="fsk-frag" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden="true">
+          <path d={d} fill="none" stroke="currentColor" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span>{f.question}</span>
+        <i aria-hidden="true" />
+      </summary>
+      <p>{f.answer}</p>
+    </details>
+  )
+}
+
+/** A drum time stamp in the page's left margin: every section is a moment on one long record. */
+function Stamp(props: { at: number }) {
+  return (
+    <span className="fsk-stamp fsk-mono fsk-num" aria-hidden="true">
+      {clockUTC(props.at, false)}
+    </span>
+  )
+}
+
+/** The school drill as the campus sensor recorded it: the tone, a burst of footsteps, then stillness. */
+function DrillRecord(props: { seconds: number; tone: string; uid: string }) {
+  const { seconds, tone, uid } = props
+  const span = 36
+  const toneT = 3
+  const x = (t: number) => (t / span) * 1000
+  const d = React.useMemo(() => {
+    const syn = fskSynth(311)
+    const r = fskRandom(12)
+    let out = ""
+    const n = span * FSK_SR
+    for (let i = 0; i < n; i++) {
+      const t = i / FSK_SR
+      // 1,140 pairs of feet: dense from the tone, thinning out as rooms settle
+      const since = t - toneT
+      if (since > 0.6 && since < seconds + 0.6) {
+        const rate = 14 * Math.sin(Math.min(1, since / seconds) * Math.PI) + 2
+        if (r() < rate / FSK_SR) syn.knock(0.25 + r() * 0.5)
+      }
+      const v = syn.next(t)
+      out += (i ? "L" : "M") + ((i / n) * 1000).toFixed(1) + " " + (60 + 46 * Math.tanh((v * 26) / 46)).toFixed(1)
+    }
+    return out
+  }, [seconds])
+  return (
+    <div className="fsk-drill" aria-hidden="true">
+      <svg viewBox="0 0 1000 120" preserveAspectRatio="none">
+        <defs>
+          <pattern id={uid + "-hatch3"} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="2" height="8" fill="var(--red)" opacity=".18" />
+          </pattern>
+        </defs>
+        <rect x={x(toneT)} y="14" width={x(toneT + seconds) - x(toneT)} height="106" fill={"url(#" + uid + "-hatch3)"} />
+        <path d={d} fill="none" stroke="var(--ink)" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+        <path
+          d={"M" + x(toneT) + " 20V12H" + x(toneT + seconds) + "V20"}
+          fill="none"
+          stroke="var(--red)"
+          strokeWidth="1.6"
+          vectorEffect="non-scaling-stroke"
+        />
+        <line x1={x(toneT)} x2={x(toneT)} y1="12" y2="120" stroke="var(--red)" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="fsk-drill-n fsk-mono" style={{ left: (x(toneT) + x(toneT + seconds)) / 20 + "%" }}>
+        {seconds} s to under desks
+      </span>
+      <span className="fsk-drill-t fsk-mono" style={{ left: x(toneT) / 10 + "%" }}>
+        Tone {tone}
+      </span>
+      <span className="fsk-drill-e fsk-mono">Still</span>
+    </div>
+  )
+}
+
 export default function HelicorderLanding({
   height = "100svh",
   brand = "Foreshock",
@@ -1413,6 +1548,7 @@ export default function HelicorderLanding({
   className,
 }: HelicorderLandingProps) {
   const reduced = useReducedMotion()
+  const uid = "fsk" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const drumApi = React.useRef(null as DrumApi | null)
 
@@ -1491,6 +1627,7 @@ export default function HelicorderLanding({
     if (j < 0) return
     e.preventDefault()
     setTab(j)
+    setHot(-1)
     const btn = tabsRef.current?.querySelectorAll("button")[j] as HTMLElement | undefined
     btn?.focus()
   }
@@ -1499,11 +1636,16 @@ export default function HelicorderLanding({
   const money = (n: number) => pricing.currency + n.toLocaleString("en-GB")
   const site = sites[Math.min(tab, sites.length - 1)]
   const lead = fskWarning(quake.distanceKm)
+  const parsed = Date.parse(quake.at || "")
+  const sAt = Number.isFinite(parsed) ? parsed / 1000 : Date.UTC(2026, 2, 14, 9, 31, 37) / 1000
+  const day = new Date(sAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+  // the page below the drum keeps the record's clock: one stamp per section
+  const stamp = (k: number) => Math.floor(sAt / 60) * 60 + (k + 8) * 60
 
   return (
     <div ref={rootRef} className={"fsk" + (className ? " " + className : "")} data-theme={theme}>
       <style>{FSK_CSS}</style>
-      <a className="fsk-skip" href="#fsk-main" onClick={(e) => go(e, "#fsk-main")}>
+      <a className="fsk-skip" href={"#" + uid + "-main"} onClick={(e) => go(e, "#" + uid + "-main")}>
         Skip to content
       </a>
 
@@ -1513,7 +1655,7 @@ export default function HelicorderLanding({
           {brand}
         </a>
         <span className="fsk-meta fsk-mono" aria-hidden="true">
-          {hero.station} · 1 min per line
+          {hero.station} · record of {day} · 1 min per line
         </span>
         <nav className="fsk-nav" aria-label="Main">
           {nav.map((l) => (
@@ -1537,12 +1679,18 @@ export default function HelicorderLanding({
           <a className="fsk-btn fsk-btn--ink fsk-btn--sm fsk-cta-head" href={cta.href} onClick={(e) => go(e, cta.href)}>
             {cta.label}
           </a>
-          <button type="button" className="fsk-menu" aria-expanded={menu} aria-controls="fsk-drawer" onClick={() => setMenu(!menu)}>
+          <button
+            type="button"
+            className="fsk-menu"
+            aria-expanded={menu}
+            aria-controls={uid + "-drawer"}
+            onClick={() => setMenu(!menu)}
+          >
             {menu ? "Close" : "Menu"}
           </button>
         </div>
         {menu && (
-          <nav className="fsk-drawer" id="fsk-drawer" aria-label="Menu">
+          <nav className="fsk-drawer" id={uid + "-drawer"} aria-label="Menu">
             {nav.map((l) => (
               <a key={l.href + l.label} href={l.href} onClick={(e) => go(e, l.href)}>
                 {l.label}
@@ -1555,12 +1703,12 @@ export default function HelicorderLanding({
         )}
       </header>
 
-      <main id="fsk-main">
+      <main id={uid + "-main"}>
         <section
           id="fsk-top"
           className="fsk-hero"
           style={{ height: "calc(" + height + " - 64px)", minHeight: 560 }}
-          aria-labelledby="fsk-h1"
+          aria-labelledby={uid + "-h1"}
         >
           <Drum
             theme={theme}
@@ -1574,12 +1722,12 @@ export default function HelicorderLanding({
           />
           <div className="fsk-veil" />
           <p className="fsk-sr">
-            A seismograph drum record, one line per minute. An M{quake.magnitude.toFixed(1)} earthquake in the {quake.place},{" "}
-            {quake.distanceKm} km away, is marked in red: the alert went out {lead.warning.toFixed(1)} seconds before the
-            S-wave reached this building.
+            A seismograph drum record from {day}, one line per minute. An M{quake.magnitude.toFixed(1)} earthquake in the{" "}
+            {quake.place}, {quake.distanceKm} km away, is marked in red: the alert went out {lead.warning.toFixed(1)} seconds
+            before the S-wave reached this building. The lines below it are recording live.
           </p>
           <div className="fsk-copy">
-            <h1 id="fsk-h1">{hero.title}</h1>
+            <h1 id={uid + "-h1"}>{hero.title}</h1>
             <p className="fsk-lede">{hero.lede}</p>
             <div className="fsk-ctas">
               <a className="fsk-btn fsk-btn--ink" href={cta.href} onClick={(e) => go(e, cta.href)}>
@@ -1589,10 +1737,26 @@ export default function HelicorderLanding({
               <button
                 type="button"
                 className="fsk-btn fsk-btn--line"
-                disabled={busy}
-                onClick={() => drumApi.current?.replay()}
+                aria-disabled={busy}
+                data-busy={busy}
+                onClick={() => {
+                  if (!busy) drumApi.current?.replay()
+                }}
               >
-                {busy ? "Recording" : hero.replay}
+                {busy ? (
+                  <>
+                    <i className="fsk-dot" aria-hidden="true" />
+                    <span className="fsk-num">
+                      {toast.on && toast.phase === "alert"
+                        ? "S-wave in " + Math.ceil(toast.left) + " s"
+                        : toast.on
+                          ? "Shaking"
+                          : "Listening"}
+                    </span>
+                  </>
+                ) : (
+                  hero.replay
+                )}
               </button>
             </div>
           </div>
@@ -1600,23 +1764,24 @@ export default function HelicorderLanding({
             {toast.on && (
               <>
                 <div className="fsk-mono">
-                  <b>ALERT</b> · M{quake.magnitude.toFixed(1)} · {quake.place} · {quake.distanceKm} km
+                  <b>ALERT</b> · M{quake.magnitude.toFixed(1)} · {quake.distanceKm} km
                 </div>
                 <div className="fsk-count fsk-num">
-                  {toast.phase === "alert" ? "S-wave in " + Math.ceil(toast.left) + " s" : "Shaking now"}
+                  {toast.phase === "alert" ? "S in " + Math.ceil(toast.left) + " s" : "Shaking now"}
                 </div>
               </>
             )}
           </div>
           <div className="fsk-hfoot fsk-mono">
             <span>{hero.hint}</span>
-            <span>Velocity, vertical · 1 min per line · times in UTC</span>
+            <span>Velocity, vertical · record of {day} · times in UTC</span>
           </div>
         </section>
 
         <div className="fsk-page">
-          <section id="fsk-how" className="fsk-sec" aria-labelledby="fsk-how-h">
-            <h2 className="fsk-h2" id="fsk-how-h">
+          <section id="fsk-how" className="fsk-sec" aria-labelledby={uid + "-how"}>
+            <Stamp at={stamp(0)} />
+            <h2 className="fsk-h2" id={uid + "-how"}>
               {how.title}
             </h2>
             <p className="fsk-intro">{how.intro}</p>
@@ -1632,14 +1797,15 @@ export default function HelicorderLanding({
                   </li>
                 ))}
               </ol>
-              <Calculator defaultKm={quake.distanceKm} />
+              <Calculator defaultKm={quake.distanceKm} uid={uid} />
             </div>
           </section>
 
           <Rule seed={3} />
 
-          <section id="fsk-sites" className="fsk-sec" aria-labelledby="fsk-sites-h">
-            <h2 className="fsk-h2" id="fsk-sites-h">
+          <section id="fsk-sites" className="fsk-sec" aria-labelledby={uid + "-sites"}>
+            <Stamp at={stamp(1)} />
+            <h2 className="fsk-h2" id={uid + "-sites"}>
               {sitesTitle}
             </h2>
             <p className="fsk-intro">{sitesIntro}</p>
@@ -1650,9 +1816,9 @@ export default function HelicorderLanding({
                   key={s.id}
                   type="button"
                   role="tab"
-                  id={"fsk-tab-" + s.id}
+                  id={uid + "-tab-" + s.id}
                   aria-selected={i === tab}
-                  aria-controls="fsk-panel"
+                  aria-controls={uid + "-panel"}
                   tabIndex={i === tab ? 0 : -1}
                   onClick={() => {
                     setTab(i)
@@ -1664,139 +1830,160 @@ export default function HelicorderLanding({
                 </button>
               ))}
             </div>
-            <div className="fsk-play" id="fsk-panel" role="tabpanel" aria-labelledby={"fsk-tab-" + site.id}>
+            <div className="fsk-play" id={uid + "-panel"} role="tabpanel" aria-labelledby={uid + "-tab-" + site.id}>
               <p>{site.summary}</p>
               <div>
-              <PlayStrip steps={site.steps} lead={lead.s - lead.alert} pAfterAlert={lead.p - lead.alert} hot={hot} />
-              <ol className="fsk-log" key={site.id} onMouseLeave={() => setHot(-1)}>
-                {site.steps.map((st, i) => (
-                  <li key={i} style={{ animationDelay: i * 45 + "ms" }} onMouseEnter={() => setHot(i)} data-hot={i === hot}>
-                    <span className="fsk-mono fsk-t fsk-num">T−{st.at.toFixed(1)} s</span>
-                    <span>{st.action}</span>
-                    <span className="fsk-mono fsk-sys">{st.system}</span>
+                <PlayStrip steps={site.steps} lead={lead.s - lead.alert} pAfterAlert={lead.p - lead.alert} hot={hot} uid={uid} />
+                <ol className="fsk-log" key={site.id} onMouseLeave={() => setHot(-1)}>
+                  {site.steps.map((st, i) => (
+                    <li key={i} style={{ animationDelay: i * 40 + "ms" }} onMouseEnter={() => setHot(i)} data-hot={i === hot}>
+                      <span className="fsk-mono fsk-t fsk-num">T−{st.at.toFixed(1)} s</span>
+                      <span>{st.action}</span>
+                      <span className="fsk-mono fsk-sys">{st.system}</span>
+                    </li>
+                  ))}
+                  <li className="fsk-zero" style={{ animationDelay: site.steps.length * 40 + "ms" }}>
+                    <span className="fsk-mono fsk-t fsk-num">T 0.0 s</span>
+                    <span>
+                      <b>S-wave arrives.</b> Everyone is already where they should be.
+                    </span>
+                    <span className="fsk-mono fsk-sys">Shaking</span>
                   </li>
-                ))}
-                <li className="fsk-zero" style={{ animationDelay: site.steps.length * 45 + "ms" }}>
-                  <span className="fsk-mono fsk-t fsk-num">T 0.0 s</span>
-                  <span>
-                    <b>S-wave arrives.</b> Everyone is already where they should be.
-                  </span>
-                  <span className="fsk-mono fsk-sys">Shaking</span>
-                </li>
-              </ol>
+                </ol>
               </div>
             </div>
           </section>
 
           <Rule seed={11} />
 
-          <section id="fsk-network" className="fsk-sec" aria-labelledby="fsk-net-h">
-            <h2 className="fsk-h2" id="fsk-net-h">
-              {network.title}
-            </h2>
-            <p className="fsk-intro">{network.intro}</p>
-            <div className="fsk-net">
-              <dl className="fsk-metrics">
-                {network.metrics.map((m) => (
-                  <div key={m.label}>
-                    <dt className="fsk-num">
-                      {m.value}
-                      {m.unit && <small>{m.unit}</small>}
-                    </dt>
-                    <dd>{m.label}</dd>
-                  </div>
-                ))}
-              </dl>
-              <ul className="fsk-stations" aria-label="Stations, live">
+          <section id="fsk-network" className="fsk-sec" aria-labelledby={uid + "-net"}>
+            <Stamp at={stamp(2)} />
+            <div className="fsk-net-head">
+              <h2 className="fsk-h2" id={uid + "-net"}>
+                {network.title}
+              </h2>
+              <p className="fsk-intro">{network.intro}</p>
+            </div>
+            <div className="fsk-stations">
+              <div className="fsk-st fsk-st--head fsk-mono" aria-hidden="true">
+                <span>Station</span>
+                <span>Site</span>
+                <span>Live, vertical</span>
+                <span>Latency</span>
+              </div>
+              <ul aria-label="Stations, live">
                 {network.stations.map((st, i) => (
                   <StationRow key={st.code} st={st} i={i} />
                 ))}
               </ul>
+              <dl className="fsk-readings">
+                {network.metrics.map((m) => (
+                  <div key={m.label}>
+                    <dt className="fsk-mono">{m.label}</dt>
+                    <dd className="fsk-num">
+                      {m.value}
+                      {m.unit && <small>{m.unit}</small>}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </section>
 
-          <section className="fsk-sec fsk-sec--tight" aria-label="From a customer">
+          <section className="fsk-sec fsk-sec--drill" aria-labelledby={uid + "-drill"}>
+            <Stamp at={stamp(3)} />
             <figure className="fsk-quote">
-              <blockquote>“{quote.text}”</blockquote>
+              <blockquote id={uid + "-drill"}>“{quote.text}”</blockquote>
+              <DrillRecord seconds={quote.seconds ?? 9} tone={quote.tone ?? "10:02:00"} uid={uid} />
               <figcaption>
+                <span className="fsk-mono">{quote.note}</span>
                 <b>{quote.name}</b>
                 <span>{quote.role}</span>
-                <span className="fsk-mono">{quote.note}</span>
               </figcaption>
             </figure>
           </section>
 
           <Rule seed={23} />
 
-          <section id="fsk-pricing" className="fsk-sec" aria-labelledby="fsk-price-h">
-            <h2 className="fsk-h2" id="fsk-price-h">
-              {pricing.title}
-            </h2>
+          <section id="fsk-pricing" className="fsk-sec" aria-labelledby={uid + "-price"}>
+            <Stamp at={stamp(4)} />
             <div className="fsk-price">
               <div>
-                <p className="fsk-intro" style={{ marginTop: 0 }}>
-                  {pricing.intro}
-                </p>
-                <ul className="fsk-incl" style={{ marginTop: 28 }}>
+                <h2 className="fsk-h2" id={uid + "-price"}>
+                  {pricing.title}
+                </h2>
+                <p className="fsk-intro">{pricing.intro}</p>
+                <ul className="fsk-incl">
                   {pricing.included.map((s) => (
                     <li key={s}>{s}</li>
                   ))}
                 </ul>
               </div>
-              <div className="fsk-sheet">
-                <h3 id="fsk-count-l">Buildings</h3>
-                <div className="fsk-step">
-                  <button type="button" aria-label="One building fewer" onClick={() => setCount(Math.max(1, price.buildings - 1))}>
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={500}
-                    value={count}
-                    aria-labelledby="fsk-count-l"
-                    onChange={(e) => setCount(Number(e.target.value) || 1)}
-                    onBlur={() => setCount(price.buildings)}
-                  />
-                  <button type="button" aria-label="One building more" onClick={() => setCount(Math.min(500, price.buildings + 1))}>
-                    +
-                  </button>
+              <div className="fsk-card">
+                <div className="fsk-card-h fsk-mono">
+                  <span>Rate card</span>
+                  <span>FS-RC · {day}</span>
                 </div>
-                <div className="fsk-total" aria-live="polite">
-                  <strong>{money(price.month)}</strong>
-                  <span>
-                    a month · {money(price.unit)} per building
-                    <br />
-                    {money(price.year)} a year
+                <div className="fsk-field">
+                  <label className="fsk-mono" htmlFor={uid + "-count"}>
+                    Buildings
+                  </label>
+                  <div className="fsk-step">
+                    <button type="button" aria-label="One building fewer" onClick={() => setCount(Math.max(1, price.buildings - 1))}>
+                      −
+                    </button>
+                    <input
+                      id={uid + "-count"}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={500}
+                      value={count}
+                      onChange={(e) => setCount(Number(e.target.value) || 1)}
+                      onBlur={() => setCount(price.buildings)}
+                    />
+                    <button type="button" aria-label="One building more" onClick={() => setCount(Math.min(500, price.buildings + 1))}>
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="fsk-field">
+                  <span className="fsk-mono">Rate</span>
+                  <span className="fsk-num">
+                    {money(price.unit)} <small>per building, per month</small>
                   </span>
                 </div>
+                <div className="fsk-field fsk-field--total" aria-live="polite">
+                  <span className="fsk-mono">Monthly</span>
+                  <strong className="fsk-num">{money(price.month)}</strong>
+                </div>
+                <div className="fsk-field">
+                  <span className="fsk-mono">Yearly</span>
+                  <span className="fsk-num">{money(price.year)}</span>
+                </div>
+                <p className="fsk-pnote fsk-mono">
+                  {price.buildings >= pricing.volumeFrom
+                    ? "Volume rate applied: " + money(pricing.volumeEach) + " from " + pricing.volumeFrom + " buildings."
+                    : money(pricing.volumeEach) + " per building from " + pricing.volumeFrom + " buildings. Prices exclude VAT."}
+                </p>
                 <a className="fsk-btn fsk-btn--ink" href={cta.href} onClick={(e) => go(e, cta.href)}>
                   {cta.label}
                   <Arrow />
                 </a>
-                <p className="fsk-note fsk-mono">
-                  {money(pricing.volumeEach)} per building from {pricing.volumeFrom} buildings. Prices exclude VAT.
-                </p>
               </div>
             </div>
           </section>
 
           <Rule seed={31} />
 
-          <section id="fsk-faq" className="fsk-sec" aria-labelledby="fsk-faq-h">
-            <h2 className="fsk-h2" id="fsk-faq-h">
+          <section id="fsk-faq" className="fsk-sec" aria-labelledby={uid + "-faq"}>
+            <Stamp at={stamp(5)} />
+            <h2 className="fsk-h2" id={uid + "-faq"}>
               {faqTitle}
             </h2>
             <div className="fsk-faq">
               {faq.map((f, i) => (
-                <details key={f.question} open={i === 0}>
-                  <summary>
-                    {f.question}
-                    <i aria-hidden="true" />
-                  </summary>
-                  <p>{f.answer}</p>
-                </details>
+                <FaqItem key={f.question} f={f} i={i} />
               ))}
             </div>
           </section>
