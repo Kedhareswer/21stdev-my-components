@@ -452,6 +452,13 @@ function coolField(x: number, y: number, w: number, h: number, out: Out) {
   out.k = smoothstep(0.3, 0.95, u + (n - 0.5) * 0.35) * edge
 }
 
+/** 1 inside a text box, easing to 0 a little way outside it. */
+function quietness(x: number, y: number, x0: number, y0: number, x1: number, y1: number) {
+  const dx = Math.max(x0 - x, 0, x - x1)
+  const dy = Math.max(y0 - y, 0, y - y1)
+  return 1 - smoothstep(0, 30, Math.sqrt(dx * dx + dy * dy))
+}
+
 /** Dot spacing for a canvas: a target pitch, held to a dot budget so big screens and software renderers keep up. */
 function dotStep(w: number, h: number, base: number, budget: number) {
   return Math.max(base, Math.sqrt((w * h) / budget))
@@ -538,6 +545,8 @@ type HalftoneProps = {
   reduced: boolean
   /** Re-read the inks when these change. */
   inkKey: string
+  /** Selector for text inside the box the screen keeps clear of, so a wave never runs through body copy. */
+  quiet?: string
   handle?: { current: HalftoneHandle | null }
   onHeat?: (level: number) => void
   className?: string
@@ -549,7 +558,7 @@ function readInks(el: Element): Inks {
   return { accent: g("--lyl-accent", "#ff4f12"), ink: g("--lyl-ink", "#111"), line: g("--lyl-rule", "rgba(0,0,0,.12)") }
 }
 
-function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, handle, onHeat, className }: HalftoneProps) {
+function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, quiet, handle, onHeat, className }: HalftoneProps) {
   const ref = React.useRef(null as HTMLCanvasElement | null)
   const heatCb = React.useRef(onHeat)
   heatCb.current = onHeat
@@ -575,6 +584,7 @@ function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, handle, 
     const out = { a: 0, k: 0 }
     const now = () => (performance.now() - start) / 1000
     let lastHeat = -1
+    let zones = [] as number[]
 
     const draw = (t: number) => {
       const t0 = performance.now()
@@ -593,8 +603,15 @@ function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, handle, 
           if (kind === "hero") heroField(x, y, w, h, t, waves, out)
           else if (kind === "cool") coolField(x, y, w, h, out)
           else roomField(kind, x, y, w, h, out)
-          const a = out.a
-          const k = out.k
+          let a = out.a
+          let k = out.k
+          for (let z = 0; z < zones.length; z += 4) {
+            const q = quietness(x, y, zones[z], zones[z + 1], zones[z + 2], zones[z + 3])
+            if (q > 0) {
+              a *= 1 - 0.92 * q
+              k *= 1 - 0.92 * q
+            }
+          }
           // two screens, half a pitch apart: heat on the grid, cold on the gaps
           // between it, and the heat dots shrink where the cold ink lies on top
           const ra = rMax * Math.sqrt(a * (1 - 0.82 * k))
@@ -643,6 +660,13 @@ function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, handle, 
       c2d.setTransform(dpr, 0, 0, dpr, 0, 0)
       step = dotStep(w, h, pitch, budget) + slow
       inks = readInks(cv)
+      zones = []
+      if (quiet) {
+        for (const el of Array.from(box.querySelectorAll(quiet))) {
+          const q = el.getBoundingClientRect()
+          zones.push(q.left - r.left, q.top - r.top, q.right - r.left, q.bottom - r.top)
+        }
+      }
       draw(now())
     }
 
@@ -703,7 +727,7 @@ function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, handle, 
       document.removeEventListener("visibilitychange", vis)
       if (handle) handle.current = null
     }
-  }, [kind, pitch, budget, live, reduced, inkKey, handle])
+  }, [kind, pitch, budget, live, reduced, inkKey, quiet, handle])
 
   return <canvas ref={ref} className={"lyl-canvas " + (className || "")} aria-hidden="true" />
 }
@@ -780,7 +804,7 @@ const LYL_CSS = `
 .lyl-root :where(a){color:inherit;text-decoration:none}
 .lyl-root :where(ul,ol){list-style:none}
 .lyl-root ::selection{background:var(--lyl-accent);color:var(--lyl-on)}
-.lyl-root :where(a,button,input,[tabindex]):focus-visible{outline:2px solid var(--lyl-accent);outline-offset:3px}
+.lyl-root :where(a,button,input):focus-visible{outline:2px solid var(--lyl-ink);outline-offset:3px}
 .lyl-canvas{position:absolute;inset:0;display:block;max-width:none;pointer-events:none}
 .lyl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .lyl-wrap{padding-inline:var(--lyl-pad)}
@@ -803,8 +827,8 @@ const LYL_CSS = `
 .lyl-stock:hover{color:var(--lyl-ink)}
 .lyl-menu{display:none;font-size:14px;padding:10px 4px;margin-left:auto}
 
-.lyl-btn{position:relative;display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 20px;font-size:15px;font-weight:500;white-space:nowrap;cursor:pointer;overflow:hidden;isolation:isolate;transition:color .35s var(--lyl-ease),transform .15s var(--lyl-ease)}
-.lyl-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--lyl-accent);transform:translateY(101%);transition:transform .45s var(--lyl-ease)}
+.lyl-btn{position:relative;display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 20px;font-size:15px;font-weight:500;white-space:nowrap;cursor:pointer;overflow:hidden;isolation:isolate;transition:color .25s var(--lyl-ease),transform .15s var(--lyl-ease)}
+.lyl-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--lyl-accent);transform:translateY(101%);transition:transform .3s var(--lyl-ease)}
 .lyl-btn:hover::before,.lyl-btn:focus-visible::before{transform:none}
 .lyl-btn:active{transform:translateY(1px)}
 .lyl-btn .lyl-arr{display:inline-block;transition:transform .35s var(--lyl-ease)}
@@ -824,6 +848,7 @@ const LYL_CSS = `
 .lyl-lead{grid-column:1/span 4;grid-row:4;display:flex;flex-direction:column;gap:22px;margin-top:clamp(20px,2.4vw,36px);cursor:auto}
 .lyl-lead p{font-size:clamp(17px,1.25vw,19px);line-height:1.45;max-width:31ch;color:var(--lyl-soft)}
 .lyl-ctas{display:flex;flex-wrap:wrap;gap:10px}
+.lyl-hero .lyl-line{background:var(--lyl-paper)}
 .lyl-gauge{grid-column:10/span 3;grid-row:1;align-self:start;justify-self:end;width:100%;max-width:300px;margin-top:6px;padding:16px 16px 14px;background:var(--lyl-paper);box-shadow:0 0 0 1px var(--lyl-rule);cursor:auto}
 .lyl-glabel{font-size:13px;color:var(--lyl-muted);display:flex;justify-content:space-between;gap:8px}
 .lyl-gval{display:flex;align-items:flex-start;font-weight:700;font-size:clamp(64px,6vw,96px);line-height:.9;letter-spacing:-.06em;margin:10px 0 14px}
@@ -850,7 +875,7 @@ const LYL_CSS = `
 .lyl-tabs{grid-column:1/-1;display:flex;gap:0;border-top:1px solid var(--lyl-ink);overflow-x:auto;scrollbar-width:none}
 .lyl-tabs::-webkit-scrollbar{display:none}
 .lyl-tab{position:relative;flex:1 0 auto;min-width:88px;padding:16px 4px 14px;text-align:left;font-size:15px;color:var(--lyl-muted);cursor:pointer;transition:color .2s}
-.lyl-tab::before{content:"";position:absolute;left:0;right:12px;top:-1px;height:5px;background:var(--lyl-accent);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--lyl-ease)}
+.lyl-tab::before{content:"";position:absolute;left:0;right:12px;top:-1px;height:5px;background:var(--lyl-accent);transform:scaleX(0);transform-origin:left;transition:transform .25s var(--lyl-ease)}
 .lyl-tab:hover{color:var(--lyl-ink)}
 .lyl-tab[aria-selected="true"]{color:var(--lyl-ink);font-weight:700}
 .lyl-tab[aria-selected="true"]::before{transform:none}
@@ -904,8 +929,7 @@ const LYL_CSS = `
 .lyl-bar[data-focus="heat"] .lyl-seg[data-k="heat"],.lyl-bar[data-focus="cold"] .lyl-seg[data-k="cold"],.lyl-bar[data-focus="rest"] .lyl-seg[data-k="rest"]{opacity:1}
 .lyl-ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--lyl-muted);margin-top:12px}
 .lyl-steps{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(12px,1.6vw,24px)}
-.lyl-step{display:flex;flex-direction:column;gap:12px;padding-top:18px;border-top:1px solid var(--lyl-ink);cursor:default;outline:none}
-.lyl-step:focus-visible{outline:2px solid var(--lyl-accent);outline-offset:6px}
+.lyl-step{display:flex;flex-direction:column;gap:12px;padding-top:18px;border-top:1px solid var(--lyl-ink);cursor:default}
 .lyl-step h3{display:flex;align-items:baseline;gap:14px;font-size:clamp(28px,2.6vw,40px);letter-spacing:-.045em;line-height:1;font-weight:700}
 .lyl-step h3 em{font-style:normal;font-size:15px;letter-spacing:0;font-weight:400;color:var(--lyl-muted)}
 .lyl-sw{width:18px;height:18px;flex:none;align-self:center}
@@ -934,7 +958,6 @@ const LYL_CSS = `
 .lyl-plan .lyl-btn{margin-top:auto;align-self:flex-start}
 .lyl-plan[data-feat] .lyl-solid::before{background:var(--lyl-paper)}
 .lyl-plan[data-feat] .lyl-solid:hover,.lyl-plan[data-feat] .lyl-solid:focus-visible{color:var(--lyl-ink)}
-.lyl-plan[data-feat]:focus-within .lyl-btn:focus-visible{outline-color:var(--lyl-ink)}
 .lyl-dots{position:absolute;left:0;right:0;bottom:0;height:56px;background:radial-gradient(circle,var(--lyl-paper) 0 2.2px,transparent 2.6px) 0 0/8px 8px;-webkit-mask-image:linear-gradient(to top,#000,transparent);mask-image:linear-gradient(to top,#000,transparent);pointer-events:none;opacity:.9}
 
 .lyl-quote{grid-column:2/span 10;display:flex;flex-direction:column;gap:clamp(28px,3vw,44px)}
@@ -961,7 +984,7 @@ const LYL_CSS = `
 .lyl-plus::after{top:0;bottom:0;left:7.25px;width:1.5px}
 .lyl-qh[aria-expanded="true"] .lyl-plus::after{transform:scaleY(0)}
 .lyl-qh:hover .lyl-plus{color:var(--lyl-accent)}
-.lyl-qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--lyl-ease)}
+.lyl-qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s var(--lyl-ease)}
 .lyl-qa[data-open]{grid-template-rows:1fr}
 .lyl-qa>div{overflow:hidden}
 .lyl-qa p{padding:0 48px 24px 0;font-size:16px;color:var(--lyl-soft);max-width:58ch}
@@ -984,14 +1007,14 @@ const LYL_CSS = `
 .lyl-field input{flex:1;min-width:0;height:52px;padding:0 16px;font-size:16px}
 .lyl-field input::placeholder{color:var(--lyl-muted)}
 .lyl-field .lyl-btn{height:52px}
-.lyl-field:focus-within{box-shadow:inset 0 0 0 2px var(--lyl-accent)}
+.lyl-field:focus-within{box-shadow:inset 0 0 0 2px var(--lyl-ink)}
 .lyl-field input:focus-visible{outline:none}
 .lyl-ferr{font-size:14px;font-weight:700}
 .lyl-fok{font-size:15px}
 .lyl-band{position:relative;height:clamp(150px,16vw,240px);margin-top:clamp(64px,8vw,112px);overflow:hidden}
 .lyl-legal{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 28px;padding-block:22px;font-size:13px;color:var(--lyl-muted)}
 .lyl-legal nav{display:flex;flex-wrap:wrap;gap:8px 22px}
-.lyl-legal a{transition:color .2s}
+.lyl-legal a{display:inline-block;padding:4px 0;transition:color .2s}
 .lyl-legal a:hover{color:var(--lyl-ink)}
 .lyl-legal b{color:var(--lyl-ink);font-size:15px;letter-spacing:-.03em}
 
@@ -1058,7 +1081,7 @@ const LYL_CSS = `
 @media (max-width:420px){
 .lyl-field{flex-direction:column;box-shadow:none;gap:8px}
 .lyl-field input{flex:none;box-shadow:inset 0 0 0 1px var(--lyl-ink)}
-.lyl-field input:focus-visible{box-shadow:inset 0 0 0 2px var(--lyl-accent)}
+.lyl-field input:focus-visible{box-shadow:inset 0 0 0 2px var(--lyl-ink)}
 .lyl-field .lyl-btn{justify-content:space-between}
 }
 @media (prefers-reduced-motion:reduce){
@@ -1274,7 +1297,7 @@ export default function LoylySaunaLanding({
           ))}
         </nav>
         <div className="lyl-navr">
-          <button type="button" className="lyl-stock" onClick={() => setDark(!dark)} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}>
+          <button type="button" className="lyl-stock" onClick={() => setDark(!dark)} aria-label={(dark ? "Paper" : "Night") + " theme"}>
             {dark ? "Paper" : "Night"}
           </button>
           <a className="lyl-btn lyl-solid lyl-sm" href="#sessions" onClick={go("#sessions")}>
@@ -1309,7 +1332,7 @@ export default function LoylySaunaLanding({
 
       <main id={uid + "-main"}>
         <section className="lyl-hero lyl-wrap" aria-labelledby={uid + "-h1"} onClick={heroClick}>
-          <Halftone kind="hero" pitch={9} budget={15000} live reduced={reduced} inkKey={inkKey} handle={engine} onHeat={onHeat} />
+          <Halftone kind="hero" pitch={9} budget={15000} live reduced={reduced} inkKey={inkKey} handle={engine} onHeat={onHeat} quiet=".lyl-lead p" />
           <div className="lyl-marks" aria-hidden="true">
             <i className="lyl-vline" style={{ left: "calc(var(--lyl-pad) + (100% - 2 * var(--lyl-pad)) * .3333)" }} />
             <i className="lyl-vline" style={{ left: "calc(var(--lyl-pad) + (100% - 2 * var(--lyl-pad)) * .6667)" }} />
@@ -1431,7 +1454,7 @@ export default function LoylySaunaLanding({
                             className={"lyl-btn lyl-sm " + (wait ? "lyl-line" : "lyl-solid")}
                             onClick={() => days[day] && doBook(s, days[day], wait)}
                             disabled={!!st && st.s === "busy"}
-                            aria-label={(wait ? "Join the waitlist for " : "Book ") + s.name + " at " + s.time + ", " + (days[day] ? days[day].full || days[day].label : "")}
+                            aria-label={(wait ? "Join waitlist for " : "Book ") + s.name + " at " + s.time + ", " + (days[day] ? days[day].full || days[day].label : "")}
                           >
                             {st && st.s === "busy" ? (wait ? "Joining…" : "Booking…") : wait ? "Join waitlist" : "Book"}
                             <span className="lyl-arr" aria-hidden="true">{"→"}</span>
@@ -1513,11 +1536,8 @@ export default function LoylySaunaLanding({
                     <article
                       key={s.name}
                       className="lyl-step"
-                      tabIndex={0}
                       onMouseEnter={() => setFocusKind(s.kind)}
                       onMouseLeave={() => setFocusKind("")}
-                      onFocus={() => setFocusKind(s.kind)}
-                      onBlur={() => setFocusKind("")}
                     >
                       <h3>
                         <svg className="lyl-sw" viewBox="0 0 18 18" aria-hidden="true">
