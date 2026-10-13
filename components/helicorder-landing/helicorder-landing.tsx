@@ -429,7 +429,7 @@ const FSK_CSS = `
 .fsk-menu{display:none;font:600 13px/1 var(--mono);height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px}
 .fsk-drawer{position:absolute;left:0;right:0;top:64px;background:var(--paper);border-bottom:1px solid var(--line);padding:8px 16px 20px;display:grid;gap:2px;transform-origin:top;animation:fsk-drop .26s var(--ease)}
 .fsk-drawer a{font-size:22px;letter-spacing:-.02em;padding:10px 0;border-bottom:1px solid var(--faint)}
-.fsk-drawer .fsk-btn{margin-top:14px;justify-content:center}
+.fsk-drawer .fsk-btn{margin-top:14px;justify-content:center;font-size:15px;letter-spacing:-.005em;border-bottom:0;padding:0 20px}
 @keyframes fsk-drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
 .fsk-btn{position:relative;display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 20px;border-radius:999px;font-weight:600;font-size:15px;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;isolation:isolate;transition:transform .14s var(--ease),color .3s var(--ease),border-color .3s}
@@ -456,27 +456,31 @@ const FSK_CSS = `
 .fsk-pen{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;will-change:transform}
 .fsk-pen::before{content:"";position:absolute;left:-1px;bottom:0;width:2px;height:30px;background:var(--ink);transform-origin:bottom;transform:rotate(24deg);border-radius:2px}
 .fsk-pen::after{content:"";position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--red)}
-.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,var(--paper) 0,var(--paper) 39%,color-mix(in srgb,var(--paper) 70%,transparent) 47%,transparent 58%);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%);mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%)}
+.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,var(--paper) 0,var(--paper) 42%,transparent 58%);background:linear-gradient(90deg,var(--paper) 0,var(--paper) 39%,color-mix(in srgb,var(--paper) 70%,transparent) 47%,transparent 58%);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%);mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%)}
 .fsk-copy{position:absolute;left:var(--gut);top:clamp(28px,7%,84px);width:min(600px,40%);cursor:auto}
 .fsk-copy h1{font-size:clamp(44px,5.3vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:700;margin-left:-.04em;text-wrap:balance}
 .fsk-lede{margin-top:24px;font-size:19px;line-height:1.5;color:var(--soft);max-width:30ch}
 .fsk-ctas{margin-top:32px;display:flex;flex-wrap:wrap;gap:12px}
 .fsk-hfoot{position:absolute;left:var(--gut);right:24px;bottom:16px;display:flex;justify-content:space-between;gap:24px;color:var(--muted);pointer-events:none}
-.fsk-toast{position:absolute;left:clamp(16px,calc(var(--pen-x,60%) + 20px),calc(100% - 270px));top:calc(var(--pen-y,70%) - 92px);z-index:5;width:250px;padding:12px 16px;background:var(--chip);border:1.5px solid var(--red);color:var(--ink);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
+.fsk-toast{position:absolute;left:clamp(16px,calc(var(--pen-x,60%) + 14px),calc(100% - 230px));top:calc(var(--pen-y,70%) - 70px);z-index:5;width:220px;padding:0 0 0 10px;border-left:1.5px solid var(--red);color:var(--red);text-shadow:0 0 2px var(--paper),0 0 4px var(--paper),0 0 8px var(--paper);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
 .fsk-toast[data-on="true"]{opacity:1;transform:none}
 .fsk-toast b{color:var(--red);font-weight:700}
-.fsk-toast .fsk-count{font:700 28px/1 var(--sans);letter-spacing:-.03em;margin-top:6px;color:var(--red)}
+.fsk-toast .fsk-count{font:700 26px/1 var(--sans);letter-spacing:-.03em;margin-top:4px;color:var(--red)}
+.fsk-toast .fsk-mono{font-weight:700;font-size:11.5px}
 
-.fsk-page{position:relative;background-image:linear-gradient(90deg,transparent calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 13px),transparent calc(var(--gut) - 13px)),repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--faint) 31px,var(--faint) 32px)}
+.fsk-page{position:relative;background-image:linear-gradient(90deg,transparent calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 13px),transparent calc(var(--gut) - 13px))}
 .fsk-sec{position:relative;padding:112px 24px 112px var(--gut)}
-.fsk-stamp{position:absolute;left:0;top:124px;width:calc(var(--gut) - 22px);text-align:right;color:var(--muted)}
-.fsk-stamp::after{content:"";position:absolute;right:-14px;top:50%;width:10px;height:1.5px;background:var(--red)}
-.fsk-band{position:relative;padding:6px 24px 6px var(--gut);--i0:#16181b;--i1:#1d4aa6;--i2:#b8321f;--i3:#1d6b42}
-.fsk[data-theme="dark"] .fsk-band{--i0:#efeee8;--i1:#c9c8c1;--i2:#efeee8;--i3:#b0afa8}
-.fsk-band div{position:relative;height:22px}
-.fsk-band span{position:absolute;right:calc(100% + 19px);top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px}
-.fsk-band svg{width:100%;height:22px;overflow:visible}
-.fsk-band path{opacity:.85}
+.fsk{--i0:#16181b;--i1:#1d4aa6;--i2:#b8321f;--i3:#1d6b42}
+.fsk[data-theme="dark"]{--i0:#efeee8;--i1:#c9c8c1;--i2:#efeee8;--i3:#b0afa8}
+.fsk-paper{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.fsk-paper svg{position:absolute;left:var(--gut);right:24px;top:0;width:calc(100% - var(--gut) - 24px);opacity:.2}
+.fsk[data-theme="dark"] .fsk-paper svg{opacity:.22}
+.fsk-paper span{position:absolute;left:0;width:calc(var(--gut) - 22px);text-align:right;font-size:10.5px;line-height:1;color:var(--muted);opacity:.75;transform:translateY(-50%)}
+.fsk-page>section,.fsk-page>.fsk-band{z-index:1}
+.fsk-stamp{position:absolute;left:calc(var(--gut) - 19px);top:133px;width:12px;height:2px;background:var(--red)}
+.fsk-band{position:relative;margin:0 24px 0 var(--gut);padding:26px 0 8px;background:var(--paper);box-shadow:0 0 0 6px var(--paper)}
+.fsk-band svg{display:block;width:100%;height:64px;overflow:visible}
+.fsk-band-n{position:absolute;top:0;transform:translateX(-12px);white-space:nowrap;color:var(--red);font-weight:700}
 .fsk-h2{font-size:clamp(34px,3.8vw,60px);line-height:1;letter-spacing:-.04em;font-weight:700;text-wrap:balance;max-width:16ch}
 .fsk-intro{margin-top:20px;max-width:46ch;color:var(--soft)}
 
@@ -521,7 +525,8 @@ const FSK_CSS = `
 .fsk-strip-ax span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
 .fsk-strip-ax span:last-child{transform:translateX(-100%);color:var(--red)}
 .fsk-log li{transition:background .2s}
-.fsk-log li{position:relative}
+.fsk-log li{position:relative;cursor:default}
+.fsk-log li:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .fsk-log li::before{content:"";position:absolute;left:-14px;top:12px;bottom:12px;width:2px;background:var(--red);transform:scaleY(0);transition:transform .2s var(--ease)}
 .fsk-log li[data-hot="true"]::before{transform:none}
 .fsk-log li[data-hot="true"] .fsk-t{color:var(--ink);font-weight:700}
@@ -566,7 +571,7 @@ const FSK_CSS = `
 .fsk-price{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:64px;align-items:start}
 .fsk-incl{margin-top:32px;border-top:1px solid var(--line)}
 .fsk-incl li{display:grid;grid-template-columns:28px 1fr;padding:14px 0;border-bottom:1px solid var(--line);font-size:16px}
-.fsk-incl li::before{content:"";width:12px;height:1.5px;background:var(--red);margin-top:12px}
+.fsk-incl li::before{content:"";width:12px;height:2px;background:var(--red);margin-top:11px}
 .fsk-card{position:relative;border:1.5px solid var(--ink);background:var(--paper);margin-top:8px}
 .fsk-card-h{display:flex;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1.5px solid var(--ink);background:repeating-linear-gradient(135deg,transparent 0,transparent 6px,var(--faint) 6px,var(--faint) 7px);font-weight:700}
 .fsk-card-h span:last-child{color:var(--muted);font-weight:400}
@@ -619,18 +624,20 @@ const FSK_CSS = `
 .fsk-menu{display:inline-flex;align-items:center}
 .fsk-head{padding-left:20px;padding-right:16px;justify-content:space-between}
 .fsk-head .fsk-cta-head{display:none}
-.fsk-veil{background:linear-gradient(180deg,var(--paper) 0,var(--paper) 46%,color-mix(in srgb,var(--paper) 70%,transparent) 52%,transparent 60%);-webkit-mask-image:none;mask-image:none}
+.fsk-veil{background:linear-gradient(180deg,var(--paper) 0,var(--paper) 43%,transparent 50%);background:linear-gradient(180deg,var(--paper) 0,var(--paper) 42%,color-mix(in srgb,var(--paper) 70%,transparent) 46%,transparent 50%);-webkit-mask-image:none;mask-image:none}
 .fsk-hfoot span:last-child{display:none}
 .fsk-copy{left:var(--gut);right:24px;width:auto;max-width:640px}
 .fsk-copy h1{font-size:clamp(40px,7.4vw,72px)}
 .fsk-how,.fsk-play,.fsk-net,.fsk-price,.fsk-fgrid{grid-template-columns:1fr;gap:48px}
 .fsk-quote{grid-template-columns:1fr;gap:28px}
+.fsk-band-n{max-width:calc(100% - 12px);overflow:hidden;text-overflow:ellipsis;left:12px !important;transform:none}
 .fsk-net-head{grid-template-columns:1fr;gap:20px}
 .fsk-stamp{display:none}
 }
 @media (max-width:639px){
 .fsk{--gut:20px;font-size:16px}
-.fsk-page{background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--faint) 31px,var(--faint) 32px)}
+.fsk-page{background-image:none}
+.fsk-paper span{display:none}
 .fsk-head{padding:0 12px 0 16px}
 .fsk-brand{font-size:18px}
 .fsk-copy{top:20px;right:20px}
@@ -642,7 +649,8 @@ const FSK_CSS = `
 .fsk-hfoot span:last-child{display:none}
 .fsk-sec{padding:72px 20px 72px var(--gut)}
 .fsk-sec--tight{padding-top:56px;padding-bottom:56px}
-.fsk-band span{display:none}
+.fsk-band{margin-right:20px}
+.fsk-veil{background:linear-gradient(180deg,var(--paper) 0,var(--paper) 49%,transparent 56%)}
 .fsk-steps li{grid-template-columns:56px 1fr}
 .fsk-gram{height:180px}
 .fsk-tabs{display:flex;width:100%;overflow-x:auto;scrollbar-width:none}
@@ -670,7 +678,7 @@ const FSK_CSS = `
 .fsk-faq summary{font-size:18px;padding:18px 0}
 .fsk-foot{padding:72px 20px 24px var(--gut)}
 .fsk-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
-.fsk-toast{width:240px;left:clamp(12px,calc(var(--pen-x,50%) - 120px),calc(100% - 252px))}
+.fsk-toast{width:200px;left:clamp(12px,calc(var(--pen-x,50%) - 100px),calc(100% - 212px));top:calc(var(--pen-y,70%) - 64px)}
 }
 @media (prefers-reduced-motion:reduce){
 .fsk *,.fsk *::before,.fsk *::after{animation:none !important;transition-duration:.01ms !important}
@@ -757,6 +765,7 @@ function Drum(props: {
     let rows: { t: number; v: Float32Array; n: number }[] = []
     let liveFrom = 1
     let marks: { alert: number; p: number; s: number; live: boolean }[] = []
+    let knocks: number[] = []
     let clock = 0 // fractional sample position of the pen in the last row
     let raf = 0
     let last = 0
@@ -818,6 +827,7 @@ function Drum(props: {
       synth = fskSynth(1983)
       synth.quakes.push({ p: sAt - lead + pAfterAlert, s: sAt, amp: 1 })
       marks = [{ alert: sAt - lead, p: sAt - lead + pAfterAlert, s: sAt, live: false }]
+      knocks = []
       rows = []
       for (let r = 0; r < L.rows; r++) {
         rows.push({ t: t0 + r * L.spr, v: new Float32Array(per()), n: 0 })
@@ -855,6 +865,11 @@ function Drum(props: {
       const x0 = Math.max(L.left + 2, Math.min(L.left + L.plotW - w - 2, want))
       ctx.textAlign = "left"
       ctx.textBaseline = "middle"
+      // a tight paper slip under the words, so the trace never shows through the spaces
+      ctx.fillStyle = pal.paper
+      ctx.globalAlpha = 0.92
+      ctx.fillRect(x0 - 3, y - 7, w + 6, 14)
+      ctx.globalAlpha = 1
       ctx.lineJoin = "round"
       ctx.lineWidth = 4
       ctx.strokeStyle = pal.paper
@@ -867,6 +882,22 @@ function Drum(props: {
       const pal = palette()
       const lastRow = rows[rows.length - 1]
       const penT = lastRow.t + lastRow.n / FSK_SR
+      knocks.forEach((t, i) => {
+        const q = pos(t)
+        if (!q || t > penT) return
+        ctx.strokeStyle = pal.red
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(q.x, q.y - L.rowH * 0.25)
+        ctx.lineTo(q.x, q.y - L.rowH * 0.66)
+        ctx.stroke()
+        // a burst of knocks gets one note, on its last knock
+        const next = knocks[i + 1]
+        if (next !== undefined && next - t < 8) return
+        const n = knocks.filter((k) => k <= t && t - k < 8 * 4).length
+        const label = (n > 1 ? n + " knocks " : "knock ") + clockUTC(t, true)
+        note(label, q.x + 4, q.y - L.rowH * 0.66, "left", pal.red, false)
+      })
       for (const m of marks) {
         const ticks: [number, string][] = [
           [m.alert, "ALERT"],
@@ -923,11 +954,13 @@ function Drum(props: {
       ctx.font = (L.phone ? "9.5px " : "11px ") + MONO_2D
       ctx.textBaseline = "middle"
       const withSec = L.spr % 60 !== 0
+      // the copy's paper covers the upper left: no half-masked stamps under it
+      const hidden = (L.wide ? 0.64 : L.phone ? 0.56 : 0.5) * (canvas.height / dpr)
       for (let r = 0; r < rows.length; r++) {
         const y = rowY(r)
         ctx.fillStyle = pal.label
         ctx.textAlign = "right"
-        ctx.fillText(clockUTC(rows[r].t, withSec), L.left - 10, y)
+        if (y > hidden) ctx.fillText(clockUTC(rows[r].t, withSec), L.left - 10, y)
         if (L.wide) {
           ctx.textAlign = "left"
           ctx.fillText(clockLocal(rows[r].t, withSec), L.left + L.plotW + 10, y)
@@ -949,6 +982,23 @@ function Drum(props: {
       }
     }
 
+    const drawGap = () => {
+      const pal = palette()
+      // a break in the record: the live lines no longer follow the archive minute for minute
+      if (rows[liveFrom] && rows[liveFrom].t - rows[liveFrom - 1].t > L.spr + 0.5) {
+        const gy = L.top + liveFrom * L.rowH + feedY
+        ctx.strokeStyle = pal.label
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        for (let x = L.left, k = 0; x <= L.left + L.plotW; x += 5, k++) {
+          if (k === 0) ctx.moveTo(x, gy + (k % 2 ? 2.5 : -2.5))
+          else ctx.lineTo(x, gy + (k % 2 ? 2.5 : -2.5))
+        }
+        ctx.stroke()
+        note("live from " + clockUTC(rows[liveFrom].t, L.spr % 60 !== 0), L.left + L.plotW * 0.02, gy, "left", pal.red, true)
+      }
+    }
+
     const placePen = () => {
       const r = rows.length - 1
       const j = Math.max(0, rows[r].n - 1)
@@ -962,6 +1012,7 @@ function Drum(props: {
     function redraw() {
       drawFrame()
       for (let r = 0; r < rows.length; r++) strokeRow(r, 0, rows[r].n)
+      drawGap()
       drawMarks()
       placePen()
     }
@@ -988,7 +1039,8 @@ function Drum(props: {
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
           strokeRow(r, Math.max(0, before - 1), rows[r].n)
           const t0 = rows[r].t
-          if (marks.some((m) => m.live && [m.alert, m.p, m.s].some((t) => t > t0 + before / FSK_SR && t <= t0 + rows[r].n / FSK_SR))) drawMarks()
+          const crossed = (t: number) => t > t0 + before / FSK_SR && t <= t0 + rows[r].n / FSK_SR
+          if (knocks.some(crossed) || marks.some((m) => m.live && [m.alert, m.p, m.s].some(crossed))) drawMarks()
         }
         if (clock < per()) break
         feed()
@@ -1038,7 +1090,10 @@ function Drum(props: {
     const knock = (e: PointerEvent) => {
       const el = e.target as HTMLElement
       if (el.closest("a,button,input,.fsk-copy")) return
-      synth.knock(0.7 + Math.random() * 0.5)
+      synth.knock(1.5 + Math.random() * 0.8)
+      const lastRow = rows[rows.length - 1]
+      knocks.push(lastRow.t + clock / FSK_SR)
+      if (knocks.length > 12) knocks.shift()
       if (reduced) advance(FSK_SR * 4)
     }
     heroEl.addEventListener("pointerdown", knock)
@@ -1122,20 +1177,88 @@ function Mark() {
   )
 }
 
-function Rule(props: { seed: number }) {
-  const rows = React.useMemo(
-    () => [0, 1, 2].map((k) => fskTracePath(props.seed * 5 + k, 1200, 22, 420, 3.2 + (k === 1 ? 0.8 : 0))),
-    [props.seed],
-  )
+const FSK_EVENTS = [
+  { km: 58, mag: 0.22, note: "M2.1 · Gulf of Gemlik · 58 km · below your threshold, no alert" },
+  { km: 41, mag: 0.34, note: "M3.0 · Çınarcık · 41 km · below threshold, logged" },
+  { km: 212, mag: 0.16, note: "M2.6 · Saros Gulf · 212 km · out of range" },
+  { km: 0, mag: 0.5, note: "Quarry blast · Kemerburgaz · filtered, no alert" },
+]
+
+/** A divider is two more lines of the record, each with a small event the network logged and let pass. */
+function Rule(props: { n: number }) {
+  const ev = FSK_EVENTS[props.n % FSK_EVENTS.length]
+  const span = 80
+  const pAt = 22
+  const d = React.useMemo(() => {
+    const syn = fskSynth(500 + props.n * 7)
+    if (ev.km > 0) syn.quakes.push({ p: pAt, s: pAt + ev.km / FSK_VS - ev.km / FSK_VP, amp: ev.mag })
+    let out = ""
+    const n = span * FSK_SR
+    const half = n / 2
+    for (let i = 0; i < n; i++) {
+      const t = i / FSK_SR
+      if (ev.km === 0 && Math.abs(t - pAt) < 0.5 / FSK_SR) syn.knock(ev.mag * 6)
+      const v = syn.next(t)
+      const line = i < half ? 0 : 1
+      const x = (((i % half) / half) * 1000).toFixed(1)
+      const y = (16 + line * 32 + 13 * Math.tanh((v * 5) / 13)).toFixed(1)
+      out += (i === 0 || i === half ? "M" : "L") + x + " " + y
+    }
+    return out
+  }, [props.n, ev.km, ev.mag])
+  const k = props.n % 4
   return (
     <div className="fsk-band" aria-hidden="true">
-      {rows.map((d, k) => (
-        <div key={k}>
-          <span className="fsk-mono">{["HHZ", "HHN", "HHE"][k]}</span>
-          <svg viewBox="0 0 1200 22" preserveAspectRatio="none">
-            <path d={d} fill="none" stroke={"var(--i" + ((props.seed + k) % 4) + ")"} strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
-          </svg>
-        </div>
+      <span className="fsk-band-n fsk-mono" style={{ left: ((pAt / (span / 2)) * 100).toFixed(1) + "%" }}>
+        {ev.note}
+      </span>
+      <svg viewBox="0 0 1000 64" preserveAspectRatio="none">
+        <line x1={(pAt / (span / 2)) * 1000} x2={(pAt / (span / 2)) * 1000} y1="0" y2="28" stroke="var(--red)" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+        <path d={d} fill="none" stroke={"var(--i" + k + ")"} strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  )
+}
+
+/** The paper under the whole page: more lines of the same record, at the drum's pitch and in its inks. */
+function Paper(props: { from: number }) {
+  const ref = React.useRef(null as HTMLDivElement | null)
+  const [h, setH] = React.useState(0)
+  React.useEffect(() => {
+    const el = ref.current?.parentElement
+    if (!el) return
+    const ro = new ResizeObserver(() => setH(Math.ceil(el.offsetHeight)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const pitch = 32
+  const rows = Math.ceil(h / pitch)
+  const lines = React.useMemo(() => {
+    const out: string[] = []
+    for (let r = 0; r < rows; r++) out.push(fskTracePath(700 + r, 1200, pitch, 150, 2.4))
+    return out
+  }, [rows])
+  return (
+    <div className="fsk-paper" ref={ref} aria-hidden="true">
+      {h > 0 && (
+        <svg viewBox={"0 0 1200 " + rows * pitch} preserveAspectRatio="none" style={{ height: rows * pitch }}>
+          {lines.map((d, r) => (
+            <path
+              key={r}
+              d={d}
+              transform={"translate(0 " + r * pitch + ")"}
+              fill="none"
+              stroke={"var(--i" + (r % 4) + ")"}
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      )}
+      {lines.map((_, r) => (
+        <span key={r} className="fsk-mono" style={{ top: r * pitch + pitch / 2 }}>
+          {clockUTC(props.from + r * 60, false)}
+        </span>
       ))}
     </div>
   )
@@ -1380,6 +1503,10 @@ function Wordmark(props: { word: string; reduced: boolean }) {
         }
         for (let i = 1; i < N - 1; i++) {
           y[i] += v[i] * dt
+          if (y[i] > 18 || y[i] < -18) {
+            y[i] = y[i] > 0 ? 18 : -18
+            v[i] *= -0.3
+          }
           energy += v[i] * v[i] + y[i] * y[i] * 0.01
         }
       }
@@ -1462,13 +1589,9 @@ function FaqItem(props: { f: FskFaq; i: number }) {
   )
 }
 
-/** A drum time stamp in the page's left margin: every section is a moment on one long record. */
-function Stamp(props: { at: number }) {
-  return (
-    <span className="fsk-stamp fsk-mono fsk-num" aria-hidden="true">
-      {clockUTC(props.at, false)}
-    </span>
-  )
+/** A red pen tick in the margin where each section starts on the record. */
+function Stamp() {
+  return <span className="fsk-stamp" aria-hidden="true" />
 }
 
 /** The school drill as the campus sensor recorded it: the tone, a burst of footsteps, then stillness. */
@@ -1577,7 +1700,7 @@ export default function HelicorderLanding({
   const [toast, setToast] = React.useState({ on: false, phase: "alert", left: 0 } as Toast)
   const [busy, setBusy] = React.useState(false)
   const [tab, setTab] = React.useState(0)
-  const [count, setCount] = React.useState(12)
+  const [count, setCount] = React.useState("12")
   const [hot, setHot] = React.useState(-1)
   const tabsRef = React.useRef(null as HTMLDivElement | null)
   const [ind, setInd] = React.useState({ x: 0, w: 0 })
@@ -1606,9 +1729,12 @@ export default function HelicorderLanding({
     if (!href.startsWith("#")) return
     e.preventDefault()
     setMenu(false)
-    const target = rootRef.current?.querySelector(href) as HTMLElement | null
+    const target = rootRef.current?.querySelector(local(href)) as HTMLElement | null
     target?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" })
   }
+
+  // "#fsk-<section>" hrefs point at this instance's sections, so two copies never collide
+  const local = (h: string) => (h.startsWith("#fsk-") ? "#" + uid + "-" + h.slice(5) : h)
 
   const toggleTheme = () => {
     setTouched(true)
@@ -1630,7 +1756,7 @@ export default function HelicorderLanding({
     btn?.focus()
   }
 
-  const price = fskPrice(count, pricing.each, pricing.volumeEach, pricing.volumeFrom)
+  const price = fskPrice(Number(count) || 1, pricing.each, pricing.volumeEach, pricing.volumeFrom)
   const money = (n: number) => pricing.currency + n.toLocaleString("en-GB")
   const site = sites[Math.min(tab, sites.length - 1)]
   const lead = fskWarning(quake.distanceKm)
@@ -1638,7 +1764,6 @@ export default function HelicorderLanding({
   const sAt = Number.isFinite(parsed) ? parsed / 1000 : Date.UTC(2026, 2, 14, 9, 31, 37) / 1000
   const day = new Date(sAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
   // the page below the drum keeps the record's clock: one stamp per section
-  const stamp = (k: number) => Math.floor(sAt / 60) * 60 + (k + 8) * 60
 
   return (
     <div ref={rootRef} className={"fsk" + (className ? " " + className : "")} data-theme={theme}>
@@ -1648,7 +1773,7 @@ export default function HelicorderLanding({
       </a>
 
       <header className="fsk-head">
-        <a className="fsk-brand" href="#fsk-top" onClick={(e) => go(e, "#fsk-top")} aria-label={brand + ", top of page"}>
+        <a className="fsk-brand" href={local("#fsk-top")} onClick={(e) => go(e, "#fsk-top")} aria-label={brand + ", top of page"}>
           <Mark />
           {brand}
         </a>
@@ -1657,7 +1782,7 @@ export default function HelicorderLanding({
         </span>
         <nav className="fsk-nav" aria-label="Main">
           {nav.map((l) => (
-            <a key={l.href + l.label} href={l.href} onClick={(e) => go(e, l.href)}>
+            <a key={l.href + l.label} href={local(l.href)} onClick={(e) => go(e, l.href)}>
               {l.label}
             </a>
           ))}
@@ -1674,7 +1799,7 @@ export default function HelicorderLanding({
               <path d="M9 1.8a7.2 7.2 0 0 1 0 14.4z" fill="currentColor" />
             </svg>
           </button>
-          <a className="fsk-btn fsk-btn--ink fsk-btn--sm fsk-cta-head" href={cta.href} onClick={(e) => go(e, cta.href)}>
+          <a className="fsk-btn fsk-btn--ink fsk-btn--sm fsk-cta-head" href={local(cta.href)} onClick={(e) => go(e, cta.href)}>
             {cta.label}
           </a>
           <button
@@ -1690,11 +1815,11 @@ export default function HelicorderLanding({
         {menu && (
           <nav className="fsk-drawer" id={uid + "-drawer"} aria-label="Menu">
             {nav.map((l) => (
-              <a key={l.href + l.label} href={l.href} onClick={(e) => go(e, l.href)}>
+              <a key={l.href + l.label} href={local(l.href)} onClick={(e) => go(e, l.href)}>
                 {l.label}
               </a>
             ))}
-            <a className="fsk-btn fsk-btn--ink" href={cta.href} onClick={(e) => go(e, cta.href)}>
+            <a className="fsk-btn fsk-btn--ink" href={local(cta.href)} onClick={(e) => go(e, cta.href)}>
               {cta.label}
             </a>
           </nav>
@@ -1703,7 +1828,7 @@ export default function HelicorderLanding({
 
       <main id={uid + "-main"}>
         <section
-          id="fsk-top"
+          id={uid + "-top"}
           className="fsk-hero"
           style={{ height: "calc(" + height + " - 64px)", minHeight: 560 }}
           aria-labelledby={uid + "-h1"}
@@ -1728,7 +1853,7 @@ export default function HelicorderLanding({
             <h1 id={uid + "-h1"}>{hero.title}</h1>
             <p className="fsk-lede">{hero.lede}</p>
             <div className="fsk-ctas">
-              <a className="fsk-btn fsk-btn--ink" href={cta.href} onClick={(e) => go(e, cta.href)}>
+              <a className="fsk-btn fsk-btn--ink" href={local(cta.href)} onClick={(e) => go(e, cta.href)}>
                 {cta.label}
                 <Arrow />
               </a>
@@ -1758,7 +1883,10 @@ export default function HelicorderLanding({
               </button>
             </div>
           </div>
-          <div className="fsk-toast" data-on={toast.on} role="status" aria-live="polite">
+          <p className="fsk-sr" role="status" aria-live="polite">
+            {toast.on ? (toast.phase === "alert" ? "Alert: M" + quake.magnitude.toFixed(1) + ", S-wave due in " + lead.warning.toFixed(0) + " seconds." : "S-wave arriving. Shaking now.") : ""}
+          </p>
+          <div className="fsk-toast" data-on={toast.on} aria-hidden="true">
             {toast.on && (
               <>
                 <div className="fsk-mono">
@@ -1777,9 +1905,10 @@ export default function HelicorderLanding({
         </section>
 
         <div className="fsk-page">
-          <section id="fsk-how" className="fsk-sec" aria-labelledby={uid + "-how"}>
-            <Stamp at={stamp(0)} />
-            <h2 className="fsk-h2" id={uid + "-how"}>
+          <Paper from={Math.floor(sAt / 60) * 60 + 8 * 60} />
+          <section id={uid + "-how"} className="fsk-sec" aria-labelledby={uid + "-how-h"}>
+            <Stamp />
+            <h2 className="fsk-h2" id={uid + "-how-h"}>
               {how.title}
             </h2>
             <p className="fsk-intro">{how.intro}</p>
@@ -1799,11 +1928,11 @@ export default function HelicorderLanding({
             </div>
           </section>
 
-          <Rule seed={3} />
+          <Rule n={0} />
 
-          <section id="fsk-sites" className="fsk-sec" aria-labelledby={uid + "-sites"}>
-            <Stamp at={stamp(1)} />
-            <h2 className="fsk-h2" id={uid + "-sites"}>
+          <section id={uid + "-sites"} className="fsk-sec" aria-labelledby={uid + "-sites-h"}>
+            <Stamp />
+            <h2 className="fsk-h2" id={uid + "-sites-h"}>
               {sitesTitle}
             </h2>
             <p className="fsk-intro">{sitesIntro}</p>
@@ -1834,7 +1963,15 @@ export default function HelicorderLanding({
                 <PlayStrip steps={site.steps} lead={lead.s - lead.alert} pAfterAlert={lead.p - lead.alert} hot={hot} uid={uid} />
                 <ol className="fsk-log" key={site.id} onMouseLeave={() => setHot(-1)}>
                   {site.steps.map((st, i) => (
-                    <li key={i} style={{ animationDelay: i * 40 + "ms" }} onMouseEnter={() => setHot(i)} data-hot={i === hot}>
+                    <li
+                      key={i}
+                      style={{ animationDelay: i * 40 + "ms" }}
+                      tabIndex={0}
+                      onMouseEnter={() => setHot(i)}
+                      onFocus={() => setHot(i)}
+                      onClick={() => setHot(i)}
+                      data-hot={i === hot}
+                    >
                       <span className="fsk-mono fsk-t fsk-num">T−{st.at.toFixed(1)} s</span>
                       <span>{st.action}</span>
                       <span className="fsk-mono fsk-sys">{st.system}</span>
@@ -1852,10 +1989,10 @@ export default function HelicorderLanding({
             </div>
           </section>
 
-          <Rule seed={11} />
+          <Rule n={1} />
 
-          <section id="fsk-network" className="fsk-sec" aria-labelledby={uid + "-net"}>
-            <Stamp at={stamp(2)} />
+          <section id={uid + "-network"} className="fsk-sec" aria-labelledby={uid + "-net"}>
+            <Stamp />
             <div className="fsk-net-head">
               <h2 className="fsk-h2" id={uid + "-net"}>
                 {network.title}
@@ -1889,7 +2026,7 @@ export default function HelicorderLanding({
           </section>
 
           <section className="fsk-sec fsk-sec--drill" aria-labelledby={uid + "-drill"}>
-            <Stamp at={stamp(3)} />
+            <Stamp />
             <figure className="fsk-quote">
               <blockquote id={uid + "-drill"}>“{quote.text}”</blockquote>
               <DrillRecord seconds={quote.seconds ?? 9} tone={quote.tone ?? "10:02:00"} uid={uid} />
@@ -1901,10 +2038,10 @@ export default function HelicorderLanding({
             </figure>
           </section>
 
-          <Rule seed={23} />
+          <Rule n={2} />
 
-          <section id="fsk-pricing" className="fsk-sec" aria-labelledby={uid + "-price"}>
-            <Stamp at={stamp(4)} />
+          <section id={uid + "-pricing"} className="fsk-sec" aria-labelledby={uid + "-price"}>
+            <Stamp />
             <div className="fsk-price">
               <div>
                 <h2 className="fsk-h2" id={uid + "-price"}>
@@ -1927,7 +2064,7 @@ export default function HelicorderLanding({
                     Buildings
                   </label>
                   <div className="fsk-step">
-                    <button type="button" aria-label="One building fewer" onClick={() => setCount(Math.max(1, price.buildings - 1))}>
+                    <button type="button" aria-label="One building fewer" onClick={() => setCount(String(Math.max(1, price.buildings - 1)))}>
                       −
                     </button>
                     <input
@@ -1937,10 +2074,10 @@ export default function HelicorderLanding({
                       min={1}
                       max={500}
                       value={count}
-                      onChange={(e) => setCount(Number(e.target.value) || 1)}
-                      onBlur={() => setCount(price.buildings)}
+                      onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                      onBlur={() => setCount(String(price.buildings))}
                     />
-                    <button type="button" aria-label="One building more" onClick={() => setCount(Math.min(500, price.buildings + 1))}>
+                    <button type="button" aria-label="One building more" onClick={() => setCount(String(Math.min(500, price.buildings + 1)))}>
                       +
                     </button>
                   </div>
@@ -1964,7 +2101,7 @@ export default function HelicorderLanding({
                     ? "Volume rate applied: " + money(pricing.volumeEach) + " from " + pricing.volumeFrom + " buildings."
                     : money(pricing.volumeEach) + " per building from " + pricing.volumeFrom + " buildings. Prices exclude VAT."}
                 </p>
-                <a className="fsk-btn fsk-btn--ink" href={cta.href} onClick={(e) => go(e, cta.href)}>
+                <a className="fsk-btn fsk-btn--ink" href={local(cta.href)} onClick={(e) => go(e, cta.href)}>
                   {cta.label}
                   <Arrow />
                 </a>
@@ -1972,11 +2109,11 @@ export default function HelicorderLanding({
             </div>
           </section>
 
-          <Rule seed={31} />
+          <Rule n={3} />
 
-          <section id="fsk-faq" className="fsk-sec" aria-labelledby={uid + "-faq"}>
-            <Stamp at={stamp(5)} />
-            <h2 className="fsk-h2" id={uid + "-faq"}>
+          <section id={uid + "-faq"} className="fsk-sec" aria-labelledby={uid + "-faq-h"}>
+            <Stamp />
+            <h2 className="fsk-h2" id={uid + "-faq-h"}>
               {faqTitle}
             </h2>
             <div className="fsk-faq">
@@ -1988,7 +2125,7 @@ export default function HelicorderLanding({
         </div>
       </main>
 
-      <footer id="fsk-survey" className="fsk-foot fsk-page">
+      <footer id={uid + "-survey"} className="fsk-foot fsk-page">
         <span className="fsk-end fsk-mono" aria-hidden="true">
           End of record · pen lifted
         </span>
@@ -2005,7 +2142,7 @@ export default function HelicorderLanding({
               <div key={c.title}>
                 <h3>{c.title}</h3>
                 {c.links.map((l) => (
-                  <a key={l.label} href={l.href} onClick={(e) => go(e, l.href)}>
+                  <a key={l.label} href={local(l.href)} onClick={(e) => go(e, l.href)}>
                     {l.label}
                   </a>
                 ))}
