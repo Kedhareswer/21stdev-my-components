@@ -468,7 +468,7 @@ function usePrefersReducedMotion() {
 
 export default function GuillocheEnamel({
   height = "100svh",
-  preset = "cobalt",
+  preset = "forest",
   colors,
   align = "right",
   scale = 1,
@@ -488,7 +488,7 @@ export default function GuillocheEnamel({
   const [generation, setGeneration] = React.useState(0)
   const [failed, setFailed] = React.useState(false)
 
-  const finish = { ...(GUILLOCHE_PRESETS[preset] ?? GUILLOCHE_PRESETS.cobalt), ...colors }
+  const finish = { ...(GUILLOCHE_PRESETS[preset] ?? GUILLOCHE_PRESETS.forest), ...colors }
 
   const params = {
     enamel: hexToLinear(finish.enamel),

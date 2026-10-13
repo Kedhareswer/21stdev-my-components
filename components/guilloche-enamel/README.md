@@ -21,7 +21,7 @@ computed per pixel.
 ```tsx
 import GuillocheEnamel from "@/components/ui/guilloche-enamel"
 
-<GuillocheEnamel />                                    // full viewport, cobalt flinqué
+<GuillocheEnamel />                                    // full viewport, forest-green flinqué
 <GuillocheEnamel preset="salmon" height="560px" />     // bare salmon-gilt plate in a section
 <GuillocheEnamel colors={{ enamel: "#7a1f2b" }} depth={1.3} align="center">
   <YourHero />
@@ -37,7 +37,7 @@ height. The canvas fills this box, and without a real length it collapses to
 | Prop | Default | Notes |
 |---|---|---|
 | `height` | `"100svh"` | **Must be a definite length.** |
-| `preset` | `"cobalt"` | `cobalt` · `forest` (enamel over silver) · `salmon` · `argent` (bare metal under clear lacquer) |
+| `preset` | `"forest"` | `forest` (green enamel over silver) · `cobalt` · `salmon` · `argent` (bare metal under clear lacquer) |
 | `colors` | — | `{ enamel, metal }`, either, `#rgb` / `#rrggbb`. White enamel is a clear lacquer. |
 | `align` | `"right"` | Where the rosette sits: `left` · `center` · `right`. Phones always centre it. |
 | `scale` | `1` | Size of the rosette zones. The groove pitch stays the same. |

@@ -13,7 +13,7 @@ const LABELS = {
 }
 
 export default function FinishesDemo() {
-  const [finish, setFinish] = React.useState("cobalt" as GuillochePreset)
+  const [finish, setFinish] = React.useState("forest" as GuillochePreset)
 
   return (
     <GuillocheEnamel preset={finish}>
