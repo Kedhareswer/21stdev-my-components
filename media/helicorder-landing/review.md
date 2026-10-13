@@ -54,3 +54,18 @@ Hero passes the banned-looks check; below the hero the section order reads as th
 8. Footer trace strikes through the wordmark; strum gain too low.
 9. Animate the once-a-minute row feed.
 10. Visible playbook row hover. 11. Unique ids (useId). 12. Prove keyboard focus.
+
+## Critic round 2 — REDO (a 8 · b 7 · c 7 · d 9 · e 8, avg 7.8)
+
+Reading: "an earthquake early-warning landing printed on a seismograph drum record; every
+section argues the company's case as seismograms." Banned-looks gate passes; the stock section
+order is saved by working traces in each section, but below the hero the paper goes blank.
+
+1. Make the page below the hero the same drum record: trace rows at the drum's pitch in the ink
+   cycle, stamps on those rows, full-width divider rows instead of slivers.
+2. Trace shows through the spaces of pen notes. 3. Unmarked time gap between archive and live
+   lines. 4. Half-masked ghost stamp under the Replay button. 5. The live alert reads as a pasted
+   card; make it pen work and announce only phase changes. 6. Knock too weak; note each knock.
+7. Phone drawer CTA oversized. 8. Pricing dashes render two colours. 9. Building field can't be
+   cleared. 10. Playbook row/tick link for keyboard and touch. 11. Footer string leaves its box.
+12. Section ids collide across instances; color-mix fallback. 13. Tablet gap above the drum.
