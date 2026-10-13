@@ -60,3 +60,26 @@ under the readout; the Klein demo leaked default copy; the room plates' labels r
 as stickers over a ragged print; the ritual hover faded too far; the back half
 (quote, FAQ, visit) lost the halftone language; the Night/Paper switch was weak and
 the FAQ heading left a dead column.
+
+## Round 2 (new critic)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 7 |
+| Originality | 7 |
+| Install safety | 9 |
+| Template | 7 |
+
+Awwwards lens: Design 7, Usability 7.5, Creativity 7, Content 7 = 7.15.
+Verdict: **REDO** (average 7.33).
+
+Changes asked for, most important first: the Klein demo still showed Kiuas sessions,
+quotes and FAQ; plan and hero CTAs needed their own hrefs and callbacks, plus a badge and
+a way to hide the theme switch; the tablet layout was the phone stack stretched; the
+back half needed the print language (quote field, registration marks, less dead
+space); the plate numerals were grey, the rest-deck numeral sat on dots, and captions
+were on different baselines; the ritual's last block read as a placeholder; the wave
+ran behind the headline and CTAs and read as a ripple, not rising steam; dark mode's
+cold ink was bright white; the phone FAQ marker sat outside the gutter.

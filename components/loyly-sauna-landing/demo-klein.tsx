@@ -2,6 +2,26 @@
 
 import LoylySaunaLanding from "@/components/ui/loyly-sauna-landing"
 
+const SLOTS = [
+  { time: "06:30", name: "Sunrise raft", note: "Coffee on board, mist on the water", capacity: 8, price: 26 },
+  { time: "10:00", name: "Morning raft", note: "Swim to the buoy and back", capacity: 8, price: 24 },
+  { time: "15:00", name: "Afternoon raft", note: "Sunny side of the deck", capacity: 8, price: 24 },
+  { time: "19:30", name: "Dusk raft", note: "Lanterns on, last boat 21:00", capacity: 8, price: 26 },
+]
+const FULL = [
+  [6, 3, 5, 8],
+  [5, 2, 4, 7],
+  [7, 4, 3, 8],
+  [4, 3, 6, 6],
+  [8, 5, 7, 8],
+  [8, 8, 8, 7],
+  [7, 6, 5, 3],
+]
+const DAYS = ["Mon 13", "Tue 14", "Wed 15", "Thu 16", "Fri 17", "Sat 18", "Sun 19"].map((label, d) => ({
+  label,
+  sessions: SLOTS.map((s, i) => ({ ...s, id: "raft" + d + i, minutes: 75, booked: FULL[d][i] })),
+}))
+
 // The same page reprinted in Klein blue for a floating sauna on a lake:
 // new brand, copy, rooms, plans and hours, all through props.
 export default function DemoKlein() {
@@ -18,6 +38,7 @@ export default function DemoKlein() {
       }}
       heat={{ label: "Felt heat, upper bench", base: 82, rise: 11, button: "Ladle water on the stones", hint: "Or press anywhere in the heat." }}
       sessions={{
+        days: DAYS,
         title: "This week on the lake.",
         text: "Sessions are 75 minutes on the raft, boat transfer included. Robes and towels are on board; bring a swimsuit and a hat in winter.",
       }}
@@ -32,7 +53,7 @@ export default function DemoKlein() {
         extra: { name: "Boat to the jetty", minutes: 9 },
       }}
       rooms={{
-        title: "One raft, two temperatures, a lot of sky.",
+        title: "Hot cedar, cold lake, a deck in between.",
         items: [
           { name: "Cedar sauna", kind: "heat", temp: 85, text: "Eight seats around a wood stove, with a window at bench height facing the open water.", stay: "10 to 15 min" },
           { name: "The lake", kind: "cold", temp: 9, text: "Straight off the back ladder. A rope runs to a buoy for anyone who wants to swim a lap.", stay: "As long as you like" },
@@ -56,6 +77,20 @@ export default function DemoKlein() {
         ],
         email: "raft@saltbath.example",
       }}
+      quotes={[
+        { quote: "Climbing down the ladder into the lake at seven in the morning has replaced my coffee. Almost.", name: "Jonas Ekberg", role: "Season pass" },
+        { quote: "Eight people, one stove, no phones and the whole lake around you. It is the quietest place in the city.", name: "Priya Raman", role: "Five-trip card" },
+      ]}
+      faq={{
+        title: "Before you board.",
+        items: [
+          { q: "How do I get to the raft?", a: "Our boat leaves Jetty 2 ten minutes before each session and brings you back after. The trip takes four minutes." },
+          { q: "Do I have to swim?", a: "No. The ladder has a rail and a wide bottom step, so you can stay at chest height and hold on." },
+          { q: "What if the weather turns?", a: "We sail in rain and snow. In thunder or strong wind we move you to another session or refund you." },
+          { q: "What should I bring?", a: "A swimsuit and a hat for the cold months. Robes, towels and tea are on board." },
+        ],
+      }}
+      newsletter={{ title: "The raft schedule, every Friday.", text: "Sunrise slots, water temperature and the odd full-moon session." }}
       footer={{ note: "Saltbath. A raft, a stove and a lake." }}
     />
   )
