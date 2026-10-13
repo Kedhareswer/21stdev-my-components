@@ -140,6 +140,7 @@
       "@/components/ui/murmuration-wordmark": ["./components/murmuration-wordmark/murmuration-wordmark.tsx"],
       "@/components/ui/alice-scroll-story": ["./components/alice-scroll-story/alice-scroll-story.tsx"],
       "@/components/ui/distressed-denim": ["./components/distressed-denim/distressed-denim.tsx"],
+      "@/components/ui/chladni-plate": ["./components/chladni-plate/chladni-plate.tsx"],
       "@/components/ui/hoarfrost-pane": ["./components/hoarfrost-pane/hoarfrost-pane.tsx"],
       "@/components/ui/raked-sand-garden": ["./components/raked-sand-garden/raked-sand-garden.tsx"]
     }
