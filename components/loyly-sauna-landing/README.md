@@ -11,7 +11,7 @@ The screen carries the whole page:
   *Throw water on the stones*, or click anywhere in the heat, and a wave of
   löyly rolls up through the dots from where the water landed. Meanwhile the
   felt-heat readout climbs a few degrees and cools back. The wave keeps clear
-  of the body copy.
+  of the headline, the body copy and the buttons.
 - **Sessions.** This week's timetable: day tabs (arrow keys work), spots left
   as a row of dots, full sessions with a waitlist, and booking with a
   confirmation inline. Your booking shows up as an orange dot.
@@ -21,11 +21,13 @@ The screen carries the whole page:
   three rounds, then showers. Point at a step to pick out its blocks.
 - **Membership.** A drop-in, a ten-visit card, and a membership with a monthly
   or yearly price. The featured plan is a solid block of the heat ink.
-- **Quotes, questions and visit.** A big member quote, an accordion, the
-  address and hours, a newsletter form. The footer band is the heat cooling
-  to black.
+- **Quotes, questions and visit.** A big member quote, with a halftone
+  quote mark, set beside a last plume of heat. Then an accordion whose open
+  answer gets a strip of heat dots, the address and hours, and a newsletter
+  form. The footer band is the heat cooling to black, and registration marks
+  pin every section rule.
 
-Dark mode prints the same page on black stock, with the cold ink turned white.
+Dark mode prints the same page on black stock, with the cold ink turned a cool grey.
 
 ```tsx
 import LoylySaunaLanding from "@/components/ui/loyly-sauna-landing"
@@ -44,7 +46,8 @@ import LoylySaunaLanding from "@/components/ui/loyly-sauna-landing"
 
 - `demo.tsx`: Kiuas, a harbour-side public sauna, in safety orange.
 - `demo-klein.tsx`: Saltbath, a floating sauna on a lake, reprinted in Klein
-  blue with its own copy, rooms, passes and hours.
+  blue with its own timetable, ritual, rooms, passes, quotes, questions and
+  hours.
 
 Open `?dark` before the hash in the workshop for the black stock.
 
@@ -55,12 +58,12 @@ Open `?dark` before the hash in the workshop for the black stock.
 | `brand` | `string` | `"Kiuas"` |
 | `tagline` | `string` | `"Public sauna and cold plunge"` (hidden under 1100 px) |
 | `links` | `{ label, href }[]` | Sessions, Rooms, Ritual, Membership, Visit. `#sessions`, `#rooms`, `#ritual`, `#membership` and `#visit` scroll within the page. |
-| `hero` | `{ title, text, cta, secondary }` | The last word of `title` drops to its own line. |
+| `hero` | `{ title, text, cta, ctaHref, secondary, secondaryHref }` | The last word of `title` drops to its own line. The hrefs default to `#sessions` and `#membership`. |
 | `heat` | `{ label, base, rise, button, hint }` | The readout rests at `base` °C and climbs by `rise` after a throw. |
 | `sessions` | `{ title, text, days: LylDay[] } \| null` | A week of five slots a day. `null` hides the section. |
 | `rooms` | `{ title, items: LylRoom[] } \| null` | `kind` (`"heat"`, `"cold"`, `"rest"`) picks how the plate is printed. |
 | `ritual` | `{ title, text, steps, rounds, extra } \| null` | Heat 12, cold 2, rest 10, three rounds, plus 18 minutes of showers. |
-| `plans` | `{ title, text, items: LylPlan[] } \| null` | A plan with `yearly` follows the monthly / yearly switch; `featured` prints it in the heat ink. |
+| `plans` | `{ title, text, items: LylPlan[] } \| null` | A plan with `yearly` follows the monthly / yearly switch; `featured` prints it in the heat ink with its `badge`. Each plan takes an `href` and an `onSelect(plan, yearly)` for checkout. |
 | `quotes` | `LylQuote[] \| null` | Three member quotes. |
 | `faq` | `{ title, items } \| null` | Six questions. |
 | `visit` | `LylVisit \| null` | Address, hours, email, phone. |
@@ -72,13 +75,14 @@ Open `?dark` before the hash in the workshop for the black stock.
 | `onBook` | `(session, day, waitlist) => unknown` | Return or resolve `false`, or throw, to show an error. Without it, booking is simulated. |
 | `onSubscribe` | `(email) => unknown` | Same contract. |
 | `onThrow` | `() => void` | Each time water hits the stones. |
+| `themeToggle` | `boolean` | `true`: shows the Night / Paper switch in the nav. |
 | `height` | `string` | `"100svh"`. A definite length for the hero floor, so it survives any host layout. |
 | `className` | `string` | |
 
 Types: `LylSession { id, time, name, note?, minutes, capacity, booked, price }`,
 `LylDay { label, full?, sessions }`, `LylRoom { name, kind, temp, text, stay }`,
 `LylStep { kind, name, minutes, text }`,
-`LylPlan { name, price, yearly?, unit, text, features, cta, featured? }`,
+`LylPlan { name, price, yearly?, unit, text, features, cta, href?, onSelect?, featured?, badge? }`,
 `LylQuote { quote, name, role }`, `LylFaq { q, a }`,
 `LylVisit { title?, address, hours, email?, phone? }`.
 
