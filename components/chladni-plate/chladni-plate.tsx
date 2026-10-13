@@ -696,7 +696,7 @@ const CP_CSS = `
 .cp-fallback i { position: absolute; left: 50%; top: 50%; width: min(78vmin, 84%); aspect-ratio: 1; transform: translate(-50%, -50%); background: radial-gradient(circle at 30% 28%, #d9b46a, #8a6a34 70%); box-shadow: 18px 24px 40px rgba(0,0,0,0.45); }
 .cp-over { position: relative; z-index: 1; height: 100%; pointer-events: none; }
 .cp-over a, .cp-over button, .cp-over input, .cp-over [data-interactive] { pointer-events: auto; }
-.cp-pill { position: absolute; z-index: 2; left: 16px; bottom: 16px; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: rgba(12, 11, 10, 0.72); color: rgba(246, 240, 228, 0.92); font: 500 11px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease; }
+.cp-pill { position: absolute; z-index: 2; left: 16px; bottom: 16px; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(12, 11, 10, 0.72); color: rgba(246, 240, 228, 0.92); font: 500 11px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease; }
 .cp-pill:active { transform: scale(0.96); }
 .cp-pill:focus-visible { outline: 2px solid #e6c47a; outline-offset: 2px; }
 .cp-pill b { font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; text-transform: none; color: #e6c47a; }
@@ -960,6 +960,7 @@ export default function ChladniPlate({
       if (!el) return
       const hz = cpHz(mode)
       el.textContent = cpNote(hz) + " " + hz + " Hz"
+      if (!reduce && el.animate) el.animate([{ opacity: 0, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }], { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
       clearTimeout(noteTimer)
       noteTimer = window.setTimeout(() => {
         if (noteRef.current) noteRef.current.textContent = ""
@@ -1038,7 +1039,8 @@ export default function ChladniPlate({
         bow.energy *= Math.exp(-dt / 0.08)
       }
       bow.lift += (bow.liftTo - bow.lift) * (1 - Math.exp(-dt / 0.09))
-      bow.vis += (bow.visTo - bow.vis) * (1 - Math.exp(-dt / (bow.visTo > bow.vis ? 0.12 : 0.2)))
+      // The bow comes in a touch slower than it leaves.
+      bow.vis += (bow.visTo - bow.vis) * (1 - Math.exp(-dt / (bow.visTo > bow.vis ? 0.12 : 0.07)))
       if (Math.abs(bow.vis - bow.visTo) < 0.004) bow.vis = bow.visTo
       if (Math.abs(bow.lift - bow.liftTo) < 0.004) bow.lift = bow.liftTo
       const drawing = bow.energy > 0.04 && bow.lift < 0.5
@@ -1180,7 +1182,8 @@ export default function ChladniPlate({
         clearTimeout(hold)
         hold = 0
       }
-      const now = performance.now()
+      // When the hand moved, not when a busy page got round to it.
+      const now = e.timeStamp || performance.now()
       if (bow.down) {
         const dtm = Math.max(8, now - lastMove) / 1000
         const ddx = p[0] - lastP[0]
@@ -1229,7 +1232,7 @@ export default function ChladniPlate({
         finger.down = true
       } else return
       lastP = p
-      lastMove = performance.now()
+      lastMove = e.timeStamp || performance.now()
       try {
         root.setPointerCapture(e.pointerId)
       } catch (_) {
@@ -1344,7 +1347,7 @@ export default function ChladniPlate({
       )}
       {children ? <div className="cp-over">{children}</div> : null}
       {hint && interactive && !failed ? (
-        <button type="button" className="cp-pill" onClick={() => api.current.bow()} aria-label="Bow the plate">
+        <button type="button" className="cp-pill" onClick={() => api.current.bow()}>
           Bow the edge <b ref={noteRef} aria-live="polite" />
         </button>
       ) : null}
