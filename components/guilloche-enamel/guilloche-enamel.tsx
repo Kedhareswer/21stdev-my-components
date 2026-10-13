@@ -127,7 +127,7 @@ uniform vec3 uMetal;      // linear
 uniform float uDepth;     // enamel thickness
 uniform float uLamp;      // lamp brightness
 uniform float uVignette;
-uniform float uSamples;   // 4 on a 1x screen, 2 where pixels are already small
+uniform float uSamples;   // 4 on a 1x screen, 2 where pixels are already small or in software
 
 out vec4 outColor;
 
@@ -366,7 +366,8 @@ void main() {
 
   // Rotated-grid supersampling: the cusps between cuts are hard-edged by
   // design. Dense screens get two samples; their pixels are already small.
-  vec3 col = shade(uv + px * vec2(0.125, 0.375)) + shade(uv + px * vec2(-0.125, -0.375));
+  vec3 col = shade(uv + px * vec2(0.125, 0.375));
+  if (uSamples > 1.5) col += shade(uv + px * vec2(-0.125, -0.375));
   if (uSamples > 2.5) {
     col += shade(uv + px * vec2(-0.375, 0.125)) + shade(uv + px * vec2(0.375, -0.125));
   }
@@ -488,6 +489,11 @@ export default function GuillocheEnamel({
       return
     }
     const vao = gl.createVertexArray()
+    // A software rasteriser (SwiftShader, llvmpipe: no GPU, or a capture
+    // sandbox) gets two samples per pixel so it still animates.
+    const info = gl.getExtension("WEBGL_debug_renderer_info")
+    const renderer = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER))
+    const software = /swiftshader|llvmpipe|software/i.test(renderer)
 
     const u = (name: string) => gl.getUniformLocation(program, name)
     const loc = {
@@ -605,7 +611,7 @@ export default function GuillocheEnamel({
       gl.uniform1f(loc.depth, P.depth)
       gl.uniform1f(loc.lamp, P.light)
       gl.uniform1f(loc.vignette, P.vignette)
-      gl.uniform1f(loc.samples, canvas.width / Math.max(1, canvas.clientWidth) > 1.05 ? 2 : 4)
+      gl.uniform1f(loc.samples, software ? 2 : canvas.width / Math.max(1, canvas.clientWidth) > 1.05 ? 2 : 4)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       gl.bindVertexArray(null)
 
