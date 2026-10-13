@@ -24,6 +24,9 @@ assert.match(src, /IntersectionObserver/, "the pigment sleeps off screen")
 assert.match(src, /visibilitychange/, "and in background tabs")
 assert.doesNotMatch(src, /getContext\("webgl/, "2D canvas only: same cost on a software renderer")
 assert.match(src, /hover:hover\) and \(pointer:fine/, "hover motion is gated to real pointers")
+assert.match(src, /it\.colors \?\? section/, "a row's own colours override the section's")
+assert.match(src, /aria-label=\{L\.tags\}/, "the tag list's name is a prop, not hard-coded")
+assert.match(src, /elsewhere \? 0\.3 : 1/, "one focal point: the open row steps back")
 {
   const css = src.match(/const PEL_CSS = \[([\s\S]*?)\]\.join/)[1]
   assert.doesNotMatch(css, /\$\{|`|(^|[\s"}])(\*|body|html|:root)\s*\{/, "no interpolation, no global resets")

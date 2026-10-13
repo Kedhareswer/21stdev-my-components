@@ -2,8 +2,8 @@
 
 import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 
-// An infrastructure engineer's history in the tide preset, on a dark surface,
-// with its own labels and call to action.
+// An infrastructure engineer's history on a dark surface: the tide preset,
+// with two employers painted in their own colours, plus custom labels and CTA.
 export default function DemoTide() {
   return (
     <div className="dark w-full">
@@ -13,7 +13,7 @@ export default function DemoTide() {
         intro="Infrastructure engineer. I build the quiet systems that keep transit and health apps online."
         footnote="* Acquired by a larger retailer in 2020"
         cta={{ label: "View résumé", href: "#resume" }}
-        labels={{ link: "Write-up" }}
+        labels={{ link: "Write-up", tags: "Stack" }}
         defaultOpen={1}
         items={[
           {
@@ -35,6 +35,7 @@ export default function DemoTide() {
             years: "2020-2023",
             location: "Remote",
             industry: "Clinic scheduling",
+            colors: ["#a3420f", "#e0861e", "#f2c75c"],
             link: { label: "Migration notes", href: "#glasswing" },
             summary: [
               "Led the move from one shared database to one per clinic group, without a single missed appointment.",
@@ -49,6 +50,7 @@ export default function DemoTide() {
             years: "2018-2020",
             location: "Portland",
             industry: "Retail",
+            colors: ["#9f1d2c", "#d9472b", "#f08a4b"],
             summary: ["Built stock sync between forty shops and the web store, and the alerts that said when it drifted."],
             tags: ["Python", "Queues"],
           },
