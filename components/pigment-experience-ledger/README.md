@@ -37,7 +37,7 @@ import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 
 | Prop | Default | |
 |---|---|---|
-| `items` | five example roles | `{ company, role, years, mark?, location?, industry?, link?: { label, href }, summary?: string[], tags?: string[] }` |
+| `items` | five example roles | `{ company, role, years, mark?, location?, industry?, link?: { label, href }, summary?: string[], tags?: string[], colors?: [core, body, edge] }`. A row's `colors` gives that employer its own pigment |
 | `heading` / `intro` | "Experience" / one line | Set either to `""` to hide it |
 | `footnote` | `"* Contract role"` | Small print under the list. Explains `mark` |
 | `cta` | Download CV | `{ label, href }`, or `null` to hide it |
@@ -46,7 +46,7 @@ import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 | `strength` | `0.92` | Peak pigment opacity, 0 to 1 |
 | `defaultOpen` | `0` | Row open on first render. `null` starts with every row closed |
 | `open` / `onToggle` | | Controlled mode. `onToggle(index \| null)` |
-| `labels` | Position, Location, Industry, Website | Field labels in the open row |
+| `labels` | Position, Location, Industry, Website, Skills | `{ position?, location?, industry?, link?, tags? }`: field labels in the open row, and the tag list's accessible name |
 | `uppercase` | `true` | Set the wordmarks in capitals |
 | `minHeight` | `"100svh"` | Any CSS length. The section grows past it when rows open |
 | `background` / `ink` | theme tokens | Page colours. Uses `--color-background`, `--color-foreground`, `--color-muted-foreground` and `--color-border` by default |
@@ -60,8 +60,11 @@ import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 - Long names shrink to fit their column, so a wordmark never wraps or clips.
   Below 640 px of container width, the year moves above the name and the open
   row stacks.
-- The wash follows the surface it sits on. On a dark background it uses deeper
-  colours, so light text on top of it stays readable.
+- The wash sits behind the wordmark and stays in the row's header band, so the
+  open row's body copy is always on clean paper. When another row is pointed
+  at, the open row's wash steps back so there is one focal point.
+- The wash follows the surface it sits on. On a dark background it drops its
+  palest colour and caps its opacity, so light text on top stays readable.
 - With `prefers-reduced-motion`, the entrance, drift and transitions are off,
   and the wash appears fully formed.
 - On touch screens nothing depends on hover. The open row carries the wash.
