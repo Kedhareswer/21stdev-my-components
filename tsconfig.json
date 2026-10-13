@@ -141,7 +141,8 @@
       "@/components/ui/alice-scroll-story": ["./components/alice-scroll-story/alice-scroll-story.tsx"],
       "@/components/ui/distressed-denim": ["./components/distressed-denim/distressed-denim.tsx"],
       "@/components/ui/hoarfrost-pane": ["./components/hoarfrost-pane/hoarfrost-pane.tsx"],
-      "@/components/ui/raked-sand-garden": ["./components/raked-sand-garden/raked-sand-garden.tsx"]
+      "@/components/ui/raked-sand-garden": ["./components/raked-sand-garden/raked-sand-garden.tsx"],
+      "@/components/ui/galaxy-starfield": ["./components/galaxy-starfield/galaxy-starfield.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
