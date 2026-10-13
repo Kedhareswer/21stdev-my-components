@@ -447,12 +447,12 @@ function roomField(kind: LylKind, x: number, y: number, w: number, h: number, ou
   const v = y / h
   const n = fbm(x / 90 + (kind === "cold" ? 30 : 0), y / 90)
   if (kind === "heat") {
-    out.a = clamp(smoothstep(0.22, 0.98, v + (n - 0.5) * 0.3) * 1.05, 0, 1)
+    out.a = clamp(smoothstep(-0.05, 0.98, v + (n - 0.5) * 0.3) * 1.05, 0, 1)
     out.k = smoothstep(0.84, 1.02, v + (n - 0.5) * 0.18) * 0.95
   } else if (kind === "cold") {
     const ripple = 0.5 + 0.5 * Math.sin(v * 26 + n * 5 + u * 1.5)
     out.a = 0
-    out.k = clamp(smoothstep(0.26, 0.72, v + (n - 0.5) * 0.12) * (0.45 + 0.45 * ripple), 0, 1)
+    out.k = clamp(smoothstep(-0.02, 0.72, v + (n - 0.5) * 0.12) * (0.45 + 0.45 * ripple), 0, 1)
   } else {
     const warm = 1 - smoothstep(0, 0.75, Math.hypot(u - 0.95, v - 0.06) + (n - 0.5) * 0.3)
     out.a = warm * 0.28
@@ -846,7 +846,7 @@ function useReveal(root: { current: HTMLElement | null }, reduced: boolean) {
 
 const LYL_CSS = `
 .lyl-root{--lyl-cold:#0d0d0d;--lyl-paper:#f2f3f1;--lyl-sheet:#e9ebe8;--lyl-ink:#0d0d0d;--lyl-soft:#2b2c2e;--lyl-muted:#56585b;--lyl-rule:rgba(13,13,13,.13);--lyl-faint:rgba(13,13,13,.06);--lyl-ease:cubic-bezier(.22,1,.36,1);--lyl-pad:clamp(16px,3.4vw,48px);--lyl-nav:64px;position:relative;min-height:var(--lyl-h);background:var(--lyl-paper);color:var(--lyl-ink);font-family:"Helvetica Neue",Helvetica,"Nimbus Sans","FreeSans",Arial,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:clip;color-scheme:light}
-.lyl-root[data-theme="dark"]{--lyl-cold:#7d848c;--lyl-paper:#0e0e0f;--lyl-sheet:#18181a;--lyl-ink:#efefec;--lyl-soft:#d6d6d2;--lyl-muted:#a5a6a8;--lyl-rule:rgba(239,239,236,.15);--lyl-faint:rgba(239,239,236,.06);color-scheme:dark}
+.lyl-root[data-theme="dark"]{--lyl-cold:#4c535b;--lyl-paper:#0e0e0f;--lyl-sheet:#18181a;--lyl-ink:#efefec;--lyl-soft:#d6d6d2;--lyl-muted:#a5a6a8;--lyl-rule:rgba(239,239,236,.15);--lyl-faint:rgba(239,239,236,.06);color-scheme:dark}
 .lyl-root :where(*){box-sizing:border-box;margin:0;padding:0}
 .lyl-root :where(button,input){font:inherit;color:inherit;background:none;border:0;border-radius:0}
 .lyl-root :where(a){color:inherit;text-decoration:none}
@@ -877,7 +877,7 @@ const LYL_CSS = `
 .lyl-menu{display:none;font-size:14px;padding:10px 4px;margin-left:auto}
 
 .lyl-btn{position:relative;display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 20px;font-size:15px;font-weight:500;white-space:nowrap;cursor:pointer;overflow:hidden;isolation:isolate;transition:color .25s var(--lyl-ease),transform .15s var(--lyl-ease)}
-.lyl-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--lyl-accent);transform:translateY(101%);transition:transform .3s var(--lyl-ease)}
+.lyl-btn::before{content:"";position:absolute;inset:1px;z-index:-1;background:var(--lyl-accent);transform:translateY(101%);transition:transform .3s var(--lyl-ease)}
 .lyl-btn:hover::before,.lyl-btn:focus-visible::before{transform:none}
 .lyl-btn:active{transform:translateY(1px)}
 .lyl-btn .lyl-arr{display:inline-block;transition:transform .35s var(--lyl-ease)}
@@ -1026,7 +1026,7 @@ const LYL_CSS = `
 .lyl-who b{display:block;font-size:17px}
 .lyl-who span{font-size:14px;color:var(--lyl-muted)}
 .lyl-qnav{display:flex;align-items:center;gap:6px}
-.lyl-qbtn{width:48px;height:48px;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--lyl-ink);cursor:pointer;font-size:18px;transition:background-color .25s,color .25s}
+.lyl-qbtn{width:48px;height:48px;display:grid;place-items:center;background:var(--lyl-paper);box-shadow:inset 0 0 0 1px var(--lyl-ink);cursor:pointer;font-size:18px;transition:background-color .25s,color .25s}
 .lyl-qbtn:hover{background:var(--lyl-ink);color:var(--lyl-paper)}
 .lyl-pips{display:flex;gap:6px;margin:0 10px}
 .lyl-pips i{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--lyl-ink);transition:background-color .3s}
@@ -1070,7 +1070,9 @@ const LYL_CSS = `
 .lyl-field .lyl-btn{height:52px}
 .lyl-field:focus-within{box-shadow:inset 0 0 0 2px var(--lyl-ink)}
 .lyl-field input:focus-visible{outline:none}
-.lyl-ferr{font-size:14px;font-weight:700}
+.lyl-field[data-err]{box-shadow:inset 0 0 0 2px var(--lyl-accent)}
+.lyl-ferr{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700}
+.lyl-ferr::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--lyl-accent)}
 .lyl-fok{font-size:15px}
 .lyl-band{position:relative;height:clamp(150px,16vw,240px);margin-top:clamp(64px,8vw,112px);overflow:hidden}
 .lyl-legal{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 28px;padding-block:22px;font-size:13px;color:var(--lyl-muted)}
@@ -1101,7 +1103,8 @@ const LYL_CSS = `
 .lyl-menu{margin-left:0}
 .lyl-marks{display:none}
 .lyl-hero{grid-template-rows:auto auto auto minmax(280px,1fr);min-height:max(820px,calc(clamp(620px,var(--lyl-h),1000px) - var(--lyl-nav)))}
-.lyl-q::before{left:0}
+.lyl-q::before{left:0;top:72px}
+.lyl-q[data-on]::before{height:calc(100% - 96px)}
 .lyl-q[data-on] .lyl-qa p{padding-left:22px}
 .lyl-faqh{position:static}
 .lyl-h1{grid-column:1/-1;grid-row:1;font-size:clamp(60px,17.5vw,150px)}
@@ -1128,9 +1131,9 @@ const LYL_CSS = `
 .lyl-xname{display:none}
 .lyl-seg em{left:3px;bottom:4px;padding:2px 3px;font-size:11px}
 .lyl-tabs{-webkit-mask-image:linear-gradient(to right,#000 80%,transparent);mask-image:linear-gradient(to right,#000 80%,transparent)}
-.lyl-plans{grid-template-columns:1fr 1fr}
-.lyl-plan[data-feat]{grid-column:1/-1}
-.lyl-plan:nth-child(2){padding-right:0}
+.lyl-plan{padding-inline:14px}
+.lyl-plan:first-child{padding-left:0}
+.lyl-pprice b{font-size:44px}
 .lyl-quote{grid-column:1/-1}
 .lyl-faqh,.lyl-faql{grid-column:1/-1}
 .lyl-faqh{margin-bottom:32px}
@@ -1145,7 +1148,7 @@ const LYL_CSS = `
 .lyl-room h3{flex-direction:row}
 .lyl-steps{grid-template-columns:1fr;gap:28px}
 .lyl-plans{grid-template-columns:1fr}
-.lyl-plan,.lyl-plan:first-child,.lyl-plan:nth-child(2){border-left:0;border-top:1px solid var(--lyl-rule);padding:28px 0 32px}
+.lyl-plan,.lyl-plan:first-child{border-left:0;border-top:1px solid var(--lyl-rule);padding:28px 0 32px}
 .lyl-plan:first-child{border-top:0}
 .lyl-plan[data-feat]{margin-inline:calc(-1 * var(--lyl-pad));padding:28px var(--lyl-pad) 84px}
 .lyl-throw{justify-self:stretch;width:100%}
@@ -1818,7 +1821,7 @@ export default function LoylySaunaLanding({
               ) : (
                 <form className="lyl-form" onSubmit={subscribe} noValidate>
                   <label htmlFor={uid + "-email"}>Email address</label>
-                  <div className="lyl-field">
+                  <div className="lyl-field" data-err={nState === "invalid" || nState === "error" ? "" : undefined}>
                     <input
                       id={uid + "-email"}
                       type="email"
