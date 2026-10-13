@@ -27,6 +27,8 @@ assert.match(src, /hover:hover\) and \(pointer:fine/, "hover motion is gated to 
 assert.match(src, /it\.colors \?\? section/, "a row's own colours override the section's")
 assert.match(src, /aria-label=\{L\.tags\}/, "the tag list's name is a prop, not hard-coded")
 assert.match(src, /elsewhere \? 0\.3 : 1/, "one focal point: the open row steps back")
+assert.match(src, /now - s\.lastActive < 3000/, "the loop sleeps once the wash settles")
+assert.match(src, /headingLevel = 2/, "heading level is a prop")
 {
   const css = src.match(/const PEL_CSS = \[([\s\S]*?)\]\.join/)[1]
   assert.doesNotMatch(css, /\$\{|`|(^|[\s"}])(\*|body|html|:root)\s*\{/, "no interpolation, no global resets")
@@ -75,6 +77,18 @@ for (let i = 0; i < 200; i++) {
   assert.ok(v >= 0 && v <= 1)
   assert.equal(v, L.valueNoise(i * 0.37, i * 0.91, 5))
 }
+// the wash is drawn from the work history
+assert.deepEqual(L.tenureOf("2019-2022", 2026), { start: 2019, end: 2022, length: 3 })
+assert.deepEqual(L.tenureOf("2022-now", 2026), { start: 2022, end: 2026, length: 4 })
+assert.deepEqual(L.tenureOf("2024 - present", 2026), { start: 2024, end: 2026, length: 2 })
+assert.equal(L.tenureOf("2021", 2026).length, 0.5)
+assert.equal(L.tenureOf("for a while", 2026), null)
+assert.ok(L.reachOf(6) > L.reachOf(1), "a longer tenure paints a longer stroke")
+assert.ok(L.reachOf(40) <= 0.7 && L.reachOf(0) >= 0.38, "reach is bounded")
+assert.equal(L.drynessOf(2026, 2026), 0, "a current role is wet")
+assert.ok(L.drynessOf(2016, 2026) > L.drynessOf(2022, 2026), "older roles are drier")
+assert.equal(L.drynessOf(1990, 2026), 0.6, "dryness is capped")
+
 assert.equal(L.smoothstep(0, 1, -1), 0)
 assert.equal(L.smoothstep(0, 1, 2), 1)
 
