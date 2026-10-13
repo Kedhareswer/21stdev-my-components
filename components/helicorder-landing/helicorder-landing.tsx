@@ -95,7 +95,7 @@ const DEF_HOW = {
     { at: "0.0 s", title: "Rupture", text: "A fault slips. P-waves leave at about 6 km/s, S-waves at about 3.5 km/s." },
     { at: "2.1 s", title: "Our sensors feel it", text: "The nearest stations record the P-wave. It is small, but it travels fastest." },
     { at: "4.6 s", title: "Alert sent", text: "Three stations agree, we estimate size and place, and every site in range hears within 300 ms." },
-    { at: "+", title: "Your building acts", text: "Until the S-wave reaches you, your playbook runs on its own. Nobody has to press anything." },
+    { at: "to S", title: "Your building acts", text: "Until the S-wave reaches you, your playbook runs on its own. Nobody has to press anything." },
   ],
 }
 const DEF_SITES: FskSite[] = [
@@ -273,8 +273,8 @@ export function fskLayout(w: number, h: number) {
 
 /** Where the recorded quake's S-wave lands on a fresh drum: [row, fraction of the row]. */
 export function fskEventSlot(rows: number, wide: boolean) {
-  const row = Math.max(2, Math.min(rows - 3, Math.round(rows * (wide ? 0.5 : 0.66))))
-  return [row, wide ? 0.86 : 0.9]
+  const row = Math.max(2, Math.min(rows - 4, Math.round(rows * (wide ? 0.7 : 0.66))))
+  return [row, wide ? 0.62 : 0.9]
 }
 
 /** Cost of `n` buildings a month, with the volume price from `from` buildings up. */
@@ -312,7 +312,7 @@ export function fskSynth(seed: number) {
   }
   const pBand = resonator(6.2, 0.9)
   const sBand = resonator(2.1, 0.94)
-  const cBand = resonator(0.7, 0.97)
+  const cBand = resonator(0.9, 0.9)
   const hum = resonator(1.3, 0.9)
   const ph1 = rnd() * 6.283
   const ph2 = rnd() * 6.283
@@ -337,11 +337,11 @@ export function fskSynth(seed: number) {
       for (let i = 0; i < quakes.length; i++) {
         const q = quakes[i]
         const tp = t - q.p
-        if (tp > 0) eP += q.amp * 0.85 * (1 - Math.exp(-tp / 0.25)) * Math.exp(-tp / 6)
+        if (tp > 0) eP += q.amp * 1.0 * (1 - Math.exp(-tp / 0.25)) * Math.exp(-tp / 6)
         const ts = t - q.s
         if (ts > 0) {
-          eS += q.amp * 3.4 * (1 - Math.exp(-ts / 0.5)) * Math.exp(-ts / 7.5)
-          eC += q.amp * 1.5 * (1 - Math.exp(-ts / 3)) * Math.exp(-ts / 24)
+          eS += q.amp * 5.2 * (1 - Math.exp(-ts / 0.5)) * Math.exp(-ts / 7.5)
+          eC += q.amp * 1.9 * (1 - Math.exp(-ts / 3)) * Math.exp(-ts / 24)
         }
       }
       const sub = 4
@@ -410,7 +410,7 @@ const FSK_CSS = `
 .fsk-meta{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
 .fsk-nav{display:flex;gap:22px;flex:none}
 .fsk-nav a{position:relative;font-size:15px;padding:6px 0}
-.fsk-nav a::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1.5px;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .32s var(--ease)}
+.fsk-nav a::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1.5px;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .24s var(--ease)}
 .fsk-nav a:hover::after,.fsk-nav a:focus-visible::after{transform:scaleX(1)}
 .fsk-tools{display:flex;align-items:center;gap:10px;flex:none}
 .fsk-icon{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:999px;transition:border-color .2s,transform .12s}
@@ -424,16 +424,16 @@ const FSK_CSS = `
 @keyframes fsk-drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
 .fsk-btn{position:relative;display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 20px;border-radius:999px;font-weight:600;font-size:15px;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;isolation:isolate;transition:transform .14s var(--ease),color .3s var(--ease),border-color .3s}
-.fsk-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--red);transform:translateY(101%);transition:transform .38s var(--ease)}
+.fsk-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--red);transform:translateY(101%);transition:transform .26s var(--ease)}
 .fsk-btn:hover::before,.fsk-btn:focus-visible::before{transform:none}
 .fsk-btn:active{transform:scale(.97)}
 .fsk-btn--ink{background:var(--ink);color:var(--paper)}
-.fsk-btn--ink:hover{color:#fff}
+.fsk-btn--ink:not([disabled]):hover{color:#fff}
 .fsk-btn--line{border:1px solid var(--ink);color:var(--ink)}
-.fsk-btn--line:hover{color:#fff;border-color:var(--red)}
-.fsk[data-theme="dark"] .fsk-btn--ink:hover,.fsk[data-theme="dark"] .fsk-btn--line:hover{color:#121211}
+.fsk-btn--line:not([disabled]):hover{color:#fff;border-color:var(--red)}
+.fsk[data-theme="dark"] .fsk-btn--ink:not([disabled]):hover,.fsk[data-theme="dark"] .fsk-btn--line:not([disabled]):hover{color:#121211}
 .fsk-btn--sm{height:40px;padding:0 16px;font-size:14px}
-.fsk-btn svg{width:16px;height:10px;transition:transform .38s var(--ease)}
+.fsk-btn svg{width:16px;height:10px;transition:transform .26s var(--ease)}
 .fsk-btn:hover svg{transform:translateX(4px)}
 .fsk-btn[disabled]{opacity:.55;cursor:default}
 .fsk-btn[disabled]::before{display:none}
@@ -445,7 +445,7 @@ const FSK_CSS = `
 .fsk-pen{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;will-change:transform}
 .fsk-pen::before{content:"";position:absolute;left:-1px;bottom:0;width:2px;height:30px;background:var(--ink);transform-origin:bottom;transform:rotate(24deg);border-radius:2px}
 .fsk-pen::after{content:"";position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--red)}
-.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--paper) 93%,transparent) 0,color-mix(in srgb,var(--paper) 93%,transparent) 40%,transparent 57%)}
+.fsk-veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--paper) 93%,transparent) 0,color-mix(in srgb,var(--paper) 93%,transparent) 40%,transparent 57%);-webkit-mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%);mask-image:linear-gradient(180deg,#000 0,#000 52%,transparent 63%)}
 .fsk-copy{position:absolute;left:var(--gut);top:clamp(28px,7%,84px);width:min(600px,40%);cursor:auto}
 .fsk-copy h1{font-size:clamp(44px,5.3vw,88px);line-height:.95;letter-spacing:-.045em;font-weight:700;margin-left:-.04em;text-wrap:balance}
 .fsk-lede{margin-top:24px;font-size:19px;line-height:1.5;color:var(--soft);max-width:30ch}
@@ -459,11 +459,14 @@ const FSK_CSS = `
 .fsk-page{position:relative;background-image:linear-gradient(90deg,transparent calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 13px),transparent calc(var(--gut) - 13px)),repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--faint) 31px,var(--faint) 32px)}
 .fsk-sec{position:relative;padding:112px 24px 112px var(--gut)}
 .fsk-sec--tight{padding-top:80px;padding-bottom:80px}
-.fsk-rule{height:44px;color:var(--ink);opacity:.55}
-.fsk-rule svg{width:100%;height:44px}
+.fsk-band{position:relative;padding:6px 24px 6px var(--gut);--i0:#16181b;--i1:#1d4aa6;--i2:#b8321f;--i3:#1d6b42}
+.fsk[data-theme="dark"] .fsk-band{--i0:#efeee8;--i1:#c9c8c1;--i2:#efeee8;--i3:#b0afa8}
+.fsk-band div{position:relative;height:22px}
+.fsk-band span{position:absolute;right:calc(100% + 19px);top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px}
+.fsk-band svg{width:100%;height:22px;overflow:visible}
+.fsk-band path{opacity:.85}
 .fsk-h2{font-size:clamp(34px,3.8vw,60px);line-height:1;letter-spacing:-.04em;font-weight:700;text-wrap:balance;max-width:16ch}
 .fsk-intro{margin-top:20px;max-width:46ch;color:var(--soft)}
-.fsk-tag{position:absolute;left:12px;top:118px;width:calc(var(--gut) - 30px);text-align:right;color:var(--muted)}
 
 .fsk-how{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:64px;margin-top:56px;align-items:start}
 .fsk-steps{display:grid;gap:0;border-top:1px solid var(--line)}
@@ -494,12 +497,19 @@ const FSK_CSS = `
 .fsk-tabs{position:relative;display:inline-flex;margin-top:40px;border:1px solid var(--line);border-radius:999px;padding:4px}
 .fsk-tabs button{position:relative;z-index:1;height:40px;padding:0 18px;border-radius:999px;font-size:15px;transition:color .25s}
 .fsk-tabs button[aria-selected="true"]{color:var(--paper)}
-.fsk-tabs i{position:absolute;top:4px;bottom:4px;left:0;border-radius:999px;background:var(--ink);transition:transform .38s var(--ease),width .38s var(--ease)}
+.fsk-tabs i{position:absolute;top:4px;bottom:4px;left:0;border-radius:999px;background:var(--ink);transition:transform .25s var(--ease),width .25s var(--ease)}
 .fsk-play{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:64px;margin-top:40px}
 .fsk-play>p{font-size:22px;line-height:1.35;letter-spacing:-.015em;color:var(--soft)}
 .fsk-log{border-top:1.5px solid var(--ink)}
 .fsk-log li{display:grid;grid-template-columns:96px 1fr auto;gap:20px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--line);animation:fsk-in .42s var(--ease) both}
 .fsk-log li:last-child{border-bottom:1.5px solid var(--ink)}
+.fsk-strip{position:relative;margin-bottom:28px}
+.fsk-strip svg{width:100%;height:92px;overflow:visible}
+.fsk-strip-ax{position:relative;height:18px;margin-top:6px;color:var(--muted)}
+.fsk-strip-ax span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.fsk-strip-ax span:last-child{transform:translateX(-100%);color:var(--red)}
+.fsk-log li{transition:background .2s}
+.fsk-log li[data-hot="true"]{background:linear-gradient(90deg,var(--faint),transparent)}
 .fsk-log .fsk-t{color:var(--red)}
 .fsk-log .fsk-sys{color:var(--muted);text-align:right}
 .fsk-log .fsk-zero b{color:var(--red)}
@@ -575,12 +585,12 @@ const FSK_CSS = `
 .fsk-menu{display:inline-flex;align-items:center}
 .fsk-head{padding-left:20px;padding-right:16px;justify-content:space-between}
 .fsk-head .fsk-cta-head{display:none}
-.fsk-veil{background:linear-gradient(180deg,color-mix(in srgb,var(--paper) 94%,transparent) 0,color-mix(in srgb,var(--paper) 94%,transparent) 44%,transparent 60%)}
+.fsk-veil{background:linear-gradient(180deg,color-mix(in srgb,var(--paper) 94%,transparent) 0,color-mix(in srgb,var(--paper) 94%,transparent) 44%,transparent 60%);-webkit-mask-image:none;mask-image:none}
+.fsk-hfoot span:last-child{display:none}
 .fsk-copy{left:var(--gut);right:24px;width:auto;max-width:640px}
 .fsk-copy h1{font-size:clamp(40px,7.4vw,72px)}
 .fsk-how,.fsk-play,.fsk-net,.fsk-price,.fsk-fgrid{grid-template-columns:1fr;gap:48px}
 .fsk-quote{grid-template-columns:1fr;gap:28px}
-.fsk-tag{display:none}
 .fsk-toast{top:auto;bottom:56px;left:var(--gut);right:24px;max-width:none}
 }
 @media (max-width:639px){
@@ -597,6 +607,7 @@ const FSK_CSS = `
 .fsk-hfoot span:last-child{display:none}
 .fsk-sec{padding:72px 20px 72px var(--gut)}
 .fsk-sec--tight{padding-top:56px;padding-bottom:56px}
+.fsk-band span{display:none}
 .fsk-steps li{grid-template-columns:56px 1fr}
 .fsk-gram{height:180px}
 .fsk-tabs{display:flex;width:100%;overflow-x:auto;scrollbar-width:none}
@@ -791,7 +802,8 @@ function Drum(props: {
       const pal = palette()
       ctx.font = "600 " + (L.phone ? 10 : 11) + "px ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
       const w = ctx.measureText(text).width
-      const x0 = align === "center" ? x - w / 2 : align === "right" ? x - w : x
+      const want = align === "center" ? x - w / 2 : align === "right" ? x - w : x
+      const x0 = Math.max(L.left + 4, Math.min(L.left + L.plotW - w - 4, want))
       ctx.fillStyle = pal.chip
       ctx.fillRect(x0 - 4, y - 8, w + 8, 15)
       ctx.fillStyle = color
@@ -867,7 +879,9 @@ function Drum(props: {
         ctx.fillRect(L.left, Math.round(y), L.plotW, 1)
         ctx.fillStyle = pal.label
         ctx.textAlign = "right"
-        ctx.fillText(clockUTC(t0 + r * L.spr, withSec), L.left - 10, y)
+        const rs = t0 + r * L.spr
+        const lab = L.phone ? (rs % 60 === 0 ? clockUTC(rs, false) : ":30") : clockUTC(rs, withSec)
+        ctx.fillText(lab, L.left - 10, y)
         if (L.wide) {
           ctx.textAlign = "left"
           ctx.fillText(clockLocal(t0 + r * L.spr, withSec), L.left + L.plotW + 10, y)
@@ -1058,12 +1072,20 @@ function Mark() {
 }
 
 function Rule(props: { seed: number }) {
-  const d = React.useMemo(() => fskTracePath(props.seed, 1200, 44, 360, 7), [props.seed])
+  const rows = React.useMemo(
+    () => [0, 1, 2].map((k) => fskTracePath(props.seed * 5 + k, 1200, 22, 420, 3.2 + (k === 1 ? 0.8 : 0))),
+    [props.seed],
+  )
   return (
-    <div className="fsk-rule" aria-hidden="true">
-      <svg viewBox="0 0 1200 44" preserveAspectRatio="none">
-        <path d={d} fill="none" stroke="currentColor" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
-      </svg>
+    <div className="fsk-band" aria-hidden="true">
+      {rows.map((d, k) => (
+        <div key={k}>
+          <span className="fsk-mono">{["HHZ", "HHN", "HHE"][k]}</span>
+          <svg viewBox="0 0 1200 22" preserveAspectRatio="none">
+            <path d={d} fill="none" stroke={"var(--i" + ((props.seed + k) % 4) + ")"} strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+      ))}
     </div>
   )
 }
@@ -1151,21 +1173,24 @@ function Calculator(props: { defaultKm: number }) {
             />
           ))}
         </svg>
-        {marks.map(([k, t, label]) => (
-          <span
-            key={k}
-            className="fsk-mark fsk-mono"
-            data-k={k}
-            style={{
-              left: x(t) + "%",
-              top: k === "p" ? "auto" : 4,
-              bottom: k === "p" ? 4 : "auto",
-              transform: k === "rupture" ? "none" : "translateX(-50%)",
-            }}
-          >
-            {label}
-          </span>
-        ))}
+        {marks
+          .filter(([k]) => k !== "rupture")
+          .map(([k, t, label]) => {
+            // alert and S share the top edge: when they crowd, each label leans away from the other
+            const other = k === "alert" ? W.s : W.alert
+            const crowd = k !== "p" && Math.abs(x(t) - x(other)) < 12
+            const lean = !crowd ? "translateX(-50%)" : t <= other ? "translateX(calc(-100% - 4px))" : "translateX(4px)"
+            return (
+              <span
+                key={k}
+                className="fsk-mark fsk-mono"
+                data-k={k}
+                style={{ left: x(t) + "%", top: k === "p" ? "auto" : 4, bottom: k === "p" ? 4 : "auto", transform: k === "p" ? "translateX(4px)" : lean }}
+              >
+                {label}
+              </span>
+            )
+          })}
       </div>
       <div className="fsk-axis fsk-mono fsk-num" aria-hidden="true">
         {[0, 10, 20, 30, 40].map((s) => (
@@ -1195,14 +1220,71 @@ function Calculator(props: { defaultKm: number }) {
   )
 }
 
+/** The playbook on the clock: the last seconds before the S-wave, one red tick per action. */
+function PlayStrip(props: { steps: FskPlay[]; lead: number; pAfterAlert: number; hot: number }) {
+  const { steps, lead, pAfterAlert, hot } = props
+  const from = -Math.ceil(lead + 1)
+  const span = -from + 3
+  const x = (t: number) => ((t - from) / span) * 1000
+  const d = React.useMemo(() => {
+    const syn = fskSynth(5)
+    syn.quakes.push({ p: -lead + pAfterAlert - from, s: -from, amp: 0.8 })
+    let out = ""
+    const n = span * FSK_SR
+    for (let i = 0; i < n; i++) {
+      const v = syn.next(i / FSK_SR)
+      out += (i ? "L" : "M") + ((i / n) * 1000).toFixed(1) + " " + (46 + 34 * Math.tanh((v * 9) / 34)).toFixed(1)
+    }
+    return out
+  }, [lead, pAfterAlert, from, span])
+  const ticks = []
+  for (let t = Math.ceil(from / 5) * 5; t <= 0; t += 5) ticks.push(t)
+  return (
+    <div className="fsk-strip" aria-hidden="true">
+      <svg viewBox="0 0 1000 92" preserveAspectRatio="none">
+        <rect x={x(-lead)} y="0" width={x(0) - x(-lead)} height="92" fill="url(#fsk-hatch2)" />
+        <defs>
+          <pattern id="fsk-hatch2" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="2" height="8" fill="var(--red)" opacity=".16" />
+          </pattern>
+        </defs>
+        <path d={d} fill="none" stroke="var(--ink)" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+        {steps.map((st, i) => (
+          <line
+            key={i}
+            x1={x(-st.at)}
+            x2={x(-st.at)}
+            y1="2"
+            y2="92"
+            stroke={i === hot ? "var(--ink)" : "var(--red)"}
+            strokeWidth={i === hot ? 2.4 : 1.2}
+            opacity={hot < 0 || i === hot ? 1 : 0.35}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        <line x1={x(0)} x2={x(0)} y1="2" y2="92" stroke="var(--red)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="fsk-strip-ax fsk-mono fsk-num">
+        {ticks.map((t) => (
+          <span key={t} style={{ left: (x(t) / 10) + "%" }}>
+            {t === 0 ? "S arrives" : "T" + t + " s"}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** The footer trace: a plucked string you can strum with the pointer. Sleeps when still. */
 function Wordmark(props: { word: string; reduced: boolean }) {
   const { word, reduced } = props
   const boxRef = React.useRef(null as HTMLDivElement | null)
   const pathRef = React.useRef(null as SVGPathElement | null)
+  const tipRef = React.useRef(null as SVGCircleElement | null)
   React.useEffect(() => {
     const box = boxRef.current
     const path = pathRef.current
+    const tip = tipRef.current
     if (!box || !path) return
     const N = 140
     const y = new Float32Array(N)
@@ -1210,9 +1292,12 @@ function Wordmark(props: { word: string; reduced: boolean }) {
     const base = new Float32Array(N)
     const r = fskRandom(9)
     let a = 0
+    const liftAt = Math.floor(N * 0.9)
     for (let i = 0; i < N; i++) {
       a = a * 0.55 + (r() - 0.5)
-      base[i] = a * 2.2
+      base[i] = a * 3.4
+      // the pen lifts off the roll at the end of the record
+      if (i > liftAt) base[i] -= Math.pow((i - liftAt) / (N - liftAt), 2) * 40
     }
     let raf = 0
     let running = false
@@ -1227,6 +1312,10 @@ function Wordmark(props: { word: string; reduced: boolean }) {
         d += (i ? "L" : "M") + ((i / (N - 1)) * w).toFixed(1) + " " + (mid + base[i] + y[i]).toFixed(1)
       }
       path.setAttribute("d", d)
+      if (tip) {
+        tip.setAttribute("cx", w.toFixed(1))
+        tip.setAttribute("cy", (mid + base[N - 1] + y[N - 1]).toFixed(1))
+      }
     }
     const step = () => {
       const c2 = 0.9
@@ -1295,6 +1384,7 @@ function Wordmark(props: { word: string; reduced: boolean }) {
       <span>{word}</span>
       <svg>
         <path ref={pathRef} fill="none" stroke="var(--red)" strokeWidth="2" strokeLinejoin="round" />
+        <circle ref={tipRef} r="4" fill="var(--red)" />
       </svg>
     </div>
   )
@@ -1354,6 +1444,7 @@ export default function HelicorderLanding({
   const [busy, setBusy] = React.useState(false)
   const [tab, setTab] = React.useState(0)
   const [count, setCount] = React.useState(12)
+  const [hot, setHot] = React.useState(-1)
   const tabsRef = React.useRef(null as HTMLDivElement | null)
   const [ind, setInd] = React.useState({ x: 0, w: 0 })
 
@@ -1563,7 +1654,10 @@ export default function HelicorderLanding({
                   aria-selected={i === tab}
                   aria-controls="fsk-panel"
                   tabIndex={i === tab ? 0 : -1}
-                  onClick={() => setTab(i)}
+                  onClick={() => {
+                    setTab(i)
+                    setHot(-1)
+                  }}
                   onKeyDown={(e) => onTabKey(e, i)}
                 >
                   {s.label}
@@ -1572,9 +1666,11 @@ export default function HelicorderLanding({
             </div>
             <div className="fsk-play" id="fsk-panel" role="tabpanel" aria-labelledby={"fsk-tab-" + site.id}>
               <p>{site.summary}</p>
-              <ol className="fsk-log" key={site.id}>
+              <div>
+              <PlayStrip steps={site.steps} lead={lead.s - lead.alert} pAfterAlert={lead.p - lead.alert} hot={hot} />
+              <ol className="fsk-log" key={site.id} onMouseLeave={() => setHot(-1)}>
                 {site.steps.map((st, i) => (
-                  <li key={i} style={{ animationDelay: i * 45 + "ms" }}>
+                  <li key={i} style={{ animationDelay: i * 45 + "ms" }} onMouseEnter={() => setHot(i)} data-hot={i === hot}>
                     <span className="fsk-mono fsk-t fsk-num">T−{st.at.toFixed(1)} s</span>
                     <span>{st.action}</span>
                     <span className="fsk-mono fsk-sys">{st.system}</span>
@@ -1588,6 +1684,7 @@ export default function HelicorderLanding({
                   <span className="fsk-mono fsk-sys">Shaking</span>
                 </li>
               </ol>
+              </div>
             </div>
           </section>
 
