@@ -82,8 +82,9 @@ switch) never rebuilds the GL context. `GUILLOCHE_PRESETS`, `hexToRgb` and
 - On touch the page scrolls normally; the lamp follows a finger that is down.
 - Scrolled off-screen, it stops rendering and resumes on return. Left alone,
   the drifting lamp redraws at 20 fps.
-- `demo-hero.tsx` shows copy on the quiet side; `demo-finishes.tsx` switches
-  finishes live (the plate eases between them).
+- `demo.tsx` is a full watchmaker hero (nav, headline, CTAs, specs) where the
+  enamel swatches restyle the dial live; `demo-plain.tsx` is the bare plate and
+  `demo-finishes.tsx` a finish switcher on its own.
 - No WebGL2 falls back to a CSS still in the same finish. A lost GPU context is
   caught and the scene rebuilt.
 - The pointer is read off the component, not `window`, and the cursor is never
