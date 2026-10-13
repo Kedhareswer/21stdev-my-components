@@ -70,6 +70,8 @@ export type PigmentExperienceLedgerProps = {
   uppercase?: boolean
   /** Paint tenure and age into the wash: longer roles, longer strokes; older roles, drier pigment. */
   ageing?: boolean
+  /** Opacity of the dried pigment left behind closed rows, 0 to 1. 0 leaves them bare. */
+  residue?: number
   /** Level of the section heading; rows use the next level down. */
   headingLevel?: 2 | 3 | 4
   /** Any CSS length. The section grows past it when rows open. */
@@ -205,6 +207,10 @@ type Smear = {
   nameW: number
   reach: number
   dry: number
+  dim: number
+  dimTarget: number
+  nameTop: number
+  nameH: number
   lastActive: number
   low: Float32Array
   ramp: number[][]
@@ -266,6 +272,10 @@ function newSmear(seed: number): Smear {
     nameW: 0,
     reach: 0.5,
     dry: 0,
+    dim: 1,
+    dimTarget: 1,
+    nameTop: 0,
+    nameH: 0,
     lastActive: 0,
     low: new Float32Array(0),
     ramp: [],
@@ -327,7 +337,7 @@ function sizeSmear(s: Smear, w: number, h: number, headH: number) {
   s.painted = false
 }
 
-function paintSmear(s: Smear, time: number, ramp: number[][], strength: number, dark: boolean) {
+function paintSmear(s: Smear, time: number, ramp: number[][], strength: number, dark: boolean, faint = false) {
   const ctx = s.ctx
   const img = s.img
   if (!ctx || !img || ramp.length < 3) return
@@ -378,9 +388,13 @@ function paintSmear(s: Smear, time: number, ramp: number[][], strength: number, 
     const ye = Math.min(bh - 1, Math.ceil(y1))
     // Contain the wash to its row's header band. The envelope thins the field
     // itself, so the boundary gets the same ragged paper edge as the rest.
-    const top = BLEED / sc
-    const bottom = (BLEED + s.headH - 6) / sc
-    const feather = 36 / sc
+    // The band hugs the wordmark, so the role and the years on a phone sit on
+    // plain surface and small text never lands on pigment.
+    const bandTop = s.nameH ? s.nameTop - s.nameH * 0.3 : 0
+    const bandBottom = s.nameH ? s.nameTop + s.nameH * 1.02 : s.headH - 6
+    const top = (BLEED + Math.max(0, bandTop)) / sc
+    const bottom = (BLEED + bandBottom) / sc
+    const feather = Math.min(36, (bandBottom - bandTop) * 0.4) / sc
     const side = Math.max(s.bleedX - 4, 28) / sc
     for (let y = ys; y <= ye; y++) {
       const env = smoothstep(top, top + feather, y) * (1 - smoothstep(bottom - feather, bottom, y))
@@ -408,14 +422,17 @@ function paintSmear(s: Smear, time: number, ramp: number[][], strength: number, 
         // Pigment collects at the drying edge: a denser, warmer tide line. It moves
         // toward the body colour rather than toward grey, which would read as dirt.
         const rim = smoothstep(0.2, 0.3, fe) * (1 - smoothstep(0.3, 0.5, fe))
-        const depth = clamp(smoothstep(0.3, 1.55, fe) + (s.hue[i] - 0.5) * 0.6 + rim * 0.55, 0, 1)
-        const c = rampAt(edge, body, core, depth)
+        const depth = clamp(smoothstep(0.3, 1.55, fe) + (s.hue[i] - 0.5) * 0.6 + rim * (0.55 + dry * 0.4), 0, 1)
+        // Warm edge colours at low opacity read as brown on a dark surface, so a
+        // faint wash there is painted from the core colour.
+        const c = rampAt(edge, body, core, dark && faint ? 0.7 + depth * 0.3 : depth)
         if (dry > 0 && !dark) {
           const grey = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11
-          for (let q = 0; q < 3; q++) c[q] += (grey - c[q]) * dry * 0.55
+          for (let q = 0; q < 3; q++) c[q] += (grey - c[q]) * dry * 0.15
         }
         const g = s.grain[i]
-        const shade = 1 - rim * 0.07 + (g - 0.5) * 0.05
+        // Dried pigment shows as a crisper, darker tide line.
+        const shade = 1 - rim * (0.07 + dry * 0.2) + (g - 0.5) * 0.05
         const a = (wash * (0.86 + 0.14 * depth) + rim * 0.1) * (0.9 + 0.1 * g * (1 + dry)) * fade
         const j = i * 4
         data[j] = c[0] * shade
@@ -453,7 +470,7 @@ function surfaceIsDark(el: HTMLElement | null): boolean {
 /* ---------------------------------------------------------------- styles */
 
 const PEL_CSS = [
-  ".pel-root{position:relative;width:100%;overflow-x:clip;container-type:inline-size;background:var(--pel-bg);color:var(--pel-ink);padding:clamp(3rem,7cqi,6.5rem) clamp(1.25rem,5cqi,5rem);box-sizing:border-box;isolation:isolate;-webkit-font-smoothing:antialiased;--pel-ease:cubic-bezier(.23,1,.32,1)}",
+  ".pel-root{position:relative;width:100%;overflow-x:clip;container-type:inline-size;background:var(--pel-bg);color:var(--pel-ink);padding:clamp(3rem,7cqi,6.5rem) clamp(1.25rem,5cqi,5rem);box-sizing:border-box;isolation:isolate;-webkit-font-smoothing:antialiased;--pel-ease:cubic-bezier(.23,1,.32,1);--pel-pad:clamp(.5rem,1.1cqi,.9rem)}",
   ".pel-root *,.pel-root *::before,.pel-root *::after{box-sizing:border-box}",
   ".pel-wrap{max-width:84rem;margin:0 auto}",
   ".pel-head{position:relative;z-index:1;margin:0 0 clamp(1.75rem,4cqi,3.25rem)}",
@@ -463,8 +480,8 @@ const PEL_CSS = [
   ".pel-row{position:relative;border-bottom:1px solid var(--pel-line)}",
   ".pel-ink{position:absolute;left:-40px;top:-64px;width:calc(100% + 80px);height:calc(100% + 128px);max-width:none;display:block;z-index:0;pointer-events:none}",
   ".pel-h{margin:0;font:inherit;position:relative;z-index:1}",
-  ".pel-trigger{-webkit-appearance:none;appearance:none;background:none;border:0;border-radius:2px;margin:0;padding:clamp(1.1rem,2.3cqi,1.85rem) 0;width:100%;color:inherit;font:inherit;text-align:inherit;cursor:pointer;display:grid;grid-template-columns:minmax(8.5rem,15rem) minmax(0,1fr);align-items:center;column-gap:1.5rem;-webkit-tap-highlight-color:transparent}",
-  ".pel-trigger:focus-visible{outline:2px solid var(--pel-ink);outline-offset:6px;border-radius:4px}",
+  ".pel-trigger{-webkit-appearance:none;appearance:none;background:none;border:0;border-radius:2px;margin:0;padding:clamp(1.1rem,2.3cqi,1.85rem) var(--pel-pad);width:100%;color:inherit;font:inherit;text-align:inherit;cursor:pointer;display:grid;grid-template-columns:minmax(8.5rem,15rem) minmax(0,1fr);align-items:center;column-gap:1.5rem;-webkit-tap-highlight-color:transparent}",
+  ".pel-trigger:focus-visible{outline:2px solid var(--pel-ink);outline-offset:-2px;border-radius:4px}",
   ".pel-when{display:flex;align-items:center;gap:.85rem;font-style:italic;font-size:clamp(.92rem,1.25cqi,1.06rem);letter-spacing:-.01em;color:var(--pel-muted);font-variant-numeric:tabular-nums;transition:color .2s ease,transform .3s var(--pel-ease)}",
   ".pel-x{position:relative;display:block;width:.78rem;height:.78rem;flex:none;font-style:normal;transition:transform .34s var(--pel-ease)}",
   ".pel-x::before,.pel-x::after{content:'';position:absolute;left:0;top:50%;width:100%;height:1.5px;margin-top:-.75px;background:currentColor;border-radius:1px}",
@@ -482,7 +499,7 @@ const PEL_CSS = [
   ".pel-panel{display:grid;grid-template-rows:0fr;position:relative;z-index:1;transition:grid-template-rows .2s var(--pel-ease)}",
   ".pel-row[data-open='true'] .pel-panel{grid-template-rows:1fr;transition-duration:.32s}",
   ".pel-clip{overflow:hidden;min-height:0}",
-  ".pel-body{display:grid;grid-template-columns:minmax(8.5rem,15rem) minmax(0,.85fr) minmax(0,1.3fr);column-gap:1.5rem;row-gap:1.25rem;padding:.15rem 0 clamp(1.6rem,3.2cqi,2.6rem);opacity:0;transform:translateY(-6px);transition:opacity .14s ease,transform .22s var(--pel-ease)}",
+  ".pel-body{display:grid;grid-template-columns:minmax(8.5rem,15rem) minmax(0,.85fr) minmax(0,1.3fr);column-gap:1.5rem;row-gap:1.25rem;padding:.15rem var(--pel-pad) clamp(1.6rem,3.2cqi,2.6rem);opacity:0;transform:translateY(-6px);transition:opacity .14s ease,transform .22s var(--pel-ease)}",
   ".pel-row[data-open='true'] .pel-body{opacity:1;transform:none;transition:opacity .28s ease .06s,transform .32s var(--pel-ease) .03s}",
   ".pel-meta{grid-column:2;margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:1.75rem;row-gap:.6rem;align-content:start;font-size:.875rem;line-height:1.4}",
   ".pel-label{color:var(--pel-muted);transition:color .3s ease}",
@@ -596,6 +613,7 @@ export default function PigmentExperienceLedger({
   labels,
   uppercase = true,
   ageing = true,
+  residue = 0.2,
   headingLevel = 2,
   minHeight = "100svh",
   background,
@@ -648,6 +666,8 @@ export default function PigmentExperienceLedger({
         const prevX = s.cx
         const prevY = s.cy
         if (st.reduced) {
+          if (s.dim !== s.dimTarget) s.painted = false
+          s.dim = s.dimTarget
           s.level = s.target
           s.cx = s.tx
           s.cy = s.ty
@@ -655,6 +675,10 @@ export default function PigmentExperienceLedger({
           const tau = s.target > s.level ? 0.3 : 0.2
           s.level += (s.target - s.level) * (1 - Math.exp(-dt / tau))
           if (Math.abs(s.target - s.level) < 0.002) s.level = s.target
+          const prevDim = s.dim
+          s.dim += (s.dimTarget - s.dim) * (1 - Math.exp(-dt / 0.2))
+          if (Math.abs(s.dimTarget - s.dim) < 0.002) s.dim = s.dimTarget
+          if (s.dim !== prevDim) s.painted = false
           const k = 1 - Math.exp(-dt / 0.26)
           s.cx += (s.tx - s.cx) * k
           s.cy += (s.ty - s.cy) * k
@@ -669,7 +693,7 @@ export default function PigmentExperienceLedger({
         if (active) alive = true
         if (active || s.painted) {
           if (changed || !s.painted || (breathes && st.frame % 2 === 0) || !active)
-            paintSmear(s, st.clock, s.ramp, st.dark ? Math.min(1, strength * 1.1) : strength, st.dark)
+            paintSmear(s, st.clock, s.ramp, (st.dark ? Math.min(1, strength * 1.1) : strength) * s.dim, st.dark, s.dim < 0.6)
         }
       }
       if (breathing) st.clock += dt
@@ -678,7 +702,7 @@ export default function PigmentExperienceLedger({
       else st.last = 0
     }
     st.raf = requestAnimationFrame(tick)
-  }, [strength])
+  }, [strength, residue])
 
   // Pigment colours follow the preset, each row's own colours and the surface.
   // On a dark page the palest stop leans toward the body colour (pale yellow
@@ -724,15 +748,21 @@ export default function PigmentExperienceLedger({
       const s = ensureSmear(i)
       const pointed = i === hovered || i === focused
       const elsewhere = (hovered !== null && hovered !== i) || (focused !== null && focused !== i)
-      // One focal point: the open row's wash steps back while another row is pointed at.
-      const next = pointed ? 1 : i === openIndex ? (elsewhere ? 0.3 : 1) : 0
-      if (next !== s.target) s.lastActive = performance.now()
+      // One focal point: the open row's wash steps back while another row is
+      // pointed at. Closed rows keep a faint dried residue whose length and
+      // dryness show the history at rest; pointing at one rewets it.
+      const open = i === openIndex
+      const rest = Math.min(0.5, residue * (0.55 + s.dry * 0.75))
+      const next = pointed || open ? 1 : residue > 0 ? 0.75 : 0
+      const dim = pointed ? 1 : open ? (elsewhere ? 0.22 : 1) : rest
+      if (next !== s.target || dim !== s.dimTarget) s.lastActive = performance.now()
       s.target = next
+      s.dimTarget = dim
       if (!s.pointer) [s.tx, s.ty] = homeOf(s)
     })
     kick()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openIndex, hovered, focused, items.length, kick])
+  }, [openIndex, hovered, focused, items.length, residue, rampKey, kick])
 
   // Row sizes feed the pigment buffers; the root width refits the wordmarks.
   // Keyed on the names, so a parent passing an inline array doesn't refit every render.
@@ -761,7 +791,9 @@ export default function PigmentExperienceLedger({
         const lr = li.getBoundingClientRect()
         const nr = nm.getBoundingClientRect()
         s.homeX = nr.left - lr.left + nr.width / 2
-        s.homeY = nr.top - lr.top + nr.height * 0.6
+        s.nameTop = nr.top - lr.top
+        s.nameH = nr.height
+        s.homeY = s.nameTop + nr.height * 0.5
         s.nameW = nr.width
       }
       if (first || !s.pointer) {
@@ -833,6 +865,10 @@ export default function PigmentExperienceLedger({
   }, [])
 
   const toggle = (i: number) => {
+    // A click hands the wash back to its wordmark.
+    const s = ensureSmear(i)
+    s.pointer = false
+    ;[s.tx, s.ty] = homeOf(s)
     const next = nextOpen(openIndex, i)
     if (!controlled) setInner(next)
     onToggle?.(next)
@@ -848,9 +884,11 @@ export default function PigmentExperienceLedger({
     const hx = homeOf(s)[0]
     const w = s.nameW || s.cssW * 0.3
     // Lean toward the pointer, but stay on the wordmark.
-    s.tx = clamp(hx + (e.clientX - r.left + s.bleedX - hx) * 0.35, hx - w * 0.35, hx + w * 0.15)
+    s.tx = clamp(hx + (e.clientX - r.left + s.bleedX - hx) * 0.35, hx - w * 0.18, hx + w * 0.12)
     s.lastActive = performance.now()
-    s.ty = BLEED + clamp(e.clientY - r.top, s.headH * 0.35, s.headH * 0.7)
+    const y0 = s.nameH ? s.nameTop + s.nameH * 0.3 : s.headH * 0.35
+    const y1 = s.nameH ? s.nameTop + s.nameH * 0.7 : s.headH * 0.7
+    s.ty = BLEED + clamp(e.clientY - r.top, y0, y1)
     // A fresh bloom starts where the pointer came in.
     if (s.level < 0.05) {
       s.cx = s.tx

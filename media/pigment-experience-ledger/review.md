@@ -77,3 +77,37 @@ Added for originality: the wash is drawn from the work history. A longer tenure
 paints a longer stroke (`reachOf`), and older roles have drier, paler, grainier
 pigment (`drynessOf`, with granulation only on dark surfaces). Turn it off with
 `ageing={false}`.
+
+## Round 3 (final): REDO (average 7.4)
+
+| | Score |
+|---|---|
+| Usability | 8 |
+| Idea | 7 |
+| Craft | 7 |
+| Originality | 6 |
+| Install-safety | 9 |
+
+The critic's verdict: the generated art is good enough ("the dark grain and ragged
+edges look like real pigment"), but with every row closed the section is a plain list
+of words, and the history-drawn wash is invisible on the first frame.
+
+The brief allows three critic rounds, so this is the final score and the piece goes
+to `claude/review-pigment-experience-ledger`. The round-3 list was still worked
+through afterwards. These changes have not been re-scored:
+1. The focal step-back now dims through its own eased `dim` (0.22), not through `level`.
+2. The wash hugs the wordmark (band from name top to baseline), so the role and the
+   years on a phone always sit on plain surface.
+3. Age shows as a crisper, darker tide line with granulation. Greying dropped from 0.55 to 0.15.
+4. Closed rows keep a faint dried residue (`residue`, default 0.2). Stroke length
+   (tenure) and dryness (age) now read at rest. Pointing at a row rewets it, and the
+   loop still sleeps. On dark, the faint residue is painted from the core colour, so
+   it reads as wine rather than rust.
+5. Pointer lean clamp tightened to -0.18 / +0.12 of the wordmark, and a click hands
+   the wash back to its wordmark.
+6. Focus ring inset (`outline-offset:-2px`), with the rows given a small inner padding.
+7. Screenshots now include Bramble hovered in demo-tide (its own red colours), and the
+   light hover shot has the row fully in view.
+
+Final checks: `npm run check` exit 0, `npm test` 124/124, and
+`node tests/pigment-experience-ledger.test.mjs` ok.
