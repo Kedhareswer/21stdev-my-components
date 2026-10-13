@@ -26,7 +26,8 @@ assert.doesNotMatch(src, /getContext\("webgl/, "2D canvas only: same cost on a s
 assert.match(src, /hover:hover\) and \(pointer:fine/, "hover motion is gated to real pointers")
 assert.match(src, /it\.colors \?\? section/, "a row's own colours override the section's")
 assert.match(src, /aria-label=\{L\.tags\}/, "the tag list's name is a prop, not hard-coded")
-assert.match(src, /elsewhere \? 0\.3 : 1/, "one focal point: the open row steps back")
+assert.match(src, /elsewhere \? 0\.22 : 1/, "one focal point: the open row steps back")
+assert.match(src, /residue = 0\.2/, "closed rows keep a faint dried residue by default")
 assert.match(src, /now - s\.lastActive < 3000/, "the loop sleeps once the wash settles")
 assert.match(src, /headingLevel = 2/, "heading level is a prop")
 {

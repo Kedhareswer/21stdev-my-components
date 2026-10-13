@@ -47,6 +47,7 @@ import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 | `palette` | `"ember"` | `"ember"` (pink, orange, yellow), `"tide"`, `"moss"`, `"mono"` |
 | `colors` | | Your own pigment as `[core, body, edge]` hex values. Overrides `palette` |
 | `strength` | `0.82` | Peak pigment opacity, 0 to 1 |
+| `residue` | `0.2` | Opacity of the dried pigment left behind closed rows, so the history shows at rest. `0` leaves closed rows bare |
 | `ageing` | `true` | Stroke length follows tenure and pigment dries with age. Reads `years` as `"2019-2022"`, `"2022-now"` or `"2021"` |
 | `defaultOpen` | `0` | Row open on first render. `null` starts with every row closed |
 | `open` / `onToggle` | | Controlled mode. `onToggle(index \| null)` |
@@ -65,8 +66,10 @@ import PigmentExperienceLedger from "@/components/ui/pigment-experience-ledger"
 - Long names shrink to fit their column, so a wordmark never wraps or clips.
   Below 640 px of container width, the year moves above the name and the open
   row stacks.
-- The wash sits behind the wordmark and stays in the row's header band, so the
-  open row's body copy is always on clean paper. When another row is pointed
+- Closed rows keep a faint dried residue of their stroke, so tenure and age
+  read at a glance before anyone points at anything. Pointing at a row rewets it.
+- The wash hugs the wordmark, so the role, the years and the open row's body
+  copy always sit on clean paper. When another row is pointed
   at, the open row's wash steps back so there is one focal point.
 - The wash follows the surface it sits on. On a dark background it drops its
   palest colour and caps its opacity, so light text on top stays readable.
