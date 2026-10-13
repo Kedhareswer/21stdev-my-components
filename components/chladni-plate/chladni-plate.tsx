@@ -316,11 +316,21 @@ export function cpStep(pos: Float32Array, vel: Float32Array, grid: Float32Array,
       x = 0.5 + (wr ? wx : 0.001) * f
       y = 0.5 + wy * f
     }
-    // A thin raised lip keeps the sand on the plate.
-    if (x < 0.002) { x = 0.004 - x; vel[o] = Math.abs(vel[o]) * 0.4 }
-    if (x > 0.998) { x = 1.996 - x; vel[o] = -Math.abs(vel[o]) * 0.4 }
-    if (y < 0.002) { y = 0.004 - y; vel[o + 1] = Math.abs(vel[o + 1]) * 0.4 }
-    if (y > 0.998) { y = 1.996 - y; vel[o + 1] = -Math.abs(vel[o + 1]) * 0.4 }
+    // The edge is free: sand thrown past it falls to the bench, and the same
+    // amount is sprinkled back onto the figure, so the plate never runs dry.
+    if (x < 0.001 || x > 0.999 || y < 0.001 || y > 0.999) {
+      for (let t = 0; t < 32; t++) {
+        x = 0.01 + 0.98 * rand()
+        y = 0.01 + 0.98 * rand()
+        if (Math.hypot(x - 0.5, y - 0.5) < CP_WASHER + 0.004) continue
+        cpSample(grid, G, x, y, s)
+        if (Math.abs(s[0]) < 0.06) break
+      }
+      z = 0
+      vel[o] = 0
+      vel[o + 1] = 0
+      vel[o + 2] = 0
+    }
     pos[o] = x
     pos[o + 1] = y
     pos[o + 2] = z
@@ -359,8 +369,8 @@ export function cpPlough(pos: Float32Array, ax: number, ay: number, bx: number, 
       oy = dx
     }
     const l = Math.hypot(ox, oy) || 1
-    // Shoved to the bank, heaped a little beyond it.
-    const to = r * (1 + 0.22 * rand())
+    // Shoved to the bank and heaped there in a berm.
+    const to = r * (1 + 0.28 * Math.sqrt(rand()))
     pos[o] = Math.min(0.997, Math.max(0.003, cx + (ox / l) * to))
     pos[o + 1] = Math.min(0.997, Math.max(0.003, cy + (oy / l) * to))
     moved++
@@ -419,8 +429,10 @@ uniform float uA;
 uniform vec3 uMode;
 uniform vec4 uBow;
 uniform vec4 uBow2;
+uniform vec4 uBow3;
 uniform float uDenRead;
 uniform sampler2D uBg;
+uniform sampler2D uSmear;
 uniform float uPass;
 out vec4 o;
 
@@ -462,6 +474,8 @@ vec4 lamp(vec3 P) {
 
 // Sand height in CSS px at plate uv, from the density map's blurred level.
 float sandH(vec2 uv, float lod) {
+  // Off the plate there is no sand, rather than a smear of the edge texel.
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
   float d = textureLod(uDen, vec2(uv.x, 1.0 - uv.y), lod).r * uDenRead;
   return (1.0 - exp(-0.1 * d)) * 5.2;
 }
@@ -479,13 +493,13 @@ vec3 brass(vec3 n, vec3 V, vec4 Lw, vec2 rv, float r, float tarnish, float S) {
   // The lathe lines fade out where they would be finer than a pixel, so they never alias.
   float lf = r * 2.4 + vnoise(vec2(r * 0.05, 3.0)) * 6.0;
   float lathe = 0.85 + 0.15 * sin(lf) * (1.0 - smoothstep(0.5, 1.5, fwidth(lf)));
-  float aniso = pow(sqrt(max(0.0, 1.0 - th * th)), 700.0) * pow(nh, 12.0) * lathe;
+  float aniso = pow(sqrt(max(0.0, 1.0 - th * th)), 1400.0) * pow(nh, 16.0) * lathe;
   float a2 = 0.09;
   float dd = nh * nh * (a2 - 1.0) + 1.0;
   float iso = a2 / (PI * dd * dd);
   vec3 F = F0 + (1.0 - F0) * pow(1.0 - max(dot(H, V), 0.0), 5.0);
   float shine = (1.0 - 0.7 * tarnish);
-  vec3 spec = F * (iso * 0.6 + aniso * 1.3) * shine * nl * Lw.w;
+  vec3 spec = F * (iso * 0.36 + aniso * 0.85) * shine * nl * Lw.w;
   vec3 rough = F0 * nl * Lw.w * 0.3;
   // The room behind the camera: dark, with a cool window glow the brass picks up toward the far corner.
   vec3 env = F0 * mix(vec3(0.035, 0.026, 0.018), vec3(0.1, 0.09, 0.075), 1.0 - uNight);
@@ -508,7 +522,19 @@ vec3 ground(vec2 p) {
     vec2 q = P.xy + Lw.xy * (hb / max(Lw.z, 0.05));
     float pen = 0.06 * S;
     float sh = smoothstep(-pen, pen, sdBox(q - c, vec2(0.5 * S)));
-    float ao = mix(0.55, 1.0, smoothstep(0.0, 0.14 * S, edge));
+    float ao = mix(0.55, 1.0, smoothstep(0.0, 0.14 * S, edge)) * mix(0.45, 1.0, smoothstep(0.0, 0.016 * S, edge));
+    // The plate's thickness: its milled side shows along the lamp-facing edges.
+    float th = max(3.0, 0.0065 * S);
+    vec2 rq = p - c;
+    if (sdBox(rq + vec2(th * 0.5), vec2(0.5 * S + th * 0.5)) < 0.0 && (rq.x < -0.5 * S || rq.y < -0.5 * S)) {
+      bool left = rq.x < -0.5 * S && (-0.5 * S - rq.x) > (-0.5 * S - rq.y);
+      vec3 sn = left ? vec3(-1.0, 0.0, 0.0) : vec3(0.0, -1.0, 0.0);
+      vec4 Ls = lamp(vec3(p, -th * 0.5));
+      float across = left ? (-0.5 * S - rq.x) / th : (-0.5 * S - rq.y) / th;
+      float mill = 0.9 + 0.1 * sin(across * 9.0);
+      vec3 sideC = vec3(1.0, 0.7, 0.27) * (0.06 + 0.75 * max(dot(sn, Ls.xyz), 0.0) * Ls.w) * mill;
+      return sideC * mix(1.0, 0.45, smoothstep(0.55, 1.0, across));
+    }
     float vein = fbm(p * 0.006 + 3.0);
     // Day: charcoal-green soapstone, cloudy, with pale talc flecks. Night: black lab epoxy.
     float fleck = step(0.994, hash(floor(p * 0.9))) * 0.5;
@@ -594,25 +620,41 @@ vec2 throwOn(vec3 Q, float zr) {
   return uLamp.xy + (Q.xy - uLamp.xy) * (uLamp.z - zr) / max(uLamp.z - Q.z, 1.0);
 }
 // How much of the lamp the bow blocks at p, on a surface at height zr.
-float bowShadow(vec2 p, float zr) {
+// The bow in the world: hair from the contact point up along dir for len, the stick
+// beside it on the outward side, frog at the top. It leans along the edge toward the
+// plate's middle, the way a player tilts it, so from above it reads at full length.
+void bowFrame(out vec3 h0, out vec3 dir, out vec3 side, out float len) {
   float S = uPlate.z;
   vec2 n = uBow.zw;
   vec2 tg = vec2(-n.y, n.x);
-  vec2 base = uBow.xy + n * (0.006 + 0.035 * uBow2.y) * S;
-  float zt = uBow2.x;
-  float z0 = min(zr, 0.0);
+  float sg = dot(uBow.xy - uPlate.xy, tg) > 0.0 ? -1.0 : 1.0;
+  h0 = vec3(uBow.xy + n * (0.004 + 0.03 * uBow2.y) * S, 0.0);
+  dir = normalize(vec3(tg * sg * 0.64 + n * 0.05, 0.77));
+  side = vec3(n, 0.0);
+  len = uBow2.x;
+}
+// How much of the lamp the bow blocks at p, on a surface at height zr.
+float bowShadow(vec2 p, float zr) {
+  float S = uPlate.z;
+  vec3 h0;
+  vec3 dir;
+  vec3 side;
+  float len;
+  bowFrame(h0, dir, side, len);
   float sh = 0.0;
   for (int i = 0; i < 2; i++) {
-    vec2 b = base + tg * (i == 0 ? -0.007 : 0.007) * S;
-    float r = (i == 0 ? 0.005 : 0.0045) * S;
-    vec2 d = seg(p, throwOn(vec3(b, z0), zr), throwOn(vec3(b, zt), zr));
-    float hq = mix(z0, zt, d.y) - zr;
-    float pen = 1.0 + 0.03 * hq;
-    sh = max(sh, (1.0 - smoothstep(r * 0.4, r + pen * 2.0, d.x)) * clamp(r / (r + pen), 0.3, 1.0));
+    vec3 a = h0 + side * (i == 0 ? 0.0 : 0.014 * S);
+    vec3 b = a + dir * (len - 0.07 * S);
+    float r = (i == 0 ? 0.0055 : 0.005) * S;
+    vec2 d = seg(p, throwOn(a, zr), throwOn(b, zr));
+    float hq = mix(a.z, b.z, d.y) - zr;
+    float pen = 1.0 + 0.035 * hq;
+    sh = max(sh, (1.0 - smoothstep(r * 0.3, r + pen * 2.0, d.x)) * clamp(r / (r + pen * 0.6), 0.35, 1.0));
   }
-  // The frog throws the fattest piece of shadow, near the top.
-  vec2 fd = seg(p, throwOn(vec3(base, zt - 0.06 * S), zr), throwOn(vec3(base, zt), zr));
-  sh = max(sh, (1.0 - smoothstep(0.012 * S, 0.012 * S + 3.0 + 0.03 * (zt - zr), fd.x)) * 0.8);
+  // The frog throws the fattest piece of shadow, at the top.
+  vec3 f0 = h0 + side * 0.007 * S + dir * (len - 0.07 * S);
+  vec2 fd = seg(p, throwOn(f0, zr), throwOn(f0 + dir * 0.075 * S, zr));
+  sh = max(sh, (1.0 - smoothstep(0.011 * S, 0.011 * S + 3.0 + 0.035 * (f0.z - zr), fd.x)) * 0.75);
   return sh * uBow2.z;
 }
 
@@ -640,7 +682,9 @@ void main() {
     vec2 sq = p + Lw.xy / max(Lw.z, 0.05) * (0.035 * S);
     float rn = 0.03 * S;
     float capSh = r < 0.052 * S ? 1.0 : 1.0 - 0.6 * (1.0 - smoothstep(rn - 3.0, rn + 5.0, length(sq - c)));
-    vec3 base = col * capSh;
+    // Where a fingertip has dragged across, the polish is dulled by a faint smear.
+    float sm = texture(uSmear, q).r;
+    vec3 base = mix(col, col * 0.72 + vec3(0.035, 0.03, 0.024), sm * 0.8) * capSh;
 
     // Sand: a heightfield from the grain density.
     vec2 uv = q;
@@ -685,53 +729,63 @@ void main() {
     if (uBow2.z > 0.0) col *= 1.0 - 0.55 * bowShadow(p, 0.0);
   }
 
-  // The bow itself, seen from above: two short upright strokes (hair and stick) foreshortened
-  // toward the camera, capped by the ebony frog and its silver button.
+  // The bow itself, seen from above: hair and stick rising from the contact point,
+  // foreshortened toward the camera, the ebony frog and its silver button at the top.
   if (uBow2.z > 0.0) {
-    vec2 n = uBow.zw;
-    vec2 tg = vec2(-n.y, n.x);
-    vec2 base = uBow.xy + n * (0.006 + 0.035 * uBow2.y) * S;
-    float zt = uBow2.x;
+    vec3 h0;
+    vec3 dir;
+    vec3 side;
+    float len;
+    bowFrame(h0, dir, side, len);
     float H = CAMH * S;
     float aa = 0.8;
-    vec3 cov = vec3(0.0);
     vec3 bc = col;
+    vec4 Lb = lamp(h0 + dir * len * 0.5);
     for (int i = 0; i < 2; i++) {
-      vec2 b = base + tg * (i == 0 ? -0.007 : 0.007) * S;
-      vec2 a0 = proj(vec3(b, 0.0));
-      vec2 a1 = proj(vec3(b, zt - 0.05 * S));
+      vec3 a3 = h0 + side * (i == 0 ? 0.0 : 0.014 * S);
+      vec3 b3 = a3 + dir * (len - 0.06 * S);
+      vec2 a0 = proj(a3);
+      vec2 a1 = proj(b3);
       vec2 d = seg(p, a0, a1);
-      float mag = H / (H - mix(0.0, zt, d.y));
-      float r = (i == 0 ? 0.0052 : 0.0046) * S * mag;
-      float m = 1.0 - smoothstep(r - aa, r + aa, d.x);
-      // Upright, so the eye sees the side facing the plate's centre.
+      float mag = H / (H - mix(a3.z, b3.z, d.y));
+      float r = (i == 0 ? 0.0058 : 0.005) * S * mag;
+      float m = (1.0 - smoothstep(r - aa, r + aa, d.x)) * step(0.0001, d.y + (i == 0 ? 1.0 : 0.0));
       vec2 ax = normalize(a1 - a0 + 1e-5);
-      float sd = clamp(dot(p - a0, vec2(-ax.y, ax.x)) / r, -1.0, 1.0);
-      vec3 nrm = normalize(vec3(-ax * sqrt(1.0 - sd * sd) + vec2(-ax.y, ax.x) * sd, 0.15));
-      vec4 Lw = lamp(vec3(b, zt * 0.5));
-      vec3 Hb = normalize(Lw.xyz + normalize(vec3(c, H) - vec3(b, zt * 0.5)));
+      vec2 px = vec2(-ax.y, ax.x);
+      float sd = clamp(dot(p - a0, px) / r, -1.0, 1.0);
+      vec3 nrm = normalize(vec3(px * sd, sqrt(1.0 - sd * sd)));
+      vec3 Hb = normalize(Lb.xyz + vec3(0.0, 0.0, 1.0));
       vec3 cc;
       if (i == 0) {
-        float fib = 0.8 + 0.2 * hash(vec2(floor(sd * 4.0), 5.0));
-        cc = vec3(0.93, 0.89, 0.8) * fib * (0.2 + 1.1 * max(dot(nrm, Lw.xyz), 0.0) * Lw.w) + mix(vec3(0.16), vec3(0.03), uNight);
+        // Horsehair: a pale ribbon, combed into strands.
+        float fib = 0.82 + 0.18 * hash(vec2(floor(sd * 5.0), 5.0));
+        cc = vec3(0.93, 0.89, 0.8) * fib * (0.22 + 1.0 * max(dot(nrm, Lb.xyz), 0.0) * Lb.w) + mix(vec3(0.14), vec3(0.03), uNight);
       } else {
-        cc = vec3(0.36, 0.13, 0.05) * (0.1 + 0.95 * max(dot(nrm, Lw.xyz), 0.0) * Lw.w) + vec3(1.0, 0.86, 0.7) * pow(max(dot(nrm, Hb), 0.0), 30.0) * Lw.w * 0.9;
+        // Varnished pernambuco with a long specular line.
+        cc = vec3(0.34, 0.12, 0.045) * (0.12 + 0.95 * max(dot(nrm, Lb.xyz), 0.0) * Lb.w) + vec3(1.0, 0.86, 0.7) * pow(max(dot(nrm, Hb), 0.0), 40.0) * Lb.w * 0.9;
       }
       bc = mix(bc, cc, m * uBow2.z);
     }
-    // The frog's top face and the end button.
-    vec2 fc = proj(vec3(base, zt));
-    vec2 rad = normalize(fc - c + 1e-5);
-    vec2 fl = vec2(dot(p - fc, rad), dot(p - fc, vec2(-rad.y, rad.x)));
-    float mag = H / (H - zt);
-    vec2 fb = vec2(0.012, 0.016) * S * mag;
-    float frog = 1.0 - smoothstep(-aa, aa, sdBox(fl, fb) - 0.003 * S);
-    vec4 Lf = lamp(vec3(base, zt));
-    vec3 frogC = vec3(0.03, 0.027, 0.025) * (0.6 + 0.8 * Lf.w) + vec3(0.55, 0.5, 0.45) * pow(max(dot(normalize(Lf.xyz + vec3(0.0, 0.0, 1.0)), vec3(0.0, 0.0, 1.0)), 0.0), 40.0) * Lf.w * 0.35;
-    float btn = 1.0 - smoothstep(0.006 * S * mag - aa, 0.006 * S * mag + aa, length(fl - vec2(0.004 * S * mag, 0.0)));
-    vec3 btnC = vec3(0.75, 0.74, 0.72) * (0.2 + 0.7 * Lf.w) + vec3(1.0) * pow(max(dot(normalize(vec3(-rad, 0.6)), normalize(Lf.xyz + vec3(0.0, 0.0, 1.0))), 0.0), 20.0) * Lf.w * 0.6;
+    // The frog: an ebony block bridging hair and stick, a pearl eye on its face.
+    vec3 f0 = h0 + side * 0.007 * S + dir * (len - 0.075 * S);
+    vec3 f1 = f0 + dir * 0.075 * S;
+    vec2 fa = proj(f0);
+    vec2 fb = proj(f1);
+    vec2 fd = seg(p, fa, fb);
+    float fmag = H / (H - mix(f0.z, f1.z, fd.y));
+    float frog = 1.0 - smoothstep(0.012 * S * fmag - aa, 0.012 * S * fmag + aa, fd.x);
+    vec3 frogC = vec3(0.03, 0.027, 0.025) * (0.6 + 0.8 * Lb.w) + vec3(0.6, 0.55, 0.5) * pow(1.0 - fd.x / (0.012 * S * fmag + 1e-3), 6.0) * Lb.w * 0.18;
+    float eye = 1.0 - smoothstep(0.0042 * S * fmag - aa, 0.0042 * S * fmag + aa, length(p - mix(fa, fb, 0.45)));
+    frogC = mix(frogC, vec3(0.86, 0.9, 0.92) * (0.35 + 0.7 * Lb.w), eye);
+    // The silver end button.
+    vec2 bt = proj(f1 + dir * 0.012 * S);
+    float btn = 1.0 - smoothstep(0.0065 * S * fmag - aa, 0.0065 * S * fmag + aa, seg(p, fb, bt).x);
+    vec3 btnC = vec3(0.78, 0.77, 0.75) * (0.25 + 0.7 * Lb.w) + vec3(1.0) * pow(max(1.0 - seg(p, fb, bt).x / (0.0065 * S * fmag), 0.0), 3.0) * Lb.w * 0.4;
     bc = mix(bc, frogC, frog * uBow2.z);
     bc = mix(bc, btnC, btn * uBow2.z);
+    // Rosin flashing at the contact while the bow draws.
+    float glint = (1.0 - smoothstep(0.0, 0.009 * S, length(p - proj(h0)))) * uBow3.x;
+    bc += vec3(1.0, 0.95, 0.85) * glint * 0.9 * uBow2.z;
     col = bc;
   }
 
@@ -749,13 +803,16 @@ const CP_CSS = `
 .cp-root canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; opacity: 0; transition: opacity 0.7s cubic-bezier(0.23, 1, 0.32, 1); }
 .cp-root canvas[data-ready] { opacity: 1; }
 .cp-fallback { position: absolute; inset: 0; background: radial-gradient(60% 60% at 40% 35%, #3c4442, #1d2120); }
-.cp-fallback i { position: absolute; left: 50%; top: 50%; width: min(78vmin, 84%); aspect-ratio: 1; transform: translate(-50%, -50%); background: radial-gradient(circle at 30% 28%, #d9b46a, #8a6a34 70%); box-shadow: 18px 24px 40px rgba(0,0,0,0.45); }
+.cp-root.cp-night .cp-fallback { background: radial-gradient(60% 60% at 40% 35%, #262422, #070707); }
+.cp-root .cp-fallback canvas { opacity: 1; }
 .cp-over { position: relative; z-index: 1; height: 100%; pointer-events: none; }
 .cp-over a, .cp-over button, .cp-over input, .cp-over [data-interactive] { pointer-events: auto; }
 .cp-pill { position: absolute; z-index: 2; left: 16px; bottom: 16px; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(12, 11, 10, 0.72); color: rgba(246, 240, 228, 0.92); font: 500 11px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease; }
 .cp-pill:active { transform: scale(0.96); }
 .cp-pill:focus-visible { outline: 2px solid #e6c47a; outline-offset: 2px; }
-.cp-pill b { font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; text-transform: none; color: #e6c47a; }
+.cp-pill b { font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; text-transform: none; color: #e6c47a; opacity: 0.6; transition: opacity 400ms ease; }
+.cp-pill b:empty { display: none; }
+.cp-pill b[data-on] { opacity: 1; transition-duration: 150ms; }
 @media (hover: hover) and (pointer: fine) { .cp-pill:hover { background: rgba(12, 11, 10, 0.86); } }
 @media (pointer: coarse) { .cp-pill { height: 44px; padding: 0 18px; } }
 @media (prefers-reduced-motion: reduce) { .cp-root canvas, .cp-pill { transition: none; } }
@@ -778,14 +835,16 @@ export default function ChladniPlate({
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const canvasRef = React.useRef(null as HTMLCanvasElement | null)
   const noteRef = React.useRef(null as HTMLElement | null)
+  const fallbackRef = React.useRef(null as HTMLCanvasElement | null)
   const [failed, setFailed] = React.useState(false)
   const [dark, setDark] = React.useState(false)
   const [reduce, setReduce] = React.useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
   const night = light === "night" || (light === "auto" && dark)
-  const api = React.useRef({ night, interactive, autoBow, redraw: () => {}, bow: () => {} })
+  const api = React.useRef({ night, interactive, autoBow, reduce, redraw: () => {}, bow: () => {} })
   api.current.night = night
   api.current.interactive = interactive
   api.current.autoBow = autoBow
+  api.current.reduce = reduce
 
   // "auto" follows the page: a .dark class on <html>, as 21st and shadcn set it.
   React.useEffect(() => {
@@ -812,6 +871,52 @@ export default function ChladniPlate({
   }, [])
 
   const first = Math.max(0, Math.min(CP_MODES.length - 1, Math.round(figure)))
+
+  // Without WebGL2: a still of the same plate, drawn once in 2D, sand on its still lines.
+  React.useEffect(() => {
+    const root = rootRef.current
+    const cv = fallbackRef.current
+    const g = cv && cv.getContext("2d")
+    if (!failed || !root || !cv || !g) return
+    const w = Math.max(1, root.clientWidth)
+    const h = Math.max(1, root.clientHeight)
+    cv.width = w
+    cv.height = h
+    const [cx, cy, S] = cpLayout(w, h, align)
+    const x0 = cx - S / 2
+    const y0 = cy - S / 2
+    g.fillStyle = "rgba(0, 0, 0, 0.45)"
+    g.fillRect(x0 + S * 0.05, y0 + S * 0.05, S, S)
+    const lit = g.createRadialGradient(x0 + S * 0.25, y0 + S * 0.2, S * 0.05, x0 + S * 0.4, y0 + S * 0.4, S)
+    lit.addColorStop(0, "#e2c27a")
+    lit.addColorStop(1, "#7d5e2c")
+    g.fillStyle = lit
+    g.fillRect(x0, y0, S, S)
+    const N = Math.min(320, Math.round(S))
+    const img = g.createImageData(N, N)
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const u = Math.abs(cpU(first, (i + 0.5) / N, (j + 0.5) / N))
+        const a = Math.max(0, 1 - u / 0.07)
+        const o = (j * N + i) * 4
+        img.data[o] = 236
+        img.data[o + 1] = 230
+        img.data[o + 2] = 216
+        img.data[o + 3] = Math.round(255 * a * a)
+      }
+    }
+    const tmp = document.createElement("canvas")
+    tmp.width = N
+    tmp.height = N
+    const tg = tmp.getContext("2d")
+    if (!tg) return
+    tg.putImageData(img, 0, 0)
+    g.drawImage(tmp, x0, y0, S, S)
+    g.fillStyle = "#9a9894"
+    g.beginPath()
+    g.arc(cx, cy, S * 0.04, 0, Math.PI * 2)
+    g.fill()
+  }, [failed, align, first])
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -877,6 +982,41 @@ export default function ChladniPlate({
 
     const den = gl.createTexture()
     const denFbo = gl.createFramebuffer()
+    // Fingertip smears on the brass, in plate space, kept for the life of the plate.
+    const SM = 256
+    const smearData = new Uint8Array(SM * SM)
+    const smearTex = gl.createTexture()
+    gl.activeTexture(gl.TEXTURE2)
+    gl.bindTexture(gl.TEXTURE_2D, smearTex)
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, SM, SM, 0, gl.RED, gl.UNSIGNED_BYTE, smearData)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.activeTexture(gl.TEXTURE0)
+    let smearDirty = false
+    const smear = (ax: number, ay: number, bx: number, by: number) => {
+      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * SM / 2))
+      const R = 0.03 * SM
+      for (let k = 0; k <= steps; k++) {
+        const cx = (ax + ((bx - ax) * k) / steps) * SM
+        const cy = (ay + ((by - ay) * k) / steps) * SM
+        for (let j = Math.max(0, Math.floor(cy - R)); j <= Math.min(SM - 1, Math.ceil(cy + R)); j++) {
+          for (let i = Math.max(0, Math.floor(cx - R)); i <= Math.min(SM - 1, Math.ceil(cx + R)); i++) {
+            const d = Math.hypot(i - cx, j - cy) / R
+            if (d >= 1) continue
+            // Skin leaves ridges, not a flat wipe.
+            const ridge = 0.6 + 0.4 * Math.sin((i * 0.9 + j * 0.4) * 1.7 + d * 6)
+            const v = Math.round(150 * (1 - d * d) * ridge)
+            const o = j * SM + i
+            if (v > smearData[o]) smearData[o] = v
+          }
+        }
+      }
+      smearDirty = true
+    }
+
     // The still parts of the scene, drawn once per size and theme.
     const bg = gl.createTexture()
     const bgFbo = gl.createFramebuffer()
@@ -984,6 +1124,13 @@ export default function ChladniPlate({
       gl.viewport(0, 0, canvas.width, canvas.height)
       gl.useProgram(show.pr)
       gl.bindVertexArray(quadVao)
+      gl.activeTexture(gl.TEXTURE2)
+      gl.bindTexture(gl.TEXTURE_2D, smearTex)
+      if (smearDirty) {
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SM, SM, gl.RED, gl.UNSIGNED_BYTE, smearData)
+        smearDirty = false
+      }
       gl.activeTexture(gl.TEXTURE1)
       gl.bindTexture(gl.TEXTURE_2D, bg)
       gl.activeTexture(gl.TEXTURE0)
@@ -991,21 +1138,25 @@ export default function ChladniPlate({
       const u = show.u
       gl.uniform1i(u.uDen, 0)
       gl.uniform1i(u.uBg, 1)
+      gl.uniform1i(u.uSmear, 2)
       gl.uniform2f(u.uRes, canvas.width, canvas.height)
       gl.uniform1f(u.uDpr, scale)
       gl.uniform3f(u.uPlate, plate[0], plate[1], S)
       gl.uniform3f(u.uLamp, L[0], L[1], L[2])
       gl.uniform1f(u.uNight, api.current.night ? 1 : 0)
-      gl.uniform1f(u.uA, reduce ? 0 : amp)
+      gl.uniform1f(u.uA, api.current.reduce ? 0 : amp)
       const md = CP_MODES[mode]
       gl.uniform3f(u.uMode, md[0], md[1], md[2])
       gl.uniform4f(u.uBow, bow.x, bow.y, bow.nx, bow.ny)
       // How high the frog stands above the plate: the bow travels up and down through the stroke.
-      gl.uniform4f(u.uBow2, (0.16 + 0.24 * bow.slide) * S, bow.lift, bow.vis, 0)
+      gl.uniform4f(u.uBow2, (0.3 + 0.3 * bow.slide) * S, bow.lift, bow.vis, 0)
+      // Rosin flashes at the contact while the bow is drawn.
+      const draws = bow.lift < 0.5 && bow.energy > 0.05
+      gl.uniform4f(u.uBow3, draws ? Math.min(1, bow.energy * 1.6) * (0.55 + 0.45 * Math.sin(simT * 47)) : 0, 0, 0, 0)
       gl.uniform1f(u.uDenRead, denRead)
       const nightNow = api.current.night ? 1 : 0
       // A GPU redraws the brass live while it rings, to show it shimmer; otherwise the cached still is enough.
-      const live = !soft && !reduce && amp > 0.001
+      const live = !soft && !api.current.reduce && amp > 0.001
       if (!live && bgNight !== nightNow) {
         gl.uniform1f(u.uA, 0)
         gl.uniform1f(u.uPass, 0)
@@ -1016,7 +1167,7 @@ export default function ChladniPlate({
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.bindTexture(gl.TEXTURE_2D, bg)
         gl.activeTexture(gl.TEXTURE0)
-        gl.uniform1f(u.uA, reduce ? 0 : amp)
+        gl.uniform1f(u.uA, api.current.reduce ? 0 : amp)
         bgNight = nightNow
       }
       gl.uniform1f(u.uPass, live ? 2 : 1)
@@ -1024,15 +1175,20 @@ export default function ChladniPlate({
       gl.bindVertexArray(null)
     }
 
+    // The pill names the note the plate is sounding; once quiet it keeps the last one, dimmed.
     const showNote = () => {
       const el = noteRef.current
       if (!el) return
       const hz = cpHz(mode)
-      el.textContent = cpNote(hz) + " " + hz + " Hz"
-      if (!reduce && el.animate) el.animate([{ opacity: 0, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }], { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
+      const text = cpNote(hz) + " " + hz + " Hz"
+      if (el.textContent !== text) {
+        el.textContent = text
+        if (!api.current.reduce && el.animate) el.animate([{ opacity: 0, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }], { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
+      }
+      el.setAttribute("data-on", "")
       clearTimeout(noteTimer)
       noteTimer = window.setTimeout(() => {
-        if (noteRef.current) noteRef.current.textContent = ""
+        if (noteRef.current) noteRef.current.removeAttribute("data-on")
       }, 4200)
     }
 
@@ -1085,6 +1241,8 @@ export default function ChladniPlate({
 
     // Simulated seconds. The bow's timeline runs on it, so a slow renderer plays the stroke slower rather than cutting it short.
     let simT = 0
+    let restUntil = 0
+    let hovering = false
     const simulate = (dt: number) => {
       simT += dt
       const now = simT * 1000
@@ -1095,7 +1253,8 @@ export default function ChladniPlate({
           auto = null
           bow.energy = 0
           bow.liftTo = 1
-          bow.visTo = 0
+          // The bow rests a moment at the edge before it goes, so a still frame still shows it.
+          restUntil = simT + 1.2
         } else {
           const env = Math.sin(Math.PI * Math.min(1, t * 1.15))
           bow.energy = auto.e * env
@@ -1107,6 +1266,10 @@ export default function ChladniPlate({
         }
       } else if (!bow.down) {
         bow.energy *= Math.exp(-dt / 0.08)
+      }
+      if (restUntil && simT > restUntil) {
+        restUntil = 0
+        if (!bow.down && !hovering) bow.visTo = 0
       }
       bow.lift += (bow.liftTo - bow.lift) * (1 - Math.exp(-dt / 0.09))
       // The bow comes in a touch slower than it leaves.
@@ -1134,14 +1297,15 @@ export default function ChladniPlate({
       }
       while (ploughs.length) {
         const seg = ploughs.splice(0, 4)
-        if (cpPlough(pos, seg[0], seg[1], seg[2], seg[3], 0.03, rand)) dirty = true
+        if (cpPlough(pos, seg[0], seg[1], seg[2], seg[3], 0.042, rand)) dirty = true
+        smear(seg[0], seg[1], seg[2], seg[3])
       }
       busy = cpStep(pos, vel, grid, G, amp, dt, rand)
       if (busy || amp >= CP_QUIET) dirty = true
     }
 
     const active = () =>
-      amp > 0 || busy > 0 || !!auto || bow.down || finger.down || Math.abs(bow.vis - bow.visTo) > 0 || Math.abs(bow.lift - bow.liftTo) > 0 || ploughs.length > 0
+      amp > 0 || busy > 0 || !!auto || restUntil > 0 || bow.down || finger.down || Math.abs(bow.vis - bow.visTo) > 0 || Math.abs(bow.lift - bow.liftTo) > 0 || ploughs.length > 0
 
     const frame = (now: number) => {
       raf = 0
@@ -1187,7 +1351,7 @@ export default function ChladniPlate({
     let settling = false
     let settleTimer = 0
     api.current.bow = () => {
-      if (reduce) {
+      if (api.current.reduce) {
         // No theatre: the plate is bowed off-screen, in short slices so the page stays responsive,
         // and only the settled figure is shown.
         if (settling) return
@@ -1296,8 +1460,10 @@ export default function ChladniPlate({
           bow.visTo = 1
           bow.liftTo = 1
           root.style.cursor = "grab"
+          hovering = true
         } else {
-          bow.visTo = 0
+          hovering = false
+          if (!restUntil) bow.visTo = 0
           root.style.cursor = ""
         }
       }
@@ -1360,6 +1526,7 @@ export default function ChladniPlate({
       wake()
     }
     const onLeave = () => {
+      hovering = false
       if (bow.down || auto) return
       bow.visTo = 0
       root.style.cursor = ""
@@ -1385,7 +1552,7 @@ export default function ChladniPlate({
       visible = entries[0] ? entries[0].isIntersecting : true
       if (visible && !seen) {
         seen = true
-        if (api.current.autoBow && !reduce) startAuto(1100)
+        if (api.current.autoBow && !api.current.reduce) startAuto(1100)
       }
       if (visible) wake()
     })
@@ -1412,6 +1579,7 @@ export default function ChladniPlate({
       gl.deleteTexture(den)
       gl.deleteFramebuffer(denFbo)
       gl.deleteTexture(bg)
+      gl.deleteTexture(smearTex)
       gl.deleteFramebuffer(bgFbo)
       gl.deleteBuffer(gbuf)
       gl.deleteBuffer(quad)
@@ -1421,7 +1589,7 @@ export default function ChladniPlate({
       gl.deleteProgram(show.pr)
       for (const s of shaders) gl.deleteShader(s)
     }
-  }, [align, seed, first, reduce])
+  }, [align, seed, first])
 
   return (
     <div
@@ -1432,7 +1600,7 @@ export default function ChladniPlate({
       <style>{CP_CSS}</style>
       {failed ? (
         <div className="cp-fallback" role="img" aria-label={LABEL}>
-          <i />
+          <canvas ref={fallbackRef} aria-hidden="true" />
         </div>
       ) : (
         <canvas ref={canvasRef} role="img" aria-label={LABEL} />

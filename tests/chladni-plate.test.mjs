@@ -30,10 +30,11 @@ assert.doesNotMatch(
   /use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<|React\.[A-Za-z]+</,
   "no generics before the first JSX close tag (the 21st CLI tokenizer hangs on them)",
 )
-const visible = src.match(/const LABEL = .*$/m)[0] + src.slice(src.lastIndexOf("  return (")) + read("demo.tsx")
+const visible = src.match(/const LABEL = .*$/m)[0] + src.slice(src.lastIndexOf("  return (")) + read("demo.tsx") + read("demo-aside.tsx")
 assert.ok(!/[—–]/.test(visible), "no em or en dashes in visible text")
-const demo = read("demo.tsx")
-assert.deepEqual([...demo.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1]), ["@/components/ui/chladni-plate"])
+for (const f of ["demo.tsx", "demo-aside.tsx"]) {
+  assert.deepEqual([...read(f).matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1]), ["@/components/ui/chladni-plate"], f + " imports only the component")
+}
 
 // ---- pure helpers, lifted out of the component and executed ----
 const region = src.slice(src.indexOf("// #region chladni"), src.indexOf("// #endregion"))
