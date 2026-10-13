@@ -83,6 +83,7 @@
       "@/components/ui/breath-bloom": ["./components/breath-bloom/breath-bloom.tsx"],
       "@/components/ui/code-curtain": ["./components/code-curtain/code-curtain.tsx"],
       "@/components/ui/anodized-ink": ["./components/anodized-ink/anodized-ink.tsx"],
+      "@/components/ui/guilloche-enamel": ["./components/guilloche-enamel/guilloche-enamel.tsx"],
       "@/components/ui/beam-wordmark-footer": ["./components/beam-wordmark-footer/beam-wordmark-footer.tsx"],
       "@/components/ui/amour-sunrise-preloader": ["./components/amour-sunrise-preloader/amour-sunrise-preloader.tsx"],
       "@/components/ui/stardust-stage-preloader": ["./components/stardust-stage-preloader/stardust-stage-preloader.tsx"],
