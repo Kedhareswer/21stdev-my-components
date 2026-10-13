@@ -12,16 +12,16 @@ Raw WebGL in one React file: no three.js, no textures, no network.
 ```tsx
 import GalaxyStarfield from "@/components/ui/galaxy-starfield"
 
-<GalaxyStarfield>
-  <h1>Find the signal in a universe of data.</h1>
-</GalaxyStarfield>
+<GalaxyStarfield />                      // warm ember sky, full viewport
+<GalaxyStarfield preset="prism" />      // the neon spectrum
+<GalaxyStarfield>{/* your hero content */}</GalaxyStarfield>
 ```
 
 ## Props
 
 | Prop | Default | |
 |---|---|---|
-| `preset` | `"prism"` | `prism` (neon spectrum), `aurora` (teal and green), `ember` (warm), `ice` (blue-white) |
+| `preset` | `"ember"` | `ember` (warm), `prism` (neon spectrum), `aurora` (teal and green), `ice` (blue-white) |
 | `colors` | preset | star colours, any number of hex values |
 | `nebula` | preset | `{ base, a, b, band }` hex colours for deep space, the two clouds and the equator band |
 | `stars` | `65000` | star count (capped lower on software renderers) |

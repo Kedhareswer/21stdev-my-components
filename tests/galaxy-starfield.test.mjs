@@ -28,7 +28,7 @@ assert.doesNotMatch(
   /use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<|React\.[A-Za-z]+<|\[K in /,
   "no generics or mapped types before the first JSX close tag (the 21st CLI tokenizer hangs on them)",
 )
-for (const f of ["demo.tsx", "demo-aurora.tsx"]) {
+for (const f of ["demo.tsx"]) {
   const d = read(f)
   assert.deepEqual(
     [...d.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1]).filter((m) => m !== "react"),

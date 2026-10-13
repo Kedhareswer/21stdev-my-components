@@ -27,7 +27,7 @@ export interface StarfieldNebula {
 }
 
 export interface GalaxyStarfieldProps {
-  /** Star and nebula colours. Defaults to "prism". */
+  /** Star and nebula colours. Defaults to "ember". */
   preset?: StarfieldPreset
   /** Star colours, overriding the preset's. */
   colors?: string[]
@@ -287,7 +287,7 @@ const GSF_CSS = `
 `
 
 export default function GalaxyStarfield({
-  preset = "prism",
+  preset = "ember",
   colors,
   nebula,
   stars = 65000,
@@ -301,7 +301,7 @@ export default function GalaxyStarfield({
   height = "100svh",
   className = "",
 }: GalaxyStarfieldProps) {
-  const base = PRESETS[preset] || PRESETS.prism
+  const base = PRESETS[preset] || PRESETS.ember
   const palette = colors && colors.length ? colors : base.colors
   const sky = { ...base.nebula, ...(nebula || {}) }
   const rootRef = React.useRef(null as HTMLDivElement | null)
