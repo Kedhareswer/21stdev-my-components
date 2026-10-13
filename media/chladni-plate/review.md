@@ -77,3 +77,38 @@ Changes asked for, most important first:
    cover, anchor the copy to the plate, close the phone dead band.
 9. Keep reduced motion out of the GL effect's dependencies; draw a real
    nodal figure in the no-WebGL2 fallback.
+
+## Round 3 (final)
+
+| | Score |
+|---|---|
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 6 |
+| Install safety | 9 |
+
+Verdict: **REDO** (average 7.0, craft and originality below 7). Third round,
+so the piece goes to `claude/review-chladni-plate` for the owner to judge.
+
+What the critic credited: the sand (grains in flight, ridges with lit and
+shadowed flanks, clean ring-down figures), the plough's berms and smear, the
+free-edge physics, reduced motion, install safety.
+
+Open list, most important first (not yet done):
+
+1. Bow at true scale (2 to 2.5 times the plate), entering from beyond the frame
+   so only hair and lower stick cross the edge; no float off the edge at rest.
+2. One continuous bow shadow from the contact point: drop the detached frog
+   blob and the far bench streak, wider penumbra fading with height.
+3. Land the opening stroke on a richer figure than (3,6,+) noughts-and-crosses,
+   e.g. 16 or 17, and use it for the default and the thumb.
+4. Scale ridge height, shadow march and brass darkening with plate size so
+   phone-size sand is not crusty.
+5. Phone composition for `align="center"`: a larger plate above centre.
+6. More readable patina; make the lip carry thickness on all four sides or
+   drop the milled side face.
+7. Fallback: blurred shadow, grain speckle from cpScatter, gradient clamp,
+   redraw on resize.
+8. Aside demo: caption closer to the headline or a spec line at the plate's
+   bottom; `text-wrap: pretty`.
+9. Drop `preserveDrawingBuffer`; README to say both benches are dark.
