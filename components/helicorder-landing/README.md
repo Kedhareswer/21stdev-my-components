@@ -27,8 +27,9 @@ bands between sections, and a pen that lifts off the roll in the footer.
 - **Site playbooks**: tabs for factory, school, hospital and rail (arrow keys,
   Home and End work). Each one is a timed log of actions, drawn as red ticks on the
   last seconds before the S-wave. Hover a row to find its tick.
-- **Network**: a station table with live, scrolling traces. The network's
-  readings are the table's footer.
+- **Network**: the recorded M5.8 as six stations heard it, nearest first. Each P pick
+  is a red tick, and a red line marks the alert at 4.6 s, where the third station
+  agrees. The network's readings are the table's footer.
 - **Drill record**: the customer quote, with the campus sensor's trace of the drill
   under it. The tone, a burst of footsteps and a red bracket mark the seconds to
   under the desks.
@@ -40,8 +41,10 @@ bands between sections, and a pen that lifts off the roll in the footer.
   Strum the trace with the pointer and it ripples like a plucked string, then
   settles and stops.
 
-Each section heading has a UTC time stamp in the left margin, as if the page were
-one continuous record.
+Under the whole page runs more of the same record: faint trace lines at the drum's
+pitch, in its inks, with minute stamps in the margin. The copy sits on paper slips
+over them. Each section starts with a red pen tick, and each divider is two more
+lines with a small event the network logged and let pass.
 
 Theme: `defaultTheme="system"` follows the host's `.dark` class, then the OS. The
 round button in the header switches paper. Under `prefers-reduced-motion` the pen

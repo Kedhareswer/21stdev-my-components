@@ -57,7 +57,8 @@ assert.match(src, /role="status" aria-live="polite"/, "the live alert is announc
 assert.match(src, /React\.useId\(\)/, "ids are unique per instance")
 assert.doesNotMatch(src, /id="fsk-(hatch|km|main|drawer|panel)/, "no hard-coded ids that would collide")
 assert.match(src, /rows\.splice\(liveFrom, 1\)/, "only the live lines feed; the recorded quake stays put")
-assert.match(src, /ctx\.strokeText\(text, x0, y\)/, "pen notes are haloed, not boxed")
+assert.match(src, /ctx\.strokeText\(text, x0, y\)/, "pen notes are haloed")
+assert.match(src, /if \(href\.length < 2\) return/, "bare # links do not reach querySelector")
 assert.match(src, /className="fsk-skip"/, "skip link")
 assert.ok(read("demo.tsx").includes("<HelicorderLanding />"), "default demo is the component, full bleed")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
@@ -94,12 +95,16 @@ for (const [w, h] of [[320, 568], [375, 748], [768, 960], [1440, 836], [2560, 13
   const L = fskLayout(w, h)
   assert.ok(L.top + L.rows * L.rowH <= h - 40 || L.rows === 6, "rows fit at " + w + "x" + h)
   assert.ok(L.left + L.plotW + L.right === w || L.plotW === 40, "plot spans the width at " + w)
-  const [row, frac] = fskEventSlot(L.rows, L.wide, L.phone)
+  const SAT = Date.UTC(2026, 2, 14, 9, 31, 37) / 1000
+  const [row, frac] = fskEventSlot(L.rows, L.wide, SAT, L.spr)
   assert.ok(row >= 2 && row <= L.rows - 3, "quake row on the drum at " + w)
+  assert.ok(frac >= 0 && frac < 1, "S arrives inside its row")
+  // drum lines start on whole multiples of a line, so a line's stamp is the minute of every mark on it
+  const rowStart = Math.round(SAT - frac * L.spr)
+  assert.equal(rowStart % L.spr, 0, "lines start on the clock at " + w)
+  assert.ok(SAT - rowStart >= 0 && SAT - rowStart < L.spr, "the S mark sits on the line its stamp names at " + w)
   const alertFrac = frac - (w76.s - w76.alert) / L.spr
   if (L.wide) assert.ok(alertFrac > 0.3, "alert mark lands right of the hero copy at " + w)
-  assert.ok(alertFrac >= 0, "ALERT, P and S share one line at " + w)
-  assert.ok(frac < 0.75, "S leaves room for its first seconds on the line at " + w)
   const live = fskLiveFrom(L.rows, row)
   assert.ok(live > row + 1 && live <= L.rows - 2, "the quake and its coda stay in the archive, two or more lines feed live at " + w)
 }

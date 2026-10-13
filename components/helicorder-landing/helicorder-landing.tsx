@@ -24,7 +24,7 @@ export type FskLink = { label: string; href: string }
 export type FskStep = { at: string; title: string; text: string }
 export type FskPlay = { at: number; action: string; system: string }
 export type FskSite = { id: string; label: string; summary: string; steps: FskPlay[] }
-export type FskStation = { code: string; name: string; channel: string; latency: string }
+export type FskStation = { code: string; name: string; channel: string; latency: string; /** distance from the recorded quake */ km?: number }
 export type FskMetric = { value: string; unit?: string; label: string }
 export type FskFaq = { question: string; answer: string }
 export type FskColumn = { title: string; links: FskLink[] }
@@ -160,12 +160,12 @@ const DEF_NETWORK = {
     { value: "0", label: "false alerts above M4.5 in 2025" },
   ],
   stations: [
-    { code: "FS.IZMT", name: "İzmit Bay", channel: "HHZ", latency: "0.21 s" },
-    { code: "FS.YLVA", name: "Yalova", channel: "HHZ", latency: "0.18 s" },
-    { code: "FS.ADPZ", name: "Adapazarı", channel: "HHZ", latency: "0.24 s" },
-    { code: "FS.SLVR", name: "Silivri", channel: "HHZ", latency: "0.19 s" },
-    { code: "FS.TKRD", name: "Tekirdağ", channel: "HHZ", latency: "0.27 s" },
-    { code: "FS.BRSA", name: "Bursa", channel: "HHZ", latency: "0.22 s" },
+    { code: "FS.YLVA", name: "Yalova", channel: "HHZ", latency: "0.18 s", km: 9 },
+    { code: "FS.CNRC", name: "Çınarcık", channel: "HHZ", latency: "0.20 s", km: 13 },
+    { code: "FS.SLVR", name: "Silivri", channel: "HHZ", latency: "0.19 s", km: 19 },
+    { code: "FS.IZMT", name: "İzmit Bay", channel: "HHZ", latency: "0.21 s", km: 34 },
+    { code: "FS.BRSA", name: "Bursa", channel: "HHZ", latency: "0.22 s", km: 55 },
+    { code: "FS.ADPZ", name: "Adapazarı", channel: "HHZ", latency: "0.24 s", km: 83 },
   ],
 }
 const DEF_QUOTE = {
@@ -275,10 +275,12 @@ export function fskLayout(w: number, h: number) {
   return { spr, rowH, rows, left, right, top, plotW: Math.max(40, w - left - right), phone, wide }
 }
 
-/** Where the recorded quake's S-wave sits on the drum: [row, fraction of the row]. */
-export function fskEventSlot(rows: number, wide: boolean, phone: boolean) {
+/** Where the recorded quake's S-wave sits on the drum: [row, fraction of the row]. Lines start on
+ *  whole multiples of `spr` (a drum line starts on the minute), so the fraction comes from the clock. */
+export function fskEventSlot(rows: number, wide: boolean, sAt: number, spr: number) {
   const row = Math.max(2, Math.min(rows - 5, Math.round(rows * (wide ? 0.7 : 0.66))))
-  return [row, wide ? 0.62 : phone ? 0.62 : 0.7]
+  const frac = (((sAt % spr) + spr) % spr) / spr
+  return [row, frac]
 }
 
 /** The first live row: everything above it (the quake and its coda) stays on the drum. */
@@ -462,10 +464,10 @@ const FSK_CSS = `
 .fsk-lede{margin-top:24px;font-size:19px;line-height:1.5;color:var(--soft);max-width:30ch}
 .fsk-ctas{margin-top:32px;display:flex;flex-wrap:wrap;gap:12px}
 .fsk-hfoot{position:absolute;left:var(--gut);right:24px;bottom:16px;display:flex;justify-content:space-between;gap:24px;color:var(--muted);pointer-events:none}
-.fsk-toast{position:absolute;left:clamp(16px,calc(var(--pen-x,60%) + 14px),calc(100% - 230px));top:calc(var(--pen-y,70%) - 70px);z-index:5;width:220px;padding:0 0 0 10px;border-left:1.5px solid var(--red);color:var(--red);text-shadow:0 0 2px var(--paper),0 0 4px var(--paper),0 0 8px var(--paper);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
+.fsk-toast{position:absolute;left:clamp(16px,calc(var(--pen-x,60%) + 14px),calc(100% - 230px));top:calc(var(--pen-y,70%) - 70px);z-index:5;width:auto;padding:4px 10px 6px;background:var(--paper);border-left:1.5px solid var(--red);color:var(--red);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .3s var(--ease);pointer-events:none}
 .fsk-toast[data-on="true"]{opacity:1;transform:none}
 .fsk-toast b{color:var(--red);font-weight:700}
-.fsk-toast .fsk-count{font:700 26px/1 var(--sans);letter-spacing:-.03em;margin-top:4px;color:var(--red)}
+.fsk-toast .fsk-count{font:700 26px/1 var(--sans);letter-spacing:-.01em;word-spacing:.08em;white-space:nowrap;margin-top:4px;color:var(--red)}
 .fsk-toast .fsk-mono{font-weight:700;font-size:11.5px}
 
 .fsk-page{position:relative;background-image:linear-gradient(90deg,transparent calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 14px),var(--line) calc(var(--gut) - 13px),transparent calc(var(--gut) - 13px))}
@@ -481,6 +483,8 @@ const FSK_CSS = `
 .fsk-band{position:relative;margin:0 24px 0 var(--gut);padding:26px 0 8px;background:var(--paper);box-shadow:0 0 0 6px var(--paper)}
 .fsk-band svg{display:block;width:100%;height:64px;overflow:visible}
 .fsk-band-n{position:absolute;top:0;transform:translateX(-12px);white-space:nowrap;color:var(--red);font-weight:700}
+.fsk-h2,.fsk-intro,.fsk-steps li>div,.fsk-play>p,.fsk-incl li,.fsk-faq p,.fsk-quote blockquote,.fsk-read p,.fsk-net-head .fsk-intro,.fsk-fgrid p{position:relative;background:var(--paper);box-shadow:0 0 0 4px var(--paper)}
+.fsk-h2,.fsk-intro,.fsk-quote blockquote{width:fit-content}
 .fsk-h2{font-size:clamp(34px,3.8vw,60px);line-height:1;letter-spacing:-.04em;font-weight:700;text-wrap:balance;max-width:16ch}
 .fsk-intro{margin-top:20px;max-width:46ch;color:var(--soft)}
 
@@ -499,7 +503,9 @@ const FSK_CSS = `
 .fsk-gram svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .fsk-mark{position:absolute;top:8px;transform:translateX(-50%);color:var(--muted);white-space:nowrap;transition:left .25s var(--ease)}
 .fsk-mark[data-k="s"],.fsk-mark[data-k="alert"]{color:var(--red)}
-.fsk-axis{display:flex;justify-content:space-between;margin-top:8px;color:var(--muted)}
+.fsk-axis{position:relative;height:16px;margin-top:8px;color:var(--muted)}
+.fsk-axis span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.fsk-axis span:first-child{transform:none}
 .fsk-range{margin-top:28px;display:grid;gap:10px}
 .fsk-range label{display:flex;justify-content:space-between;gap:16px;font-size:15px}
 .fsk-range input{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;cursor:pointer}
@@ -547,12 +553,20 @@ const FSK_CSS = `
 .fsk-readings dt{color:var(--muted);max-width:26ch}
 .fsk-readings dd{margin-top:10px;font-size:clamp(40px,4vw,60px);line-height:.9;letter-spacing:-.05em;font-weight:700}
 .fsk-readings dd small{font-size:.42em;letter-spacing:-.01em;margin-left:.12em;color:var(--muted);font-weight:600}
-.fsk-st{display:grid;grid-template-columns:88px 112px minmax(0,1fr) 64px;gap:16px;align-items:center;height:64px;border-bottom:1px solid var(--line)}
+.fsk-st{display:grid;grid-template-columns:88px 150px minmax(0,1fr) 64px;gap:16px;align-items:center;height:64px;border-bottom:1px solid var(--line)}
 .fsk-st .fsk-mono:first-child{font-weight:700}
 .fsk-st .fsk-nm{font-size:15px}
 .fsk-st .fsk-lat{color:var(--muted);text-align:right}
-.fsk-wave{position:relative;height:40px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
-.fsk-wave svg{position:absolute;left:0;top:0;width:200%;height:40px;animation:fsk-scroll linear infinite}
+.fsk-wave{position:relative;height:64px;align-self:stretch;display:flex;align-items:center}
+.fsk-wave svg{width:100%;height:40px;overflow:visible}
+.fsk-pick,.fsk-agree{position:absolute;top:2px;font-style:normal;font-size:10.5px;font-weight:700;color:var(--red);transform:translateX(5px);white-space:nowrap;background:var(--paper);padding:0 3px}
+.fsk-agree{top:auto;bottom:0;transform:translateX(6px)}
+.fsk-nm small{color:var(--muted);font-size:12px;margin-left:4px}
+.fsk-st--axis{height:28px !important;border-bottom:0 !important;color:var(--muted)}
+.fsk-ax{position:relative;height:16px}
+.fsk-ax b{position:absolute;top:0;font-weight:400;white-space:nowrap;transform:translateX(-50%)}
+.fsk-ax b:first-child{transform:none}
+.fsk-ax b:last-child{transform:translateX(-100%)}
 @keyframes fsk-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 .fsk-quote{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,3fr);gap:28px 48px;align-items:end}
@@ -614,7 +628,7 @@ const FSK_CSS = `
 .fsk-cols a{display:block;padding:5px 0;font-size:15px;transition:color .2s}
 .fsk-cols a:hover{color:var(--red)}
 .fsk-word{position:relative;margin-top:96px;padding-bottom:40px;user-select:none;touch-action:pan-y}
-.fsk-word span{display:block;font-size:clamp(64px,17.2vw,300px);line-height:.78;letter-spacing:-.065em;font-weight:700;margin-left:-.05em;white-space:nowrap}
+.fsk-word span{display:block;width:max-content;font-size:clamp(64px,17.2vw,300px);line-height:.78;letter-spacing:-.065em;font-weight:700;margin-left:-.05em;white-space:nowrap}
 .fsk-word svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .fsk-legal{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted)}
 
@@ -659,7 +673,9 @@ const FSK_CSS = `
 .fsk-log li{grid-template-columns:72px 1fr;gap:4px 12px}
 .fsk-log .fsk-sys{grid-column:2;text-align:left}
 .fsk-st{grid-template-columns:84px minmax(0,1fr) 52px;grid-template-rows:auto auto;height:auto;padding:10px 0;gap:2px 10px}
-.fsk-st .fsk-wave{grid-column:1 / -1;grid-row:2}
+.fsk-st .fsk-wave{grid-column:1 / -1;grid-row:2;height:48px}
+.fsk-st--axis{display:grid !important;height:auto !important;padding:0 0 8px !important}
+.fsk-st--axis .fsk-ax{grid-column:1 / -1;grid-row:2}
 .fsk-field{grid-template-columns:88px 1fr;padding:8px 14px}
 .fsk-card-h{padding:12px 14px}
 .fsk-pnote{padding:12px 14px 0}
@@ -682,7 +698,6 @@ const FSK_CSS = `
 }
 @media (prefers-reduced-motion:reduce){
 .fsk *,.fsk *::before,.fsk *::after{animation:none !important;transition-duration:.01ms !important}
-.fsk-wave svg{transform:translateX(-12%)}
 }
 `
 
@@ -821,9 +836,9 @@ function Drum(props: {
       dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(2.2e6 / Math.max(1, w * h)))
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
-      const slot = fskEventSlot(L.rows, L.wide, L.phone)
+      const slot = fskEventSlot(L.rows, L.wide, sAt, L.spr)
       liveFrom = fskLiveFrom(L.rows, slot[0])
-      const t0 = sAt - slot[1] * L.spr - slot[0] * L.spr
+      const t0 = Math.round(sAt - slot[1] * L.spr) - slot[0] * L.spr
       synth = fskSynth(1983)
       synth.quakes.push({ p: sAt - lead + pAfterAlert, s: sAt, amp: 1 })
       marks = [{ alert: sAt - lead, p: sAt - lead + pAfterAlert, s: sAt, live: false }]
@@ -972,7 +987,7 @@ function Drum(props: {
         const x = L.left + (sec / L.spr) * L.plotW
         const major = sec % 10 === 0
         ctx.fillRect(Math.round(x), L.top - (major ? 9 : 5), 1, major ? 6 : 3)
-        if (major) ctx.fillText(sec + (sec === 0 ? " s" : ""), x, L.top - 18)
+        if (major && sec < L.spr) ctx.fillText(sec + (sec === 0 ? " s" : ""), x, L.top - 18)
       }
       ctx.textAlign = "right"
       if (!L.phone) ctx.fillText("UTC", L.left - 10, L.top - 18)
@@ -987,15 +1002,10 @@ function Drum(props: {
       // a break in the record: the live lines no longer follow the archive minute for minute
       if (rows[liveFrom] && rows[liveFrom].t - rows[liveFrom - 1].t > L.spr + 0.5) {
         const gy = L.top + liveFrom * L.rowH + feedY
-        ctx.strokeStyle = pal.label
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        for (let x = L.left, k = 0; x <= L.left + L.plotW; x += 5, k++) {
-          if (k === 0) ctx.moveTo(x, gy + (k % 2 ? 2.5 : -2.5))
-          else ctx.lineTo(x, gy + (k % 2 ? 2.5 : -2.5))
-        }
-        ctx.stroke()
-        note("live from " + clockUTC(rows[liveFrom].t, L.spr % 60 !== 0), L.left + L.plotW * 0.02, gy, "left", pal.red, true)
+        ctx.fillStyle = pal.label
+        ctx.fillRect(L.left, Math.round(gy) - 2, L.plotW, 1)
+        ctx.fillRect(L.left, Math.round(gy) + 1, L.plotW, 1)
+        note("record resumed " + clockUTC(rows[liveFrom].t, L.spr % 60 !== 0), L.left + L.plotW * 0.02, gy, "left", pal.red, true)
       }
     }
 
@@ -1040,7 +1050,7 @@ function Drum(props: {
           strokeRow(r, Math.max(0, before - 1), rows[r].n)
           const t0 = rows[r].t
           const crossed = (t: number) => t > t0 + before / FSK_SR && t <= t0 + rows[r].n / FSK_SR
-          if (knocks.some(crossed) || marks.some((m) => m.live && [m.alert, m.p, m.s].some(crossed))) drawMarks()
+          if (knocks.some(crossed) || marks.some((m) => m.live && [m.alert, m.p, m.s].some(crossed))) redraw()
         }
         if (clock < per()) break
         feed()
@@ -1264,21 +1274,50 @@ function Paper(props: { from: number }) {
   )
 }
 
-function StationRow(props: { st: FskStation; i: number }) {
-  const { st, i } = props
-  const d = React.useMemo(() => fskTracePath(40 + i * 17, 1200, 40, 300, 6 + (i % 3) * 1.5), [i])
+const FSK_NET_SPAN = 30
+
+/** One station's record of the M5.8, seconds after rupture: the P pick in red, the alert line through every row. */
+function StationRow(props: { st: FskStation; i: number; third: boolean }) {
+  const { st, i, third } = props
+  const km = st.km ?? 10 + i * 15
+  const x = (t: number) => (t / FSK_NET_SPAN) * 1000
+  const d = React.useMemo(() => {
+    const syn = fskSynth(40 + i * 17)
+    syn.quakes.push({ p: km / FSK_VP, s: km / FSK_VS, amp: 0.55 / (1 + km / 40) })
+    let out = ""
+    const n = FSK_NET_SPAN * FSK_SR
+    for (let j = 0; j < n; j++) {
+      const v = syn.next(j / FSK_SR)
+      out += (j ? "L" : "M") + ((j / n) * 1000).toFixed(1) + " " + (20 + 17 * Math.tanh((v * 8) / 17)).toFixed(1)
+    }
+    return out
+  }, [i, km])
+  const pick = km / FSK_VP
   return (
     <li className="fsk-st">
       <span className="fsk-mono">{st.code}</span>
-      <span className="fsk-nm">{st.name}</span>
+      <span className="fsk-nm">
+        {st.name} <small className="fsk-num">{km} km</small>
+      </span>
       <span className="fsk-wave" aria-hidden="true">
-        <svg viewBox="0 0 2400 40" preserveAspectRatio="none" style={{ animationDuration: 9 + ((i * 7) % 6) + "s" }}>
+        <svg viewBox="0 0 1000 40" preserveAspectRatio="none">
+          <line x1={x(FSK_ALERT_AT)} x2={x(FSK_ALERT_AT)} y1="0" y2="40" stroke="var(--red)" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
           <path d={d} fill="none" stroke="currentColor" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
-          <path d={d} transform="translate(1200 0)" fill="none" stroke="currentColor" strokeWidth="1.1" vectorEffect="non-scaling-stroke" />
+          <line x1={x(pick)} x2={x(pick)} y1="4" y2="36" stroke="var(--red)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         </svg>
+        <i className="fsk-pick fsk-mono" style={{ left: (x(pick) / 10).toFixed(2) + "%" }}>
+          P
+        </i>
+        {third && (
+          <i className="fsk-agree fsk-mono" style={{ left: (x(FSK_ALERT_AT) / 10).toFixed(2) + "%" }}>
+            3 stations agree · ALERT {FSK_ALERT_AT.toFixed(1)} s
+          </i>
+        )}
       </span>
       <span className="fsk-mono fsk-lat fsk-num">
-        <span className="fsk-sr">{st.channel}, latency </span>
+        <span className="fsk-sr">
+          {st.channel}, P-wave {pick.toFixed(1)} s after rupture, latency{" "}
+        </span>
         {st.latency}
       </span>
     </li>
@@ -1369,7 +1408,9 @@ function Calculator(props: { defaultKm: number; uid: string }) {
       </div>
       <div className="fsk-axis fsk-mono fsk-num" aria-hidden="true">
         {[0, 10, 20, 30, 40].map((s) => (
-          <span key={s}>{s} s</span>
+          <span key={s} style={{ left: x(s) + "%" }}>
+            {s} s
+          </span>
         ))}
       </div>
       <div className="fsk-range">
@@ -1455,7 +1496,7 @@ function Wordmark(props: { word: string; reduced: boolean }) {
   const { word, reduced } = props
   const boxRef = React.useRef(null as HTMLDivElement | null)
   const pathRef = React.useRef(null as SVGPathElement | null)
-  const tipRef = React.useRef(null as SVGCircleElement | null)
+  const tipRef = React.useRef(null as SVGGElement | null)
   React.useEffect(() => {
     const box = boxRef.current
     const path = pathRef.current
@@ -1467,12 +1508,19 @@ function Wordmark(props: { word: string; reduced: boolean }) {
     const base = new Float32Array(N)
     const r = fskRandom(9)
     let a = 0
-    const liftAt = Math.floor(N * 0.9)
     for (let i = 0; i < N; i++) {
       a = a * 0.55 + (r() - 0.5)
-      base[i] = a * 3.4
-      // the pen lifts off the roll at the end of the record
-      if (i > liftAt) base[i] -= Math.pow((i - liftAt) / (N - liftAt), 2) * 40
+      // the record dies away towards the end of the roll
+      base[i] = a * 3.4 * (1 - 0.7 * Math.max(0, (i - N * 0.75) / (N * 0.25)))
+    }
+    // the word fills the measure exactly, whatever the brand name
+    const word = box.querySelector("span") as HTMLElement | null
+    const fit = () => {
+      if (!word) return
+      word.style.fontSize = ""
+      const natural = word.scrollWidth
+      const size = parseFloat(getComputedStyle(word).fontSize)
+      if (natural > 0) word.style.fontSize = Math.min(420, (size * box.clientWidth) / natural) * 0.995 + "px"
     }
     let raf = 0
     let running = false
@@ -1483,14 +1531,13 @@ function Wordmark(props: { word: string; reduced: boolean }) {
       const h = box.clientHeight
       const mid = h - 20
       let d = ""
+      const end = w - 16
       for (let i = 0; i < N; i++) {
-        d += (i ? "L" : "M") + ((i / (N - 1)) * w).toFixed(1) + " " + (mid + base[i] + y[i]).toFixed(1)
+        d += (i ? "L" : "M") + ((i / (N - 1)) * end).toFixed(1) + " " + (mid + base[i] + y[i]).toFixed(1)
       }
       path.setAttribute("d", d)
-      if (tip) {
-        tip.setAttribute("cx", w.toFixed(1))
-        tip.setAttribute("cy", (mid + base[N - 1] + y[N - 1]).toFixed(1))
-      }
+      // the hero's pen, lifted clear of the paper at the end of the record
+      if (tip) tip.setAttribute("transform", "translate(" + (end + 6).toFixed(1) + " " + (mid - 10).toFixed(1) + ")")
     }
     const step = () => {
       const c2 = 0.9
@@ -1535,7 +1582,7 @@ function Wordmark(props: { word: string; reduced: boolean }) {
         const dy = py - lastY
         const near = Math.abs(py - (rect.height - 20)) < 90
         if (near && i > 1 && i < N - 2) {
-          const f = Math.max(-30, Math.min(30, dy * 1.6))
+          const f = Math.max(-30, Math.min(30, dy * 2.6))
           for (let k = -3; k <= 3; k++) v[i + k] = (v[i + k] || 0) + f * (1 - Math.abs(k) / 4)
           wake()
         }
@@ -1546,8 +1593,12 @@ function Wordmark(props: { word: string; reduced: boolean }) {
     const leave = () => {
       lastX = -1
     }
+    fit()
     draw()
-    const ro = new ResizeObserver(draw)
+    const ro = new ResizeObserver(() => {
+      fit()
+      draw()
+    })
     ro.observe(box)
     box.addEventListener("pointermove", move)
     box.addEventListener("pointerleave", leave)
@@ -1563,7 +1614,10 @@ function Wordmark(props: { word: string; reduced: boolean }) {
       <span>{word}</span>
       <svg>
         <path ref={pathRef} fill="none" stroke="var(--red)" strokeWidth="2" strokeLinejoin="round" />
-        <circle ref={tipRef} r="4" fill="var(--red)" />
+        <g ref={tipRef}>
+          <line x1="0" y1="0" x2="11" y2="-24" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" />
+          <circle r="3" fill="var(--red)" />
+        </g>
       </svg>
     </div>
   )
@@ -1728,6 +1782,7 @@ export default function HelicorderLanding({
   const go = (e: React.MouseEvent, href: string) => {
     if (!href.startsWith("#")) return
     e.preventDefault()
+    if (href.length < 2) return
     setMenu(false)
     const target = rootRef.current?.querySelector(local(href)) as HTMLElement | null
     target?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" })
@@ -2003,14 +2058,29 @@ export default function HelicorderLanding({
               <div className="fsk-st fsk-st--head fsk-mono" aria-hidden="true">
                 <span>Station</span>
                 <span>Site</span>
-                <span>Live, vertical</span>
+                <span>M5.8 as each station heard it · seconds after rupture</span>
                 <span>Latency</span>
               </div>
-              <ul aria-label="Stations, live">
-                {network.stations.map((st, i) => (
-                  <StationRow key={st.code} st={st} i={i} />
-                ))}
+              <ul aria-label="Stations, nearest first">
+                {network.stations
+                  .slice()
+                  .sort((p, q) => (p.km ?? 0) - (q.km ?? 0))
+                  .map((st, i) => (
+                    <StationRow key={st.code} st={st} i={i} third={i === 2} />
+                  ))}
               </ul>
+              <div className="fsk-st fsk-st--axis fsk-mono fsk-num" aria-hidden="true">
+                <span />
+                <span />
+                <span className="fsk-ax">
+                  {[0, 10, 20, 30].map((t) => (
+                    <b key={t} style={{ left: (t / FSK_NET_SPAN) * 100 + "%" }}>
+                      {t} s
+                    </b>
+                  ))}
+                </span>
+                <span />
+              </div>
               <dl className="fsk-readings">
                 {network.metrics.map((m) => (
                   <div key={m.label}>

@@ -69,3 +69,30 @@ order is saved by working traces in each section, but below the hero the paper g
 7. Phone drawer CTA oversized. 8. Pricing dashes render two colours. 9. Building field can't be
    cleared. 10. Playbook row/tick link for keyboard and touch. 11. Footer string leaves its box.
 12. Section ids collide across instances; color-mix fallback. 13. Tablet gap above the drum.
+
+## Critic round 3 — REDO (a 8 · b 6 · c 7 · d 9 · e 7, avg 7.4)
+
+Reading: "an earthquake early-warning company whose whole page is printed on a seismograph drum;
+the P-to-S bracket is the warning being sold." Banned-looks gate passes; risk: every lower section
+opens with the same left h2 + intro, close to the stock skeleton in a paper skin.
+
+1. Drum clock a minute off (lines started 0.2 s before the minute, stamps truncated).
+2. Calculator axis labels spread with space-between, not at their seconds.
+3. Knock notes overprinted on stale pixels. 4. Replay clutter near the last line; toast crossed by traces.
+5. Regular sawtooth break marker reads synthetic. 6. Page traces strike through body copy.
+7. Make one lower section an instrument (stations heard the same quake, moveout, "3 stations agree").
+8. Footer wordmark not fitted, strum weak, pen lift reads as a growth line.
+9. `href="#"` footer links throw in querySelector. 10. "60" and "Local" collide.
+
+Final verdict after three rounds: **not SHIP** → parked on `claude/review-helicorder-landing`.
+
+### Fixed after round 3 (not re-scored; the brief allows three critic rounds)
+
+1, 2, 3, 5, 6, 7, 8, 9, 10 and the toast slip from 4. Drum lines now start on whole multiples of
+a line, with a test that every mark sits on the line its stamp names. The calculator ticks sit at
+their true seconds. Crossing a knock or mark triggers a full redraw. The break is a double
+hairline with "record resumed hh:mm". Copy sits on paper slips. The station table is the M5.8 as
+six stations heard it, nearest first, with P picks stepping out and "3 stations agree · ALERT
+4.6 s". The footer word is measured to the full width and ends with the hero's lifted pen. Bare
+`#` links are guarded. Still open: replays near the last line can crowd the knock notes, and
+every lower section still opens with a left h2.
