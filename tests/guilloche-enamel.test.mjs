@@ -87,6 +87,7 @@ assert.ok(close(m.hexToRgb("#3d6fe0"), [61 / 255, 111 / 255, 224 / 255]), "6-dig
 assert.ok(close(m.hexToRgb("#fff"), [1, 1, 1]), "3-digit hex")
 assert.ok(close(m.hexToRgb("junk"), [0, 0, 0]), "junk falls back to black")
 assert.ok(close(m.hexToLinear("#ffffff"), [1, 1, 1]), "white stays white in linear")
+assert.equal(m.rgba("#abc", 0.5), "rgba(170,187,204,0.5)", "3-digit hex fallback colours stay valid CSS")
 assert.ok(close(m.hexToLinear("#808080"), [0.2158605, 0.2158605, 0.2158605], 1e-5), "sRGB mid grey is ~0.216 linear")
 
 // The rosette sits right of centre on wide boxes and centres on phones.

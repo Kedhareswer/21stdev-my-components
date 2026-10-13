@@ -6,9 +6,9 @@ import * as React from "react"
  * Guilloché Enamel — an engine-turned silver plate under translucent enamel,
  * the way the dial of a fine watch is made, as a full-bleed surface.
  *
- * Every groove is real geometry computed per pixel: a snailed spiral centre,
- * a rosette of rose-engine waves, and a field of flame-cut sunburst rays,
- * divided by two polished beads. Each cut is a round-nosed scallop, so it
+ * Every groove is real geometry computed per pixel: a snailed spiral round a
+ * polished boss, a ring of barleycorn where two rose-engine passes cross, and
+ * a field of flame-cut sunburst rays, divided by two polished beads. Each cut is a round-nosed scallop, so it
  * throws light like metal does: an anisotropic highlight running along the
  * tool marks, a dim studio in the walls that face it, and a glassy enamel
  * coat on top with its own soft gloss of the lamp. The enamel pools deeper in
@@ -16,7 +16,8 @@ import * as React from "react"
  *
  * The pointer is the lamp. Press and hold to bring it down low, the way a
  * watchmaker rakes light across a dial. On load the rose engine cuts the
- * pattern into a polished blank, from the centre out.
+ * pattern into a bare silver blank from the centre out, then the enamel is
+ * fired over it.
  *
  * Self-contained: raw WebGL2, React is the only import, no CSS file.
  */
@@ -83,6 +84,12 @@ export function hexToRgb(hex: string) {
   if (!/^[0-9a-f]{6}$/i.test(h)) return [0, 0, 0]
   const n = parseInt(h, 16)
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+}
+
+/** CSS rgba() from any accepted hex, for the no-WebGL fallback. */
+export function rgba(hex: string, alpha: number) {
+  const [r, g, b] = hexToRgb(hex).map((c) => Math.round(c * 255))
+  return "rgba(" + r + "," + g + "," + b + "," + alpha + ")"
 }
 
 /** sRGB hex to linear light, which is what the shader mixes in. */
@@ -207,7 +214,23 @@ Surf surface(vec2 p) {
     if (r > front) return blank();
   }
 
-  // Polished beads between the zones: half-round, raised, mirror bright.
+  // The boss at the centre, where a dial's hands would sit: a small polished
+  // dome turned before any pattern was cut.
+  float boss = 0.02 * uScale;
+  if (r < boss) {
+    Surf s;
+    float x = r / boss;
+    float y = sqrt(max(1.0 - x * x, 0.04));
+    s.g = -er * (x / y) * 0.45;
+    s.t = et;
+    s.d = -1.0;
+    s.aT = 0.025;
+    s.aB = 0.03;
+    return s;
+  }
+
+  // Polished beads between the zones: half-round and raised, with the fine
+  // cusp the cutter leaves where each bead meets the field.
   for (int i = 0; i < 2; i++) {
     float Rk = i == 0 ? R0 : R1;
     float x = (r - Rk) / bead;
@@ -218,7 +241,16 @@ Surf surface(vec2 p) {
       s.t = et;
       s.d = -0.8 * y;
       s.aT = 0.025;
-      s.aB = 0.035;
+      s.aB = 0.03;
+      return s;
+    }
+    if (abs(x) < 1.45) {
+      Surf s;
+      s.g = er * sign(x) * 0.5;
+      s.t = et;
+      s.d = 1.5;
+      s.aT = 0.2;
+      s.aB = 0.45;
       return s;
     }
   }
@@ -233,16 +265,18 @@ Surf surface(vec2 p) {
   }
 
   if (r < R1) {
-    // Rose engine: concentric cuts whose radius a 14-lobe rosette cam pushes
-    // in and out. Too fine to count, they show as petals of light that turn
-    // with the lamp.
-    float P = 0.0055 * uPitch;
-    float N = 14.0;
-    float A = 0.011 * uScale;
-    float ph = N * th;
-    float phi = (r + A * sin(ph)) / P;
-    vec2 grad = (er + et * (A * cos(ph) * N / r)) / P;
-    return cutAlong(phi, grad, 0.05, 0.3);
+    // Grain d'orge (barleycorn): the rose engine cuts every ring twice, the
+    // second pass half a lobe out of phase. Where the two cuts cross they
+    // leave rows of grains; the deeper cut wins at every point.
+    float P = 0.0062 * uPitch;
+    float N = 48.0;
+    float A = 0.0034 * uPitch;
+    float sn = sin(N * th);
+    float lean = A * cos(N * th) * N / r;
+    Surf a = cutAlong((r + A * sn) / P, (er + et * lean) / P, 0.05, 0.3);
+    Surf b = cutAlong((r - A * sn) / P, (er - et * lean) / P, 0.05, 0.3);
+    if (a.d > b.d) return a;
+    return b;
   }
 
   // Flame-cut sunburst: rays from the centre that sway as they run out, too
@@ -294,7 +328,9 @@ float softbox(vec3 P3, vec3 R, float rough) {
   vec2 hit = P3.xy + R.xy * t - uLight.xy;
   float spread = 1.0 + rough * t * 6.0;
   vec2 u = hit / (vec2(0.1, 0.22) * spread);
-  return exp(-dot(u, u) * 2.2) / spread;
+  float d = length(u);
+  // a defined oval with a feathered rim, hot toward its middle
+  return (1.0 - smoothstep(0.7, 1.0, d)) * (0.6 + 0.4 * exp(-d * d * 3.0)) / spread;
 }
 
 vec3 shade(vec2 p) {
@@ -333,12 +369,15 @@ vec3 shade(vec2 p) {
   // The room, blurred along the direction the tool marks scatter it.
   vec3 room = (env(R) + env(normalize(R + B * aB)) + env(normalize(R - B * aB))) / 3.0;
 
+  // Polished parts (beads, boss) mirror the bright ceiling on their upper
+  // face and the dark room below, which is what makes a bead read as chrome.
+  room += vec3(0.55, 0.57, 0.6) * polish * smoothstep(-0.05, 0.45, R.y) * smoothstep(0.75, 0.97, R.z + 0.2);
   vec3 metal = uMetal * (key + room);
 
   // Through the enamel: it pools in the cuts and thins over the beads. The
   // colour is defined as one pass over polished metal, so thickness is an
   // exponent on it.
-  float thick = uDepth * (1.0 + 0.85 * s.d);
+  float thick = uDepth * (1.0 + 1.3 * s.d);
   vec3 col = metal * pow(max(uEnamel, vec3(1e-3)), vec3(max(thick, 0.0)));
   // a touch of light scattered inside the glass
   col += uEnamel * uDepth * 0.006 * (1.0 + s.d);
@@ -349,7 +388,7 @@ vec3 shade(vec2 p) {
     vec2 peel = vec2(noise(p * 11.0), noise(p * 11.0 + 7.3)) - 0.5;
     vec3 Rc = reflect(-V, normalize(vec3(peel * 0.01, 1.0)));
     float F = 0.04 + 0.96 * pow(1.0 - V.z, 5.0);
-    col += lampCol * softbox(P3, Rc, 0.0) * F * uLamp * 0.5 * min(uDepth, 1.0);
+    col += lampCol * softbox(P3, Rc, 0.0) * F * uLamp * 3.2 * min(uDepth, 1.0);
   }
   // the fresh burr thrown up by the cutter
   col += vec3(1.0, 0.97, 0.92) * gTool * 0.9;
@@ -549,8 +588,8 @@ export default function GuillocheEnamel({
     const draw = (now: number) => {
       raf = 0
       // Once the intro is done and nobody is steering, the lamp only drifts:
-      // 30 fps is plenty for that and halves the GPU's work.
-      if (!reduced && !steering && lastRender && now - lastRender < 31 && now - cutStart > INTRO_SECONDS * 1000) {
+      // 20 fps is plenty for that and cuts the GPU's work by two thirds.
+      if (!reduced && !steering && lastRender && now - lastRender < 48 && now - cutStart > INTRO_SECONDS * 1000 + 700) {
         raf = requestAnimationFrame(draw)
         return
       }
@@ -608,7 +647,9 @@ export default function GuillocheEnamel({
       gl.uniform1f(loc.cut, cutProgress((now - cutStart) / 1000, INTRO_SECONDS))
       gl.uniform3fv(loc.enamel, shown.enamel)
       gl.uniform3fv(loc.metal, shown.metal)
-      gl.uniform1f(loc.depth, P.depth)
+      // Cut the bare silver first, then fire the enamel in over 0.6 s.
+      const fired = Math.min(1, Math.max(0, ((now - cutStart) / 1000 - INTRO_SECONDS * 0.9) / 0.6))
+      gl.uniform1f(loc.depth, P.depth * fired * fired * (3 - 2 * fired))
       gl.uniform1f(loc.lamp, P.light)
       gl.uniform1f(loc.vignette, P.vignette)
       gl.uniform1f(loc.samples, software ? 2 : canvas.width / Math.max(1, canvas.clientWidth) > 1.05 ? 2 : 4)
@@ -720,8 +761,8 @@ export default function GuillocheEnamel({
           style={{
             background:
               "repeating-conic-gradient(from 0deg at 68% 52%, rgba(255,255,255,0.05) 0deg 0.4deg, rgba(0,0,0,0.05) 0.4deg 0.8deg), " +
-              "radial-gradient(ellipse 55% 45% at 32% 28%, " + finish.enamel + "aa, transparent 70%), " +
-              "radial-gradient(circle at 68% 52%, " + finish.metal + "55, #07090d 80%)",
+              "radial-gradient(ellipse 55% 45% at 32% 28%, " + rgba(finish.enamel, 0.66) + ", transparent 70%), " +
+              "radial-gradient(circle at 68% 52%, " + rgba(finish.metal, 0.33) + ", #07090d 80%)",
           }}
         />
       ) : (

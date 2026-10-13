@@ -19,7 +19,7 @@ export default function FinishesDemo() {
     <GuillocheEnamel preset={finish}>
       <div className="pointer-events-none flex h-full w-full items-end p-5 sm:p-8">
         <div
-          role="radiogroup"
+          role="group"
           aria-label="Finish"
           className="pointer-events-auto flex max-w-full flex-wrap gap-1 rounded-full border border-white/10 bg-neutral-950/85 p-1"
         >
@@ -27,8 +27,7 @@ export default function FinishesDemo() {
             <button
               key={key}
               type="button"
-              role="radio"
-              aria-checked={finish === key}
+              aria-pressed={finish === key}
               aria-label={LABELS[key]}
               onClick={() => setFinish(key)}
               className={
