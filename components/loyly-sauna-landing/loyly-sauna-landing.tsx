@@ -158,7 +158,7 @@ const DEFAULT_HEAT = {
   base: 88,
   rise: 9,
   button: "Throw water on the stones",
-  hint: "Or click anywhere in the heat.",
+  hint: "Or press anywhere in the heat.",
 }
 
 const SLOT_TEMPLATES = [
@@ -410,13 +410,15 @@ function heroField(x: number, y: number, w: number, h: number, t: number, waves:
     const age = t - wv.t
     if (age < 0 || age > WAVE_LIFE) continue
     const p = age / WAVE_LIFE
-    const R = (1 - (1 - p) * (1 - p) * (1 - p)) * Math.hypot(w, h) * 0.85
+    const R = (1 - (1 - p) * (1 - p) * (1 - p)) * Math.hypot(w, h) * 0.72
     const ddx = x - wv.x
     const ddy = y - wv.y
     const d = Math.sqrt(ddx * ddx + ddy * ddy)
-    const ring = (d - R) / (90 + 140 * p)
+    const ring = (d - R) / (80 + 120 * p)
     const fade = 1 - p
-    a += Math.exp(-ring * ring) * fade * (0.55 + 0.35 * n) + (d < R ? 0.18 * fade * fade : 0)
+    // steam rises: the ring is strongest straight up from where the water landed
+    const up = d > 1 ? clamp(0.25 + 0.75 * (-ddy / d), 0.12, 1) : 1
+    a += Math.exp(-ring * ring) * fade * up * (0.5 + 0.4 * n)
     k *= 1 - 0.35 * fade * Math.exp(-ring * ring)
   }
   out.a = clamp(a, 0, 1)
@@ -429,12 +431,12 @@ function roomField(kind: LylKind, x: number, y: number, w: number, h: number, ou
   const v = y / h
   const n = fbm(x / 90 + (kind === "cold" ? 30 : 0), y / 90)
   if (kind === "heat") {
-    out.a = clamp(smoothstep(0.02, 0.95, v + (n - 0.5) * 0.45) * 1.05, 0, 1)
+    out.a = clamp(smoothstep(0.22, 0.98, v + (n - 0.5) * 0.3) * 1.05, 0, 1)
     out.k = smoothstep(0.84, 1.02, v + (n - 0.5) * 0.18) * 0.95
   } else if (kind === "cold") {
     const ripple = 0.5 + 0.5 * Math.sin(v * 26 + n * 5 + u * 1.5)
     out.a = 0
-    out.k = clamp(smoothstep(0.08, 0.6, v) * (0.45 + 0.45 * ripple), 0, 1)
+    out.k = clamp(smoothstep(0.26, 0.72, v + (n - 0.5) * 0.12) * (0.45 + 0.45 * ripple), 0, 1)
   } else {
     const warm = 1 - smoothstep(0, 0.75, Math.hypot(u - 0.95, v - 0.06) + (n - 0.5) * 0.3)
     out.a = warm * 0.28
@@ -456,7 +458,7 @@ function coolField(x: number, y: number, w: number, h: number, out: Out) {
 function quietness(x: number, y: number, x0: number, y0: number, x1: number, y1: number) {
   const dx = Math.max(x0 - x, 0, x - x1)
   const dy = Math.max(y0 - y, 0, y - y1)
-  return 1 - smoothstep(0, 30, Math.sqrt(dx * dx + dy * dy))
+  return 1 - smoothstep(0, 48, Math.sqrt(dx * dx + dy * dy))
 }
 
 /** Dot spacing for a canvas: a target pitch, held to a dot budget so big screens and software renderers keep up. */
@@ -663,6 +665,8 @@ function Halftone({ kind, pitch, budget, live = false, reduced, inkKey, quiet, h
       zones = []
       if (quiet) {
         for (const el of Array.from(box.querySelectorAll(quiet))) {
+          const bg = getComputedStyle(el).backgroundColor
+          if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) continue
           const q = el.getBoundingClientRect()
           zones.push(q.left - r.left, q.top - r.top, q.right - r.left, q.bottom - r.top)
         }
@@ -823,8 +827,9 @@ const LYL_CSS = `
 .lyl-link::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:right;transition:transform .3s var(--lyl-ease)}
 .lyl-link:hover::after,.lyl-link:focus-visible::after{transform:scaleX(1);transform-origin:left}
 .lyl-navr{display:flex;align-items:center;gap:8px}
-.lyl-stock{font-size:13px;color:var(--lyl-muted);padding:8px 10px;transition:color .2s}
-.lyl-stock:hover{color:var(--lyl-ink)}
+.lyl-stock{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--lyl-ink);padding:8px 10px;cursor:pointer}
+.lyl-stock:hover .lyl-moon{transform:rotate(180deg)}
+.lyl-moon{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor;background:linear-gradient(90deg,currentColor 50%,transparent 50%);transition:transform .4s var(--lyl-ease)}
 .lyl-menu{display:none;font-size:14px;padding:10px 4px;margin-left:auto}
 
 .lyl-btn{position:relative;display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 20px;font-size:15px;font-weight:500;white-space:nowrap;cursor:pointer;overflow:hidden;isolation:isolate;transition:color .25s var(--lyl-ease),transform .15s var(--lyl-ease)}
@@ -889,7 +894,7 @@ const LYL_CSS = `
 .lyl-sname span{font-size:14px;color:var(--lyl-muted)}
 .lyl-mins{grid-column:7/span 1;font-size:14px;color:var(--lyl-muted)}
 .lyl-spots{grid-column:8/span 2;display:flex;flex-direction:column;gap:8px}
-.lyl-meter{display:flex;flex-wrap:wrap;gap:3px;max-width:150px}
+.lyl-meter{display:flex;flex-wrap:nowrap;gap:3px}
 .lyl-meter i{width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--lyl-ink);opacity:.8}
 .lyl-meter i[data-on]{background:var(--lyl-ink);box-shadow:none;opacity:1}
 .lyl-meter i[data-me]{background:var(--lyl-accent);box-shadow:none;opacity:1}
@@ -908,7 +913,7 @@ const LYL_CSS = `
 .lyl-room:first-child .lyl-plate{height:clamp(400px,40vw,620px)}
 .lyl-plate .lyl-canvas{transition:transform 1.2s var(--lyl-ease)}
 .lyl-room:hover .lyl-plate .lyl-canvas{transform:scale(1.04)}
-.lyl-plate .lyl-temp{position:absolute;left:0;top:0;padding:10px 14px 8px 12px;background:var(--lyl-sheet);z-index:1;font-weight:700;font-size:clamp(72px,7.4vw,124px);line-height:.9;letter-spacing:-.065em;display:flex}
+.lyl-plate .lyl-temp{position:absolute;left:14px;top:8px;z-index:1;font-weight:700;font-size:clamp(72px,7.4vw,124px);line-height:.9;letter-spacing:-.065em;display:flex}
 .lyl-plate .lyl-temp small{font-size:.32em;letter-spacing:-.02em;margin:.14em 0 0 .06em}
 .lyl-room h3{font-size:clamp(22px,1.9vw,28px);letter-spacing:-.03em;line-height:1.1;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .lyl-room h3 span{font-size:14px;font-weight:400;letter-spacing:0;color:var(--lyl-muted);white-space:nowrap}
@@ -925,7 +930,7 @@ const LYL_CSS = `
 .lyl-seg[data-k="rest"]{background:radial-gradient(circle,var(--lyl-ink) 0 1.1px,transparent 1.4px) 0 0/8px 8px}
 .lyl-seg[data-k="extra"]{box-shadow:inset 0 0 0 1px var(--lyl-rule)}
 .lyl-seg em{position:absolute;left:12px;right:8px;bottom:10px;font-style:normal;font-size:13px;line-height:1.2;color:var(--lyl-muted)}
-.lyl-bar[data-focus] .lyl-seg{opacity:.18}
+.lyl-bar[data-focus] .lyl-seg{opacity:.4}
 .lyl-bar[data-focus="heat"] .lyl-seg[data-k="heat"],.lyl-bar[data-focus="cold"] .lyl-seg[data-k="cold"],.lyl-bar[data-focus="rest"] .lyl-seg[data-k="rest"]{opacity:1}
 .lyl-ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--lyl-muted);margin-top:12px}
 .lyl-steps{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(12px,1.6vw,24px)}
@@ -934,6 +939,9 @@ const LYL_CSS = `
 .lyl-step h3 em{font-style:normal;font-size:15px;letter-spacing:0;font-weight:400;color:var(--lyl-muted)}
 .lyl-sw{width:18px;height:18px;flex:none;align-self:center}
 .lyl-step p{font-size:16px;color:var(--lyl-soft);max-width:34ch}
+.lyl-step{transition:opacity .25s var(--lyl-ease)}
+.lyl-steps[data-focus] .lyl-step{opacity:.45}
+.lyl-steps[data-focus] .lyl-step[data-on]{opacity:1}
 
 .lyl-ptop{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:clamp(36px,4vw,56px)}
 .lyl-ptop .lyl-h2{max-width:12ch}
@@ -944,7 +952,8 @@ const LYL_CSS = `
 .lyl-plans{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--lyl-ink)}
 .lyl-plan{position:relative;display:flex;flex-direction:column;gap:22px;padding:28px clamp(16px,2vw,32px) 32px;border-left:1px solid var(--lyl-rule)}
 .lyl-plan:first-child{border-left:0;padding-left:0}
-.lyl-plan[data-feat]{background:var(--lyl-accent);color:var(--lyl-on);border-left-color:transparent;padding-left:clamp(16px,2vw,32px)}
+.lyl-plan[data-feat]{background:var(--lyl-accent);color:var(--lyl-on);border-left-color:transparent;padding-left:clamp(16px,2vw,32px);padding-bottom:84px}
+.lyl-plan .lyl-btn{z-index:1}
 .lyl-plan[data-feat] .lyl-pnote,.lyl-plan[data-feat] li{color:var(--lyl-on)}
 .lyl-plan h3{font-size:19px;font-weight:700;letter-spacing:-.015em;display:flex;justify-content:space-between;gap:12px}
 .lyl-plan h3 span{font-weight:400;font-size:13px}
@@ -961,7 +970,8 @@ const LYL_CSS = `
 .lyl-dots{position:absolute;left:0;right:0;bottom:0;height:56px;background:radial-gradient(circle,var(--lyl-paper) 0 2.2px,transparent 2.6px) 0 0/8px 8px;-webkit-mask-image:linear-gradient(to top,#000,transparent);mask-image:linear-gradient(to top,#000,transparent);pointer-events:none;opacity:.9}
 
 .lyl-quote{grid-column:2/span 10;display:flex;flex-direction:column;gap:clamp(28px,3vw,44px)}
-.lyl-quote blockquote{font-weight:700;font-size:clamp(30px,3.7vw,58px);line-height:1.04;letter-spacing:-.045em;text-indent:-.4em;text-wrap:pretty}
+.lyl-quote blockquote{font-weight:700;font-size:clamp(30px,3.7vw,58px);line-height:1.04;letter-spacing:-.045em;text-wrap:pretty}
+.lyl-qmark{display:block;height:.42em;overflow:hidden;font-weight:700;font-size:clamp(170px,17vw,280px);line-height:.92;letter-spacing:0;margin-left:-.04em;background:radial-gradient(circle,var(--lyl-accent) 0 2.7px,transparent 3.1px) 0 0/8px 8px;-webkit-background-clip:text;background-clip:text;color:transparent}
 .lyl-quote blockquote[data-anim]{animation:lyl-in .6s var(--lyl-ease)}
 @keyframes lyl-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .lyl-qfoot{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
@@ -974,9 +984,11 @@ const LYL_CSS = `
 .lyl-pips i{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--lyl-ink);transition:background-color .3s}
 .lyl-pips i[data-on]{background:var(--lyl-accent);box-shadow:none}
 
-.lyl-faqh{grid-column:1/span 4}
+.lyl-faqh{grid-column:1/span 4;position:sticky;top:calc(var(--lyl-nav) + 40px);align-self:start}
 .lyl-faql{grid-column:6/span 7;border-top:1px solid var(--lyl-ink)}
-.lyl-q{border-bottom:1px solid var(--lyl-rule)}
+.lyl-q{position:relative;border-bottom:1px solid var(--lyl-rule)}
+.lyl-q::before{content:"";position:absolute;left:-24px;top:27px;width:8px;height:0;background:radial-gradient(circle,var(--lyl-accent) 0 2.4px,transparent 2.8px) 0 0/8px 8px;transition:height .25s var(--lyl-ease)}
+.lyl-q[data-on]::before{height:calc(100% - 50px)}
 .lyl-qh{width:100%;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:22px 0;text-align:left;font-size:clamp(18px,1.4vw,21px);font-weight:700;letter-spacing:-.02em;cursor:pointer}
 .lyl-plus{position:relative;flex:none;width:16px;height:16px}
 .lyl-plus::before,.lyl-plus::after{content:"";position:absolute;background:currentColor;transition:transform .35s var(--lyl-ease)}
@@ -1040,14 +1052,15 @@ const LYL_CSS = `
 .lyl-navr{margin-left:auto}
 .lyl-menu{margin-left:0}
 .lyl-marks{display:none}
-.lyl-hero{grid-template-rows:auto auto 1fr auto;min-height:max(660px,calc(clamp(620px,var(--lyl-h),980px) - var(--lyl-nav)))}
+.lyl-hero{grid-template-rows:auto auto auto minmax(280px,1fr);min-height:max(820px,calc(clamp(620px,var(--lyl-h),1000px) - var(--lyl-nav)))}
+.lyl-q::before{left:-13px}
 .lyl-h1{grid-column:1/-1;grid-row:1;font-size:clamp(60px,17.5vw,150px)}
 .lyl-lead{grid-column:1/-1;grid-row:2;margin-top:22px}
-.lyl-gauge{grid-column:1/-1;grid-row:4;justify-self:stretch;max-width:none;display:grid;grid-template-columns:1fr auto;align-items:end;column-gap:12px;margin-top:24px;padding:14px}
-.lyl-glabel{grid-column:1;grid-row:1;align-self:start}
-.lyl-gval{grid-column:2;grid-row:1/span 2;margin:0;font-size:60px}
-.lyl-throw{grid-column:1/-1;grid-row:3;margin-top:12px}
-.lyl-hint{grid-column:1/-1;grid-row:4}
+.lyl-gauge{grid-column:1/-1;grid-row:3;justify-self:stretch;max-width:none;display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:16px;margin-top:32px;padding:16px 0 0;background:transparent;box-shadow:none;border-top:1px solid var(--lyl-rule)}
+.lyl-glabel{grid-column:1/-1}
+.lyl-gval{grid-column:1;grid-row:2;margin:6px 0 0;font-size:56px}
+.lyl-throw{grid-column:2;grid-row:2;height:48px;padding:0 14px;font-size:14px;margin-top:6px}
+.lyl-hint{grid-column:1/-1;grid-row:3}
 .lyl-shead .lyl-h2,.lyl-shead .lyl-intro{grid-column:1/-1}
 .lyl-row{grid-template-columns:auto 1fr auto;row-gap:12px;padding:18px 0}
 .lyl-time{grid-column:1;grid-row:1;font-size:30px}
@@ -1298,6 +1311,7 @@ export default function LoylySaunaLanding({
         </nav>
         <div className="lyl-navr">
           <button type="button" className="lyl-stock" onClick={() => setDark(!dark)} aria-label={(dark ? "Paper" : "Night") + " theme"}>
+            <span className="lyl-moon" aria-hidden="true" />
             {dark ? "Paper" : "Night"}
           </button>
           <a className="lyl-btn lyl-solid lyl-sm" href="#sessions" onClick={go("#sessions")}>
@@ -1332,7 +1346,7 @@ export default function LoylySaunaLanding({
 
       <main id={uid + "-main"}>
         <section className="lyl-hero lyl-wrap" aria-labelledby={uid + "-h1"} onClick={heroClick}>
-          <Halftone kind="hero" pitch={9} budget={15000} live reduced={reduced} inkKey={inkKey} handle={engine} onHeat={onHeat} quiet=".lyl-lead p" />
+          <Halftone kind="hero" pitch={9} budget={15000} live reduced={reduced} inkKey={inkKey} handle={engine} onHeat={onHeat} quiet=".lyl-lead p, .lyl-gauge" />
           <div className="lyl-marks" aria-hidden="true">
             <i className="lyl-vline" style={{ left: "calc(var(--lyl-pad) + (100% - 2 * var(--lyl-pad)) * .3333)" }} />
             <i className="lyl-vline" style={{ left: "calc(var(--lyl-pad) + (100% - 2 * var(--lyl-pad)) * .6667)" }} />
@@ -1422,7 +1436,7 @@ export default function LoylySaunaLanding({
                   const left = spotsLeft(s, mine)
                   const full = s.capacity - s.booked <= 0
                   const wait = full
-                  const dots = Math.min(s.capacity, 24)
+                  const dots = Math.min(s.capacity, 14)
                   const per = s.capacity / dots
                   return (
                     <div className="lyl-row" key={s.id}>
@@ -1531,11 +1545,12 @@ export default function LoylySaunaLanding({
                     <span>{rit.total} min</span>
                   </figcaption>
                 </figure>
-                <div className="lyl-steps">
+                <div className="lyl-steps" data-focus={focusKind || undefined}>
                   {RT.steps.map((s) => (
                     <article
                       key={s.name}
                       className="lyl-step"
+                      data-on={focusKind === s.kind ? "" : undefined}
                       onMouseEnter={() => setFocusKind(s.kind)}
                       onMouseLeave={() => setFocusKind("")}
                     >
@@ -1616,8 +1631,11 @@ export default function LoylySaunaLanding({
           <section className="lyl-sec lyl-wrap" aria-label="What members say">
             <div className="lyl-grid">
               <figure className="lyl-quote">
+                <span className="lyl-qmark" aria-hidden="true">
+                  {"“"}
+                </span>
                 <blockquote key={qi} data-anim={qAnim ? "" : undefined}>
-                  {"“" + qs[qi].quote + "”"}
+                  {qs[qi].quote}
                 </blockquote>
                 <figcaption className="lyl-qfoot">
                   <span className="lyl-who">
@@ -1655,7 +1673,7 @@ export default function LoylySaunaLanding({
                 {F.items.map((it, i) => {
                   const on = open === i
                   return (
-                    <div className="lyl-q" key={it.q}>
+                    <div className="lyl-q" key={it.q} data-on={on ? "" : undefined}>
                       <h3>
                         <button type="button" className="lyl-qh" aria-expanded={on} aria-controls={uid + "-a" + i} id={uid + "-q" + i} onClick={() => setOpen(on ? -1 : i)}>
                           {it.q}

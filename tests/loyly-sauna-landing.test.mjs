@@ -67,7 +67,7 @@ assert.match(src, /className="lyl-btn lyl-solid lyl-throw" onClick=\{\(\) => thr
 assert.match(src, /if \(waves\.length >= 2\) waves\.shift\(\)/, "waves can't stack into a runaway effect")
 assert.match(src, /if \(live && ema > 22 && slow < 8\)/, "a slow renderer coarsens the screen")
 assert.match(src, /new IntersectionObserver\(\(es\) => \{\n\s+onScreen =/, "the screen sleeps off screen")
-assert.match(src, /quiet="\.lyl-lead p"/, "the wave keeps clear of the body copy")
+assert.match(src, /quiet="\.lyl-lead p, \.lyl-gauge"/, "the wave keeps clear of the body copy and the phone readout")
 assert.match(src, /aria-modal="true"/, "the phone menu is a modal dialog")
 assert.match(src, /e\.key === "Escape"/, "Escape closes it")
 assert.ok(read("demo.tsx").includes("<LoylySaunaLanding />"), "default demo is the component, full bleed")
@@ -125,7 +125,7 @@ assert.ok(o.a < 0.05 && o.k < 0.05, "the phone headline sits on paper")
 // a wave adds heat where its ring is, and is gone after its life
 L.heroField(700, 420, 1440, 836, 0.9, [], o)
 const before = o.a
-L.heroField(700, 420, 1440, 836, 0.9, [{ x: 1300, y: 780, t: 0.56 }], o)
+L.heroField(700, 420, 1440, 836, 0.9, [{ x: 1300, y: 780, t: 0.47 }], o)
 assert.ok(o.a > before + 0.1, "the ring passes through")
 L.heroField(700, 420, 1440, 836, 0.25 + L.WAVE_LIFE + 0.1, [{ x: 1300, y: 780, t: 0.25 }], o)
 assert.ok(Math.abs(o.a - before) < 0.3, "and leaves")

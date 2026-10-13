@@ -16,7 +16,21 @@ export default function DemoKlein() {
         cta: "Book a session",
         secondary: "See passes",
       }}
-      heat={{ label: "Felt heat, upper bench", base: 82, rise: 11, button: "Ladle water on the stones", hint: "Or click anywhere in the heat." }}
+      heat={{ label: "Felt heat, upper bench", base: 82, rise: 11, button: "Ladle water on the stones", hint: "Or press anywhere in the heat." }}
+      sessions={{
+        title: "This week on the lake.",
+        text: "Sessions are 75 minutes on the raft, boat transfer included. Robes and towels are on board; bring a swimsuit and a hat in winter.",
+      }}
+      ritual={{
+        title: "Heat, lake, sky. Three times.",
+        text: "Sweat on the upper bench, climb down the ladder into the lake, then sit out on the deck until you hear the water again.",
+        steps: [
+          { kind: "heat", name: "Heat", minutes: 12, text: "Upper bench, window side, until your shoulders are heavy." },
+          { kind: "cold", name: "Lake", minutes: 2, text: "Down the ladder, hold the rope, count your breaths." },
+          { kind: "rest", name: "Deck", minutes: 8, text: "Sheepskin, windbreak, tea. Watch the shore." },
+        ],
+        extra: { name: "Boat to the jetty", minutes: 9 },
+      }}
       rooms={{
         title: "One raft, two temperatures, a lot of sky.",
         items: [

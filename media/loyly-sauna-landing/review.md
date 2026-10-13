@@ -38,3 +38,25 @@ system Helvetica only, no mono body, no chamfers, no 3D object, no halftone port
 no stats strip under the hero. Rooms as a real section. A footer that is not a giant
 halftone wordmark. Cool white paper, never cream, with a confident ink mass. Software
 renderer safe. Phone layouts designed.
+
+## Round 1 (fresh critic: brief, screenshots, source)
+
+| | Score |
+|---|---|
+| Usability | 8 |
+| Idea | 8 |
+| Craft | 7 |
+| Originality | 8 |
+| Install safety | 9 |
+| Template | 7 |
+
+Awwwards lens: Design 7.5, Usability 7.5, Creativity 8, Content 8 = 7.65.
+Verdict: **REDO** (average 7.83, two scores at 7).
+
+Changes asked for, most important first: the featured plan's dot strip painted
+over its button; the spots meter wrapped to two lines; the throw wave flooded the
+hero and showed a hard box behind the copy; the phone hero art was a leftover strip
+under the readout; the Klein demo leaked default copy; the room plates' labels read
+as stickers over a ragged print; the ritual hover faded too far; the back half
+(quote, FAQ, visit) lost the halftone language; the Night/Paper switch was weak and
+the FAQ heading left a dead column.
