@@ -925,8 +925,6 @@ function Drum(props: {
       const withSec = L.spr % 60 !== 0
       for (let r = 0; r < rows.length; r++) {
         const y = rowY(r)
-        ctx.fillStyle = pal.rule
-        ctx.fillRect(L.left, Math.round(y), L.plotW, 1)
         ctx.fillStyle = pal.label
         ctx.textAlign = "right"
         ctx.fillText(clockUTC(rows[r].t, withSec), L.left - 10, y)
