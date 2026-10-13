@@ -14,6 +14,10 @@ import * as React from "react"
  * The pigment is painted on a small canvas per row (no WebGL, no images), so
  * it costs the same on a software renderer as on a GPU.
  *
+ * The wash is drawn from the work history: a longer tenure paints a longer
+ * stroke, and a role that ended years ago has drier, paler, grainier pigment
+ * than the one you hold now.
+ *
  * Click, Enter or Space opens a row; one row is open at a time. Colours come
  * from the theme tokens; the pigment has four presets or your own three
  * colours.
@@ -37,6 +41,8 @@ export type LedgerItem = {
   tags?: string[]
   /** This row's own pigment as [core, body, edge]. Overrides the section's. */
   colors?: [string, string, string]
+  /** A small mark shown before the role, e.g. an <img> or <svg> logo. */
+  logo?: React.ReactNode
 }
 
 export type PigmentExperienceLedgerProps = {
@@ -62,6 +68,10 @@ export type PigmentExperienceLedgerProps = {
   labels?: { position?: string; location?: string; industry?: string; link?: string; tags?: string }
   /** Set the wordmarks in capitals. */
   uppercase?: boolean
+  /** Paint tenure and age into the wash: longer roles, longer strokes; older roles, drier pigment. */
+  ageing?: boolean
+  /** Level of the section heading; rows use the next level down. */
+  headingLevel?: 2 | 3 | 4
   /** Any CSS length. The section grows past it when rows open. */
   minHeight?: number | string
   background?: string
@@ -148,6 +158,29 @@ export function valueNoise(x: number, y: number, seed: number): number {
   const d = hash2(ix + 1, iy + 1, seed)
   return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy
 }
+/** The years a role spans, from "2019-2022", "2022-now" or "2021". */
+export function tenureOf(years: string, now: number): { start: number; end: number; length: number } | null {
+  const m = years.match(/(\d{4})\D+(\d{4}|now|present|current|today)/i)
+  if (m) {
+    const start = Number(m[1])
+    const end = /^\d{4}$/.test(m[2]) ? Number(m[2]) : now
+    return { start, end, length: Math.max(0.5, end - start) }
+  }
+  const one = years.match(/\d{4}/)
+  if (!one) return null
+  const y = Number(one[0])
+  return { start: y, end: y, length: 0.5 }
+}
+
+/** How far a stroke reaches, as a share of its wordmark's width: longer tenure, longer stroke. */
+export function reachOf(length: number): number {
+  return clamp(0.34 + length * 0.07, 0.38, 0.7)
+}
+
+/** How dry a row's pigment looks: 0 for a current role, up to 0.6 for one that ended a decade or more ago. */
+export function drynessOf(end: number, now: number): number {
+  return clamp((now - end) / 12, 0, 0.6)
+}
 // #endregion logic
 
 /* ------------------------------------------------------------- pigment */
@@ -170,6 +203,10 @@ type Smear = {
   homeY: number
   bleedX: number
   nameW: number
+  reach: number
+  dry: number
+  lastActive: number
+  low: Float32Array
   ramp: number[][]
   level: number
   target: number
@@ -227,6 +264,10 @@ function newSmear(seed: number): Smear {
     homeY: 0,
     bleedX: BLEED_X,
     nameW: 0,
+    reach: 0.5,
+    dry: 0,
+    lastActive: 0,
+    low: new Float32Array(0),
     ramp: [],
     level: 0,
     target: 0,
@@ -268,6 +309,7 @@ function sizeSmear(s: Smear, w: number, h: number, headH: number) {
   const n = bw * bh
   s.noise = new Float32Array(n)
   s.hue = new Float32Array(n)
+  s.low = new Float32Array(n)
   s.grain = new Float32Array(n)
   const u = scale / 3 // keep the texture the same size in css px at any buffer scale
   for (let y = 0; y < bh; y++) {
@@ -278,13 +320,14 @@ function sizeSmear(s: Smear, w: number, h: number, headH: number) {
       s.noise[i] = 0.55 * valueNoise(X / 11, Y / 8, s.seed) + 0.3 * valueNoise(X / 4, Y / 4, s.seed + 11) + 0.15 * valueNoise(X / 1.6, Y / 1.6, s.seed + 17)
       // Rotated, isotropic lattice: an axis-stretched one shows as scanlines.
       s.hue[i] = valueNoise((0.8 * X + 0.6 * Y) / 20, (0.8 * Y - 0.6 * X) / 20, s.seed + 31)
+      s.low[i] = valueNoise(X / 40, Y / 40, s.seed + 41)
       s.grain[i] = hash2(x, y, s.seed + 23)
     }
   }
   s.painted = false
 }
 
-function paintSmear(s: Smear, time: number, ramp: number[][], strength: number) {
+function paintSmear(s: Smear, time: number, ramp: number[][], strength: number, dark: boolean) {
   const ctx = s.ctx
   const img = s.img
   if (!ctx || !img || ramp.length < 3) return
@@ -299,9 +342,13 @@ function paintSmear(s: Smear, time: number, ramp: number[][], strength: number) 
     const narrow = s.cssW < 560
     // The masses spread across the wordmark and always overlap, so the wash
     // stays one body of pigment instead of splitting into islands.
-    const span = clamp((s.nameW || s.cssW * 0.3) * 0.5, 60, 290) * (0.5 + 0.5 * grow)
+    const span = clamp((s.nameW || s.cssW * 0.3) * s.reach, 60, 320) * (0.5 + 0.5 * grow)
     const R = clamp(s.headH * (narrow ? 0.95 : 1.12), 70, 200) * (0.55 + 0.45 * grow)
-    const fade = smoothstep(0, 0.35, level) * strength
+    const dry = s.dry
+    // Age fades and greys pigment on paper. On a dark surface that reads as
+    // mud, so there age only shows as heavier granulation.
+    const fade = smoothstep(0, 0.35, level) * strength * (1 - dry * (dark ? 0.08 : 0.45))
+    const tooth = 0.76 + dry * 0.6 // older pigment granulates more
     const [edge, body, core] = ramp
     const n = s.blobs.length
     const bx = new Float32Array(n)
@@ -332,11 +379,11 @@ function paintSmear(s: Smear, time: number, ramp: number[][], strength: number) 
     // Contain the wash to its row's header band. The envelope thins the field
     // itself, so the boundary gets the same ragged paper edge as the rest.
     const top = BLEED / sc
-    const bottom = (BLEED + s.headH + 20) / sc
-    const feather = 48 / sc
+    const bottom = (BLEED + s.headH - 6) / sc
+    const feather = 36 / sc
     const side = Math.max(s.bleedX - 4, 28) / sc
     for (let y = ys; y <= ye; y++) {
-      const env = smoothstep(top - feather * 0.7, top + feather, y) * (1 - smoothstep(bottom - feather, bottom + feather * 0.7, y))
+      const env = smoothstep(top, top + feather, y) * (1 - smoothstep(bottom - feather, bottom, y))
       if (env <= 0) continue
       for (let x = xs; x <= xe; x++) {
         let f = 0
@@ -353,16 +400,23 @@ function paintSmear(s: Smear, time: number, ramp: number[][], strength: number) 
         if (f < 0.04) continue
         const i = y * bw + x
         // Paper tooth breaks the edge up; a second, slower noise streaks the hue.
-        const fe = f * (0.62 + 0.76 * s.noise[i])
-        const wash = smoothstep(0.2, 0.6, fe)
+        // A slower noise varies how thick the edge is, so it never reads as an outline.
+        const fe = f * (1 - tooth / 2 + tooth * s.noise[i]) + (s.low[i] - 0.5) * 0.24
+        // On a dark surface a soft fringe of warm colour at low alpha reads as
+        // brown, so the edge is kept crisp there.
+        const wash = dark ? smoothstep(0.2, 0.34, fe) : smoothstep(0.2, 0.6, fe)
         // Pigment collects at the drying edge: a denser, warmer tide line. It moves
         // toward the body colour rather than toward grey, which would read as dirt.
         const rim = smoothstep(0.2, 0.3, fe) * (1 - smoothstep(0.3, 0.5, fe))
-        const depth = clamp(smoothstep(0.3, 1.55, fe) + (s.hue[i] - 0.5) * 0.42 + rim * 0.55, 0, 1)
+        const depth = clamp(smoothstep(0.3, 1.55, fe) + (s.hue[i] - 0.5) * 0.6 + rim * 0.55, 0, 1)
         const c = rampAt(edge, body, core, depth)
+        if (dry > 0 && !dark) {
+          const grey = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11
+          for (let q = 0; q < 3; q++) c[q] += (grey - c[q]) * dry * 0.55
+        }
         const g = s.grain[i]
         const shade = 1 - rim * 0.07 + (g - 0.5) * 0.05
-        const a = (wash * (0.86 + 0.14 * depth) + rim * 0.22) * (0.9 + 0.1 * g) * fade
+        const a = (wash * (0.86 + 0.14 * depth) + rim * 0.1) * (0.9 + 0.1 * g * (1 + dry)) * fade
         const j = i * 4
         data[j] = c[0] * shade
         data[j + 1] = c[1] * shade
@@ -419,9 +473,11 @@ const PEL_CSS = [
   ".pel-namecell{display:flex;flex-direction:column;align-items:flex-end;min-width:0;text-align:right}",
   ".pel-name{display:inline-block;white-space:nowrap;font-family:var(--pel-display);font-size:clamp(2.25rem,7.4cqi,6.4rem);font-weight:600;letter-spacing:-.045em;line-height:.9;text-transform:var(--pel-case);padding:0 .02em .04em 0;transform-origin:100% 60%;transition:transform .32s var(--pel-ease)}",
   ".pel-mark{font-weight:400;font-size:.6em;vertical-align:.62em;margin-left:.05em;letter-spacing:0}",
-  ".pel-role{margin-top:.6rem;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--pel-muted);transition:color .3s ease}",
+  ".pel-role{display:inline-flex;align-items:center;gap:.55rem;margin-top:.6rem;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--pel-muted);transition:color .3s ease}",
   ".pel-trigger:active .pel-name{transform:translateX(-.06em) scale(.985);transition-duration:.12s}",
   "@media (hover:hover) and (pointer:fine){.pel-trigger:hover .pel-name{transform:translateX(-.06em)}.pel-trigger:hover .pel-when{transform:translateX(.4rem);color:var(--pel-ink)}.pel-row[data-open='false'] .pel-trigger:hover .pel-x{transform:rotate(90deg)}}",
+  ".pel-logo{display:inline-flex;align-items:center;height:1.1rem;flex:none}",
+  ".pel-logo svg,.pel-logo img{height:100%;width:auto;max-width:none;display:block}",
   ".pel-row[data-lit='true'] .pel-when,.pel-row[data-lit='true'] .pel-role,.pel-row[data-lit='true'] .pel-label{color:var(--pel-ink)}",
   ".pel-panel{display:grid;grid-template-rows:0fr;position:relative;z-index:1;transition:grid-template-rows .2s var(--pel-ease)}",
   ".pel-row[data-open='true'] .pel-panel{grid-template-rows:1fr;transition-duration:.32s}",
@@ -533,12 +589,14 @@ export default function PigmentExperienceLedger({
   cta = { label: "Download CV", href: "#cv" },
   palette = "ember",
   colors,
-  strength = 0.92,
+  strength = 0.82,
   defaultOpen = 0,
   open,
   onToggle,
   labels,
   uppercase = true,
+  ageing = true,
+  headingLevel = 2,
   minHeight = "100svh",
   background,
   ink,
@@ -558,7 +616,7 @@ export default function PigmentExperienceLedger({
   const smears = React.useRef([] as Smear[])
   const rowEls = React.useRef([] as (HTMLLIElement | null)[])
   const nameEls = React.useRef([] as (HTMLSpanElement | null)[])
-  const loop = React.useRef({ raf: 0, last: 0, frame: 0, visible: true, reduced: false, dark: false })
+  const loop = React.useRef({ raf: 0, last: 0, frame: 0, clock: 0, visible: true, reduced: false, dark: false })
 
   const L = {
     position: labels?.position ?? "Position",
@@ -581,9 +639,9 @@ export default function PigmentExperienceLedger({
       const dt = st.last ? Math.min(0.05, (now - st.last) / 1000) : 0.016
       st.last = now
       st.frame++
-      const time = st.reduced ? 0 : now / 1000
       let alive = false
       let moving = false
+      let breathing = false
       for (const s of smears.current) {
         if (!s || !s.ctx) continue
         const prevLevel = s.level
@@ -604,15 +662,18 @@ export default function PigmentExperienceLedger({
         const changed = Math.abs(s.level - prevLevel) > 1e-4 || Math.abs(s.cx - prevX) > 0.05 || Math.abs(s.cy - prevY) > 0.05
         if (changed) moving = true
         const active = s.level > 0.002 || s.target > 0
-        if (active) {
-          alive = true
-          // Settled rows breathe at half rate; moving rows paint every frame.
-          if (changed || !s.painted || (!st.reduced && st.frame % 2 === 0)) paintSmear(s, time, s.ramp, st.dark ? strength * 0.78 : strength)
-        } else if (s.painted) {
-          paintSmear(s, time, s.ramp, st.dark ? strength * 0.78 : strength)
+        // A settled wash keeps breathing for a few seconds after the last
+        // pointer or focus activity, then holds its frame and the loop sleeps.
+        const breathes = active && !st.reduced && now - s.lastActive < 3000
+        if (breathes) breathing = true
+        if (active) alive = true
+        if (active || s.painted) {
+          if (changed || !s.painted || (breathes && st.frame % 2 === 0) || !active)
+            paintSmear(s, st.clock, s.ramp, st.dark ? Math.min(1, strength * 1.1) : strength, st.dark)
         }
       }
-      const keepGoing = st.visible && alive && (!st.reduced || moving)
+      if (breathing) st.clock += dt
+      const keepGoing = st.visible && alive && (moving || breathing)
       if (keepGoing) st.raf = requestAnimationFrame(tick)
       else st.last = 0
     }
@@ -620,22 +681,31 @@ export default function PigmentExperienceLedger({
   }, [strength])
 
   // Pigment colours follow the preset, each row's own colours and the surface.
-  // On a dark page the ramp drops its palest stop (it turns olive on black) and
-  // the opacity is capped, so light text stays readable on top of it.
+  // On a dark page the palest stop leans toward the body colour (pale yellow
+  // turns olive on black) and keeps its saturation.
+  const itemsKey = items.map((it) => it.company).join("|")
   const rampKey =
-    (colors ? colors.join(",") : palette) + "|" + (background ?? "") + "|" + items.map((it) => (it.colors ? it.colors.join(",") : "")).join(";")
+    (colors ? colors.join(",") : palette) +
+    "|" +
+    (background ?? "") +
+    "|" +
+    (ageing ? "age" : "") +
+    "|" +
+    items.map((it) => it.years + (it.colors ? it.colors.join(",") : "")).join(";")
   React.useEffect(() => {
     const st = loop.current
     st.reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches
     const update = () => {
       st.dark = surfaceIsDark(rootRef.current)
+      const now = new Date().getFullYear()
       const section = colors ?? PALETTES[palette] ?? PALETTES.ember
       items.forEach((it, i) => {
         const base = (it.colors ?? section).map(hexToRgb)
         const s = ensureSmear(i)
-        s.ramp = st.dark
-          ? [base[1].map((v, j) => (v * 0.75 + base[2][j] * 0.25) * 0.95), base[1], base[0].map((v) => v * 0.9)]
-          : [base[2], base[1], base[0]]
+        s.ramp = st.dark ? [base[2].map((v, j) => v * 0.65 + base[1][j] * 0.35), base[1], base[0]] : [base[2], base[1], base[0]]
+        const span = ageing ? tenureOf(it.years, now) : null
+        s.reach = span ? reachOf(span.length) : 0.5
+        s.dry = span ? drynessOf(span.end, now) : 0
         s.painted = false
       })
       kick()
@@ -655,7 +725,9 @@ export default function PigmentExperienceLedger({
       const pointed = i === hovered || i === focused
       const elsewhere = (hovered !== null && hovered !== i) || (focused !== null && focused !== i)
       // One focal point: the open row's wash steps back while another row is pointed at.
-      s.target = pointed ? 1 : i === openIndex ? (elsewhere ? 0.3 : 1) : 0
+      const next = pointed ? 1 : i === openIndex ? (elsewhere ? 0.3 : 1) : 0
+      if (next !== s.target) s.lastActive = performance.now()
+      s.target = next
       if (!s.pointer) [s.tx, s.ty] = homeOf(s)
     })
     kick()
@@ -663,6 +735,7 @@ export default function PigmentExperienceLedger({
   }, [openIndex, hovered, focused, items.length, kick])
 
   // Row sizes feed the pigment buffers; the root width refits the wordmarks.
+  // Keyed on the names, so a parent passing an inline array doesn't refit every render.
   React.useEffect(() => {
     const root = rootRef.current
     if (!root || typeof ResizeObserver === "undefined") return
@@ -718,7 +791,7 @@ export default function PigmentExperienceLedger({
     if (typeof document !== "undefined" && document.fonts) document.fonts.ready.then(fit).catch(() => {})
     kick()
     return () => ro.disconnect()
-  }, [items, kick])
+  }, [itemsKey, kick])
 
   // Pause the pigment off screen and in background tabs; play the entrance once.
   React.useEffect(() => {
@@ -773,7 +846,10 @@ export default function PigmentExperienceLedger({
     const r = li.getBoundingClientRect()
     // The wash leans toward the pointer rather than jumping onto it.
     const hx = homeOf(s)[0]
-    s.tx = hx + (e.clientX - r.left + s.bleedX - hx) * 0.35
+    const w = s.nameW || s.cssW * 0.3
+    // Lean toward the pointer, but stay on the wordmark.
+    s.tx = clamp(hx + (e.clientX - r.left + s.bleedX - hx) * 0.35, hx - w * 0.35, hx + w * 0.15)
+    s.lastActive = performance.now()
     s.ty = BLEED + clamp(e.clientY - r.top, s.headH * 0.35, s.headH * 0.7)
     // A fresh bloom starts where the pointer came in.
     if (s.level < 0.05) {
@@ -803,6 +879,8 @@ export default function PigmentExperienceLedger({
   } as React.CSSProperties
 
   const headingId = uid + "-h"
+  const Title = ("h" + headingLevel) as "h2"
+  const RowHeading = ("h" + (headingLevel + 1)) as "h3"
 
   return (
     <section
@@ -819,9 +897,9 @@ export default function PigmentExperienceLedger({
         {(heading || intro) && (
           <header className="pel-head">
             {heading && (
-              <h2 id={headingId} className="pel-title">
+              <Title id={headingId} className="pel-title">
                 {heading}
-              </h2>
+              </Title>
             )}
             {intro && <p className="pel-intro">{intro}</p>}
           </header>
@@ -865,7 +943,7 @@ export default function PigmentExperienceLedger({
                     }
                   }}
                 />
-                <h3 className="pel-h">
+                <RowHeading className="pel-h">
                   <button
                     type="button"
                     id={btnId}
@@ -874,7 +952,10 @@ export default function PigmentExperienceLedger({
                     aria-controls={panelId}
                     onClick={() => toggle(i)}
                     onFocus={(e) => {
-                      if (e.currentTarget.matches(":focus-visible")) setFocused(i)
+                      if (e.currentTarget.matches(":focus-visible")) {
+                        ensureSmear(i).lastActive = performance.now()
+                        setFocused(i)
+                      }
                     }}
                     onBlur={() => setFocused((f) => (f === i ? null : f))}
                   >
@@ -896,10 +977,17 @@ export default function PigmentExperienceLedger({
                           </span>
                         )}
                       </span>
-                      <span className="pel-role">{it.role}</span>
+                      <span className="pel-role">
+                        {it.logo && (
+                          <span className="pel-logo" aria-hidden="true">
+                            {it.logo}
+                          </span>
+                        )}
+                        {it.role}
+                      </span>
                     </span>
                   </button>
-                </h3>
+                </RowHeading>
                 <div
                   id={panelId}
                   className="pel-panel"

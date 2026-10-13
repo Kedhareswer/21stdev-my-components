@@ -48,3 +48,32 @@ to the page gutter, rotated hue noise, a narrower fringe and a warm tide-line ri
 Dark mode drops the palest stop and caps alpha. The open row steps back to 0.3
 while another row is pointed at. There are per-item `colors` (shown in demo-tide)
 and `labels.tags`. The CTA underline is full width at rest and thickens on hover.
+
+## Round 2: REDO (average 7.2)
+
+| | Score |
+|---|---|
+| Usability | 8 |
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 6 |
+| Install-safety | 9 |
+
+Asked: dark-mode pigment going rust and brown, the tide demo not showing tide, the
+wash crossing the row rules and the body copy, an 800px pointer comet, an outer-glow
+rim, en dashes for years, a logo slot and heading level, a loop that never sleeps,
+the `minHeight` default.
+
+Done: the dark ramp keeps its saturation and has crisp edges. The tide demo opens
+its teal row, Bramble keeps its own colours, and each role has a small mark through
+the new `logo` prop. The envelope stops at the row's hairline and the header band.
+Pointer lean is clamped to the wordmark. Rim thickness is noise-varied, the rim
+alpha is lower and the hue streaks are wider. `headingLevel` was added. The loop
+sleeps 3 s after the last activity, the resize effect is keyed on names, and the
+README documents `minHeight="auto"`. Not done: en dashes. The owner's awwwards skill
+bans em and en dashes in visible text, so year ranges stay hyphenated.
+
+Added for originality: the wash is drawn from the work history. A longer tenure
+paints a longer stroke (`reachOf`), and older roles have drier, paler, grainier
+pigment (`drynessOf`, with granulation only on dark surfaces). Turn it off with
+`ageing={false}`.
