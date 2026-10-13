@@ -88,7 +88,41 @@ Still required: a real product or company a team would ship, real copy, real hie
 functional, responsive at 375 / 768 / 1440, dark mode, accessible. Not conference/event
 templates. Clean and minimal means disciplined, not beige.
 
-## Craft rules (this cloud run has none of the owner's local skills, so they live here)
+## Skills (from the owner's private `kedhar_brain` repo, checked out next to this one)
+
+The owner's skills are what keep this work from looking like AI slop, so use them: they are
+part of the job, not optional reading. Find the checkout first:
+`find / -maxdepth 4 -type d -path "*/agents/skills" 2>/dev/null | head -1` (call it `$S`).
+At each step, read the named skill's `SKILL.md` (and the reference files it points to) with
+the Read tool and apply it. **This brief outranks every skill**: if a skill pushes toward a
+Banned look (warm monochrome, beige editorial, glassmorphism, a stock section order), follow
+the brief. Never follow a skill step that asks the user a question: runs are unattended.
+
+| Step | Skills (under `$S`) |
+|---|---|
+| Idea gate | `design-ui-ux/awwwards` (+ its `references/concepts.md`, `art-direction.md`, `quality-bar.md`), `design-ui-ux/design-taste-frontend`, `frontend-web/frontend-design` |
+| Every build | `21st-dev/21st-create-component`, `design-ui-ux/emil-design-eng` |
+| Motion / interaction | `animation-motion/transitions-dev`, `animation-motion/motion-design`, `animation-motion/oil-motion`, `design-ui-ux/apple-design` |
+| Physical or material pieces | `specialized/physics-simulation`, `frontend-web/3d-web-experience` |
+| Templates | `design-ui-ux/awwwards` (+ `references/typography.md`, `layout.md`, `motion.md`, `content.md`), `design-ui-ux/high-end-visual-design`, `design-ui-ux/visual-design-foundations`; `design-ui-ux/industrial-brutalist-ui` only when the direction is brutalist or terminal |
+| Before the critic | `animation-motion/transitions-polish`, `21st-dev/21st-ui-review`, `design-ui-ux/user-interface-guidelines` (fix what they find first); templates also `design-ui-ux/accessibility-auditor` |
+| Before committing | `testing-quality/verification-before-completion` |
+
+Critic subagents: give each one `$S` and tell it to read `21st-dev/21st-ui-review`,
+`design-ui-ux/user-interface-guidelines` and `design-ui-ux/awwwards/references/quality-bar.md`
+before scoring.
+
+**Limits.** `awwwards`: use it for concept, art direction, type, motion and its quality bar;
+ignore its Next.js/Astro scaffolding, deploy steps, font downloads and picsum photos (a
+21st piece is one `.tsx` file with no off-origin assets), and don't install anything it
+suggests. `transitions-dev` / `transitions-polish`: never paste their `_root.css` (the repo
+bans bare `:root`); put the values you need as CSS variables on the component's own root
+class, adapt rather than paste the library wholesale (its licence forbids redistributing
+it), and skip their CLIs. Leave `transitions-ui-generation` alone unless the idea is about AI
+generation. If the skills checkout is missing, say so in the run summary and fall back on
+the craft rules below.
+
+## Craft rules (the short version, if a skill is unavailable)
 
 - **One point of view.** Build around one idea taken from the subject's own world, not a
   trend. Every static frame is a poster: pause anywhere and type, space and image look
