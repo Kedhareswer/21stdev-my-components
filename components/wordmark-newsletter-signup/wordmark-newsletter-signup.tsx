@@ -174,6 +174,8 @@ export type WordmarkOptions = {
   bandRatio: number
   /** Band only: the tallest the stack may grow. The split with the biggest capitals under it wins. */
   maxHeight?: number
+  /** Band only: cap height ceiling, so a short word cannot grow taller than the name it replaces. */
+  maxCap?: number
 }
 
 /**
@@ -196,17 +198,22 @@ export function layoutWordmark(
   const fit = (lines: string[]) => {
     const n = lines.length
     const wmax = Math.max(1, ...lines.map(measure))
-    const sx = W / wmax
+    let sx = W / wmax
     let ratio = o.bandRatio
     if (o.mode === "fill") {
       const capTarget = (box.h * o.fill) / (n + (n - 1) * o.gap)
       ratio = capTarget / capU / sx
     }
     ratio = clamp(ratio, o.minRatio, o.maxRatio)
-    const cap = sx * ratio * capU
+    let sy = sx * ratio
+    if (o.mode === "band" && o.maxCap && sy * capU > o.maxCap) {
+      sy = o.maxCap / capU
+      sx = Math.min(sx, sy / o.minRatio)
+    }
+    const cap = sy * capU
     // How much of the box the stack covers; the split that fills it wins, then the bigger capitals.
     const cover = Math.min(1, (n * cap + (n - 1) * cap * o.gap) / Math.max(1, box.h * o.fill))
-    return { lines, sx, sy: sx * ratio, cap, cover }
+    return { lines, sx, sy, cap, cover }
   }
   const better = (a: ReturnType<typeof fit>, b: ReturnType<typeof fit>) =>
     a.cover > b.cover + 0.04 || (Math.abs(a.cover - b.cover) <= 0.04 && a.cap > b.cap * 1.04)
@@ -365,12 +372,16 @@ const CSS = `
 .wns-btn { position: relative; appearance: none; width: 100%; min-height: 62px; border: 3px solid var(--k); background: var(--a); color: var(--oa);
   font-family: var(--wns-text); font-weight: 700; font-size: 22px; letter-spacing: 0.01em; text-transform: uppercase; cursor: pointer;
   overflow: hidden; border-radius: 0; transition: transform 120ms ease; }
+.wns-btn::before { content: ""; position: absolute; inset: 0; background: var(--k); clip-path: inset(100% 0 0 0);
+  transition: clip-path 250ms var(--wns-out); }
 .wns-btn:active:not(:disabled) { transform: translateY(2px); }
 .wns-btn:disabled { cursor: progress; }
-.wns-roll { display: block; height: 1.15em; overflow: hidden; line-height: 1.15; }
-.wns-roll span { display: block; transition: transform 380ms var(--wns-out); }
+.wns-roll { position: relative; display: block; height: 1.15em; overflow: hidden; line-height: 1.15; transition: color 200ms ease; }
+.wns-roll span { display: block; transition: transform 250ms var(--wns-out); }
 @media (hover: hover) and (pointer: fine) {
   .wns-btn:hover:not(:disabled) .wns-roll span { transform: translateY(-100%); }
+  .wns-btn:hover:not(:disabled)::before { clip-path: inset(0 0 0 0); }
+  .wns-btn:hover:not(:disabled) .wns-roll { color: var(--a); }
   .wns-chip:hover { background: color-mix(in srgb, var(--k) 10%, transparent); }
   .wns-chip[aria-pressed="true"]:hover { background: var(--k); }
   .wns-link:hover { text-decoration-thickness: 3px; }
@@ -389,10 +400,10 @@ const CSS = `
 .wns-done { text-align: center; display: grid; gap: 14px; justify-items: center; }
 .wns-done p { margin: 0; font-size: 15px; line-height: 1.5; max-width: 34ch; text-wrap: pretty; }
 .wns-done strong { font-weight: 700; word-break: break-all; }
-.wns-link { appearance: none; border: 0; background: none; padding: 6px 2px; color: var(--k); font: inherit; font-size: 12px; font-weight: 700;
+.wns-link { appearance: none; border: 0; background: none; padding: 10px 4px; min-height: 40px; color: var(--k); font: inherit; font-size: 12px; font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; cursor: pointer; }
 .wns-swap { animation: wns-swap 320ms var(--wns-out) both; }
-@keyframes wns-swap { from { opacity: 0; transform: translateY(8px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes wns-swap { from { opacity: 0; transform: translateY(8px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
 
 .wns :focus-visible { outline: 3px solid var(--a); outline-offset: 3px; }
 .wns .wns-input:focus-visible { outline: none; }
@@ -405,18 +416,19 @@ const CSS = `
 .wns-modal { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; overflow-y: auto;
   animation: wns-fade 220ms ease both; }
 .wns-modal[data-closing="true"] { animation: wns-fadeout 170ms ease both; }
-.wns-modal .wns-card { animation: wns-rise 300ms var(--wns-out) 60ms both; }
+.wns-modal .wns-card { animation: wns-rise 250ms var(--wns-out) 60ms both; }
 .wns-modal[data-closing="true"] .wns-card { animation: wns-sink 150ms ease both; }
 @keyframes wns-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes wns-fadeout { from { opacity: 1; } to { opacity: 0; } }
-@keyframes wns-rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
-@keyframes wns-sink { to { opacity: 0; transform: translateY(8px) scale(0.99); } }
+@keyframes wns-rise { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes wns-sink { to { opacity: 0; transform: scale(0.96); } }
 .wns-modal .wns-backdrop { position: fixed; inset: 0; z-index: 0; }
 
 @media (max-width: 639px) {
-  .wns-section { display: block; padding: 0 16px 40px; }
-  .wns-section > .wns-mark { position: relative; inset: auto; margin: 0 -16px; }
-  .wns-section > .wns-card { margin-top: -36px; }
+  .wns-section, .wns-modal { display: flex; flex-direction: column; justify-content: center; place-items: normal; padding: 0 16px 40px; }
+  .wns-modal { justify-content: flex-start; }
+  .wns-section > .wns-mark, .wns-modal > .wns-mark { position: relative; inset: auto; margin: 0 -16px; justify-self: stretch; }
+  .wns-section > .wns-card, .wns-modal > .wns-card { margin-top: -36px; }
 }
 .wns-band { padding: 0 16px clamp(24px, 3vw, 40px); }
 .wns-band .wns-mark { position: relative; inset: auto; margin: 0 -16px; }
@@ -430,7 +442,7 @@ const CSS = `
 .wns-strip .wns-btn:active:not(:disabled) .wns-roll { transform: translateY(2px); }
 .wns-strip .wns-done { grid-column: 1 / -1; padding: 20px; grid-template-columns: auto 1fr auto; text-align: left; align-items: center; }
 .wns-strip .wns-done .wns-h { padding: 0; }
-.wns-under { max-width: 1240px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between;
+.wns-under { max-width: 1240px; min-height: 36px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between;
   color: var(--u); }
 .wns-under .wns-consent { color: inherit; max-width: 640px; }
 .wns-under .wns-proof { text-align: right; }
@@ -444,16 +456,17 @@ const CSS = `
   .wns-under .wns-proof { text-align: left; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .wns-letter, .wns-roll span, .wns-chip, .wns-chip svg, .wns-box::after, .wns-x svg { transition: none !important; }
+  .wns-letter, .wns-roll span, .wns-btn::before, .wns-chip, .wns-chip svg, .wns-box::after, .wns-x svg { transition: none !important; }
   .wns-swap, .wns-modal, .wns-modal .wns-card { animation-duration: 1ms !important; animation-delay: 0ms !important; }
   .wns-btn[aria-busy="true"]::after { animation: none; transform: none; opacity: 0.5; }
 }
 `
 
 const OUT_MS = 300
-const OUT_STAGGER = 28
 const IN_MS = 560
-const IN_STAGGER = 42
+/** Per-letter stagger: 24ms out and 40ms in, shrunk for long words so the whole swap stays short. */
+const outStagger = (n: number) => Math.min(24, 260 / Math.max(1, n))
+const inStagger = (n: number) => Math.min(40, 420 / Math.max(1, n))
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(false)
@@ -494,6 +507,8 @@ function Wordmark(props: {
   uid: string
   /** Phone section: the stack sits in the flow above the card. */
   stack?: boolean
+  /** The brand: in the flow, the swapped word keeps its height. */
+  base: string | string[]
 }) {
   const { text, maxLines, fill, intro, reduced, uid, stack = false } = props
   const mode = stack ? "band" : props.mode
@@ -505,6 +520,7 @@ function Wordmark(props: {
   const [phase, setPhase] = React.useState((intro && !reduced ? "pre" : "rest") as Phase)
   const key = JSON.stringify(text)
   const shownKey = JSON.stringify(shown)
+  const baseKey = JSON.stringify(props.base)
 
   useIsoLayoutEffect(() => {
     const el = wrapRef.current
@@ -534,7 +550,7 @@ function Wordmark(props: {
     }
     const capU = ctx.measureText("H").actualBoundingBoxAscent || 72
     const padX = stack ? 12 : mode === "band" ? 0 : Math.max(12, box.w * 0.022)
-    return layoutWordmark(shown, box, measure, capU, {
+    const opts: WordmarkOptions = {
       maxLines,
       fill,
       minRatio: 1.05,
@@ -545,9 +561,15 @@ function Wordmark(props: {
       mode,
       bandRatio: stack ? 1.75 : 1.6,
       maxHeight: stack ? Math.max(220, window.innerHeight * 0.5) : Math.max(160, box.w * 0.24),
-    })
+    }
+    if (mode !== "band" || shownKey === baseKey) return layoutWordmark(shown, box, measure, capU, opts)
+    // In the flow, the band keeps the name's height so nothing below moves when the word swaps.
+    const base = layoutWordmark(props.base, box, measure, capU, opts)
+    const next = layoutWordmark(shown, box, measure, capU, { ...opts, maxCap: base.cap, maxLines: base.lines.length })
+    const dy = (base.height - next.height) / 2
+    return { ...next, height: base.height, lines: next.lines.map((l) => ({ ...l, y0: l.y0 + dy })) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownKey, box.w, box.h, family, fontsTick, mode, maxLines, fill, stack])
+  }, [shownKey, baseKey, box.w, box.h, family, fontsTick, mode, maxLines, fill, stack])
 
   // A new word: letters drop out, the new ones drop in.
   React.useEffect(() => {
@@ -562,7 +584,7 @@ function Wordmark(props: {
     const t = window.setTimeout(() => {
       setShown(text)
       setPhase("pre")
-    }, OUT_MS + count * OUT_STAGGER)
+    }, OUT_MS + count * outStagger(count))
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, reduced])
@@ -580,12 +602,15 @@ function Wordmark(props: {
     }
     if (phase === "in" && layout) {
       const count = layout.lines.reduce((n, l) => n + l.text.replace(/ /g, "").length, 0)
-      const t = window.setTimeout(() => setPhase("rest"), IN_MS + count * IN_STAGGER + 40)
+      const t = window.setTimeout(() => setPhase("rest"), IN_MS + count * inStagger(count) + 40)
       return () => window.clearTimeout(t)
     }
   }, [phase, layout])
 
   const order = layout ? letterOrder(layout.lines.map((l) => l.text)) : []
+  const letters = order.reduce((n, l) => n + l.filter((k) => k >= 0).length, 0)
+  const outS = outStagger(letters)
+  const inS = inStagger(letters)
   const height = mode === "band" ? (layout ? layout.height : 0) : undefined
 
   return (
@@ -614,7 +639,7 @@ function Wordmark(props: {
                         {
                           "--drop": layout.capU * 1.32 + "px",
                           transitionDelay:
-                            phase === "out" ? order[li][i] * OUT_STAGGER + "ms" : phase === "in" ? order[li][i] * IN_STAGGER + "ms" : undefined,
+                            phase === "out" ? order[li][i] * outS + "ms" : phase === "in" ? order[li][i] * inS + "ms" : undefined,
                         } as React.CSSProperties
                       }
                     >
@@ -977,7 +1002,7 @@ export default function WordmarkNewsletterSignup({
     return (
       <section className={"wns wns-band" + (className ? " " + className : "")} aria-label={ariaLabel} {...common}>
         <style>{CSS}</style>
-        <Wordmark text={markText} mode="band" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} />
+        <Wordmark text={markText} base={brand} mode="band" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} />
         <form className="wns-strip" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
           {done ? (
             <div className="wns-done wns-swap">
@@ -999,13 +1024,11 @@ export default function WordmarkNewsletterSignup({
             </>
           )}
         </form>
-        {!done && (
-          <div className="wns-under">
-            {consentRow}
-            {statusLine}
-            {proof ? <p className="wns-proof">{proof}</p> : null}
-          </div>
-        )}
+        <div className="wns-under">
+          {done ? <span /> : consentRow}
+          {done ? null : statusLine}
+          {proof ? <p className="wns-proof">{proof}</p> : null}
+        </div>
       </section>
     )
   }
@@ -1024,7 +1047,7 @@ export default function WordmarkNewsletterSignup({
       >
         <style>{CSS}</style>
         <div className="wns-backdrop" onClick={requestClose} />
-        <Wordmark text={markText} mode="fill" maxLines={maxLines} fill={fill} intro={true} reduced={reduced} uid={uid} />
+        <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} fill={fill} intro={true} reduced={reduced} uid={uid} stack={narrow} />
         {card}
       </div>,
       document.body,
@@ -1039,7 +1062,7 @@ export default function WordmarkNewsletterSignup({
       style={{ ...common.style, minHeight: height }}
     >
       <style>{CSS}</style>
-      <Wordmark text={markText} mode="fill" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} stack={narrow} />
+      <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} stack={narrow} />
       {image && photoOk ? (
         <div className="wns-photo">
           <img src={image.src} alt={image.alt} width={600} height={750} loading="lazy" onError={() => setPhotoOk(false)} />
