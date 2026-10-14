@@ -41,6 +41,10 @@ for (const row of t) {
   assert.ok(v[0] <= v[1] && v[1] <= v[2], "dark to light")
 }
 
+assert.equal(m.mixHex("#000000", "#ffffff", 0.5), "#808080")
+assert.equal(m.mixHex("#ff0000", "#0000ff", 0), "#ff0000")
+assert.equal(m.mixHex("#ff0000", "#0000ff", 1), "#0000ff")
+
 assert.equal(m.initials("Graham Whitlock"), "GW")
 assert.equal(m.initials("  cher "), "C")
 assert.equal(m.initials(""), "?")
@@ -111,6 +115,12 @@ assert.match(css, /@media \(hover:hover\) and \(pointer:fine\)/, "hover effects 
 // Repeated portraits are hidden from assistive tech and the tab order.
 assert.match(src, /tabIndex=\{hidden \? -1 : 0\}/)
 assert.match(src, /aria-hidden=\{hidden \? true : undefined\}/)
+
+// Every built-in string can be replaced; the card is a disclosure button, not a focusable article.
+for (const k of ["pause", "play", "team", "openRole", "hiring", "roleLink", "memberLink"]) assert.match(src, new RegExp("\\b" + k + ": \""), "label " + k)
+assert.match(src, /className="dtr-hit"[\s\S]{0,200}aria-expanded=/, "portrait opens through a button with aria-expanded")
+assert.doesNotMatch(src, /<article/, "no focusable article")
+assert.doesNotMatch(src, /visibility: titleSize/, "first paint is never hidden")
 
 // Only Unsplash is used as an image host; no web fonts.
 const hosts = new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)\//g)].map((x) => x[1]))

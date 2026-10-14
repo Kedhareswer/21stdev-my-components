@@ -65,3 +65,38 @@ on images, and scoped CSS.
   The `21st review` CLI was not run, because no 21st sign-in is allowed in these runs.
 
 ## Critic rounds
+
+### Round 1 (fresh critic): REDO, average 6.8
+
+Scores: usability 7, idea 7, craft 6, originality 6, install-safety 8 (templates N/A).
+
+Banned looks: passes. One risk was flagged: the cobalt preset's soft radial glow sits close to a
+stock blue gradient hero.
+
+Changes asked for, most important first:
+
+1. The open card hides the face. Cap the panel, pan the photo up and bring colour fully back.
+2. The tritone crushes dark subjects. Soften the curve, lift the shadow end and add a per-member
+   exposure.
+3. Re-home Pause to the wall corner, styled as a chip. It wrapped to an orphan line at 768 and
+   375.
+4. The open-role panel slices "You?" in half.
+5. Poster energy: let the headline run into the portrait wall, and give the field a hard-edged
+   shaped light instead of a blob.
+6. The keyboard nudge offset is never reset.
+7. UI strings should be props (`labels`).
+8. A mouse click on a card does nothing.
+9. Semantics: use a disclosure button with `aria-expanded` instead of a focusable article.
+10. First paint: no `visibility: hidden`, and use an isomorphic layout effect.
+11. The phone strip shows a card sliver at its left edge.
+
+All eleven changes were made. The card is now a `<button aria-expanded>` disclosure with the link
+as a sibling. The panel is capped and the bio clamped to two lines (hidden when the card is
+narrower than 230px). The photo pans up and the colour returns fully. The tritone curve was
+softened and its shadow end mixed 40% toward the field, and `exposure` was added per member.
+Pause is now a chip in the wall's corner, or under the strip on phones. The open-role "You?" mark
+moves up out of the panel's way. The widest headline line overhangs about 18% into the wall.
+A hard-edged dark arc was added to the field. The keyboard nudge eases back on blur, the strings
+moved into `labels`, a mouse click follows the person's link, the title has a CSS fallback size
+instead of `visibility: hidden`, the layout effect is isomorphic, and the phone strip has a 20px
+inset.
