@@ -131,3 +131,56 @@ Every change the critic asked for was made:
    name" block in the slab colour.
 8. **Two-day schedules.** Slots and blocks are capped at 176 and 190 px and
    centred.
+
+## Round 3: REDO (average 7.6; nothing below 7)
+
+| | Score |
+|---|---|
+| Usability | 8 |
+| Idea | 7 |
+| Craft | 7 |
+| Originality | 7 |
+| Install safety | 9 |
+
+The critic found the postmark theme carried through, with keyboard focus,
+`loadHostBusy`, `loadVisitorEvents`, `onBook` errors and `.ics` all working. It
+held the average below 8 because frame one still follows the SavvyCal hero
+composition, and it listed fixes.
+
+This was the third and last critic round, so the piece goes to
+`claude/review-open-slot-booking` for the owner to judge.
+
+These fixes from that list were made after the round, and were checked in
+screenshots only (no fresh critic):
+
+1. The display stack is neutral and heavy (Inter Display, SF Pro Display, Segoe
+   UI Variable). It no longer falls back to Arial Rounded faked to bold.
+   Rounded faces are still available through `fontFamily`.
+2. A block's title is a tab on its top edge, so no clashing slot is hidden
+   under it.
+3. Busy, booked and block labels stick to the top edge of the scroll area, so
+   fragments at the edge keep their label.
+4. A tablet keeps the grid (the compact cutoff dropped from 760 to 600 px). Day
+   chips are capped at 88 px and the phone list flows.
+5. Roving tabindex: the grid is one Tab stop, and the arrow keys work on the
+   phone list too. Focus gets an inset ring, so it no longer looks the same as
+   hover.
+6. The phone calendar switch has a visible "My calendar" label, in the row with
+   the visitor's events.
+7. A 45-minute call's tail is opaque and sits above the slot it would take.
+8. The phone tiles drop the side notches (they lined up into "rivets"). The
+   perforation stays.
+
+Not done:
+
+- A light window. It needs every window colour derived from `osbInk(window)`.
+  This is noted in the README.
+- Bringing the postmark further into frame one beyond the ticket slots and the
+  stamped today.
+
+## Verdict
+
+**REDO after 3 rounds (7.2 → 7.2 → 7.6)**, so the piece moves to
+`claude/review-open-slot-booking`. Usability holds at 8, and craft, idea and
+originality at 7. What keeps it from SHIP is how close its composition is to the
+reference.
