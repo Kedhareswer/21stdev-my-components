@@ -302,6 +302,7 @@ const GLYPHS: { [ch: string]: GDef } = {
   "-": { w: 80, l: [go([8, 104], [72, 104])] },
   "+": { w: 100, l: [go([10, 104], [90, 104]), go([50, 64], [50, 144])] },
   "/": { w: 80, l: [go([2, 214], [78, -14])] },
+  "?": { w: 92, l: [go([4, 15], [77, 15], [77, 100], [40, 100, 0], [40, 142]), go([25, 185], [55, 185])] },
   "!": { w: 40, l: [go([20, 0], [20, 140]), go([5, 185], [35, 185])] },
   "€": { w: 104, l: [go([92, 52], [92, 15], [26, 15], [26, 185], [92, 185], [92, 148]), go([0, 80], [64, 80]), go([0, 122], [64, 122])] },
   "$": { w: 100, l: [go([100, 30], [15, 30], [15, 100], [85, 100], [85, 170], [0, 170]), go([50, 0], [50, 200])] },
@@ -787,7 +788,6 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
   const r = () => rnd()
   const a: React.ReactNode[] = []
   const b: React.ReactNode[] = []
-  let labelInA = false
   let knockLabel = false
   if (art === "rings") {
     const cx = 230 + r() * 110
@@ -816,7 +816,6 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
       }
     const ch = Array.from(show.title.replace(/[^A-Za-z0-9]/g, ""))[0] || "K"
     b.push(<path key="big" d={glyphPath(ch, 0)} transform={"translate(" + fx(150 + r() * 40) + " " + fx(96 + r() * 30) + ") scale(1.62)"} fill="none" stroke="currentColor" strokeWidth={GSW} />)
-    labelInA = true
   } else if (art === "stripes") {
     let y = 200 + r() * 30
     let th = 22
@@ -834,26 +833,19 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
     b.push(<polygon key="band" points={"0," + fx(400 - k + 300) + " " + fx(k + 260) + ",0 " + fx(k + 360) + ",0 0," + fx(400 - k + 400)} fill="currentColor" />)
     b.push(<circle key="dot" cx={fx(60 + r() * 280)} cy={fx(250 + r() * 100)} r={34} fill="currentColor" />)
   }
-  const name = (label || show.title).toUpperCase()
+  const name = (label === undefined ? show.title : label).toUpperCase()
   const lay = layoutText(name)
   const sc = Math.min(0.24, 330 / Math.max(1, lay.width))
-  const labelPath = (
-    <path
-      d={lay.items.map((it) => glyphPath(it.ch, it.x)).join("")}
-      transform={"translate(30 76) scale(" + fx(sc) + ")"}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={GSW}
-      clipPath={"url(#" + id + "c)"}
-    />
-  )
+  const labelD = lay.items.map((it) => glyphPath(it.ch, it.x)).join("")
+  const labelAt = "translate(30 76) scale(" + fx(sc) + ")"
+  const labelPath = <path d={labelD} transform={labelAt} fill="none" stroke="currentColor" strokeWidth={GSW} clipPath={"url(#" + id + "c)"} />
   return (
     <span className={"cr-cover " + (className || "")}>
       <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" role={alt ? "img" : undefined} aria-label={alt} aria-hidden={alt ? undefined : true} focusable="false">
         <defs>
           <filter id={id + "g"} x="0" y="0" width="1" height="1">
             <feTurbulence type="fractalNoise" baseFrequency="1.15" numOctaves={2} seed={seedOf(seed) % 97} result="n" />
-            <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -5 3.45" result="m" />
+            <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -7 5.15" result="m" />
             <feComposite in="SourceGraphic" in2="m" operator="in" />
           </filter>
           <clipPath id={id + "c"} clipPathUnits="userSpaceOnUse">
@@ -865,13 +857,20 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
         <rect className="cr-paperfill" width={400} height={400} />
         <g className="cr-plate cr-pa" style={{ color: ink[0] }} filter={"url(#" + id + "g)"}>
           {a}
-          {labelInA ? labelPath : null}
         </g>
         <g className="cr-plate cr-pb" style={{ color: ink[1] }} filter={"url(#" + id + "g)"}>
           {b}
-          {!labelInA && !knockLabel ? labelPath : null}
         </g>
-        {knockLabel ? <g className="cr-knocklabel">{labelPath}</g> : null}
+        {!name.trim() ? null : knockLabel ? (
+          <g className="cr-knocklabel">{labelPath}</g>
+        ) : (
+          <>
+            <path className="cr-labelknock" d={labelD} transform={labelAt} fill="none" strokeWidth={GSW + 28} strokeLinejoin="round" />
+            <g className="cr-plate" style={{ color: ink[1] }}>
+              {labelPath}
+            </g>
+          </>
+        )}
       </svg>
     </span>
   )
@@ -994,7 +993,7 @@ const CR_CSS = `
 .cr-tagline{font-size:15px;line-height:1.45;color:var(--cr-muted);max-width:30ch}
 .cr-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .cr-kicker .cr-mono{font-weight:600;color:var(--cr-muted);letter-spacing:0;text-transform:none;font-size:12px}
-.cr-cover-wrap{position:relative;justify-self:end;width:100%;height:clamp(260px,calc(var(--cr-hh) - 390px),640px);border-radius:var(--cr-r);overflow:hidden;background:var(--cr-panel)}
+.cr-cover-wrap{position:relative;justify-self:end;width:100%;height:clamp(260px,calc(var(--cr-hh) - 345px),640px);border-radius:var(--cr-r);overflow:hidden;background:var(--cr-panel)}
 .cr-cover{position:relative;display:block;width:100%;height:100%;overflow:hidden;background:var(--cr-paper)}
 .cr-cover svg,.cr-cover img{position:absolute;inset:0;width:100%;height:100%;display:block;max-width:none;object-fit:cover}
 .cr-paperfill{fill:var(--cr-paper)}
@@ -1002,6 +1001,7 @@ const CR_CSS = `
 .cr-pb{transform:translate(2.5px,-2px);transition:transform .5s var(--cr-ease)}
 .cr-pa{transition:transform .5s var(--cr-ease)}
 .cr-knocklabel{color:var(--cr-paper)}
+.cr-labelknock{stroke:var(--cr-paper)}
 .cr-ftitle{position:relative;z-index:2;margin-top:-.62em;font-size:clamp(46px,6vw,98px);min-height:1em}
 .cr-ftitle .cr-glyphs{color:var(--cr-ink)}
 .cr-fmeta{display:grid;grid-template-columns:minmax(0,25fr) minmax(0,75fr);column-gap:var(--cr-gut);margin-top:16px}
@@ -1071,7 +1071,7 @@ const CR_CSS = `
 .cr-ways{border-top:1px solid var(--cr-line);border-bottom:1px solid var(--cr-line);padding:0 var(--cr-pad);display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 .cr-way{display:flex;flex-direction:column;gap:12px;padding:clamp(24px,3vw,40px) clamp(16px,2vw,28px) clamp(24px,3vw,40px) 0}
 .cr-way+.cr-way{border-left:1px solid var(--cr-line);padding-left:clamp(16px,2vw,28px)}
-.cr-way .cr-way-v{display:flex;align-items:flex-end;gap:10px;font-size:clamp(34px,3.4vw,54px);flex-wrap:wrap}
+.cr-way .cr-way-v{color:var(--cr-ink);display:flex;align-items:flex-end;gap:10px;font-size:clamp(34px,3.4vw,54px);flex-wrap:wrap}
 .cr-way-u{font-family:var(--cr-mono);font-size:12px;font-weight:700;color:var(--cr-tally);text-transform:uppercase;letter-spacing:.04em;line-height:1;padding-bottom:2px}
 .cr-way p{font-size:15px;color:var(--cr-muted);max-width:30ch}
 
@@ -1104,7 +1104,8 @@ const CR_CSS = `
 .cr-ep[data-shape="wide"]{grid-column:span 2;flex-direction:row;align-items:center}
 .cr-ep[data-shape="full"]{grid-column:span 4;flex-direction:row;align-items:center}
 .cr-ep-art{position:relative;aspect-ratio:1;border-radius:var(--cr-r);overflow:hidden;background:var(--cr-paper)}
-.cr-ep[data-shape="wide"] .cr-ep-art,.cr-ep[data-shape="full"] .cr-ep-art{width:min(44%,190px);flex:none}
+.cr-ep[data-shape="wide"] .cr-ep-art,.cr-ep[data-shape="full"] .cr-ep-art{width:min(46%,250px);flex:none}
+.cr-ep[data-shape="wide"],.cr-ep[data-shape="full"]{gap:20px}
 .cr-ep-art .cr-cover{position:absolute;inset:0}
 .cr-ep-play{position:absolute;left:12px;bottom:12px;width:48px;height:48px;border-radius:var(--cr-r);background:var(--cr-ink);color:var(--cr-ground);display:grid;place-items:center;transition:transform .2s var(--cr-ease),background-color .2s var(--cr-ease),color .2s var(--cr-ease)}
 .cr-ep[data-shape="big"] .cr-ep-play{width:60px;height:60px;left:16px;bottom:16px}
@@ -1207,6 +1208,11 @@ const CR_CSS = `
 .cr-mast-in{position:sticky;top:calc(var(--cr-nav) + 24px);inset:auto;padding:24px 0}
 .cr-mast .cr-meter[data-v]{width:100%;height:auto}
 .cr-cover-wrap{max-width:none;height:auto;aspect-ratio:4/3}
+.cr-ftitle{font-size:clamp(46px,8vw,98px)}
+.cr-stage{grid-template-columns:1fr}
+.cr-aside{flex-direction:row;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:16px}
+.cr-tagline{max-width:46ch}
+.cr-kicker{flex:none}
 .cr-feature{padding:24px 0 32px}
 .cr-rail{grid-column:2;border-left:0;border-top:1px solid var(--cr-line);padding:0 0 32px;overflow:visible}
 .cr-rail-h{position:static}
@@ -1267,6 +1273,7 @@ const CR_CSS = `
 .cr-mark span{display:none}
 .cr-foot-grid{grid-template-columns:1fr}
 .cr-news-row{flex-direction:column}
+.cr-input{flex:none}
 .cr-dock-in{gap:10px;padding:8px 8px 8px 12px}
 .cr-dock .cr-meter{height:22px}
 .cr-dock .cr-quiet{display:none}
@@ -1808,7 +1815,7 @@ export default function CallsignRadioLanding({
               </p>
             </div>
             <div className="cr-cover-wrap">
-              <Cover show={fshow} seed="hero" image={fshow.image} alt={"Artwork for " + fshow.title} />
+              <Cover show={fshow} seed="hero" image={fshow.image} label="" alt={"Artwork for " + fshow.title} />
             </div>
           </div>
           <h2 className="cr-ftitle">
@@ -1967,11 +1974,15 @@ export default function CallsignRadioLanding({
       {RS && residentShows.length ? (
         <section className="cr-sec cr-res" data-sec="residents" aria-labelledby={uid + "-res"} ref={resRef}>
           <div className="cr-sec-h cr-rv">
-            <h2 className="cr-h2" id={uid + "-res"}>
-              <span className="cr-sr">{RS.title}</span>
-              <Glyphs text={RS.title} />
-            </h2>
-            <p className="cr-sec-t">{RS.text}</p>
+            <div>
+              <h2 className="cr-h2" id={uid + "-res"}>
+                <span className="cr-sr">{RS.title}</span>
+                <Glyphs text={RS.title} />
+              </h2>
+              <p className="cr-sec-t" style={{ marginTop: 14 }}>
+                {RS.text}
+              </p>
+            </div>
           </div>
           <div className="cr-peek" ref={peekRef} data-on={peek >= 0 ? "" : undefined} aria-hidden="true">
             {residentShows.map((s, i) => (
@@ -1985,7 +1996,7 @@ export default function CallsignRadioLanding({
               <li key={s.id}>
                 <a className="cr-res-row" href={s.href || "#archive"} onClick={s.href ? undefined : go("#archive")} onPointerEnter={(e) => e.pointerType === "mouse" && setPeek(i)} onFocus={() => setPeek(-1)}>
                   <span className="cr-res-thumb" aria-hidden="true">
-                    <Cover show={s} seed="thumb" image={s.image} />
+                    <Cover show={s} seed="thumb" image={s.image} label="" />
                   </span>
                   <span className="cr-res-mid">
                     <span className="cr-res-t">
