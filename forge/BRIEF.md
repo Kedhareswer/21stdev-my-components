@@ -232,7 +232,9 @@ the craft rules below.
    pieces it scored 4–6). Whatever the verdict, the piece stays on GitHub:
    - SHIP → `claude/<slug>`
    - anything else → `claude/review-<slug>` (`git push origin claude/<slug>:claude/review-<slug>`,
-     then `git push origin --delete claude/<slug>`).
+     then **you must** `git push origin --delete claude/<slug>` and check with
+     `git ls-remote --heads origin` that only one of the two is left; every recent run
+     left both, which doubles the owner's review list).
    Every round's scores and verdict go in `media/<slug>/review.md`, committed with it.
 7. **Finish:** `npm run check` and `node tests/<slug>.test.mjs` must pass. Add the
    tsconfig path line, the README and `media/<slug>/thumb.webp` (640×400 from a
