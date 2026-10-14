@@ -481,7 +481,7 @@ const CSS = `
 .osb-hour{position:absolute;right:10px;transform:translateY(-50%);font-size:11px;color:var(--osb-win-faint);white-space:nowrap}
 .osb-lines{position:absolute;inset:0 0 0 52px;pointer-events:none}
 .osb-lines i{position:absolute;left:0;right:0;height:1px;background:var(--osb-win-line)}
-.osb-col{position:relative;border-left:1px solid var(--osb-win-line);animation:osb-col-in .42s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--c) * 32ms)}
+.osb-col{position:relative;border-left:1px solid var(--osb-win-line);animation:osb-col-in .3s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--c) * 30ms)}
 .osb-col[data-past=true]{background:repeating-linear-gradient(135deg,transparent 0 9px,rgba(238,241,248,.025) 9px 10px)}
 .osb-slot{position:absolute;left:5px;right:5px;z-index:2;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid rgba(238,241,248,.16);background:rgba(238,241,248,.06);font-size:12.5px;font-weight:600;color:var(--osb-win-ink);white-space:nowrap;overflow:visible;
   transition:background-color .18s ease,border-color .18s ease,color .18s ease,opacity .24s ease,transform .16s ease;transition-delay:0s,0s,0s,calc(var(--i,0) * 22ms),0s}
@@ -501,11 +501,12 @@ const CSS = `
 .osb-gone{position:absolute;left:50%;width:14px;height:2px;margin-left:-7px;border-radius:2px;background:rgba(238,241,248,.14)}
 .osb-block{position:absolute;left:3px;right:3px;z-index:1;border-radius:9px;border:1px dashed rgba(238,241,248,.28);
   background:repeating-linear-gradient(135deg,rgba(238,241,248,.13) 0 1.5px,transparent 1.5px 7px),color-mix(in srgb,var(--osb-window) 70%,#ffffff 4%);
-  padding:5px 7px;overflow:hidden;animation:osb-wipe .38s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 45ms)}
+  padding:5px 7px;overflow:hidden;animation:osb-wipe .3s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 40ms)}
 .osb-block span{display:block;font-size:10.5px;font-weight:650;line-height:1.25;color:var(--osb-win-muted);background:var(--osb-window);border-radius:4px;padding:1px 4px;width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .osb-now{position:absolute;left:-1px;right:0;height:2px;z-index:4;background:var(--osb-slab);pointer-events:none}
 .osb-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--osb-slab)}
 .osb-empty{padding:42px 20px;text-align:center;font-size:14px;color:var(--osb-win-muted)}
+.osb-none{position:absolute;inset:0;z-index:5;display:grid;place-items:center;align-content:center;gap:12px;text-align:center;font-size:14px;color:var(--osb-win-muted);background:color-mix(in srgb,var(--osb-window) 60%,transparent)}
 .osb-legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:12px;color:var(--osb-win-faint)}
 .osb-legend span{display:inline-flex;align-items:center;gap:7px}
 .osb-legend i{width:16px;height:10px;border-radius:3px;border:1px solid rgba(238,241,248,.22);background:rgba(238,241,248,.06)}
@@ -574,7 +575,7 @@ const CSS = `
 .osb-chip[aria-pressed=true] b{color:var(--osb-action-ink)}
 .osb-chip[aria-pressed=true] i{background:var(--osb-action-ink)}
 .osb-chip:active:not(:disabled){transform:scale(.96)}
-.osb-list{margin-top:14px;min-height:180px;touch-action:pan-y;animation:osb-list-in .32s cubic-bezier(.22,1,.36,1) both}
+.osb-list{margin-top:14px;min-height:180px;touch-action:pan-y;animation:osb-list-in .25s cubic-bezier(.22,1,.36,1) both}
 .osb-list-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .osb-list .osb-slot{position:relative;left:auto;right:auto;height:44px;font-size:14px}
 .osb-list .osb-slot .osb-end{display:none}
@@ -591,8 +592,8 @@ const CSS = `
 
 @keyframes osb-rise{from{opacity:0;transform:translateY(14px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
 @keyframes osb-settle{from{transform:rotate(0deg) translateY(10px)}to{transform:rotate(-2deg)}}
-@keyframes osb-col-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 18px))}to{opacity:1;transform:none}}
-@keyframes osb-list-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 14px))}to{opacity:1;transform:none}}
+@keyframes osb-col-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 8px));filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@keyframes osb-list-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 8px));filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
 @keyframes osb-wipe{from{clip-path:inset(0 0 100% 0 round 9px)}to{clip-path:inset(0 0 0 0 round 9px)}}
 @keyframes osb-fade{from{opacity:0}to{opacity:1}}
 @keyframes osb-spin{to{transform:rotate(360deg)}}
@@ -965,10 +966,10 @@ export default function OpenSlotBooking({
           { transform: "translate(" + dx + "px," + dy + "px) scale(" + from.width / to.width + "," + from.height / to.height + ")", opacity: 0.6 },
           { transform: "none", opacity: 1 },
         ],
-        { duration: 320, easing: EASE },
+        { duration: 280, easing: EASE },
       )
       const inner = card.firstElementChild as HTMLElement | null
-      inner?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: 320, easing: "ease-out" })
+      inner?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: 280, easing: "ease-out" })
     }
     card.querySelector("input")?.focus({ preventScroll: true })
     const r = card.getBoundingClientRect()
@@ -1571,6 +1572,16 @@ export default function OpenSlotBooking({
                         })}
                       </div>
                     </div>
+                    {!slots.some((s) => s.state === "open") && (
+                      <div className="osb-none">
+                        No open slots this week.
+                        {weekKey < lastWeek && (
+                          <button type="button" className="osb-btn" onClick={() => goWeek(weekKey + 7)}>
+                            See next week
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
