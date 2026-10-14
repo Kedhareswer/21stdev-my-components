@@ -142,6 +142,11 @@
       "@/components/ui/distressed-denim": ["./components/distressed-denim/distressed-denim.tsx"],
       "@/components/ui/hoarfrost-pane": ["./components/hoarfrost-pane/hoarfrost-pane.tsx"],
       "@/components/ui/raked-sand-garden": ["./components/raked-sand-garden/raked-sand-garden.tsx"],
+      "@/components/ui/checker-quilt-testimonials": ["./components/checker-quilt-testimonials/checker-quilt-testimonials.tsx"],
+      "@/components/ui/hitch-cargo-landing": ["./components/hitch-cargo-landing/hitch-cargo-landing.tsx"],
+      "@/components/ui/open-slot-booking": ["./components/open-slot-booking/open-slot-booking.tsx"],
+      "@/components/ui/pigment-experience-ledger": ["./components/pigment-experience-ledger/pigment-experience-ledger.tsx"],
+      "@/components/ui/loyly-sauna-landing": ["./components/loyly-sauna-landing/loyly-sauna-landing.tsx"],
       "@/components/ui/galaxy-starfield": ["./components/galaxy-starfield/galaxy-starfield.tsx"]
     }
   },
