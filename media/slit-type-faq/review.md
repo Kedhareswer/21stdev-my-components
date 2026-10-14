@@ -68,3 +68,32 @@ Findings and what changed:
 9. `Arial Black` added before Arial so Windows keeps the headline's weight.
 10. Controlled `open`, `idPrefix` for two FAQs on one page, and `minHeight` now defaults to 0
     (the section sizes to its questions).
+
+## Round 2 (fresh critic): SHIP, with no margin
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea / reference feel | 8 |
+| (b) craft | 8 |
+| (c) originality | 7 |
+| (d) install-safety | 9 |
+| average | 8.0 |
+
+The critic passed it and listed non-blocking polish. Two items were real defects, so all of them
+went in before a third check:
+
+1. The ticker only paused on mouse hover (fails WCAG 2.2.2). It now pauses on keyboard focus
+   and has its own pause button; screen readers get the phrases once, as text.
+2. The "All" chip undercounted when some questions had no category. It now counts every
+   question matching the search.
+3. At 375 px the cut headline read as a thin strip. Containers under 560 px cut a little
+   shallower (0.86 of the depth), the shallowest depth tested that leaves no S slivers.
+4. The ticker's fade mask also faded its rules. The mask moved to an inner wrapper, so the
+   rules run crisp edge to edge.
+5. The open row's left column held only "Copy link". The answer and its tools now sit
+   together in the column aligned with the search field.
+6. The cobalt demo's hand-written `answerText` differed from the rendered copy, so it was
+   removed (the text is extracted from the node).
+7. Font stack: Inter, then the system UI face (SF Pro / Segoe UI both have a 900), then
+   Helvetica Neue and Arial, so the headline keeps its weight off Linux too.

@@ -372,10 +372,14 @@ const css = `
   margin-top: -0.06em;
 }
 .stf-title[data-slit="true"] { cursor: default; }
+.stf-title { --stf-cut-k: 1; }
+@container (max-width: 560px) {
+  .stf-title { --stf-cut-k: 0.86; }
+}
 .stf-word { display: inline-block; white-space: nowrap; }
 .stf-ch {
   display: inline-block;
-  transform: translateY(var(--stf-cut));
+  transform: translateY(calc(var(--stf-cut) * var(--stf-cut-k)));
   transition: transform 820ms var(--stf-ease-out);
   transition-delay: min(calc(var(--i) * 26ms), 420ms);
 }
@@ -402,11 +406,38 @@ const css = `
   letter-spacing: 0.02em;
   text-transform: uppercase;
   padding: 0.55em 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stf-ticker-mask {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
+.stf-ticker-toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--k);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.stf-ticker-toggle svg { width: 14px; height: 14px; }
+.stf-ticker-toggle:hover { background: var(--k); color: var(--o); }
+.stf-ticker-toggle:focus-visible { outline: 2px solid var(--k); outline-offset: 2px; }
 .stf-ticker-track { display: inline-flex; animation: stf-ticker 38s linear infinite; }
-.stf-ticker:hover .stf-ticker-track { animation-play-state: paused; }
+.stf-ticker:hover .stf-ticker-track,
+.stf-ticker:focus-within .stf-ticker-track,
+.stf-ticker[data-paused="true"] .stf-ticker-track { animation-play-state: paused; }
 .stf-ticker-run { display: inline-flex; flex: none; }
 .stf-ticker-run span { padding: 0 0.9em; }
 .stf-ticker-run span::after { content: ""; display: inline-block; width: 0.38em; height: 0.38em; border-radius: 50%; background: var(--k); margin-left: 1.8em; vertical-align: 0.14em; }
@@ -648,9 +679,9 @@ const css = `
 }
 .stf-copy:focus-visible { outline: 2px solid var(--o); outline-offset: 3px; }
 @container (min-width: 760px) {
-  .stf-answer { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 48px; }
-  .stf-tools { order: 0; }
-  .stf-text { order: 1; }
+  .stf-answer { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 48px; row-gap: 20px; }
+  .stf-text,
+  .stf-tools { grid-column: 2; }
 }
 
 .stf-empty { padding: clamp(28px, 4cqi, 56px) 0; border-top: var(--stf-rule) solid var(--k); }
@@ -703,8 +734,9 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .stf-ch,
-  .stf[data-intro="pending"] .stf-ch { transform: translateY(var(--stf-cut)); transition: none; }
+  .stf[data-intro="pending"] .stf-ch { transform: translateY(calc(var(--stf-cut) * var(--stf-cut-k))); transition: none; }
   .stf-ticker-track { animation: none; }
+  .stf-ticker-toggle { display: none; }
   .stf-fill,
   .stf-row--inv,
   .stf-panel,
@@ -767,8 +799,8 @@ export default function SlitTypeFaq({
   copyLinks = true,
   syncHash = false,
   minHeight = 0,
-  displayFont = '"Helvetica Neue", Helvetica, "Inter Display", Inter, "Arial Black", Arial, sans-serif',
-  textFont = '"Helvetica Neue", Helvetica, Inter, Arial, system-ui, sans-serif',
+  displayFont = '"Inter Display", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Arial Black", Arial, sans-serif',
+  textFont = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
   onOpenChange,
   ariaLabel,
   className,
@@ -807,6 +839,7 @@ export default function SlitTypeFaq({
   const [query, setQuery] = React.useState("")
   const [category, setCategory] = React.useState(null as string | null)
   const [copied, setCopied] = React.useState(null as string | null)
+  const [tickerPaused, setTickerPaused] = React.useState(false)
   const [introState, setIntroState] = React.useState("pending" as "pending" | "done")
 
   const reduced = React.useCallback(
@@ -931,6 +964,8 @@ export default function SlitTypeFaq({
     return out
   }, [items, texts, query])
 
+  const allCount = texts.filter((t) => matches(t, query)).length
+
   const visible = items
     .map((it, i) => ({ it, i, id: ids[i] }))
     .filter(({ it, i }) => (!category || it.category === category) && matches(texts[i], query))
@@ -982,16 +1017,36 @@ export default function SlitTypeFaq({
         {headline ? <Headline text={headline} id={uid + "-h"} slit={cut > 0} /> : null}
 
         {ticker && ticker.length ? (
-          <div className="stf-ticker" aria-label={ticker.join(", ")} role="note">
-            <div className="stf-ticker-track" aria-hidden="true">
-              {[0, 1].map((copy) => (
-                <div className="stf-ticker-run" key={copy}>
-                  {[...ticker, ...ticker].map((t, k) => (
-                    <span key={k}>{t}</span>
-                  ))}
-                </div>
-              ))}
+          <div className="stf-ticker" data-paused={tickerPaused ? "true" : "false"}>
+            <p className="stf-sr">{ticker.join(". ")}</p>
+            <div className="stf-ticker-mask" aria-hidden="true">
+              <div className="stf-ticker-track">
+                {[0, 1].map((copy) => (
+                  <div className="stf-ticker-run" key={copy}>
+                    {[...ticker, ...ticker].map((t, k) => (
+                      <span key={k}>{t}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
+            <button
+              type="button"
+              className="stf-ticker-toggle"
+              aria-label={tickerPaused ? "Play the moving line" : "Pause the moving line"}
+              aria-pressed={tickerPaused}
+              onClick={() => setTickerPaused((v) => !v)}
+            >
+              {tickerPaused ? (
+                <svg viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M3.5 2v10l8.5-5z" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M3 2h3v10H3zM8 2h3v10H8z" fill="currentColor" />
+                </svg>
+              )}
+            </button>
           </div>
         ) : null}
 
@@ -1043,7 +1098,7 @@ export default function SlitTypeFaq({
           <ul className="stf-chips" aria-label="Filter by topic">
             <li>
               <button type="button" className="stf-chip" aria-pressed={category === null} onClick={() => setCategory(null)}>
-                All <small>{Object.values(counts).reduce((a, b) => a + b, 0) || visible.length}</small>
+                All <small>{allCount}</small>
               </button>
             </li>
             {categories.map((c) => (
