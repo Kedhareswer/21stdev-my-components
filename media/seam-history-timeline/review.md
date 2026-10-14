@@ -58,3 +58,22 @@ the moving pill; (6) the strip's focus ring was a big rectangle cutting through 
 the end of the strip the passed card carried the "not yet" haze; (8) the fallback numeral
 clipped on phones; (9) add `imagePosition`, key image failures by URL, document keys; (10)
 optional: a clearer hover answer on hazed cards.
+
+## Round 2 (new critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea | 7 |
+| (b) craft | 7 |
+| (c) originality | 7 |
+| (d) install-safety | 9 |
+
+Average 7.6. Round 1's fixes confirmed. Ranked changes: (1) straighten the focused card's left
+edge once the card before it has faded, so pill, title and edge share one line (and the phone
+gutter survives); (2) rail rings vanished before the liquid arrived: fade them by real
+coverage; (3) the default light theme was deep navy, so light and dark looked alike: make
+harbour light a powder steel close to the reference; (4) phone text measure too narrow;
+(5) hide the focus ring during a drag; (6) the plate numeral's crop looked accidental;
+(7) hazed cards faded the title but not the body; (8) the second demo drifted to plain grey:
+show another preset.

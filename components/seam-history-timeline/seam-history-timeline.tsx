@@ -98,7 +98,7 @@ export type SeamHistoryTimelineProps = {
 // #region logic
 export const PRESETS = {
   harbour: {
-    light: { field: "#2b4660", onField: "#f1f5f9", mutedOnField: "#bccbda", card: "#f8fafc", ink: "#0f1923", muted: "#4d5b69", pill: "#0c131b", onPill: "#f3f6f9", wash: "#d5dfe9" },
+    light: { field: "#a9bdd2", onField: "#0d1620", mutedOnField: "#2a3947", card: "#f8fafc", ink: "#0f1923", muted: "#4d5b69", pill: "#0d1620", onPill: "#f3f6f9", wash: "#e6edf4" },
     dark: { field: "#0f1b27", onField: "#e8eef4", mutedOnField: "#97a9bb", card: "#172534", ink: "#edf2f7", muted: "#a5b5c5", pill: "#e8eef4", onPill: "#0c131b", wash: "#0f1b27" },
   },
   moss: {
@@ -145,10 +145,9 @@ export function focusAt(pos: number, i: number): number {
  * but never further than `maxShift` (the last card flush with the container).
  * Past the last milestone it keeps following, so the rubber band still reads.
  */
-export function trackShift(pos: number, step: number, maxShift: number, n: number, inset = 0): number {
-  const lean = inset * Math.max(0, Math.min(1, pos))
-  if (pos > n - 1) return Math.min((n - 1) * step + lean, maxShift) + (pos - (n - 1)) * step
-  return Math.min(pos * step + lean, maxShift)
+export function trackShift(pos: number, step: number, maxShift: number, n: number): number {
+  if (pos > n - 1) return Math.min((n - 1) * step, maxShift) + (pos - (n - 1)) * step
+  return Math.min(pos * step, maxShift)
 }
 
 /** Opacity of a card whose left edge is `x` px from the container's left: gone once well past it. */
@@ -183,11 +182,12 @@ export function neckRatio(dist: number): number {
  * The card outline as a CSS path(): a rectangle whose left and / or right
  * edge leans by `o` px over its height, every corner rounded by `r`. The
  * right edge leans in at the bottom and the next card's left edge leans in at
- * the top, so two neighbours meet on parallel seams.
+ * the top, so two neighbours meet on parallel seams. `leftLean` lets the left
+ * edge straighten on its own once the card before it has gone.
  */
-export function seamPath(w: number, h: number, o: number, r: number, slantLeft: boolean, slantRight: boolean): string {
+export function seamPath(w: number, h: number, o: number, r: number, slantLeft: boolean, slantRight: boolean, leftLean = o): string {
   const pts = [
-    [slantLeft ? o : 0, 0],
+    [slantLeft ? leftLean : 0, 0],
     [w, 0],
     [slantRight ? w - o : w, h],
     [0, h],
@@ -299,15 +299,15 @@ const STYLES = `
 .sht__btn:not([disabled]):active{transform:scale(.96)}
 .sht__btn[disabled]{cursor:default;background:transparent;color:var(--muted-on-field);box-shadow:inset 0 0 0 1.5px currentColor;opacity:.55}
 .sht__btn:focus-visible,.sht__slot:focus-visible,.sht__link:focus-visible,.sht__viewport:focus-visible{outline:2px solid var(--on-field);outline-offset:3px}
-@supports selector(:has(a)){.sht__viewport:focus-visible{outline:none}.sht:has(.sht__viewport:focus-visible) .sht__slot[aria-current]{outline:2px solid var(--on-field);outline-offset:4px}.sht:has(.sht__viewport:focus-visible) .sht__card[data-active=true] .sht__title{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}}
+@supports selector(:has(a)){.sht__viewport:focus-visible{outline:none}.sht:has(.sht__viewport:focus-visible:not([data-dragging=true])) .sht__slot[aria-current]{outline:2px solid var(--on-field);outline-offset:4px}.sht:has(.sht__viewport:focus-visible) .sht__card[data-active=true] .sht__title{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}}
 @media (hover:hover){.sht__btn:not([disabled]):hover [data-dir=next]{transform:translateX(3px)}.sht__btn:not([disabled]):hover [data-dir=prev]{transform:translateX(-3px)}}
 .sht__rail{position:relative;margin:clamp(34px,5vw,58px) -10px 0;padding:4px 10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .sht__rail::-webkit-scrollbar{display:none}
 .sht__rail[data-scroll=true]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent)}
 .sht__railin{position:relative;display:flex;justify-content:space-between;gap:28px;min-width:max-content;width:100%;padding:6px 0}
 .sht__axis{position:absolute;z-index:-1;left:0;right:0;top:50%;height:1px;background:var(--muted-on-field);opacity:.45;pointer-events:none}
-.sht__slot{all:unset;position:static;display:inline-flex;gap:2px;cursor:pointer;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) 70%,transparent);transition:box-shadow .16s ease}
-.sht__slot[aria-current],.sht__slot[data-covered=true]{box-shadow:none}
+.sht__slot{all:unset;position:static;display:inline-flex;gap:2px;cursor:pointer;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) calc(70% * (1 - var(--cov,0))),transparent)}
+.sht__slot[aria-current]{box-shadow:none}
 .sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:transform .16s var(--ease)}
 .sht__slot:active .sht__chip{transform:scale(.96)}
 @media (hover:hover){.sht__slot:not([aria-current]):hover{box-shadow:inset 0 0 0 1.5px var(--on-field)}}
@@ -325,7 +325,7 @@ const STYLES = `
 .sht__photo{position:relative;height:var(--ph);overflow:hidden;background:color-mix(in oklab,var(--field) 80%,var(--card))}
 .sht__photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;-webkit-user-drag:none}
 .sht__plate{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 0 0 var(--padl);overflow:hidden;background:color-mix(in oklab,var(--field) 86%,var(--on-field))}
-.sht__plate span{font-family:var(--display-font);font-weight:700;font-size:min(calc(var(--ph) * .62),calc(var(--cw) * .22));line-height:.74;letter-spacing:-.06em;color:color-mix(in oklab,var(--field) 62%,var(--on-field));white-space:nowrap;transform:translateY(.02em)}
+.sht__plate span{display:block;font-family:var(--display-font);font-weight:700;font-size:min(calc(var(--ph) * .58),calc(var(--cw) * .2));line-height:1;margin-bottom:-.2em;letter-spacing:-.055em;color:color-mix(in oklab,var(--field) 62%,var(--on-field));white-space:nowrap}
 .sht__wash{position:absolute;inset:0;background:var(--wash);pointer-events:none}
 .sht__past{position:absolute;inset:0;background:var(--field);opacity:0;pointer-events:none}
 .sht__pills{position:absolute;top:22px;left:var(--pillx);display:inline-flex}
@@ -337,14 +337,14 @@ const STYLES = `
 .sht__ptext span{display:inline-grid;place-items:center;height:34px;padding:0 15px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-pill);white-space:nowrap}
 .sht__pgoo i.sht__sizer{padding:0 15px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:transparent;line-height:34px;white-space:nowrap}
 .sht__text{flex:1;display:flex;flex-direction:column;gap:10px;padding:26px var(--padr) 30px var(--padl);min-height:170px}
-.sht__title{margin:0;font-family:var(--display-font);font-size:clamp(20px,1.7vw,24px);line-height:1.18;font-weight:600;letter-spacing:-.02em;color:color-mix(in oklab,var(--ink) calc(var(--t,1) * 100%),var(--card))}
+.sht__title{margin:0;font-family:var(--display-font);font-size:clamp(20px,1.7vw,24px);line-height:1.18;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
 .sht__body{margin:0;font-size:16px;line-height:1.55;color:var(--muted);max-width:52ch}
 .sht__link{align-self:flex-start;margin-top:auto;padding-top:8px;font-size:15px;font-weight:500;color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;display:inline-flex;align-items:center;gap:8px;border-radius:4px}
 .sht__link svg{width:16px;height:16px;transition:transform .18s var(--ease)}
 .sht__card[data-active=false] .sht__link{pointer-events:none}
 @media (hover:hover){.sht__link:hover svg{transform:translateX(4px)}.sht__link:hover{text-decoration-thickness:2px}}
 .sht__sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-@media (max-width:720px){.sht__head{grid-template-columns:1fr;align-items:start}.sht__side{gap:22px}.sht__intro{font-size:16px}.sht__btn{width:48px;height:48px}.sht__railin,.sht__lit{justify-content:flex-start;gap:22px}.sht__text{min-height:0;padding-top:22px;padding-bottom:26px}}
+@media (max-width:720px){.sht__head{grid-template-columns:1fr;align-items:start}.sht__side{gap:22px}.sht__intro{font-size:16px}.sht__body{font-size:15px}.sht__btn{width:48px;height:48px}.sht__railin,.sht__lit{justify-content:flex-start;gap:22px}.sht__text{min-height:0;padding-top:22px;padding-bottom:26px}}
 @media (prefers-reduced-motion:reduce){.sht__btn,.sht__btn svg,.sht__link svg{transition:none}}
 `
 
@@ -459,7 +459,9 @@ export default function SeamHistoryTimeline({
     target: clampIndex(startIndex, n),
     step: 1,
     maxShift: 0,
-    inset: 0,
+    geo: { cw: 0, h: 0, o: 0, r: 18, ph: 0, padBase: 30, pillBase: 22 },
+    lean: [] as number[],
+    cov: [] as number[],
     L: { x: 0, v: 0 } as Spring,
     Lw: { x: 0, v: 0 } as Spring,
     R: { x: 0, v: 0 } as Spring,
@@ -501,19 +503,32 @@ export default function SeamHistoryTimeline({
   const paint = React.useCallback(() => {
     const s = sim.current
     const track = trackRef.current
-    const shift = trackShift(s.pos.x, s.step, s.maxShift, n, s.inset)
+    const shift = trackShift(s.pos.x, s.step, s.maxShift, n)
     if (track) track.style.transform = "translate3d(" + (-shift).toFixed(2) + "px,0,0)"
+    const g = s.geo
+    let prevOp = 1
     for (let i = 0; i < n; i++) {
       const f = focusAt(s.pos.x, i)
       const hov = s.hov[i] || 0
       const el = cardRefs.current[i]
+      // A milestone that has slid past the left edge leaves the frame completely.
+      const op = passedOpacity(i * s.step - shift, s.step)
       if (el) {
-        el.style.setProperty("--t", Math.min(1, 0.55 + 0.45 * f + 0.2 * hov * (1 - f)).toFixed(3))
-        // A milestone that has slid past the left edge leaves the frame completely.
-        const op = passedOpacity(i * s.step - shift, s.step)
         el.style.opacity = op.toFixed(3)
         el.style.pointerEvents = op < 0.5 ? "none" : ""
+        // The left seam only exists while there is a card to meet: as the one before fades,
+        // this edge straightens, so pill, title and edge share the heading's line.
+        if (g.h) {
+          const lean = i === 0 ? 0 : Math.round(g.o * prevOp)
+          if (s.lean[i] !== lean) {
+            s.lean[i] = lean
+            el.style.clipPath = 'path("' + seamPath(g.cw, g.h, g.o, g.r, lean > 0, i < n - 1, lean) + '")'
+            el.style.setProperty("--padl", Math.round(lean * (1 - g.ph / g.h)) + g.padBase + "px")
+            el.style.setProperty("--pillx", Math.round(lean * (1 - 22 / g.h)) + g.pillBase + "px")
+          }
+        }
       }
+      prevOp = op
       // Still to come: a pale haze. Already passed: it recedes toward the field.
       const amount = wash * (1 - f) * (1 - 0.4 * hov)
       const ahead = i > s.pos.x
@@ -550,13 +565,21 @@ export default function SeamHistoryTimeline({
       const right = Math.max(L + lw, R + rw)
       const lit = litRef.current
       if (lit) lit.style.clipPath = "inset(0 " + Math.max(0, s.railW - right).toFixed(1) + "px 0 " + Math.max(0, left).toFixed(1) + "px)"
-      // Hide the outline of any year the liquid is passing over, so no ring shows from under it.
+      // Fade each year's ring by how much of it the visible liquid covers. The goo threshold
+      // erases thin ends, so measure from the solid part only.
+      const vl = (lw >= 24 ? Math.min(L, R) : R) + 8
+      const vr = (rw >= 24 ? Math.max(L + lw, R + rw) : L + lw) - 8
       for (let i = 0; i < n; i++) {
         const slot = slotRefs.current[i]
         const t = s.railTargets[i]
         if (!slot || !t) continue
-        const covered = Math.min(right, t.r + t.rw) - Math.max(left, t.l) > 2 ? "true" : "false"
-        if (slot.dataset.covered !== covered) slot.dataset.covered = covered
+        const width = Math.max(1, t.r + t.rw - t.l)
+        const cov = Math.max(0, Math.min(1, (Math.min(vr, t.r + t.rw) - Math.max(vl, t.l)) / width))
+        const prev = s.cov[i] ?? -1
+        if (Math.abs(prev - cov) > 0.02 || (cov === 0 && prev !== 0) || (cov === 1 && prev !== 1)) {
+          s.cov[i] = cov
+          slot.style.setProperty("--cov", cov.toFixed(2))
+        }
       }
     }
   }, [n, wash])
@@ -658,7 +681,7 @@ export default function SeamHistoryTimeline({
     const W = vp.clientWidth
     if (!W) return
     const mobile = W < 640
-    const cw = Math.round(Math.max(260, Math.min(mobile ? W * 0.88 : W * 0.6, 860)))
+    const cw = Math.round(Math.max(260, Math.min(mobile ? W * 0.9 : W * 0.6, 860)))
     const ph = Math.round(cw * (mobile ? 0.66 : 0.44))
     setGeo((g) => (g.cw === cw && g.ph === ph && g.vw === W && g.mobile === mobile ? g : { ...g, cw, ph, vw: W, mobile }))
   }, [])
@@ -667,7 +690,7 @@ export default function SeamHistoryTimeline({
     const track = trackRef.current
     if (!track) return
     const h = track.offsetHeight
-    const angle = Math.max(0, Math.min(24, seamAngle)) * (geo.mobile ? 0.55 : 1)
+    const angle = Math.max(0, Math.min(24, seamAngle)) * (geo.mobile ? 0.4 : 1)
     const o = Math.round(h * Math.tan((angle * Math.PI) / 180))
     setGeo((g) => (g.h === h && g.o === o ? g : { ...g, h, o }))
   }, [seamAngle, geo.mobile])
@@ -737,9 +760,8 @@ export default function SeamHistoryTimeline({
     sim.current.step = step
     // The strip stops when the last card is flush with the container, instead of leaving an empty field.
     sim.current.maxShift = Math.max(0, (n - 1) * step + geo.cw - vpW)
-    // Past the first milestone the strip also moves by the seam's lean at the text line, so the
-    // focused card's text always lines up with the heading.
-    sim.current.inset = geo.h ? Math.round(geo.o * (1 - geo.ph / geo.h)) : 0
+    sim.current.geo = { cw: geo.cw, h: geo.h, o: geo.o, r: geo.mobile ? 14 : 18, ph: geo.ph, padBase: geo.mobile ? 18 : 30, pillBase: geo.mobile ? 16 : 22 }
+    sim.current.lean = []
     paint()
   }, [step, paint, n, geo.cw, vpW, geo.o, geo.ph, geo.h])
 
@@ -886,7 +908,7 @@ export default function SeamHistoryTimeline({
   const r = geo.mobile ? 14 : 18
   const H = geo.h || geo.ph + 170
   const o = geo.o
-  const padBase = geo.mobile ? 20 : 30
+  const padBase = geo.mobile ? 18 : 30
 
   return (
     <section
@@ -1002,10 +1024,9 @@ export default function SeamHistoryTimeline({
               const slantL = i > 0
               const slantR = i < n - 1
               const isActive = i === active
-              const clip = geo.h ? 'path("' + seamPath(geo.cw, geo.h, o, r, slantL, slantR) + '")' : undefined
-              const padl = (slantL ? Math.round(o * (1 - geo.ph / H)) : 0) + padBase
-              const padr = (slantR ? o : 0) + padBase
-              const pillx = (slantL ? Math.round(o * (1 - 22 / H)) : 0) + (geo.mobile ? 16 : 22)
+              // The right seam leans in by o at the bottom; on phones reserve its lean at the middle
+              // of the text block instead, so the text keeps a usable measure.
+              const padr = (slantR ? Math.round(geo.mobile ? (o * (geo.ph + (H - geo.ph) / 2)) / H : o) : 0) + padBase
               const showImg = !!m.image && !failed[m.image]
               return (
                 <div
@@ -1036,10 +1057,7 @@ export default function SeamHistoryTimeline({
                   style={
                     {
                       marginLeft: i === 0 ? 0 : -overlap,
-                      clipPath: clip,
-                      ["--padl" as string]: padl + "px",
                       ["--padr" as string]: padr + "px",
-                      ["--pillx" as string]: pillx + "px",
                       zIndex: n - Math.abs(i - active),
                     } as React.CSSProperties
                   }

@@ -57,14 +57,14 @@ section sizes to its content (`minHeight` is optional).
 
 ## Photos
 
-Default (timber builder, `demo.tsx`) and `demo-graphite.tsx` (a clinic booking start-up) use
+Default (timber builder, `demo.tsx`) and `demo-signal.tsx` (a clinic booking start-up, signal preset) use
 Unsplash photos under the Unsplash licence, by URL from `images.unsplash.com`:
 `photo-1503387762-592deb58ef4e`, `photo-1600585154340-be6161a56a0c`,
 `photo-1541888946425-d81bb19240f5`, `photo-1487958449943-2429e8be8625`,
 `photo-1486406146926-c627a92ad1ab`, `photo-1497366216548-37526070297c` (default) and
 `photo-1519389950473-47ba0277781c`, `photo-1556761175-5973dc0f32e7`,
 `photo-1497366811353-6870744d04b2`, `photo-1551434678-e076c223a692`,
-`photo-1522071820081-009f0129c71c` (graphite demo). Every image is a prop: replace them with
+`photo-1522071820081-009f0129c71c` (signal demo). Every image is a prop: replace them with
 your own. The companies, people and milestones in both demos are fictional.
 
 **Note for whoever publishes this:** the cloud environment that built it blocks

@@ -44,11 +44,11 @@ const milestones = [
   },
 ]
 
-export default function SeamHistoryTimelineGraphiteDemo() {
+export default function SeamHistoryTimelineSignalDemo() {
   return (
     <div className="w-full">
       <SeamHistoryTimeline
-        preset="graphite"
+        preset="signal"
         eyebrow="Company"
         heading="From one clinic's spreadsheet to two thousand"
         intro="Brightwork started as a favour to a physiotherapist. This is how it grew, one waiting room at a time."

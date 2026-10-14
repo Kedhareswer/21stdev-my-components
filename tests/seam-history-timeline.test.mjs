@@ -47,9 +47,6 @@ assert.equal(m.trackShift(5.2, 700, 3000, 6), 3140, "keeps following past the la
 assert.equal(m.trackShift(-0.1, 700, 3000, 6), -70, "rubber band before the first")
 assert.equal(m.trackShift(3, 700, 0, 6), 0, "a strip that fits never moves")
 
-assert.equal(m.trackShift(0, 700, 5000, 6, 40), 0, "index 0 is not inset")
-assert.equal(m.trackShift(2, 700, 5000, 6, 40), 1440, "later indices also move by the seam inset")
-assert.equal(m.trackShift(0.5, 700, 5000, 6, 40), 370, "the inset eases in over the first step")
 
 // Passed cards: fully there at the edge, gone once well past it.
 assert.equal(m.passedOpacity(0, 700), 1)
@@ -84,6 +81,8 @@ const first = m.seamPath(800, 500, 100, 18, false, true)
 assert.deepEqual(nums(first).slice(0, 6), [0, 18, 0, 0, 18, 0], "first card: square top-left corner, rounded by r")
 const mid = nums(p)
 assert.equal(mid[2], 100, "slanted top-left corner sits o px in")
+assert.ok(m.seamPath(800, 500, 100, 0, true, true, 0).startsWith("M0 0Q0 0"), "a left lean of 0 straightens the left edge")
+assert.ok(m.seamPath(800, 500, 100, 0, true, true, 40).includes("Q40 0"), "the left edge can lean less than the right")
 const last = m.seamPath(800, 500, 100, 0, true, false)
 assert.ok(last.includes("Q800 500"), "last card: straight right edge")
 assert.ok(m.seamPath(800, 500, 100, 0, true, true).includes("Q700 500"), "right seam leans in by o at the bottom")
