@@ -97,3 +97,38 @@ went in before a third check:
    removed (the text is extracted from the node).
 7. Font stack: Inter, then the system UI face (SF Pro / Segoe UI both have a 900), then
    Helvetica Neue and Arial, so the headline keeps its weight off Linux too.
+
+## Round 3 (fresh critic): SHIP
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea / reference feel | 8 |
+| (b) craft | 8 |
+| (c) originality | 7 |
+| (d) install-safety | 9 |
+| average | 8.0 |
+
+Clears the bar with no margin; originality is the soft spot (an accordion row that floods with
+colour is a known pattern, and the slit headline is the reference's). No artifacts in any
+transitional state: the ink edge and the inverted text agree to the pixel mid-flood and
+mid-close.
+
+Fixed after the verdict (code only, no visual change): a misplaced doc comment, and `syncHash`
+no longer clears a host page's own hash when a question closes.
+
+Left for the owner (non-blocking polish the critic listed, not done because all three critic
+rounds were used):
+
+1. On desktop the open row's left column is an empty slab of ink under the question. Anchor it
+   (tag or Copy link bottom-aligned there) or start the answer level with the question.
+2. Flood 400 ms and panel 360 ms run past the 300 ms rule for user actions; try about 320 / 300.
+3. About 180 px of air above the cut headline at rest; trim the top padding when `slit > 0`.
+4. On phones the cobalt demo's "Payroll" chip wraps alone; a nowrap, scrolling chip row would fix it.
+5. `.stf` padding uses `cqi` on the container itself, so it measures the viewport; move it to `.stf-wrap`.
+6. Possible props: `headingLevel`, and `theme="system"` following `prefers-color-scheme`.
+7. Re-opening a question mid-close floods from the right.
+8. The default `slit` (0.42) is a strong cut: "YOU" and "FILES" read as cut type at rest.
+   `slit={0.36}` or `0` for a plainer headline.
+
+Verdict: **SHIP**, so the piece stays on `claude/slit-type-faq`.

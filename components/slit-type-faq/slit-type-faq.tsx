@@ -241,9 +241,9 @@ export function pickOnInk(ink: string, paper: string): string {
 }
 // #endregion
 
-/** Plain text of a React node, for search. */
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
 
+/** Plain text of a React node, for search. */
 function nodeText(node: React.ReactNode): string {
   if (node == null || typeof node === "boolean") return ""
   if (typeof node === "string" || typeof node === "number") return String(node)
@@ -927,8 +927,9 @@ export default function SlitTypeFaq({
     const isOpen = open.includes(id)
     commit(isOpen ? open.filter((o) => o !== id) : single ? [id] : [...open, id])
     if (syncHash && typeof history !== "undefined") {
-      const url = location.pathname + location.search + (isOpen ? "" : "#" + id)
-      history.replaceState(history.state, "", url)
+      // Closing clears the hash only if it names this question; a host page's own hash stays.
+      const ownHash = decodeURIComponent(location.hash.replace(/^#/, "")) === id
+      if (!isOpen || ownHash) history.replaceState(history.state, "", location.pathname + location.search + (isOpen ? "" : "#" + id))
     }
   }
 
