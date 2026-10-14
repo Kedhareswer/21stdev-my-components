@@ -143,6 +143,7 @@
       "@/components/ui/hoarfrost-pane": ["./components/hoarfrost-pane/hoarfrost-pane.tsx"],
       "@/components/ui/raked-sand-garden": ["./components/raked-sand-garden/raked-sand-garden.tsx"],
       "@/components/ui/checker-quilt-testimonials": ["./components/checker-quilt-testimonials/checker-quilt-testimonials.tsx"],
+      "@/components/ui/duotone-team-roster": ["./components/duotone-team-roster/duotone-team-roster.tsx"],
       "@/components/ui/hitch-cargo-landing": ["./components/hitch-cargo-landing/hitch-cargo-landing.tsx"],
       "@/components/ui/open-slot-booking": ["./components/open-slot-booking/open-slot-booking.tsx"],
       "@/components/ui/pigment-experience-ledger": ["./components/pigment-experience-ledger/pigment-experience-ledger.tsx"],
