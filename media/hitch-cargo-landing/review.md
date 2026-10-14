@@ -54,3 +54,17 @@ small bike on phones, dead space on tablets. Drawing: a floating battery, plain 
 kid seat that read as an empty cage, a crate with no stays. Footer wordmark stretched. Tablet
 spec table and FAQ cramped. Theme flipped after mount (light flash in dark hosts). Phone menu
 without a backdrop.
+
+## Critic round 2 (new subagent)
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 7 | 7 | 7 | 6 | 9 | 7 | 7.17 |
+
+Verdict: **REDO** (originality below 7). Findings: under reduced motion the hero skipped to
+build 2 on load (the tick animation ended at .01 ms before the preference was read); the phone
+configurator gave no visible feedback below the fold; the catalogue idea stopped after the spec
+sheet (riders and ownership were ordinary rows); the phone hero cropped the rear deck; faded
+neighbour bikes painted over the headline card; dark-mode spec drawing lost its fork and bars;
+part art flatter than the frame; small phone ticks; a thin success state; a forced `<main>` and
+`<h1>` when embedded; the fleet preset mostly a recolour; a lower callout crowding the caption.
