@@ -20,6 +20,7 @@ assert.ok(start > -1 && end > start, "logic region markers missing")
 const js = src
   .slice(start, end)
   .replace(/\): ("start" \| "end"|"a" \| "b"|"l" \| "m" \| "s"|number\[\]|number|string) \{/g, ") {")
+  .replace(", fits: (n: number) => boolean", ", fits")
   .replace(/(\w+): (number|string)(?=[,)])/g, "$1")
   .replace("const out: number[] = []", "const out = []")
 const m = await import("data:text/javascript," + encodeURIComponent(js))
@@ -59,12 +60,18 @@ assert.equal(m.quoteSize("x".repeat(80)), "l")
 assert.equal(m.quoteSize("x".repeat(160)), "m")
 assert.equal(m.quoteSize("x".repeat(260)), "s")
 assert.equal(m.initials("Graham Whitlock"), "GW")
+
+// The quote tile fits its type to its own height: largest size that fits, floor if none.
+assert.equal(m.fitSize(15, 50, (n) => n <= 33), 33)
+assert.equal(m.fitSize(15, 50, () => true), 50)
+assert.equal(m.fitSize(15, 50, () => false), 15)
+assert.equal(m.fitSize(15, 12, () => true), 15)
 assert.equal(m.initials("  cher "), "C")
 assert.equal(m.initials("Mary Anne de la Cruz"), "MC")
 // #endregion
 
 // A root that inherits its height renders here and collapses once installed.
-assert.ok(/height = "clamp\(560px, 84svh, 940px\)"/.test(src), "quilt height must default to a definite length")
+assert.ok(/height = "clamp\(620px, 94svh, 1040px\)"/.test(src), "quilt height must default to a definite length")
 assert.ok(/mobileHeight = "760px"/.test(src), "stacked height must default to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full anywhere")
 
@@ -87,6 +94,12 @@ assert.ok(/width=\{1200\}/.test(src) && /height=\{1200\}/.test(src), "portraits 
 for (const url of src.match(/https:\/\/[^"'\s)]+/g) || []) {
   assert.ok(/^https:\/\/images\.unsplash\.com\//.test(url), "unexpected host: " + url)
 }
+
+// No quote may be clipped by its tile: the type is fitted to the tile's height
+// whenever the quote or the tile size changes.
+assert.ok(/fitSize\(15, hi,/.test(src) && /words\.offsetHeight <= availH/.test(src), "quote tile must fit its type to its height")
+assert.ok(/new ResizeObserver\(\(\) => fit\(\)\)/.test(src), "quote tile must refit on resize")
+assert.ok(css.includes("padding: clamp(48px"), "quote tile keeps at least 48px of vertical padding")
 
 // Motion is not optional, and autoplay can be stopped.
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "must honour prefers-reduced-motion")
