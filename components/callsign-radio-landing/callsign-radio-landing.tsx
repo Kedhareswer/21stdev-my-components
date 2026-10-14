@@ -550,6 +550,18 @@ function rmsLevel(buf: Float32Array) {
   return clamp((20 * Math.log10(rms) + 48) / 48, 0, 1)
 }
 
+/** Relative luminance of a #rrggbb ink, so a title is printed in the darker of two. */
+function inkLum(hex: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return 0.5
+  const n = parseInt(m[1], 16)
+  const ch = [n >> 16, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  })
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+}
+
 /** The highest tier the amount reaches, or null under the first. */
 function tierFor(amount: number, tiers: CrTier[]) {
   let t: CrTier | null = null
@@ -823,9 +835,13 @@ function MeterWord({ word, redAt, vertical, seg, gap, register, className }: Met
       set("litL", "width", a)
       set("litR", "width", b)
       set("dimL", "x", a)
-      set("dimL", "width", W + 4 - a)
+      set("dimL", "width", Math.max(0, redX - a))
       set("dimR", "x", b)
-      set("dimR", "width", W + 4 - b)
+      set("dimR", "width", Math.max(0, redX - b))
+      set("dimRedL", "x", Math.max(a, redX))
+      set("dimRedL", "width", W + 4 - Math.max(a, redX))
+      set("dimRedR", "x", Math.max(b, redX))
+      set("dimRedR", "width", W + 4 - Math.max(b, redX))
       set("redL", "width", Math.max(0, a - redX))
       set("redR", "width", Math.max(0, b - redX))
       const pa = peakSeg(segs, s.pL, W)
@@ -857,6 +873,10 @@ function MeterWord({ word, redAt, vertical, seg, gap, register, className }: Met
           <rect ref={bind("dimL")} x={W} y={-20} width={4} height={120} />
           <rect ref={bind("dimR")} x={W} y={100} width={4} height={120} />
         </clipPath>
+        <clipPath id={id + "q"} clipPathUnits="userSpaceOnUse">
+          <rect ref={bind("dimRedL")} x={W} y={-20} width={4} height={120} />
+          <rect ref={bind("dimRedR")} x={W} y={100} width={4} height={120} />
+        </clipPath>
         <clipPath id={id + "r"} clipPathUnits="userSpaceOnUse">
           <rect ref={bind("redL")} x={redX} y={-20} width={Math.max(0, W - redX)} height={120} />
           <rect ref={bind("redR")} x={redX} y={100} width={Math.max(0, W - redX)} height={120} />
@@ -865,6 +885,7 @@ function MeterWord({ word, redAt, vertical, seg, gap, register, className }: Met
       <g transform={vertical ? "translate(0 " + fx(W) + ") rotate(-90)" : undefined}>
         <g clipPath={"url(#" + id + "b)"}>
           <path className="cr-m-dim" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "d)"} />
+          <path className="cr-m-dimred" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "q)"} />
           <path className="cr-m-lit" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "l)"} />
           <path className="cr-m-red" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "r)"} />
         </g>
@@ -978,8 +999,8 @@ function Cover({ show, seed, image, label, alt, className, top }: CoverProps) {
           <g className="cr-knocklabel">{labelPath}</g>
         ) : (
           <>
-            <rect className="cr-paperfill" x={22} y={68} width={fx(lay.width * sc + 16)} height={fx(GH * sc + 16)} />
-            <g className="cr-plate" style={{ color: ink[1] }}>
+            <rect className="cr-paperfill" x={0} y={62} width={400} height={fx(GH * sc + 28)} />
+            <g className="cr-plate" style={{ color: inkLum(ink[0]) < inkLum(ink[1]) ? ink[0] : ink[1] }}>
               {labelPath}
             </g>
           </>
@@ -1007,6 +1028,29 @@ function Icon({ name }: { name: "play" | "pause" | "vol" | "mute" | "arrow" | "c
     <svg className="cr-ic" viewBox="0 0 24 24" width={20} height={20} aria-hidden="true" focusable="false">
       {p[name]}
     </svg>
+  )
+}
+
+/** The mini player's progress: the audio's real position when it has one, else listening time. Its own component so the page doesn't re-render while it ticks. */
+function DockProgress({ audio, played, source, live }: { audio: { current: HTMLAudioElement | null }; played: { current: { key: string; ms: number; since: number } }; source: CrSource; live: number }) {
+  const [f, setF] = React.useState(0)
+  React.useEffect(() => {
+    const tick = () => {
+      if (source.kind === "live") return setF(live)
+      const a = audio.current
+      if (a && a.getAttribute("data-src") && isFinite(a.duration) && a.duration > 0) return setF(clamp(a.currentTime / a.duration, 0, 1))
+      const p = played.current
+      const ms = p.ms + (p.since ? Date.now() - p.since : 0)
+      setF(clamp(ms / 60000 / Math.max(1, source.episode.minutes), 0, 1))
+    }
+    tick()
+    const iv = setInterval(tick, 1000)
+    return () => clearInterval(iv)
+  }, [audio, played, source, live])
+  return (
+    <span className="cr-dock-prog" aria-hidden="true">
+      <i style={{ transform: "scaleX(" + fx(f) + ")" }} />
+    </span>
   )
 }
 
@@ -1055,6 +1099,7 @@ const CR_CSS = `
 .cr-m-dim{stroke:var(--cr-dim)}
 .cr-m-lit{stroke:var(--cr-ink)}
 .cr-m-red{stroke:var(--cr-tally)}
+.cr-m-dimred{stroke:color-mix(in srgb,var(--cr-tally) 34%,transparent)}
 .cr-m-peak{fill:var(--cr-tally)}
 .cr-gapfill{fill:var(--cr-ground);transition:fill .35s var(--cr-ease)}
 .cr-ic{display:block;flex:none}
@@ -1084,7 +1129,8 @@ const CR_CSS = `
 .cr-links a{position:relative;padding:6px 0;background:linear-gradient(currentColor,currentColor) 0 100%/0 2px no-repeat;transition:background-size .3s var(--cr-ease)}
 @media (hover:hover){.cr-links a:hover{background-size:100% 2px}}
 .cr-nav-end{margin-left:auto;display:flex;align-items:center;gap:14px}
-.cr-onair{display:flex;align-items:center;gap:8px;font-size:13px;max-width:280px;min-width:0}
+.cr-onair{display:flex;align-items:center;gap:8px;font-size:13px;max-width:280px;min-width:0;transition:opacity .25s var(--cr-ease),transform .25s var(--cr-ease)}
+.cr-onair[data-off]{opacity:0;transform:translateY(-4px);pointer-events:none}
 .cr-onair b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cr-onair .cr-mono{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cr-tally)}
 .cr-lamp{width:9px;height:9px;border-radius:50%;background:var(--cr-tally);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--cr-tally) 22%,transparent)}
@@ -1196,22 +1242,21 @@ const CR_CSS = `
 
 .cr-res{position:relative}
 .cr-res-list{border-top:1px solid var(--cr-ink)}
-.cr-res-row{position:relative;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr) 44px;align-items:center;gap:20px;padding:22px 0;border-bottom:1px solid var(--cr-line)}
+.cr-res-row{position:relative;display:grid;grid-template-columns:88px minmax(0,1.5fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr) 44px;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid var(--cr-line)}
 .cr-res-t{min-width:0;font-size:clamp(30px,3vw,46px);transition:transform .25s var(--cr-ease)}
 .cr-res-host{font-size:16px;font-weight:600}
 .cr-res-slot{font-size:13px;color:var(--cr-muted)}
 .cr-res-g{display:flex;flex-wrap:wrap;gap:6px}
 .cr-res-go{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--cr-r);box-shadow:inset 0 0 0 1px var(--cr-line);transition:background-color .25s var(--cr-ease),color .25s var(--cr-ease),box-shadow .25s var(--cr-ease)}
-.cr-res-thumb{display:none}
+.cr-res-thumb{display:block;position:relative;width:88px;height:88px;border-radius:var(--cr-r);overflow:hidden;transition:transform .25s var(--cr-ease)}
+.cr-res-thumb .cr-cover{position:absolute;inset:0}
 @media (hover:hover){
-.cr-res-row:hover .cr-res-t,.cr-res-row:focus-visible .cr-res-t{transform:translateX(14px)}
+.cr-res-row:hover .cr-res-t,.cr-res-row:focus-visible .cr-res-t{transform:translateX(10px)}
+.cr-res-row:hover .cr-res-thumb{transform:scale(1.06) rotate(-2deg)}
 .cr-res-row:hover .cr-res-go{background:var(--cr-tally);color:var(--cr-on-tally);box-shadow:none}
 .cr-res-row:hover .cr-res-go .cr-ic{transform:translateX(2px)}
 }
 .cr-res-go .cr-ic{transition:transform .25s var(--cr-ease)}
-.cr-peek{position:absolute;left:0;top:0;z-index:5;width:260px;height:260px;pointer-events:none;border-radius:var(--cr-r);overflow:hidden;opacity:0;transform:translate3d(0,0,0) scale(.92);transition:opacity .25s var(--cr-ease),scale .3s var(--cr-ease);box-shadow:0 18px 40px -18px rgba(0,0,0,.45)}
-.cr-peek[data-on]{opacity:1;scale:1.08}
-.cr-peek .cr-cover{position:absolute;inset:0;transition:opacity .2s var(--cr-ease)}
 
 .cr-filters{display:flex;flex-wrap:wrap;gap:8px}
 .cr-chip{height:36px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:inset 0 0 0 1px var(--cr-line);transition:background-color .2s var(--cr-ease),color .2s var(--cr-ease),box-shadow .2s var(--cr-ease)}
@@ -1314,7 +1359,7 @@ const CR_CSS = `
 .cr-dock .cr-dock-p{width:44px;height:44px;border-radius:var(--cr-r);background:var(--cr-tally);color:var(--cr-on-tally);display:grid;place-items:center;flex:none}
 .cr-dock .cr-quiet{color:var(--cr-ground);font-size:13px}
 .cr-dock-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:color-mix(in srgb,var(--cr-ground) 18%,transparent)}
-.cr-dock-prog i{position:absolute;inset:0;background:var(--cr-tally);transform-origin:left;transition:transform 2s linear}
+.cr-dock-prog i{position:absolute;inset:0;background:var(--cr-tally);transform-origin:left;transition:transform 1s linear}
 
 .cr-sheet{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--cr-ground);padding:16px var(--cr-pad) 32px;animation:cr-sheet .32s var(--cr-ease)}
 @keyframes cr-sheet{from{opacity:0;transform:translateY(-12px)}}
@@ -1348,8 +1393,11 @@ const CR_CSS = `
 .cr-ways{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cr-way:nth-child(3){border-left:0;padding-left:0}
 .cr-way:nth-child(n+3){border-top:1px solid var(--cr-line)}
-.cr-res-row{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr) 44px}
+.cr-res-row{grid-template-columns:72px minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr) 44px}
+.cr-res-thumb{width:72px;height:72px}
 .cr-res-g{display:none}
+.cr-mark span{visibility:hidden}
+.cr-mark[data-on] span{visibility:visible}
 .cr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cr-ep[data-shape="big"]{grid-row:auto}
 .cr-ep[data-shape="full"]{grid-column:span 2}
@@ -1386,16 +1434,16 @@ const CR_CSS = `
 .cr-slot[data-far]{display:none}
 .cr-rail[data-all] .cr-slot[data-far]{display:grid}
 .cr-more{display:inline-flex;margin-top:8px}
-.cr-ways{grid-template-columns:1fr}
-.cr-way+.cr-way{border-left:0;padding-left:0;border-top:1px solid var(--cr-line)}
-.cr-way{padding-right:0}
+.cr-ways{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cr-way{padding:20px 12px 20px 0}
+.cr-way:nth-child(even){border-left:1px solid var(--cr-line);padding-left:14px}
+.cr-way .cr-way-v{font-size:30px}
+.cr-way p{font-size:14px}
 .cr-res-row{grid-template-columns:64px minmax(0,1fr) 44px;gap:14px;padding:16px 0}
-.cr-res-thumb{display:block;width:64px;height:64px;border-radius:var(--cr-r);overflow:hidden;position:relative}
-.cr-res-thumb .cr-cover{position:absolute;inset:0}
+.cr-res-thumb{width:64px;height:64px}
 .cr-res-mid{display:flex;flex-direction:column;gap:4px;min-width:0}
 .cr-res-t{font-size:28px}
 .cr-res-slot{display:none}
-.cr-peek{display:none}
 .cr-grid{grid-template-columns:1fr}
 .cr-ep[data-shape]{grid-column:auto;flex-direction:column;align-items:stretch}
 .cr-ep[data-shape="wide"],.cr-ep[data-shape="full"],.cr-ep[data-shape="small"]{flex-direction:row;align-items:center;gap:14px}
@@ -1564,12 +1612,16 @@ export default function CallsignRadioLanding({
     }
   }
 
+  // listening time per source, for episodes without a real audio file
+  const played = React.useRef({ key: "", ms: 0, since: 0 })
   const start = (next: CrSource) => {
     const a = audioRef.current
     const url = next.kind === "live" ? streamUrl : next.episode.audioUrl
     setSource(next)
     setDocked(true)
-    setStartedAt(Date.now())
+    const key = next.kind === "live" ? "live" : next.episode.id
+    if (played.current.key !== key) played.current = { key, ms: 0, since: 0 }
+    played.current.since = Date.now()
     if (onPlay) onPlay(next)
     const label = next.kind === "live" ? ST.name + " live: " + nowShow.title : next.episode.title
     if (!url || !a) {
@@ -1598,6 +1650,8 @@ export default function CallsignRadioLanding({
     )
   }
   const stop = () => {
+    if (played.current.since) played.current.ms += Date.now() - played.current.since
+    played.current.since = 0
     const a = audioRef.current
     if (a && !a.paused) a.pause()
     setStatus("idle")
@@ -1696,14 +1750,7 @@ export default function CallsignRadioLanding({
   }, [])
   const [docked, setDocked] = React.useState(false)
   const dockOn = docked && !playerSeen
-  const [startedAt, setStartedAt] = React.useState(0)
-  const [, setPulse] = React.useState(0)
-  React.useEffect(() => {
-    if (!dockOn || !playing) return
-    const iv = setInterval(() => setPulse((n) => n + 1), 2000)
-    return () => clearInterval(iv)
-  }, [dockOn, playing])
-  const dockProg = source.kind === "episode" ? (startedAt ? clamp((Date.now() - startedAt) / 60000 / Math.max(1, source.episode.minutes), 0, 1) : 0) : prog
+
 
   /* ---------- theme, nav ---------- */
   const go = (href?: string) => (e: React.MouseEvent) => {
@@ -1770,20 +1817,7 @@ export default function CallsignRadioLanding({
     setSaid(ok ? "Reminder set for " + show.title + " at " + startAt : "The reminder did not save.")
   }
 
-  /* ---------- residents peek ---------- */
   const resRef = React.useRef(null as HTMLElement | null)
-  const peekRef = React.useRef(null as HTMLDivElement | null)
-  const [peek, setPeek] = React.useState(-1)
-  const movePeek = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse") return
-    const box = resRef.current
-    const pk = peekRef.current
-    if (!box || !pk) return
-    const r = box.getBoundingClientRect()
-    const x = clamp(r.width * 0.56 + ((e.clientX - r.left) / Math.max(1, r.width)) * 60, 0, r.width - 270)
-    const y = e.clientY - r.top - 130
-    pk.style.transform = "translate3d(" + fx(x) + "px," + fx(y) + "px,0)"
-  }
   const residentShows = shows.filter((s) => !s.hidden)
 
   /* ---------- archive ---------- */
@@ -1897,7 +1931,7 @@ export default function CallsignRadioLanding({
           </ul>
         </nav>
         <div className="cr-nav-end">
-          <span className="cr-onair">
+          <span className="cr-onair" data-off={playerSeen ? "" : undefined}>
             <i className="cr-lamp" data-blink={liveOn && !reduced ? "" : undefined} aria-hidden="true" />
             <span className="cr-mono">{T.onAir}</span>
             <b>{nowShow.title}</b>
@@ -2159,17 +2193,10 @@ export default function CallsignRadioLanding({
               </p>
             </div>
           </div>
-          <div className="cr-peek" ref={peekRef} data-on={peek >= 0 ? "" : undefined} aria-hidden="true">
-            {residentShows.map((s, i) => (
-              <div key={s.id} style={{ opacity: i === peek ? 1 : 0 }}>
-                <Cover show={s} seed="peek" image={s.image} />
-              </div>
-            ))}
-          </div>
-          <ul className="cr-res-list" onPointerMove={movePeek} onPointerLeave={() => setPeek(-1)}>
+          <ul className="cr-res-list">
             {residentShows.map((s, i) => (
               <li key={s.id}>
-                <a className="cr-res-row" aria-label={s.title + ", " + s.host + (s.slot ? ", " + s.slot : "")} href={s.href || "#archive"} onClick={s.href ? undefined : go("#archive")} onPointerEnter={(e) => e.pointerType === "mouse" && setPeek(i)} onFocus={() => setPeek(-1)}>
+                <a className="cr-res-row" aria-label={s.title + ", " + s.host + (s.slot ? ", " + s.slot : "")} href={s.href || "#archive"} onClick={s.href ? undefined : go("#archive")}>
                   <span className="cr-res-thumb" aria-hidden="true">
                     <Cover show={s} seed="thumb" image={s.image} label="" />
                   </span>
@@ -2486,9 +2513,7 @@ export default function CallsignRadioLanding({
           >
             <Icon name="close" />
           </button>
-          <span className="cr-dock-prog" aria-hidden="true">
-            <i style={{ transform: "scaleX(" + fx(dockProg) + ")" }} />
-          </span>
+          {dockOn ? <DockProgress audio={audioRef} played={played} source={source} live={prog} /> : null}
         </div>
       </div>
       <p className="cr-sr" aria-live="polite">
