@@ -62,6 +62,12 @@ assert.match(src, /aria-live=\{running \? "off" : "polite"\}/, "the caption is a
 assert.match(src, /Pause builds/, "autoplay can be paused")
 assert.match(src, /const running = autoplay > 0 && !reduced && !paused && !hold && visible/, "autoplay stops for reduced motion, hover, focus and off screen")
 assert.match(src, /onPointerUp=/, "builds can be swiped")
+assert.match(src, /React\.useState\(\(\) => typeof matchMedia === "function" && matchMedia\("\(prefers-reduced-motion: reduce\)"\)\.matches\)/, "reduced motion is known on the first render, so autoplay never starts")
+assert.match(src, /if \(running\) go\(cur \+ 1\)/, "a tick only advances while autoplay runs")
+assert.match(src, /\.hx-root \.hx-tick-fill\{animation:none !important\}/, "and its fill never animates under reduced motion")
+assert.match(src, /landmark \? "main" : "div"/, "the main landmark can be turned off when embedded")
+assert.match(src, /"h" \+ Math\.min\(6, x\.level \+ depth\)/, "heading levels follow headingLevel")
+assert.match(src, /className="hx-dock"/, "phones keep the live build in view while picking parts")
 assert.match(src, /aria-pressed=\{on\}/, "parts are toggle buttons")
 assert.match(src, /replaced the \{old\}/, "a part that takes a used mount says what it replaced")
 assert.match(src, /await Promise\.resolve\(onReserve\(r\)\)/, "onReserve can be async")
@@ -83,7 +89,7 @@ assert.match(read("demo-fleet.tsx"), /art: cage/, "and it adds a part with its o
 
 /* ---------- logic, executed ---------- */
 
-const code = region("logic") + "\nexport { BUILTIN_IDS, SECTION_KEYS, mergeParts, toggleModule, normalizeBuild, totals, formatMoney, fill, isEmail, codePrefixOf, reservationCode, wrapIndex, sectionList, liveLinks, readableOn, wordmarkSize, spokePath, arcPath }\n"
+const code = region("logic") + "\nexport { BUILTIN_IDS, SECTION_KEYS, mergeParts, toggleModule, normalizeBuild, totals, formatMoney, fill, isEmail, codePrefixOf, reservationCode, wrapIndex, sectionList, liveLinks, readableOn, wordmarkSize, spokePath, arcPath, fleetCost, clampInt }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 const part = (id, mount, price, weight, range) => ({ id, name: id, code: "HX-" + id.length, mount, price, weight, range, note: "" })
@@ -169,5 +175,11 @@ assert.ok(L.wordmarkSize("X") <= 300, "and short ones are capped")
 const spokes = L.spokePath(100, 100, 10, 90, 28)
 assert.equal((spokes.match(/M/g) || []).length, 28, "28 spokes")
 assert.match(L.arcPath(0, 0, 10, 180, 360), /^M-10\.0 0\.0A10 10 0 0 1 10\.0 /, "fender arcs run clockwise over the top")
+
+assert.deepEqual(L.fleetCost(4590, 12, 36), { total: 55080, monthly: 1530 }, "fleet total and monthly lease")
+assert.equal(L.fleetCost(1000, 1, 0).monthly, 1000, "a zero-month term cannot divide by zero")
+assert.equal(L.clampInt(300, 5, 250), 250)
+assert.equal(L.clampInt(2.6, 1, 9), 3)
+assert.equal(L.clampInt(NaN, 5, 250), 5, "a cleared input falls back to the minimum")
 
 console.log(`ok ${SLUG}`)

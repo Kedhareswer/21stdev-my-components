@@ -12,12 +12,15 @@ and part-number callouts carry from the hero to the footer.
   off screen), and the neighbouring builds peek in at the edges.
 - **Configurator:** the same drawing. Pick one part per mount (a part that
   takes a used mount replaces the old one and says so); price, weight and range
-  update live. "Build this one" in the hero loads that build here.
+  update live. "Build this one" in the hero loads that build here. On phones a
+  docked summary keeps the build in view while you pick parts.
 - **Spec sheet:** a dimensioned side elevation plus a spec table.
-- **Ownership:** four numbered steps with timings.
-- **Riders:** a tab list of owners with one large quote.
+- **Ownership:** four numbered steps hung from a dimension-line timeline.
+- **Riders:** a tab list of owners with one large quote, a drawing of their
+  build and a button that loads it into the configurator.
 - **Reserve:** name, email, city and an opt-in, validated in place, with a
-  build summary. It never asks for a card. `onReserve` receives the result.
+  build summary. It never asks for a card. `onReserve` receives the result;
+  the confirmation is a build sheet with the code and the next two steps.
 - **FAQ** accordion and a footer with a full-width wordmark.
 
 Everything is drawn in the file as SVG, so the first frame is finished with
@@ -78,9 +81,11 @@ header:
 | `mounts` | rear, side, front, power | `{ id, label, stack? }`. One part per mount unless `stack` is true. |
 | `productImage` / `productArt` | drawn bike | A photo or your own SVG for the bare product, laid over the same 1000 x 600 plate in the hero, configurator and spec sheet. Parts still drop on over it. |
 | `codePrefix` | first part code's prefix | Prefix of the reservation code. |
-| `configurator`, `specs`, `ownership`, `riders`, `reserve`, `faq`, `footer` | | Copy for each section; any field can be set alone. |
+| `fleet` | off (on in `"fleet"`) | `{ min, max, start, months }`: a bike-count stepper, a fleet total and a monthly lease figure in the configurator and the summary. `false` turns it off. |
+| `landmark`, `headingLevel` | `true`, `1` | Turn off the `<main>` landmark and drop the hero heading to `h2` when the page sits inside another. |
+| `configurator`, `specs`, `ownership`, `riders`, `reserve`, `faq`, `footer` | | Copy for each section; any field can be set alone. A rider with `modules` gets a drawing of their build and a "Load this build" button. |
 | `labels` | English | Every short UI string (buttons, errors, mount hints, the configurator notes), with `{part}`, `{old}`, `{mount}`, `{brand}`, `{build}` placeholders. |
-| `onReserve` | | Called with `{ name, email, city, optIn, modules, total, code }`. Return a promise: the button shows a pending state, a rejection keeps the form and shows an error, and the confirmation appears only once it resolves. |
+| `onReserve` | | Called with `{ name, email, city, optIn, modules, total, quantity, code }`. Return a promise: the button shows a pending state, a rejection keeps the form and shows an error, and the confirmation appears only once it resolves. |
 
 ## Notes
 
