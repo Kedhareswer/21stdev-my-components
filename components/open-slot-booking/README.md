@@ -7,7 +7,7 @@ slots. Picking a slot grows it into a confirm card (name, email, optional note).
 Confirming flips the card into a perforated ticket, and the host's stamp comes down
 on it in ink: booked. The ticket offers an `.ics` download.
 
-There is also an **Overlay my calendar** switch. It hatches the visitor's own busy
+There is also a **Check against my calendar** switch. It hatches the visitor's own busy
 blocks across the grid, and clashing slots dim and strike through. Pass the
 visitor's events directly, or connect their calendar the first time they flip
 the switch.
@@ -52,11 +52,11 @@ another time.
 
 | Prop | Default | |
 |---|---|---|
-| `headline`, `headlineAccent` | "Skip the pitch deck." / "Talk to a person." | Two display lines. The second line gets the gradient. |
+| `headline`, `headlineAccent` | "Skip the pitch deck." / "Talk to a person." | Two display lines. The second line gets the gradient. Set `headline`, `description` and `altContact` to `null` to render the scheduler alone. |
 | `description` | sample copy | Up to about 20 words. |
 | `altContact` | mailto link | `{ label, href }` under the description. `null` hides it. |
 | `host` | Maya Lindqvist | `{ name, role, avatar?, initials?, stamp?, city? }`. Without an `avatar`, the host gets a stamped monogram, with `stamp` as the words that run around its ring. |
-| `meetingTitle`, `agenda`, `location`, `responseNote` | sample copy | The host card. Write `agenda` in the host's own voice. |
+| `meetingTitle`, `agenda`, `location`, `responseNote` | "Intro call" + sample copy | The host card. Write `agenda` in the host's own voice. |
 | `bookingUrl`, `bookingHref` | `tallyho.app/maya/partnership` | Shown in the window's address pill. **Copy link** copies `bookingHref`, or `bookingUrl` if `bookingHref` isn't set. |
 | `durations`, `defaultDuration` | `[15, 30, 45]`, `30` | Call lengths in minutes. |
 | `step` | `30` | Minutes between slot starts. |
@@ -67,14 +67,16 @@ another time.
 | `weeksAhead` | `6` | How far ahead the next-week arrow can go. |
 | `weekStartsOn` | `1` | `0` starts the week on Sunday, `1` on Monday. |
 | `clock` | `"24h"` | `"12h"` or `"24h"`. |
-| `hostBusy` | sample week | The host's busy time. Pass weekly rules `{ weekday, from, to }` in the host's zone, or dated spans `{ start, end }`. **Pass your real busy times, or `[]`.** The default sample keeps the first frame from looking empty. |
+| `hostBusy` | `[]` | The host's busy time. Pass weekly rules `{ weekday, from, to }` in the host's zone, or dated spans `{ start, end }`. Busy runs show as one quiet "Busy" bar each. |
+| `loadHostBusy` | none | `(weekStart, weekEnd) => events \| Promise<events>`. Called once for each week shown, to plug in a free/busy API. The grid pulses while that week loads. |
 | `visitorEvents` | `[]` | The visitor's calendar for the overlay, if you already have it. Pass weekly rules (in the visitor's own zone) or dated spans. |
 | `loadVisitorEvents` | none | `() => events \| Promise<events>`. Called the first time the visitor turns the overlay on, when `visitorEvents` is empty. Connect their calendar here. While it resolves, the switch reads "Connecting your calendar…". On failure it offers a retry. Without this and without `visitorEvents`, the switch is hidden. |
 | `onOverlayChange` | none | `(on) => void`. |
 | `defaultOverlay` | `true` | Starts with the overlay on when `visitorEvents` is given. |
 | `chrome` | `"plain"` | `"plain"` is a header with the booking link and Copy link. `"browser"` adds window dots. |
 | `onBook` | none | `(booking) => unknown`. Gets `{ start, end, duration, timeZone, name, email, note }`. It may return a promise. |
-| `preset` | `"sunrise"` | `sunrise` (sun yellow, orange, blue), `lagoon` (mint, sea blue), `graphite` (signal red on mono), or `berry` (pink, apricot). |
+| `preset` | `"postmark"` | `postmark` (vermilion stamp ink on near-black), `sunrise` (sun yellow, orange, blue), `lagoon` (mint, sea blue), `graphite` (signal red on mono), or `berry` (pink, apricot). |
+| `labels` | English | Overrides any UI string: form labels, errors, buttons, legend and empty states. `invite` takes an `{email}` token; set it to `null` if your backend doesn't send an invite. Defaults are in `OSB_LABELS`. |
 | `colors` | none | Overrides any of `slab`, `from`, `to`, `fromDark`, `toDark`, `action` or `window`. Text on the slab and on buttons switches between black and white automatically. |
 | `theme` | `"auto"` | `"auto"` follows `.dark`. `"light"` and `"dark"` force a theme. |
 | `fontFamily` | rounded system stack | The display face for the headline and numbers. |
@@ -82,8 +84,8 @@ another time.
 | `gridHeight` | `444` | Maximum height of the scrolling slot grid, in px. |
 
 The component fetches nothing itself. Your backend provides real busy times and
-connects the visitor's calendar. `demo.tsx` passes a sample week as
-`visitorEvents`. `demo-lagoon.tsx` shows the connect-on-demand flow with a
+connects the visitor's calendar. `demo.tsx` passes a sample week for
+both `hostBusy` and `visitorEvents`. `demo-lagoon.tsx` shows the connect-on-demand flow with a
 simulated 900 ms round trip.
 
 ## Notes
@@ -91,8 +93,12 @@ simulated 900 ms round trip.
 - The week starts on the first one with at least six open slots across two or
   more days, so the section never opens on a dead week. **Today** jumps back to
   the current week.
-- Days with no slots at all shrink to narrow columns, which leaves room for the
-  days a visitor can book.
+- Days already gone are dropped. Working days with no slots shrink to narrow
+  columns. Slots are capped at 176 px, so a two-day schedule still reads as
+  tickets rather than bars.
+- Open slots are cut like tickets, with side notches and a perforation, and today
+  is circled like a postmark. A booking the visitor makes stays on the grid as a
+  "Booked · name" block in the slab colour.
 - The schedule maths (timezone offsets, slots, clashes, blocks, the `.ics` file)
   sits in a `// #region schedule` block. `tests/open-slot-booking.test.mjs` tests
   it, including across a daylight-saving change and from New York, Kolkata and

@@ -95,3 +95,39 @@ the last:
 13. **A real face (not done).** The sandbox blocks images.unsplash.com, so a
     photo couldn't be verified in screenshots. `host.avatar` is supported and
     documented.
+
+## Round 2: REDO (average 7.2)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 7 |
+| Originality | 6 |
+| Install safety | 9 |
+
+Every change the critic asked for was made:
+
+1. **Distance from the reference.** The new default preset, `postmark`, is
+   vermilion stamp ink on near-black with a vermilion-to-magenta accent;
+   `sunrise` stays as an option. The copy is our own: "Intro call", "Choose a
+   time", "Check against my calendar". The stamp and ticket language now shows in
+   the resting frame: open slots are ticket-cut (side notches and a perforation),
+   today is circled like a postmark, and the legend's swatch is a ticket.
+2. **Usability props.** A `labels` prop covers every string, and the invite
+   sentence can be turned off. `hostBusy` defaults to `[]`, with the sample week
+   moved into the demo. Setting `headline` to `null` renders the scheduler alone.
+   `loadHostBusy(weekStart, weekEnd)` fetches each week once, and the grid pulses
+   while it loads.
+3. **Hour labels.** They have 12 px of headroom, the last one isn't drawn, and the
+   top fade covers it.
+4. **Past days.** They are left out of the grid, along with their blocks.
+5. **Host busy time.** Shown as one quiet "Busy" bar per run instead of rows of
+   dashes.
+6. **Phone.** The timezone select shows the city only, the agenda clamps at 3
+   lines, the location line shows, and the overlay switch joins the week row as a
+   calendar icon and toggle. The first row of slots ends at 808 px.
+7. **After booking.** The visitor's booking stays on the grid as a "Booked ·
+   name" block in the slab colour.
+8. **Two-day schedules.** Slots and blocks are capped at 176 and 190 px and
+   centred.
