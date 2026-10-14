@@ -983,7 +983,8 @@ export default function OpenSlotBooking({
     setPhase("form")
     const o = originRef.current
     requestAnimationFrame(() => {
-      if (o && o.isConnected) o.focus({ preventScroll: true })
+      if (o && o.isConnected && !o.hasAttribute("disabled")) o.focus({ preventScroll: true })
+      else (calRef.current?.querySelector("button[data-slot]:not([disabled])") as HTMLElement | null)?.focus({ preventScroll: true })
     })
   }
 
