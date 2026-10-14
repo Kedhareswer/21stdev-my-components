@@ -67,3 +67,23 @@ the rail's sticky header; a dead zone in the hero's left column; the play button
 at 375 x 812; dim meter segments at 11% made the frequency vanish while playing; the residents
 peek covered the hovered row's host; the night preset's light theme loses the reference's
 carbon punch.
+
+## Critic round 2 (new subagent)
+
+Reading: a Verge-style front page for an independent radio station whose giant vertical call
+sign doubles as a two-channel level meter, beside a feature slot with a heavy title over the
+show's art and a timestamped rail ticking in the station's zone; riso art and an SVG stroke face
+carry it through residents, archive, support dial and footer. Banned-looks gate passed.
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 7 | 8 | 6 | 8 | 9 | 8 | 7.67 |
+
+Verdict: **REDO** (craft below 7). Findings: the meter's fixed-pitch segment pattern cut glyphs
+into hairline slivers and left a faint dim outline around lit strokes (worst in the footer
+"VELD"); the "4" read as a "+" in the vertical masthead; the 3 px channel split read as a seam;
+the phone dial's active label sat on a neighbour's diamond; hard-coded copy ("Every euro...",
+"Studio", "Live on", "Today on"...) leaked into installs; a dark page painted light first under
+SSR, and the overnight slot showed as on air before the clock resolved; one stats unit wrapped
+differently; the "bars" print was the weakest art and filled the hero; archive-card hover barely
+answered; the dock had no progress and no close.

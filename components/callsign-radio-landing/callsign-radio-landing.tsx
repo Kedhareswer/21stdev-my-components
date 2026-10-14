@@ -113,6 +113,13 @@ export type CallsignRadioLandingProps = {
     max?: number
     start?: number
     tiers?: CrTier[]
+    /** The perk line under the first tier. */
+    fallbackPerk?: string
+    /** The name shown under the first tier. */
+    fallbackTier?: string
+    /** After a successful gift: the headline (`{tier}` is replaced) and the line under it. */
+    doneTitle?: string
+    doneText?: string
   } | null
   footer?: {
     columns?: { title: string; links: CrLink[] }[]
@@ -120,6 +127,9 @@ export type CallsignRadioLandingProps = {
     email?: string
     newsletterTitle?: string
     newsletterText?: string
+    /** Shown after a successful sign-up. */
+    successText?: string
+    addressTitle?: string
     legal?: string
   } | null
   /** "night" is a club station on carbon and chalk, "daytime" a community station on signal yellow. */
@@ -134,6 +144,8 @@ export type CallsignRadioLandingProps = {
   onRemind?: (show: CrShow, start: string) => unknown
   onSupport?: (amount: number, cadence: "monthly" | "once", tier: CrTier | null) => unknown
   onSubscribe?: (email: string) => unknown
+  /** Interface strings ("On air now", "Listen back", "Give"...). Pass any subset. */
+  labels?: { [K in keyof CrLabels]?: string }
   /** Hero height. A definite length, never a percentage. */
   height?: string
   className?: string
@@ -148,6 +160,49 @@ const DEFAULT_STATION = {
   tagline: "Independent radio from the Rotterdam harbour, on 98.4 FM, DAB+ and online. Paid for by the people who listen.",
   timeZone: "Europe/Amsterdam",
 }
+
+/** Every interface string, so a station in any language can rewrite them. */
+const DEFAULT_LABELS = {
+  today: "Today on",
+  onAir: "On air",
+  onAirNow: "On air now",
+  later: "Later today",
+  earlier: "Earlier today",
+  nextAt: "Next at",
+  to: "to",
+  listenBack: "Listen back",
+  remindAt: "Remind me at",
+  reminderSet: "Reminder set for",
+  reminderRetry: "Try the reminder again",
+  backToNow: "Back to what's on now",
+  wholeDay: "The whole day",
+  showLess: "Show less",
+  live: "Live",
+  liveOn: "Live on",
+  archive: "Archive",
+  streamError: "The stream did not start.",
+  tryAgain: "Try again",
+  backToLive: "Back to live",
+  closePlayer: "Close the player",
+  monthly: "Monthly",
+  once: "Once",
+  perMonth: "a month",
+  perOnce: "once",
+  give: "Give",
+  sending: "Sending",
+  sendError: "That did not go through. Try again.",
+  changeAmount: "Change the amount",
+  emptyArchive: "Nothing in this genre yet. Pick another one.",
+  allGenres: "All",
+  emailLabel: "Email address",
+  subscribe: "Subscribe",
+  subscribing: "Subscribing",
+  emailInvalid: "That email address looks incomplete.",
+  menu: "Menu",
+  dayTheme: "Day",
+  nightTheme: "Night",
+}
+export type CrLabels = typeof DEFAULT_LABELS
 
 const DEFAULT_LINKS: CrLink[] = [
   { label: "Listen", href: "#listen" },
@@ -213,6 +268,10 @@ const DEFAULT_SUPPORT = {
   max: 30,
   start: 8,
   tiers: DEFAULT_TIERS,
+  fallbackPerk: "Every bit goes to the transmitter, the rent and the licences",
+  fallbackTier: "Listener",
+  doneTitle: "Thank you. You are a {tier} now.",
+  doneText: "A receipt is on its way to your inbox.",
 }
 
 const DEFAULT_COLUMNS: { title: string; links: CrLink[] }[] = [
@@ -226,6 +285,8 @@ const DEFAULT_FOOTER = {
   email: "studio@kora.example",
   newsletterTitle: "The running order",
   newsletterText: "Next week's schedule and every record we played, each Monday morning.",
+  successText: "Subscribed. The first running order arrives on Monday.",
+  addressTitle: "Studio",
   legal: "Kora Radio Foundation. Listener-funded since 2009.",
 }
 
@@ -253,7 +314,8 @@ const GK = 22
 const GSW = 30
 const GGAP = 14
 type GLine = { z: boolean; p: number[][] }
-type GDef = { w: number; l: GLine[] }
+/** `n` forces the meter to treat a narrow glyph as one segment. */
+type GDef = { w: number; l: GLine[]; n?: number }
 const go = (...p: number[][]): GLine => ({ z: false, p })
 const gz = (...p: number[][]): GLine => ({ z: true, p })
 const G_O = gz([15, 15], [85, 15], [85, 185], [15, 185])
@@ -268,7 +330,7 @@ const GLYPHS: { [ch: string]: GDef } = {
   F: { w: 94, l: [go([94, 15], [15, 15, 0], [15, 200]), go([15, 104], [82, 104])] },
   G: { w: 100, l: [go([85, 64], [85, 15], [15, 15], [15, 185], [85, 185], [85, 104, 0], [50, 104])] },
   H: { w: 100, l: [go([15, 0], [15, 200]), go([85, 0], [85, 200]), go([15, 100], [85, 100])] },
-  I: { w: 30, l: [go([15, 0], [15, 200])] },
+  I: { w: 30, l: [go([15, 0], [15, 200])], n: 1 },
   J: { w: 96, l: [go([81, 0], [81, 185], [15, 185], [15, 138])] },
   K: { w: 100, l: [go([15, 0], [15, 200]), go([96, -6], [26, 104, 0], [96, 206])] },
   L: { w: 92, l: [go([15, 0], [15, 185, 0], [92, 185])] },
@@ -287,23 +349,23 @@ const GLYPHS: { [ch: string]: GDef } = {
   Y: { w: 104, l: [go([4, -14], [52, 96, 0], [100, -14]), go([52, 96], [52, 200])] },
   Z: { w: 100, l: [go([0, 15], [85, 15, 0], [15, 185, 0], [100, 185])] },
   "0": { w: 100, l: [G_O] },
-  "1": { w: 72, l: [go([4, 15], [42, 15, 0], [42, 200])] },
+  "1": { w: 60, l: [go([0, 15], [36, 15, 0], [36, 200])], n: 1 },
   "2": { w: 100, l: [go([0, 15], [85, 15], [85, 100], [15, 100], [15, 185, 0], [100, 185])] },
   "3": { w: 100, l: [go([0, 15], [85, 15], [85, 185], [0, 185]), go([30, 100], [85, 100])] },
-  "4": { w: 100, l: [go([15, 0], [15, 122, 0], [100, 122]), go([80, 56], [80, 200])] },
+  "4": { w: 100, l: [go([70, 4, 0], [14, 124, 0], [100, 124]), go([70, 0], [70, 200])] },
   "5": { w: 100, l: [go([100, 15], [15, 15, 0], [15, 100], [85, 100], [85, 185], [0, 185])] },
   "6": { w: 100, l: [go([92, 15], [15, 15], [15, 185], [85, 185], [85, 100], [15, 100, 0])] },
   "7": { w: 96, l: [go([0, 15], [81, 15, 0], [34, 212, 0])] },
   "8": { w: 100, l: [G_O, go([15, 100], [85, 100])] },
   "9": { w: 100, l: [go([8, 185], [85, 185], [85, 15], [15, 15], [15, 100], [85, 100, 0])] },
-  ".": { w: 50, l: [go([10, 185], [40, 185])] },
-  ",": { w: 50, l: [go([10, 185], [40, 185]), go([34, 186], [22, 216])] },
-  ":": { w: 50, l: [go([10, 70], [40, 70]), go([10, 185], [40, 185])] },
+  ".": { w: 50, l: [go([10, 185], [40, 185])], n: 1 },
+  ",": { w: 50, l: [go([10, 185], [40, 185]), go([34, 186], [22, 216])], n: 1 },
+  ":": { w: 50, l: [go([10, 70], [40, 70]), go([10, 185], [40, 185])], n: 1 },
   "-": { w: 80, l: [go([8, 104], [72, 104])] },
   "+": { w: 100, l: [go([10, 104], [90, 104]), go([50, 64], [50, 144])] },
   "/": { w: 80, l: [go([2, 214], [78, -14])] },
   "?": { w: 92, l: [go([4, 15], [77, 15], [77, 100], [40, 100, 0], [40, 142]), go([25, 185], [55, 185])] },
-  "!": { w: 40, l: [go([20, 0], [20, 140]), go([5, 185], [35, 185])] },
+  "!": { w: 40, l: [go([20, 0], [20, 140]), go([5, 185], [35, 185])], n: 1 },
   "€": { w: 104, l: [go([92, 52], [92, 15], [26, 15], [26, 185], [92, 185], [92, 148]), go([0, 80], [64, 80]), go([0, 122], [64, 122])] },
   "$": { w: 100, l: [go([100, 30], [15, 30], [15, 100], [85, 100], [85, 170], [0, 170]), go([50, 0], [50, 200])] },
   "£": { w: 100, l: [go([86, 50], [86, 15], [30, 15], [30, 185, 0]), go([0, 185], [100, 185]), go([0, 104], [70, 104])] },
@@ -556,6 +618,45 @@ function archiveShape(i: number, n: number) {
   return j === 0 ? "wide" : "small"
 }
 
+/**
+ * Meter segments laid per glyph, so a cut never leaves a sliver at a glyph's edge: each glyph
+ * is split into whole segments of about `seg` units with `gap` between them. Returns where each
+ * segment starts and ends (word units) and the gaps to paint.
+ */
+function meterSegments(items: { ch: string; x: number; w: number }[], seg: number, gap: number) {
+  const starts: number[] = []
+  const ends: number[] = []
+  const gaps: number[][] = []
+  for (const it of items) {
+    if (it.ch === " ") continue
+    const g = GLYPHS[it.ch]
+    const n = g && g.n ? g.n : Math.max(1, Math.round((it.w + gap) / (seg + gap)))
+    const sw = (it.w - (n - 1) * gap) / n
+    for (let k = 0; k < n; k++) {
+      const x0 = it.x + k * (sw + gap)
+      starts.push(x0)
+      ends.push(x0 + sw)
+      if (k < n - 1) gaps.push([x0 + sw, gap])
+    }
+  }
+  return { starts, ends, gaps }
+}
+
+/** Lit length for a level: the end of the last segment the level reaches into (0 when silent). */
+function litEnd(segs: { starts: number[]; ends: number[] }, level: number, W: number) {
+  const t = clamp(level, 0, 1) * W
+  if (t <= 0) return 0
+  for (let i = 0; i < segs.starts.length; i++) if (t <= segs.ends[i]) return t > segs.starts[i] || i === 0 ? segs.ends[i] : segs.ends[i - 1]
+  return W
+}
+
+/** The segment a peak sits in: [x, width]. */
+function peakSeg(segs: { starts: number[]; ends: number[] }, level: number, W: number) {
+  const e = litEnd(segs, level, W)
+  for (let i = 0; i < segs.ends.length; i++) if (segs.ends[i] >= e - 0.01) return [segs.starts[i], segs.ends[i] - segs.starts[i]]
+  return [0, 0]
+}
+
 const fmtDuration = (m: number) => (m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min")
 // #endregion logic
 
@@ -583,7 +684,7 @@ function useTheme(pref: "system" | "light" | "dark") {
     if (el.classList.contains("light")) return false
     return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches
   }
-  const [dark, setDark] = React.useState(false)
+  const [dark, setDark] = React.useState(pref === "dark")
   useIsoLayout(() => {
     setDark(read())
     if (pref !== "system") return
@@ -703,67 +804,76 @@ function MeterWord({ word, redAt, vertical, seg, gap, register, className }: Met
   const id = "m" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const lay = layoutText(word)
   const W = Math.max(1, lay.width)
-  const pitch = seg + gap
   const d = lay.items.map((it) => glyphPath(it.ch, it.x)).join("")
+  const segs = meterSegments(lay.items, seg, gap)
   const redItem = redAt >= 0 && redAt < lay.items.length ? lay.items[redAt] : null
-  const redX = Math.floor((redItem ? redItem.x : W * 0.8) / pitch) * pitch
-  const litL = React.useRef(null as SVGRectElement | null)
-  const litR = React.useRef(null as SVGRectElement | null)
-  const redL = React.useRef(null as SVGRectElement | null)
-  const redR = React.useRef(null as SVGRectElement | null)
-  const pkL = React.useRef(null as SVGRectElement | null)
-  const pkR = React.useRef(null as SVGRectElement | null)
-  const split = React.useRef(null as SVGRectElement | null)
+  const redX = redItem ? redItem.x : segs.starts[Math.floor(segs.starts.length * 0.8)] || W
+  const refs = React.useRef({} as { [k: string]: SVGRectElement | null })
+  const bind = (k: string) => (el: SVGRectElement | null) => {
+    refs.current[k] = el
+  }
   useIsoLayout(() => {
-    const q = (v: number) => Math.min(W + pitch, Math.ceil((clamp(v, 0, 1) * W) / pitch) * pitch)
-    const set = (el: SVGRectElement | null, k: string, v: number) => {
-      if (el) el.setAttribute(k, fx(v))
+    const set = (k: string, a: string, v: number) => {
+      const el = refs.current[k]
+      if (el) el.setAttribute(a, fx(v))
     }
     return register((s) => {
-      const a = q(s.L)
-      const b = q(s.R)
-      set(litL.current, "width", a)
-      set(litR.current, "width", b)
-      set(redL.current, "width", Math.max(0, a - redX))
-      set(redR.current, "width", Math.max(0, b - redX))
-      set(pkL.current, "x", Math.max(0, q(s.pL) - pitch))
-      set(pkR.current, "x", Math.max(0, q(s.pR) - pitch))
-      set(pkL.current, "opacity", s.live * (s.pL > 0.04 ? 1 : 0))
-      set(pkR.current, "opacity", s.live * (s.pR > 0.04 ? 1 : 0))
-      set(split.current, "opacity", s.live)
+      const a = litEnd(segs, s.L, W)
+      const b = litEnd(segs, s.R, W)
+      set("litL", "width", a)
+      set("litR", "width", b)
+      set("dimL", "x", a)
+      set("dimL", "width", W + 4 - a)
+      set("dimR", "x", b)
+      set("dimR", "width", W + 4 - b)
+      set("redL", "width", Math.max(0, a - redX))
+      set("redR", "width", Math.max(0, b - redX))
+      const pa = peakSeg(segs, s.pL, W)
+      const pb = peakSeg(segs, s.pR, W)
+      set("pkL", "x", pa[0])
+      set("pkL", "width", pa[1])
+      set("pkR", "x", pb[0])
+      set("pkR", "width", pb[1])
+      set("pkL", "opacity", s.live * (s.pL > 0.04 ? 1 : 0))
+      set("pkR", "opacity", s.live * (s.pR > 0.04 ? 1 : 0))
+      set("split", "width", Math.max(a, b))
+      set("split", "opacity", s.live)
     })
-  }, [W, pitch, redX, register])
+  }, [W, redX, register, seg, gap])
   const vb = vertical ? "0 0 " + GH + " " + fx(W) : "0 0 " + fx(W) + " " + GH
   return (
     <svg className={"cr-meter " + (className || "")} data-v={vertical ? "" : undefined} data-h={vertical ? undefined : ""} viewBox={vb} preserveAspectRatio={vertical ? "xMidYMax meet" : "xMinYMid meet"} aria-hidden="true" focusable="false">
       <defs>
         <clipPath id={id + "b"} clipPathUnits="userSpaceOnUse">
           {lay.items.map((it, j) => (
-            <rect key={j} x={it.x - 0.5} y={0} width={it.w + 1} height={GH} />
+            <rect key={j} x={it.x} y={0} width={it.w} height={GH} />
           ))}
         </clipPath>
         <clipPath id={id + "l"} clipPathUnits="userSpaceOnUse">
-          <rect ref={litL} x={0} y={-20} width={W + pitch} height={120} />
-          <rect ref={litR} x={0} y={100} width={W + pitch} height={120} />
+          <rect ref={bind("litL")} x={0} y={-20} width={W} height={120} />
+          <rect ref={bind("litR")} x={0} y={100} width={W} height={120} />
+        </clipPath>
+        <clipPath id={id + "d"} clipPathUnits="userSpaceOnUse">
+          <rect ref={bind("dimL")} x={W} y={-20} width={4} height={120} />
+          <rect ref={bind("dimR")} x={W} y={100} width={4} height={120} />
         </clipPath>
         <clipPath id={id + "r"} clipPathUnits="userSpaceOnUse">
-          <rect ref={redL} x={redX} y={-20} width={W + pitch - redX} height={120} />
-          <rect ref={redR} x={redX} y={100} width={W + pitch - redX} height={120} />
+          <rect ref={bind("redL")} x={redX} y={-20} width={Math.max(0, W - redX)} height={120} />
+          <rect ref={bind("redR")} x={redX} y={100} width={Math.max(0, W - redX)} height={120} />
         </clipPath>
-        <pattern id={id + "s"} x={0} y={0} width={pitch} height={GH} patternUnits="userSpaceOnUse">
-          <rect className="cr-gapfill" x={seg} y={-1} width={gap} height={GH + 2} />
-        </pattern>
       </defs>
       <g transform={vertical ? "translate(0 " + fx(W) + ") rotate(-90)" : undefined}>
         <g clipPath={"url(#" + id + "b)"}>
-          <path className="cr-m-dim" d={d} strokeWidth={GSW} />
+          <path className="cr-m-dim" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "d)"} />
           <path className="cr-m-lit" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "l)"} />
           <path className="cr-m-red" d={d} strokeWidth={GSW} clipPath={"url(#" + id + "r)"} />
         </g>
-        <rect x={0} y={-2} width={W} height={GH + 4} fill={"url(#" + id + "s)"} />
-        <rect ref={split} className="cr-gapfill" x={0} y={98.5} width={W} height={3} opacity={0} />
-        <rect ref={pkL} className="cr-m-peak" x={0} y={0} width={seg} height={98.5} opacity={0} />
-        <rect ref={pkR} className="cr-m-peak" x={0} y={101.5} width={seg} height={98.5} opacity={0} />
+        {segs.gaps.map((g, j) => (
+          <rect key={j} className="cr-gapfill" x={fx(g[0])} y={-2} width={fx(g[1])} height={GH + 4} />
+        ))}
+        <rect ref={bind("split")} className="cr-gapfill" x={0} y={99.25} width={W} height={1.5} opacity={0} />
+        <rect ref={bind("pkL")} className="cr-m-peak" x={0} y={0} width={seg} height={99.25} opacity={0} />
+        <rect ref={bind("pkR")} className="cr-m-peak" x={0} y={100.75} width={seg} height={99.25} opacity={0} />
       </g>
     </svg>
   )
@@ -796,16 +906,18 @@ function Cover({ show, seed, image, label, alt, className, top }: CoverProps) {
     for (let i = 0; i < 11; i++) a.push(<circle key={i} cx={fx(cx)} cy={fx(cy)} r={28 + i * 25} fill="none" stroke="currentColor" strokeWidth={11} />)
     b.push(<circle key="s" cx={fx(110 + r() * 70)} cy={fx(170 + r() * 60)} r={112 + r() * 20} fill="currentColor" />)
   } else if (art === "bars") {
-    const n = 26
-    const mid = 262
+    // a tide chart: a half sun rising behind a waveform, with the overprint making a third ink
+    const n = 22
+    const mid = 236 + r() * 30
+    const off = seedOf(seed) % 50
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1)
-      const h = 18 + 150 * Math.pow(vnoise(t * 5.3 + r() * 0.3 + seedOf(seed) % 50), 1.4) * (0.45 + 0.55 * Math.sin(t * Math.PI))
-      a.push(<rect key={i} x={fx(26 + i * 13.6)} y={fx(mid - h / 2)} width={8.6} height={fx(h)} fill="currentColor" />)
+      const h = 26 + 210 * Math.pow(vnoise(t * 4.1 + r() * 0.25 + off), 1.3) * (0.35 + 0.65 * Math.sin(t * Math.PI))
+      a.push(<rect key={i} x={fx(14 + i * 17.6)} y={fx(mid - h / 2)} width={11.5} height={fx(h)} fill="currentColor" />)
     }
-    b.push(<rect key="band" x={0} y={0} width={400} height={fx(150 + r() * 30)} fill="currentColor" />)
-    b.push(<rect key="foot" x={0} y={fx(372 - r() * 10)} width={400} height={40} fill="currentColor" />)
-    knockLabel = true
+    a.push(<rect key="tide" x={0} y={fx(mid + 108)} width={400} height={12} fill="currentColor" />)
+    b.push(<rect key="band" x={0} y={0} width={400} height={56} fill="currentColor" />)
+    b.push(<circle key="sun" cx={fx(140 + r() * 120)} cy={fx(mid + 20)} r={fx(118 + r() * 24)} fill="currentColor" />)
   } else if (art === "dots") {
     const ox = r() * 400
     const oy = r() * 400
@@ -1078,7 +1190,7 @@ const CR_CSS = `
 .cr-ways{border-top:1px solid var(--cr-line);border-bottom:1px solid var(--cr-line);padding:0 var(--cr-pad);display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 .cr-way{display:flex;flex-direction:column;gap:12px;padding:clamp(24px,3vw,40px) clamp(16px,2vw,28px) clamp(24px,3vw,40px) 0}
 .cr-way+.cr-way{border-left:1px solid var(--cr-line);padding-left:clamp(16px,2vw,28px)}
-.cr-way .cr-way-v{color:var(--cr-ink);display:flex;align-items:flex-end;gap:10px;font-size:clamp(34px,3.4vw,54px);flex-wrap:wrap}
+.cr-way .cr-way-v{color:var(--cr-ink);display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-size:clamp(34px,3.4vw,54px)}
 .cr-way-u{font-family:var(--cr-mono);font-size:12px;font-weight:700;color:var(--cr-tally);text-transform:uppercase;letter-spacing:.04em;line-height:1;padding-bottom:2px}
 .cr-way p{font-size:15px;color:var(--cr-muted);max-width:30ch}
 
@@ -1110,7 +1222,7 @@ const CR_CSS = `
 .cr-ep[data-shape="big"]{grid-column:span 2;grid-row:span 2}
 .cr-ep[data-shape="wide"]{grid-column:span 2}
 .cr-ep[data-shape="full"]{grid-column:span 4;flex-direction:row;align-items:center}
-.cr-ep-art{position:relative;aspect-ratio:1;border-radius:var(--cr-r);overflow:hidden;background:var(--cr-paper)}
+.cr-ep-art{position:relative;display:block;width:100%;aspect-ratio:1;border-radius:var(--cr-r);overflow:hidden;background:var(--cr-paper)}
 .cr-ep[data-shape="wide"] .cr-ep-art{aspect-ratio:2/1}
 .cr-ep[data-shape="full"] .cr-ep-art{width:calc(25% - 15px);flex:none}
 .cr-ep[data-shape="full"]{gap:clamp(16px,2vw,28px)}
@@ -1119,10 +1231,10 @@ const CR_CSS = `
 .cr-ep-play{position:absolute;left:12px;bottom:12px;width:48px;height:48px;border-radius:var(--cr-r);background:#0d0e0c;color:#ffffff;display:grid;place-items:center;transition:transform .2s var(--cr-ease),background-color .2s var(--cr-ease),color .2s var(--cr-ease)}
 .cr-ep[data-shape="big"] .cr-ep-play{width:60px;height:60px;left:16px;bottom:16px}
 .cr-ep-play[data-on]{background:var(--cr-tally);color:var(--cr-on-tally)}
-.cr-ep-play:active{transform:scale(.94)}
+.cr-ep-art:active .cr-ep-play{transform:scale(.94)}
 .cr-ep-meta{display:flex;flex-direction:column;gap:4px;min-width:0}
 .cr-ep-show{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cr-muted)}
-.cr-ep-title{font-size:17px;font-weight:700;line-height:1.3;letter-spacing:-.01em;text-wrap:pretty}
+.cr-ep-title{font-size:17px;font-weight:700;line-height:1.3;letter-spacing:-.01em;text-wrap:pretty;background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;transition:background-size .3s var(--cr-ease)}
 .cr-ep[data-shape="big"] .cr-ep-title{font-size:clamp(20px,1.8vw,26px)}
 .cr-ep-when{font-size:12px;color:var(--cr-muted)}
 .cr-eq{display:inline-flex;align-items:flex-end;gap:2px;height:12px;margin-left:6px;vertical-align:-1px}
@@ -1132,7 +1244,8 @@ const CR_CSS = `
 @media (hover:hover){
 .cr-ep:hover .cr-pb,.cr-stage:hover .cr-pb,.cr-res-row:hover .cr-pb{transform:translate(7px,-5px)}
 .cr-ep:hover .cr-pa,.cr-stage:hover .cr-pa{transform:translate(-2px,2px)}
-.cr-ep-play:hover{transform:scale(1.06)}
+.cr-ep:hover .cr-ep-play{transform:scale(1.1);background:var(--cr-tally);color:var(--cr-on-tally)}
+.cr-ep:hover .cr-ep-title{background-size:100% 1.5px}
 }
 .cr-empty{grid-column:1/-1;padding:40px 0;color:var(--cr-muted)}
 
@@ -1153,8 +1266,11 @@ const CR_CSS = `
 .cr-tick{position:absolute;top:0;width:1.5px;height:12px;background:var(--cr-muted);transform:translateX(-50%)}
 .cr-tick[data-major]{height:22px;background:var(--cr-ink)}
 .cr-tick-n{position:absolute;top:34px;font-size:12px;color:var(--cr-muted);transform:translateX(-50%)}
-.cr-mark{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:700;white-space:nowrap}
-.cr-mark i{width:9px;height:9px;border-radius:2px;background:var(--cr-ink);transform:rotate(45deg)}
+.cr-mark{position:absolute;top:24px;width:0;display:flex;justify-content:center;font-size:12px;font-weight:700;white-space:nowrap}
+.cr-mark span{position:absolute;bottom:calc(100% + 4px);left:0;transform:translateX(-50%)}
+.cr-mark[data-edge="start"] span{transform:translateX(-6px)}
+.cr-mark[data-edge="end"] span{transform:translateX(calc(-100% + 6px))}
+.cr-mark i{flex:none;width:9px;height:9px;border-radius:2px;background:var(--cr-ink);transform:rotate(45deg)}
 .cr-mark[data-on] i{background:var(--cr-tally)}
 .cr-needle{position:absolute;top:-14px;height:42px;width:0;transition:left .18s var(--cr-ease);pointer-events:none}
 .cr-needle::before{content:"";position:absolute;left:-1.5px;top:0;bottom:0;width:3px;background:var(--cr-tally);border-radius:2px}
@@ -1185,7 +1301,7 @@ const CR_CSS = `
 .cr-legal{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-top:clamp(40px,5vw,72px);padding-top:20px;border-top:1px solid var(--cr-line);font-size:13px;color:var(--cr-muted)}
 
 .cr-dock{position:sticky;bottom:12px;z-index:25;margin:0 var(--cr-pad);height:0;overflow:visible;pointer-events:none}
-.cr-dock-in{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:14px;padding:10px 12px 10px 16px;border-radius:calc(var(--cr-r) + 4px);background:var(--cr-ink);color:var(--cr-ground);box-shadow:0 18px 40px -16px rgba(0,0,0,.5);transform:translateY(calc(100% + 24px));opacity:0;transition:transform .45s var(--cr-ease),opacity .3s var(--cr-ease);pointer-events:none}
+.cr-dock-in{position:absolute;right:0;bottom:0;width:min(100%,620px);overflow:hidden;display:flex;align-items:center;gap:14px;padding:10px 12px 10px 16px;border-radius:calc(var(--cr-r) + 4px);background:var(--cr-ink);color:var(--cr-ground);box-shadow:0 18px 40px -16px rgba(0,0,0,.5);transform:translateY(calc(100% + 24px));opacity:0;transition:transform .45s var(--cr-ease),opacity .3s var(--cr-ease);pointer-events:none}
 .cr-dock[data-on] .cr-dock-in{transform:none;opacity:1;pointer-events:auto}
 .cr-dock .cr-meter{width:auto;height:30px;flex:none}
 .cr-dock .cr-m-lit{stroke:var(--cr-ground)}
@@ -1197,6 +1313,8 @@ const CR_CSS = `
 .cr-dock .cr-iconbtn{color:var(--cr-ground)}
 .cr-dock .cr-dock-p{width:44px;height:44px;border-radius:var(--cr-r);background:var(--cr-tally);color:var(--cr-on-tally);display:grid;place-items:center;flex:none}
 .cr-dock .cr-quiet{color:var(--cr-ground);font-size:13px}
+.cr-dock-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:color-mix(in srgb,var(--cr-ground) 18%,transparent)}
+.cr-dock-prog i{position:absolute;inset:0;background:var(--cr-tally);transform-origin:left;transition:transform 2s linear}
 
 .cr-sheet{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--cr-ground);padding:16px var(--cr-pad) 32px;animation:cr-sheet .32s var(--cr-ease)}
 @keyframes cr-sheet{from{opacity:0;transform:translateY(-12px)}}
@@ -1286,8 +1404,8 @@ const CR_CSS = `
 .cr-ep[data-shape="small"] .cr-ep-play,.cr-ep[data-shape="wide"] .cr-ep-play,.cr-ep[data-shape="full"] .cr-ep-play{width:40px;height:40px;left:8px;bottom:8px}
 .cr-support{grid-template-columns:1fr}
 .cr-tick-n[data-minor]{display:none}
-.cr-mark span{display:none}
-.cr-mark[data-on] span{display:block}
+.cr-mark span{visibility:hidden}
+.cr-mark[data-on] span{visibility:visible}
 .cr-foot-grid{grid-template-columns:1fr}
 .cr-news-row{flex-direction:column}
 .cr-input{flex:none}
@@ -1330,6 +1448,7 @@ export default function CallsignRadioLanding({
   onRemind,
   onSupport,
   onSubscribe,
+  labels,
   height = "100svh",
   className,
 }: CallsignRadioLandingProps) {
@@ -1338,6 +1457,7 @@ export default function CallsignRadioLanding({
   const [dark, setDark] = useTheme(theme)
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const ST = { ...DEFAULT_STATION, ...(station || {}) }
+  const T = { ...DEFAULT_LABELS, ...(labels || {}) } as CrLabels
   const P = PRESETS[preset] || PRESETS.night
   const tokens = { ...(dark ? P.dark : P.light), ...((palette && (dark ? palette.dark : palette.light)) || {}) } as CrTokens
   const LS = listen === null ? null : { title: "Tune in", ways: DEFAULT_WAYS, ...(listen || {}) }
@@ -1364,6 +1484,7 @@ export default function CallsignRadioLanding({
   }, [ST.timeZone])
   const today = (week && clock && week[clock.day]) || schedule
   const order = runningOrder(today && today.length ? today : DEFAULT_SCHEDULE)
+  const ready = !!clock
   const cur = clock ? Math.max(0, onAirIndex(order, clock.min)) : 0
   const [sel, setSel] = React.useState(-1)
   const fi = sel >= 0 && sel < order.length ? sel : cur
@@ -1371,7 +1492,7 @@ export default function CallsignRadioLanding({
   const fshow = showOf(feat ? feat.show : "")
   const nowShow = showOf(order[cur] ? order[cur].show : "")
   const prog = clock && order[cur] ? slotProgress(order[cur], clock.min, clock.sec) : 0
-  const fstate = fi === cur ? "now" : fi < cur ? "past" : "next"
+  const fstate = !ready ? "wait" : fi === cur ? "now" : fi < cur ? "past" : "next"
   const next = fi + 1 < order.length ? order[fi + 1] : null
   const railRef = React.useRef(null as HTMLDivElement | null)
   const [railAll, setRailAll] = React.useState(false)
@@ -1447,6 +1568,8 @@ export default function CallsignRadioLanding({
     const a = audioRef.current
     const url = next.kind === "live" ? streamUrl : next.episode.audioUrl
     setSource(next)
+    setDocked(true)
+    setStartedAt(Date.now())
     if (onPlay) onPlay(next)
     const label = next.kind === "live" ? ST.name + " live: " + nowShow.title : next.episode.title
     if (!url || !a) {
@@ -1470,7 +1593,7 @@ export default function CallsignRadioLanding({
       },
       () => {
         setStatus("error")
-        setSaid("The stream did not start.")
+        setSaid(T.streamError)
       }
     )
   }
@@ -1571,7 +1694,16 @@ export default function CallsignRadioLanding({
     io.observe(el)
     return () => io.disconnect()
   }, [])
-  const dockOn = playing && !playerSeen
+  const [docked, setDocked] = React.useState(false)
+  const dockOn = docked && !playerSeen
+  const [startedAt, setStartedAt] = React.useState(0)
+  const [, setPulse] = React.useState(0)
+  React.useEffect(() => {
+    if (!dockOn || !playing) return
+    const iv = setInterval(() => setPulse((n) => n + 1), 2000)
+    return () => clearInterval(iv)
+  }, [dockOn, playing])
+  const dockProg = source.kind === "episode" ? (startedAt ? clamp((Date.now() - startedAt) / 60000 / Math.max(1, source.episode.minutes), 0, 1) : 0) : prog
 
   /* ---------- theme, nav ---------- */
   const go = (href?: string) => (e: React.MouseEvent) => {
@@ -1656,9 +1788,9 @@ export default function CallsignRadioLanding({
 
   /* ---------- archive ---------- */
   const eps = episodes || []
-  const genreList = ["All", ...Array.from(new Set(eps.flatMap((e) => showOf(e.show).genres.slice(0, 1))))]
-  const [genre, setGenre] = React.useState("All")
-  const shown = genre === "All" ? eps : eps.filter((e) => showOf(e.show).genres.slice(0, 1).indexOf(genre) > -1)
+  const genreList = [T.allGenres, ...Array.from(new Set(eps.flatMap((e) => showOf(e.show).genres.slice(0, 1))))]
+  const [genre, setGenre] = React.useState("")
+  const shown = !genre || genre === T.allGenres ? eps : eps.filter((e) => showOf(e.show).genres.slice(0, 1).indexOf(genre) > -1)
 
   /* ---------- support ---------- */
   const smin = SP ? SP.min : 0
@@ -1726,11 +1858,11 @@ export default function CallsignRadioLanding({
     "--cr-paper": tokens.paper,
   } as React.CSSProperties
 
-  const featLabel = fstate === "now" ? "On air now" : fstate === "next" ? "Later today" : "Earlier today"
+  const featLabel = fstate === "now" ? T.onAirNow : fstate === "next" ? T.later : T.earlier
   const featEpisode = eps.find((e) => feat && e.show === feat.show)
   const playLabel = liveOn ? "Pause " + ST.name : status === "error" ? "Try the stream again" : "Listen live to " + ST.name
   const sourceTitle = source.kind === "episode" ? source.episode.title : nowShow.title
-  const sourceLine = source.kind === "episode" ? showOf(source.episode.show).title + ", " + source.episode.date : "Live on " + (ST.frequency ? ST.frequency + " FM" : ST.name)
+  const sourceLine = source.kind === "episode" ? showOf(source.episode.show).title + ", " + source.episode.date : T.liveOn + " " + (ST.frequency ? ST.frequency + " FM" : ST.name)
 
   return (
     <div ref={rootRef} className={"cr-root " + (className || "")} data-theme={dark ? "dark" : "light"} data-preset={preset} style={vars}>
@@ -1767,13 +1899,13 @@ export default function CallsignRadioLanding({
         <div className="cr-nav-end">
           <span className="cr-onair">
             <i className="cr-lamp" data-blink={liveOn && !reduced ? "" : undefined} aria-hidden="true" />
-            <span className="cr-mono">On air</span>
+            <span className="cr-mono">{T.onAir}</span>
             <b>{nowShow.title}</b>
           </span>
           {themeToggle ? (
             <button type="button" className="cr-mode" onClick={() => setDark(!dark)} aria-label={dark ? "Switch to the day theme" : "Switch to the night theme"}>
               <i aria-hidden="true" />
-              <span>{dark ? "Day" : "Night"}</span>
+              <span>{dark ? T.dayTheme : T.nightTheme}</span>
             </button>
           ) : null}
           {SP ? (
@@ -1782,7 +1914,7 @@ export default function CallsignRadioLanding({
             </a>
           ) : null}
           <button ref={menuBtn} type="button" className="cr-menu-btn" aria-expanded={menu} aria-controls={uid + "-menu"} onClick={() => setMenu(true)}>
-            Menu
+            {T.menu}
           </button>
         </div>
       </header>
@@ -1839,7 +1971,7 @@ export default function CallsignRadioLanding({
           <div className="cr-stage">
             <div className="cr-aside">
               <p className="cr-tagline">{ST.tagline}</p>
-              <p className="cr-kicker">
+              <p className="cr-kicker" style={ready ? undefined : { visibility: "hidden" }}>
                 {fstate === "now" ? <i className="cr-lamp" data-blink={liveOn && !reduced ? "" : undefined} aria-hidden="true" /> : null}
                 <span style={fstate === "now" ? { color: "var(--cr-tally)" } : undefined}>{featLabel}</span>
                 {feat ? <span className="cr-mono">{fmtMin(feat.from) + " to " + fmtMin(feat.to)}</span> : null}
@@ -1850,7 +1982,7 @@ export default function CallsignRadioLanding({
               </p>
               {next ? (
                 <button type="button" className="cr-next" onClick={() => setSel(fi + 1)}>
-                  <span className="cr-next-k">Next at {fmtMin(next.from)}</span>
+                  <span className="cr-next-k">{T.nextAt + " " + fmtMin(next.from)}</span>
                   <span className="cr-next-t">{showOf(next.show).title}</span>
                   <span className="cr-next-h">{showOf(next.show).host}</span>
                 </button>
@@ -1871,26 +2003,26 @@ export default function CallsignRadioLanding({
             </p>
             <div>
               <p className="cr-blurb">{fshow.blurb}</p>
-              {fstate !== "now" ? (
+              {fstate === "past" || fstate === "next" ? (
                 <div className="cr-factions">
                   {fstate === "next" ? (
                     <button type="button" className="cr-btn cr-line" onClick={() => feat && remind(fshow, fmtMin(feat.from))} disabled={reminders[fmtMin(feat ? feat.from : 0)] === "busy"}>
                       <Icon name={reminders[fmtMin(feat ? feat.from : 0)] === "set" ? "check" : "bell"} />
                       {reminders[fmtMin(feat ? feat.from : 0)] === "set"
-                        ? "Reminder set for " + fmtMin(feat ? feat.from : 0)
+                        ? T.reminderSet + " " + fmtMin(feat ? feat.from : 0)
                         : reminders[fmtMin(feat ? feat.from : 0)] === "error"
-                          ? "Try the reminder again"
-                          : "Remind me at " + fmtMin(feat ? feat.from : 0)}
+                          ? T.reminderRetry
+                          : T.remindAt + " " + fmtMin(feat ? feat.from : 0)}
                     </button>
                   ) : featEpisode ? (
                     <button type="button" className="cr-btn cr-line" onClick={() => toggleEpisode(featEpisode)}>
                       <Icon name={playing && source.kind === "episode" && source.episode.id === featEpisode.id ? "pause" : "play"} />
-                      Listen back
+                      {T.listenBack}
                     </button>
                   ) : null}
                   <button type="button" className="cr-btn cr-quiet" onClick={() => setSel(-1)}>
                     <Icon name="back" />
-                    <span>Back to what's on now</span>
+                    <span>{T.backToNow}</span>
                   </button>
                 </div>
               ) : null}
@@ -1903,15 +2035,15 @@ export default function CallsignRadioLanding({
             <div className="cr-pinfo">
               {status === "error" ? (
                 <p className="cr-perr" role="alert">
-                  The stream did not start.
+                  {T.streamError}
                   <button type="button" onClick={() => start(source)}>
-                    Try again
+                    {T.tryAgain}
                   </button>
                 </p>
               ) : (
                 <p className="cr-pline">
-                  <b>{source.kind === "episode" && playing ? sourceTitle : "Live: " + nowShow.title}</b>
-                  <span className="cr-mono">{source.kind === "episode" && playing ? "Archive" : order[cur] ? fmtMin(order[cur].from) + "-" + fmtMin(order[cur].to) : ""}</span>
+                  <b>{source.kind === "episode" && playing ? sourceTitle : T.live + ": " + nowShow.title}</b>
+                  <span className="cr-mono">{source.kind === "episode" && playing ? T.archive : order[cur] ? fmtMin(order[cur].from) + "-" + fmtMin(order[cur].to) : ""}</span>
                 </p>
               )}
               <div className="cr-prog" role="progressbar" aria-label="Time through the show on air" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(prog * 100)}>
@@ -1942,7 +2074,7 @@ export default function CallsignRadioLanding({
         <div className="cr-rail" ref={railRef} data-sec="schedule" id={uid + "-sched"} data-all={railAll ? "" : undefined} tabIndex={-1}>
           <div className="cr-rail-h">
             <h2>
-              Today on {ST.name}
+              {T.today + " " + ST.name}
               <span>{clock ? clock.label : " "}</span>
             </h2>
             <Clock tz={ST.timeZone} />
@@ -1950,7 +2082,7 @@ export default function CallsignRadioLanding({
           <ol className="cr-order">
             {order.map((o, i) => {
               const sh = showOf(o.show)
-              const state = i === cur ? "now" : i < cur ? "past" : "next"
+              const state = !ready ? "next" : i === cur ? "now" : i < cur ? "past" : "next"
               const far = i < cur - 1 || i > cur + 3
               const ink = sh.ink || ["#888888", "#444444"]
               return (
@@ -1972,7 +2104,7 @@ export default function CallsignRadioLanding({
                         {state === "now" ? (
                           <>
                             <i className="cr-lamp" aria-hidden="true" />
-                            On air
+                            {T.onAir}
                           </>
                         ) : (
                           sh.genres.join(", ")
@@ -1992,7 +2124,7 @@ export default function CallsignRadioLanding({
             })}
           </ol>
           <button type="button" className="cr-btn cr-line cr-more" onClick={() => setRailAll(!railAll)} aria-expanded={railAll}>
-            {railAll ? "Show less" : "The whole day"}
+            {railAll ? T.showLess : T.wholeDay}
           </button>
         </div>
       </section>
@@ -2079,7 +2211,7 @@ export default function CallsignRadioLanding({
             </div>
             <div className="cr-filters" role="group" aria-label="Filter the archive by genre">
               {genreList.map((g) => (
-                <button key={g} type="button" className="cr-chip" aria-pressed={genre === g} onClick={() => setGenre(g)}>
+                <button key={g} type="button" className="cr-chip" aria-pressed={genre === g || (!genre && g === T.allGenres)} onClick={() => setGenre(g)}>
                   {g}
                 </button>
               ))}
@@ -2093,12 +2225,12 @@ export default function CallsignRadioLanding({
                 const shape = archiveShape(i, shown.length)
                 return (
                   <li className="cr-ep" key={ep.id} data-shape={shape}>
-                    <div className="cr-ep-art">
+                    <button type="button" className="cr-ep-art" onClick={() => toggleEpisode(ep)} aria-label={(on ? "Pause " : "Play ") + sh.title + ": " + ep.title} aria-pressed={on}>
                       <Cover show={sh} seed={ep.id} image={ep.image || sh.image} top={shape === "wide"} />
-                      <button type="button" className="cr-ep-play" data-on={on ? "" : undefined} onClick={() => toggleEpisode(ep)} aria-label={(on ? "Pause " : "Play ") + sh.title + ": " + ep.title}>
+                      <span className="cr-ep-play" data-on={on ? "" : undefined} aria-hidden="true">
                         <Icon name={on ? "pause" : "play"} />
-                      </button>
-                    </div>
+                      </span>
+                    </button>
                     <div className="cr-ep-meta">
                       <span className="cr-ep-show">
                         {sh.title}
@@ -2119,7 +2251,7 @@ export default function CallsignRadioLanding({
                 )
               })
             ) : (
-              <li className="cr-empty">Nothing in the archive for {genre} yet. Pick another genre.</li>
+              <li className="cr-empty">{T.emptyArchive}</li>
             )}
           </ul>
         </section>
@@ -2136,23 +2268,23 @@ export default function CallsignRadioLanding({
               <p className="cr-sec-t">{SP.text}</p>
               <div className="cr-seg" role="group" aria-label="How often">
                 <button type="button" aria-pressed={cadence === "monthly"} onClick={() => setCadence("monthly")}>
-                  Monthly
+                  {T.monthly}
                 </button>
                 <button type="button" aria-pressed={cadence === "once"} onClick={() => setCadence("once")}>
-                  Once
+                  {T.once}
                 </button>
               </div>
             </div>
             <div className="cr-sup-r">
               {sState === "done" ? (
                 <div className="cr-sup-done" role="status">
-                  <b>Thank you. {tier ? "You are a " + tier.name + " now." : "That keeps the transmitter on."}</b>
+                  <b>{SP.doneTitle.replace("{tier}", tier ? tier.name : SP.fallbackTier)}</b>
                   <p>
                     {cur$}
-                    {amount} {cadence === "monthly" ? "a month" : "once"}. A receipt is on its way to your inbox.
+                    {amount} {cadence === "monthly" ? T.perMonth : T.perOnce}. {SP.doneText}
                   </p>
                   <button type="button" className="cr-btn cr-line" style={{ alignSelf: "flex-start" }} onClick={() => setSState("idle")}>
-                    Change the amount
+                    {T.changeAmount}
                   </button>
                 </div>
               ) : (
@@ -2161,12 +2293,12 @@ export default function CallsignRadioLanding({
                     <span className="cr-sr">{cur$ + amount}</span>
                     <Glyphs text={cur$ + amount} />
                     <span className="cr-amount-u" aria-hidden="true">
-                      <b>{tier ? tier.name : "Friend"}</b>
-                      {cadence === "monthly" ? "a month" : "once"}
+                      <b>{tier ? tier.name : SP.fallbackTier}</b>
+                      {cadence === "monthly" ? T.perMonth : T.perOnce}
                     </span>
                   </div>
                   <ul className="cr-perks" aria-label="What you get">
-                    {(perks.length ? perks : ["Every euro goes to the transmitter, the rent and the licences"]).map((p) => (
+                    {(perks.length ? perks : [SP.fallbackPerk]).map((p) => (
                       <li key={p}>
                         <Icon name="check" />
                         {p}
@@ -2175,12 +2307,12 @@ export default function CallsignRadioLanding({
                   </ul>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
                     <button type="button" className="cr-btn cr-solid" onClick={give} disabled={sState === "busy"}>
-                      {sState === "busy" ? "Sending" : "Give " + cur$ + amount + (cadence === "monthly" ? " a month" : " once")}
+                      {sState === "busy" ? T.sending : T.give + " " + cur$ + amount + " " + (cadence === "monthly" ? T.perMonth : T.perOnce)}
                       <Icon name="arrow" />
                     </button>
                     {sState === "error" ? (
                       <span className="cr-perr" role="alert">
-                        That did not go through. Try again.
+                        {T.sendError}
                       </span>
                     ) : null}
                   </div>
@@ -2218,7 +2350,14 @@ export default function CallsignRadioLanding({
               onPointerCancel={() => setDragging(false)}
             >
               {SP.tiers.map((t) => (
-                <span key={t.name} className="cr-mark" data-on={tier && tier.name === t.name ? "" : undefined} style={{ left: pct(clamp(t.amount, smin, smax)) + "%" }} aria-hidden="true">
+                <span
+                  key={t.name}
+                  className="cr-mark"
+                  data-on={tier && tier.name === t.name ? "" : undefined}
+                  data-edge={pct(clamp(t.amount, smin, smax)) < 8 ? "start" : pct(clamp(t.amount, smin, smax)) > 92 ? "end" : undefined}
+                  style={{ left: pct(clamp(t.amount, smin, smax)) + "%" }}
+                  aria-hidden="true"
+                >
                   <span>{t.name}</span>
                   <i />
                 </span>
@@ -2252,11 +2391,11 @@ export default function CallsignRadioLanding({
               <p>{FT.newsletterText}</p>
               {nState === "done" ? (
                 <p className="cr-msg" role="status">
-                  Subscribed. The first running order arrives on Monday.
+                  {FT.successText}
                 </p>
               ) : (
                 <>
-                  <label htmlFor={uid + "-email"}>Email address</label>
+                  <label htmlFor={uid + "-email"}>{T.emailLabel}</label>
                   <div className="cr-news-row">
                     <input
                       id={uid + "-email"}
@@ -2273,11 +2412,11 @@ export default function CallsignRadioLanding({
                       aria-describedby={uid + "-emsg"}
                     />
                     <button type="submit" className="cr-btn cr-solid" disabled={nState === "busy"}>
-                      {nState === "busy" ? "Subscribing" : "Subscribe"}
+                      {nState === "busy" ? T.subscribing : T.subscribe}
                     </button>
                   </div>
                   <p className="cr-msg" id={uid + "-emsg"} data-bad={nState === "invalid" || nState === "error" ? "" : undefined} role={nState === "invalid" || nState === "error" ? "alert" : undefined}>
-                    {nState === "invalid" ? "That email address looks incomplete." : nState === "error" ? "That did not go through. Try again." : ""}
+                    {nState === "invalid" ? T.emailInvalid : nState === "error" ? T.sendError : ""}
                   </p>
                 </>
               )}
@@ -2297,7 +2436,7 @@ export default function CallsignRadioLanding({
               </nav>
             ))}
             <div>
-              <h3>Studio</h3>
+              <h3>{FT.addressTitle}</h3>
               <address>
                 {FT.address.map((a) => (
                   <span key={a} style={{ display: "block" }}>
@@ -2329,12 +2468,27 @@ export default function CallsignRadioLanding({
           </div>
           {source.kind === "episode" ? (
             <button type="button" className="cr-btn cr-quiet" tabIndex={dockOn ? 0 : -1} onClick={() => start({ kind: "live" })}>
-              <span>Back to live</span>
+              <span>{T.backToLive}</span>
             </button>
           ) : null}
-          <button type="button" className="cr-dock-p" tabIndex={dockOn ? 0 : -1} onClick={stop} aria-label="Pause">
-            <Icon name="pause" />
+          <button type="button" className="cr-dock-p" tabIndex={dockOn ? 0 : -1} onClick={() => (playing ? stop() : start(source))} aria-label={playing ? "Pause" : "Play"}>
+            <Icon name={playing ? "pause" : "play"} />
           </button>
+          <button
+            type="button"
+            className="cr-iconbtn"
+            tabIndex={dockOn ? 0 : -1}
+            onClick={() => {
+              stop()
+              setDocked(false)
+            }}
+            aria-label={T.closePlayer}
+          >
+            <Icon name="close" />
+          </button>
+          <span className="cr-dock-prog" aria-hidden="true">
+            <i style={{ transform: "scaleX(" + fx(dockProg) + ")" }} />
+          </span>
         </div>
       </div>
       <p className="cr-sr" aria-live="polite">
