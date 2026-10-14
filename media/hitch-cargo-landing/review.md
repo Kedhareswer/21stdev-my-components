@@ -34,3 +34,23 @@ working controls; stay clear of exploded-assembly-scroll (no isometric, no orang
 italic mono) and stencil-labs-template; the catalogue language carried into every section; an
 honest configurator (shared mounts swap); a reserve form with no payment fields; light mode as
 cool concrete grey, never cream; a fleet preset that looks like a different company.
+
+## Critic round 1 (fresh subagent)
+
+Reading: a modular-longtail landing built on Slate's hero; one fixed frame where numbered parts
+drop on and off, then the same drawing runs a configurator, a dimensioned spec sheet and a
+reservation form. Banned-looks gate passed.
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 6 | 7 | 6 | 6 | 8 | 7 | 6.7 |
+
+Verdict: **REDO**. Main findings: the product was closed (a fixed union of 8 parts, fixed
+mounts, fixed art; a build photo only replaced the hero); no way to hide or reorder sections;
+a built-in sticky header and hard-coded ids that collide with a host page; English UI strings
+outside props; a synchronous `onReserve` that claimed an email was sent; an "HX-" code on
+Kerbside. Hero: a dead band under the headline, a grip and a tag straddling the card edge, a
+small bike on phones, dead space on tablets. Drawing: a floating battery, plain grey cases, a
+kid seat that read as an empty cage, a crate with no stays. Footer wordmark stretched. Tablet
+spec table and FAQ cramped. Theme flipped after mount (light flash in dark hosts). Phone menu
+without a backdrop.
