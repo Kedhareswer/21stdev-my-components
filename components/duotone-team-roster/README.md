@@ -6,7 +6,7 @@ A "meet the people" section for an about page, a studio site or a careers page. 
 
 - One file. Its only dependency is React; no other packages, fonts or CSS files.
 - Below about 700px of container width the columns become one drifting strip above the headline. Tablets get two columns.
-- A **Pause** button (top-left corner, first in the tab order) stops the drift (WCAG 2.2.2). Or pass `drift={false}` for a still wall. The drift also pauses on hover, on focus, while a card is open and while the section is off screen.
+- A **Pause** button (bottom-right corner of the wall, first in the tab order; beside the CTA on phones) stops the drift (WCAG 2.2.2). Or pass `drift={false}` for a still wall. The drift also pauses on hover, on focus, while a card is open and while the section is off screen.
 - Under reduced motion, the columns stay still in their staggered positions and the entrances are skipped.
 - Each portrait is a disclosure button (`aria-expanded`). Keyboard: Tab moves through the portraits, each one unfolds and slides fully into view, Enter moves to its link and Escape folds it. Folded cards are hidden from screen readers.
 - The headline's widest line runs on into the first column, like a poster. While a first-column card is open, the headline eases back into its own column.
@@ -58,13 +58,14 @@ export default function About() {
 | `grain` | `boolean` | `true` | Static film grain over the field. |
 | `labels` | `Partial<RosterLabels>` | English | `pause, play, team, openRole, hiring, roleLink, memberLink`, for translation. |
 | `className` | `string` | | |
-| `onMemberSelect` | `(member) => void` | | Called when a portrait is clicked or opened with Enter. Without it, a mouse click follows the person's `href`. |
+| `onMemberSelect` | `(member) => void` | | Called when a portrait is clicked or opened with Enter. |
+| `clickFollowsLink` | `boolean` | `true` | A mouse click on a portrait follows its `href`, except `mailto:` links, which stay on the card's "Say hello" link. |
 
 ## Notes
 
 - The section paints its own colour field, so it looks the same on light and dark pages.
 - Repeated portraits (the columns loop) are `aria-hidden` and out of the tab order. Every person appears once to assistive tech.
-- The tritone is an SVG `feComponentTransfer` filter, so it works in every modern browser and in software rendering. The full-colour photo sits underneath and fades in to about 74% on focus.
+- The tritone is an SVG `feComponentTransfer` filter, so it works in every modern browser and in software rendering. The full-colour photo sits underneath and fades in to about 72% when a card opens.
 
 ## Photo credits
 

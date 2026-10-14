@@ -128,8 +128,10 @@ export type DuotoneTeamRosterProps = {
   /** Built-in strings (pause, play, team, openRole, hiring, roleLink, memberLink). */
   labels?: Partial<RosterLabels>
   className?: string
-  /** Called when a portrait is clicked or opened with the keyboard. Without it, a click follows the person's link. */
+  /** Called when a portrait is clicked or opened with the keyboard. */
   onMemberSelect?: (member: TeamMember) => void
+  /** A mouse click on a portrait follows its link (never a mailto:, which stays on the "Say hello" link). Default true. */
+  clickFollowsLink?: boolean
 }
 
 // #region roster-logic
@@ -265,11 +267,12 @@ const DISPLAY_STACK = '"Arial Black", "Archivo Black", "Helvetica Neue", Inter, 
 const css = `
 .dtr{position:relative;isolation:isolate;overflow:hidden;width:100%;container-type:inline-size;color:var(--dtr-ink);background:var(--dtr-ground);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;--dtr-ease:cubic-bezier(.23,1,.32,1);--dtr-gap:14px;--dtr-pad:clamp(20px,3.2cqw,48px)}
 .dtr *,.dtr *::before,.dtr *::after{box-sizing:border-box}
-.dtr-field{position:absolute;inset:0;z-index:-2;background:radial-gradient(38cqw 46cqw at 0% 100%,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-ground) 55%,var(--dtr-deep)) 96.5%,transparent 100%),radial-gradient(70% 62% at 34% 36%,var(--dtr-glow) 0%,var(--dtr-hot) 26%,color-mix(in srgb,var(--dtr-hot) 55%,var(--dtr-deep)) 48%,transparent 78%),radial-gradient(60% 90% at 78% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)) 0%,transparent 70%),linear-gradient(98deg,var(--dtr-ground) 0%,var(--dtr-deep) 16%,transparent 42%),linear-gradient(0deg,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-deep) 85%,transparent) 30%,transparent 62%),var(--dtr-deep)}
+.dtr-field{position:absolute;inset:0;z-index:-2;background:radial-gradient(38cqw 46cqw at 0% 100%,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-ground) 55%,var(--dtr-deep)) 72%,transparent 100%),radial-gradient(70% 62% at 34% 36%,var(--dtr-glow) 0%,var(--dtr-hot) 26%,color-mix(in srgb,var(--dtr-hot) 55%,var(--dtr-deep)) 48%,transparent 78%),radial-gradient(60% 90% at 78% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)) 0%,transparent 70%),linear-gradient(98deg,var(--dtr-ground) 0%,var(--dtr-deep) 16%,transparent 42%),linear-gradient(0deg,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-deep) 85%,transparent) 30%,transparent 62%),var(--dtr-deep)}
 .dtr-grain{position:absolute;inset:-50%;z-index:-1;pointer-events:none;opacity:.2;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.6 -.35'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");background-size:220px 220px}
 .dtr-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .dtr-in{position:relative;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);height:100%}
-.dtr-copy{position:relative;z-index:2;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--dtr-pad);padding-right:clamp(16px,2cqw,32px);min-width:0}
+.dtr[data-cols="2"] .dtr-in{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.dtr-copy{position:relative;z-index:5;isolation:isolate;grid-row:1;grid-column:1;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--dtr-pad);padding-right:clamp(16px,2cqw,32px);min-width:0}
 .dtr-title{position:relative;margin:0;text-shadow:0 .02em .14em color-mix(in srgb,var(--dtr-ground) 30%,transparent);font-family:var(--dtr-display);font-weight:900;font-synthesis:none;line-height:.84;letter-spacing:-.035em;color:var(--dtr-ink);font-size:var(--dtr-ts,clamp(56px,9cqw,200px));text-transform:var(--dtr-case)}
 .dtr-eyebrow{display:block;font-size:.36em;line-height:1;letter-spacing:-.01em;margin:0 0 .16em .02em;transform:scaleX(var(--dtr-stretch));transform-origin:0 50%;white-space:nowrap}
 .dtr-line{display:block;clip-path:inset(-30% -400% 0 -10%);padding-bottom:.04em;margin-bottom:-.04em}
@@ -288,7 +291,7 @@ const css = `
 .dtr-cta:focus-visible::before{clip-path:inset(0 0 0 0)}
 .dtr-cta:focus-visible,.dtr-link:focus-visible,.dtr-pause:focus-visible,.dtr-panel a:focus-visible{outline:2px solid var(--dtr-ink);outline-offset:3px}
 .dtr-link{color:var(--dtr-ink);font-size:14px;font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px;transition:text-underline-offset 220ms var(--dtr-ease),opacity 200ms ease;outline:none}
-.dtr-wall{position:relative;z-index:1;display:grid;grid-template-columns:repeat(var(--dtr-cols),minmax(0,1fr));gap:var(--dtr-gap);padding:0 var(--dtr-pad) 0 clamp(8px,1cqw,16px);height:100%;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%)}
+.dtr-wall{position:relative;z-index:1;grid-row:1;grid-column:2;display:grid;grid-template-columns:repeat(var(--dtr-cols),minmax(0,1fr));gap:var(--dtr-gap);padding:0 var(--dtr-pad) 0 clamp(8px,1cqw,16px);height:100%;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%)}
 .dtr-col{position:relative;min-width:0;animation:dtr-rise 1100ms var(--dtr-ease) both;animation-delay:calc(var(--ci) * 90ms)}
 .dtr-track{display:flex;flex-direction:column;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-up var(--dtr-dur) linear infinite;animation-delay:var(--dtr-phase)}
 .dtr-col[data-dir="down"] .dtr-track{animation-name:dtr-down}
@@ -315,23 +318,22 @@ const css = `
 .dtr-panel{z-index:2;right:12px;max-height:calc(100% - 24px);overflow:hidden;padding:10px 12px 11px;clip-path:inset(var(--dtr-ct) var(--dtr-cr) var(--dtr-cb) var(--dtr-cl) round 3px);opacity:0;visibility:hidden;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms,visibility 0s linear 220ms;pointer-events:none}
 .dtr-col:first-child .dtr-chip{left:auto;right:12px}
 .dtr-col:first-child .dtr-card{--dtr-cr:0px;--dtr-cl:calc(100% - var(--dtr-cw))}
-.dtr-card[data-flip] .dtr-panel{bottom:auto;top:12px}
-.dtr-card[data-flip]{--dtr-ct:0px;--dtr-cb:calc(100% - 26px)}
-.dtr-name{margin:0;font-size:clamp(16px,1.25cqw,19px);font-weight:800;line-height:1.15;letter-spacing:-.01em}
+
+.dtr-name{margin:0;font-size:clamp(15px,7cqw,19px);font-weight:800;line-height:1.15;letter-spacing:-.01em}
 .dtr-roleline{margin:3px 0 0;font-size:13px;line-height:1.35;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
 .dtr-bio{margin:6px 0 0;font-size:13px;line-height:1.4;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
 .dtr-panel a{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--dtr-ink);font-size:13px;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;outline:none}
 .dtr-panel a span{display:inline-block;transition:transform 260ms var(--dtr-ease)}
 .dtr-card[data-on]{z-index:3;transform:translateY(-6px) scale(1.02)}
 .dtr-card[data-on]::after{opacity:1}
-.dtr-card[data-on] .dtr-true{opacity:1}
+.dtr-card[data-on] .dtr-true{opacity:.72}
 .dtr-card[data-on] .dtr-chip,.dtr-card[data-on] .dtr-plate em{opacity:0;transition-duration:90ms}
 .dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;visibility:visible;pointer-events:auto;transition:clip-path 300ms var(--dtr-ease),opacity 60ms ease,visibility 0s}
 .dtr-title{transform-origin:0 100%;transition:transform 300ms var(--dtr-ease)}
 .dtr[data-active-col="0"] .dtr-title{transform:scale(.84)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-photo{opacity:.42;filter:saturate(.7)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-chip{opacity:.5}
-.dtr-pause{position:absolute;left:var(--dtr-pad);top:var(--dtr-pad);z-index:4;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
+.dtr-pause{position:absolute;right:var(--dtr-pad);bottom:14px;z-index:6;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
 .dtr-pause:active{transform:scale(.96)}
 .dtr-pause i{display:inline-block;width:8px;height:9px;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .dtr[data-paused] .dtr-pause i{border-right:0;border-left:8px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;width:0;height:0}
@@ -342,7 +344,7 @@ const css = `
 .dtr-strip-track{display:flex;width:max-content;padding-left:20px;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
 .dtr-strip .dtr-card{width:clamp(170px,56cqw,250px);margin:0 10px 0 0;flex:none}
 .dtr[data-mode="strip"] .dtr-copy{padding:18px 20px 28px}
-.dtr[data-mode="strip"] .dtr-pause{left:auto;right:28px;top:30px}
+.dtr[data-mode="strip"] .dtr-pause{position:static;margin-left:auto}
 .dtr[data-static] .dtr-track{animation:none}
 .dtr[data-static] .dtr-wall{height:auto;padding-top:var(--dtr-pad);padding-bottom:var(--dtr-pad);-webkit-mask-image:none;mask-image:none}
 .dtr[data-static] .dtr-col:nth-child(2){padding-top:clamp(32px,6cqw,96px)}
@@ -354,7 +356,7 @@ const css = `
 .dtr[data-static] .dtr-strip{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
 .dtr[data-static] .dtr-strip-track{animation:none;padding-right:20px}
 .dtr[data-static] .dtr-strip .dtr-card{scroll-snap-align:start}
-@container dtrcard (max-width:229px){.dtr-bio{font-size:12px;line-height:1.35}.dtr-panel{padding:9px 10px 10px}.dtr-name{font-size:15px}}
+@container dtrcard (max-width:229px){.dtr-bio{display:none}.dtr-panel{padding:9px 10px 10px}}
 @keyframes dtr-up{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-50%,0)}}
 @keyframes dtr-down{from{transform:translate3d(0,-50%,0)}to{transform:translate3d(0,0,0)}}
 @keyframes dtr-left{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(-50% + 10px),0,0)}}
@@ -422,10 +424,10 @@ function Portrait(props: {
   onLeave: (key: string) => void
   onToggle: (key: string) => void
   onSelect?: (member: TeamMember) => void
+  follows: boolean
 }) {
-  const { slot, on, filterId, labels, onEnter, onLeave, onToggle, onSelect } = props
+  const { slot, on, filterId, labels, onEnter, onLeave, onToggle, onSelect, follows } = props
   const [failed, setFailed] = React.useState(false)
-  const [flip, setFlip] = React.useState(false)
   const pointer = React.useRef("mouse")
   const panelId = "p" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const hidden = slot.dup
@@ -438,8 +440,9 @@ function Portrait(props: {
   const href = member ? member.href : role ? role.href : undefined
   const linkLabel = member ? member.linkLabel || labels.memberLink : (role && role.linkLabel) || labels.roleLink
   const exposure = member && member.exposure && member.exposure > 0 ? member.exposure : 1
-  const focus = (member && member.focus) || "50% 30%"
-  const clickable = Boolean((member && onSelect) || href)
+  const focus = (member && member.focus) || "50% 22%"
+  const followable = follows && Boolean(href) && !/^mailto:/i.test(String(href))
+  const clickable = Boolean((member && onSelect) || followable)
 
   const follow = (card: HTMLElement) => {
     const a = card.querySelector(".dtr-panel a") as HTMLAnchorElement | null
@@ -451,7 +454,6 @@ function Portrait(props: {
       className={"dtr-card" + (isRole ? " dtr-role" : "")}
       data-on={on ? "" : undefined}
       data-click={clickable ? "" : undefined}
-      data-flip={flip ? "" : undefined}
       aria-hidden={hidden ? true : undefined}
       style={{ ["--dtr-cw" as any]: Math.min(26, craft.length) * 0.74 + 2.2 + "em" }}
       onPointerDown={(e) => {
@@ -459,18 +461,14 @@ function Portrait(props: {
       }}
       onPointerEnter={(e) => {
         if (e.pointerType !== "mouse") return
-        // Near the bottom edge of the frame the card unfolds from its top instead.
-        const card = e.currentTarget
-        const frame = card.closest(".dtr-wall, .dtr-strip") as HTMLElement | null
-        if (frame) {
-          const r = card.getBoundingClientRect()
-          const f = frame.getBoundingClientRect()
-          setFlip(r.bottom > f.bottom - 48 && r.top > f.top + 24)
-        }
+        // A card cut off by the frame slides fully into view (it stays under the pointer).
+        bringIntoView(e.currentTarget)
         onEnter(slot.key)
       }}
       onPointerLeave={(e) => {
-        if (e.pointerType === "mouse") onLeave(slot.key)
+        if (e.pointerType !== "mouse") return
+        onLeave(slot.key)
+        if (!e.currentTarget.contains(document.activeElement)) releaseNudge(e.currentTarget)
       }}
       onBlur={(e) => {
         if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
@@ -546,7 +544,7 @@ function Portrait(props: {
             return
           }
           if (pointer.current === "mouse") {
-            if (!(member && onSelect)) follow(card)
+            if (followable) follow(card)
             return
           }
           if (!on) bringIntoView(card)
@@ -601,6 +599,7 @@ export default function DuotoneTeamRoster({
   labels,
   className = "",
   onMemberSelect,
+  clickFollowsLink = true,
 }: DuotoneTeamRosterProps) {
   const pal = resolvePalette(preset, palette)
   const text: RosterLabels = { ...DEFAULT_LABELS, ...(labels || {}) }
@@ -615,7 +614,9 @@ export default function DuotoneTeamRoster({
   const [titleSize, setTitleSize] = React.useState(0)
   const [active, setActive] = React.useState(null as string | null)
   const [paused, setPaused] = React.useState(false)
-  const [offscreen, setOffscreen] = React.useState(false)
+  const [outOfView, setOutOfView] = React.useState(false)
+  const [tabHidden, setTabHidden] = React.useState(false)
+  const offscreen = outOfView || tabHidden
 
   const lines = splitLines(title)
   // The shadow end is lifted toward the field so dark skin and dark clothes keep their detail.
@@ -657,7 +658,7 @@ export default function DuotoneTeamRoster({
       const strip = next === 0
       // Enough portraits per column that one loop is taller than the wall.
       if (next > 0) {
-        const wallW = root.getBoundingClientRect().width * 0.58
+        const wallW = root.getBoundingClientRect().width * (next === 2 ? 0.5 : 0.58)
         const cardH = ((wallW - 14 * (next + 1)) / next) * (4 / 3) + 14
         const need = Math.max(3, Math.ceil(h / Math.max(80, cardH)))
         setMinPer((m) => (m === need ? m : need))
@@ -677,9 +678,9 @@ export default function DuotoneTeamRoster({
   React.useEffect(() => {
     const root = rootRef.current
     if (!root || typeof IntersectionObserver === "undefined") return
-    const io = new IntersectionObserver(([entry]) => setOffscreen(!entry.isIntersecting), { threshold: 0 })
+    const io = new IntersectionObserver(([entry]) => setOutOfView(!entry.isIntersecting), { threshold: 0 })
     io.observe(root)
-    const vis = () => setOffscreen(document.hidden)
+    const vis = () => setTabHidden(document.hidden)
     document.addEventListener("visibilitychange", vis)
     return () => {
       io.disconnect()
@@ -741,6 +742,7 @@ export default function DuotoneTeamRoster({
       style={rootStyle}
       aria-labelledby={titleId}
       data-mode={cols === 0 ? "strip" : "columns"}
+      data-cols={cols || undefined}
       data-active={active ? "" : undefined}
       data-active-col={active && cols !== 0 ? active.split("-")[0] : undefined}
       data-paused={paused ? "" : undefined}
@@ -799,6 +801,7 @@ export default function DuotoneTeamRoster({
                   {secondaryCta.label}
                 </a>
               ) : null}
+              {cols === 0 && !still ? pauseButton : null}
             </div>
           ) : null}
         </div>
@@ -820,12 +823,12 @@ export default function DuotoneTeamRoster({
                       onLeave={onLeave}
                       onToggle={onToggle}
                       onSelect={onMemberSelect}
+                      follows={clickFollowsLink}
                     />
                   )
                 }),
               )}
             </div>
-            {still ? null : pauseButton}
           </div>
         ) : (
           <div className="dtr-wall" role="group" aria-label={text.team}>
@@ -859,6 +862,7 @@ export default function DuotoneTeamRoster({
                               onLeave={onLeave}
                               onToggle={onToggle}
                               onSelect={onMemberSelect}
+                              follows={clickFollowsLink}
                             />
                           </div>
                         )

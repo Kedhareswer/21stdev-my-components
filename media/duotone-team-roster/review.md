@@ -137,3 +137,45 @@ All eight changes were made:
 - Safari: the SVG filter was kept. The tracks are composited layers (`will-change: transform`), so
   the filtered images rasterise once rather than every frame. The drift also pauses off screen and
   on hover. Teams that want no motion cost at all can use `drift={false}`.
+
+### Round 3 (fresh critic): REDO, average 7.8
+
+Scores: usability 8, idea 8, craft 7, originality 7, install-safety 9 (templates N/A). Banned
+looks: passes. Nothing scored below 7, but the average is under the 8.0 needed to SHIP.
+
+Changes asked for, most important first:
+
+1. The overhanging "W" turned see-through over dimmed portraits while a card was open (a
+   compositing-order problem with the filtered images).
+2. Panels flipped to the top covered the eyes.
+3. Cap the colour bloom near 72%.
+4. The README disagreed with the code.
+5. Pause on phones.
+6. Pause on desktop.
+7. A plain click on a default portrait opened a mail client.
+8. Soften the hard arc.
+9. Fill the empty top-left on tablets.
+10. Returning to the tab resumed the drift off screen.
+11. `.dtr-name` measured the wrong container.
+
+This was the last critic round the brief allows. The clear-cut fixes from it were made and
+checked in screenshots, but no fourth critic reviewed them:
+
+- Copy at `z-index: 5` with `isolation: isolate` and explicit grid cells. A zoomed crop confirms
+  the W stays opaque. The DOM order is kept so the CTA stays ahead of the portraits in the tab
+  order.
+- The top flip was removed. A card cut off by the frame now slides into view on hover (it stays
+  under the pointer) and eases back on leave. The panel stays at the bottom, `focus` defaults to
+  `50% 22%`, and bios hide below a 230px card width.
+- The colour bloom is 0.72, and the README matches it.
+- Pause sits in the wall's bottom-right corner (z-index 6) and is first in the tab order. On
+  phones it sits in the actions row beside the CTA.
+- `clickFollowsLink` (default true) never follows a `mailto:`. The cursor is a pointer only when a
+  click does something.
+- The arc's edge is feathered from 72% to 100%.
+- Two-column layouts split 50/50, so the tablet headline grows from 96px to 117px.
+- Out-of-view and tab-hidden are now separate states.
+- `.dtr-name` uses `clamp(15px, 7cqw, 19px)` against the card.
+
+**Outcome:** no SHIP after three rounds, so per the brief the piece is kept on
+`claude/review-duotone-team-roster` for the owner to judge.
