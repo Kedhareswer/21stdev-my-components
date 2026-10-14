@@ -2,7 +2,18 @@
 
 import OpenSlotBooking from "@/components/ui/open-slot-booking"
 
-// A founder's weekly office hours: a different preset, host, clock and week.
+// Stand-in for an OAuth round trip to the visitor's calendar.
+const myWeek = [
+  { weekday: 2, from: "11:00", to: "12:20", title: "Board prep" },
+  { weekday: 4, from: "08:40", to: "10:00", title: "Hiring loop" },
+]
+const connectCalendar = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 900))
+  return myWeek
+}
+
+// A founder's weekly office hours: a different preset, host, clock and week, and a
+// calendar the visitor connects on demand.
 export default function DemoLagoon() {
   return (
     <div className="w-full">
@@ -30,10 +41,7 @@ export default function DemoLagoon() {
           { weekday: 2, from: "12:00", to: "13:00", title: "Lunch" },
           { weekday: 4, from: "13:20", to: "14:00" },
         ]}
-        visitorEvents={[
-          { weekday: 2, from: "11:00", to: "12:20", title: "Board prep" },
-          { weekday: 4, from: "08:40", to: "10:00", title: "Hiring loop" },
-        ]}
+        loadVisitorEvents={connectCalendar}
       />
     </div>
   )

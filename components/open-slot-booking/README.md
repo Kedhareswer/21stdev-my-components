@@ -2,11 +2,15 @@
 
 A "book a call" section that does the booking itself. A heavy two-tone headline
 sits over a quiet scheduler window on a tilted colour slab. Inside the window are
-the host card, a choice of call lengths, and a timezone-aware week of open slots.
-An **Overlay my calendar** switch hatches the visitor's own busy blocks across the
-grid. Clashing slots dim and strike through, so the free times stand out. Picking a
-slot grows it into a confirm card (name, email, optional note). Confirming flips
-the card into a ticket with an `.ics` download.
+the host's stamp, a choice of call lengths, and a timezone-aware week of open
+slots. Picking a slot grows it into a confirm card (name, email, optional note).
+Confirming flips the card into a perforated ticket, and the host's stamp comes down
+on it in ink: booked. The ticket offers an `.ics` download.
+
+There is also an **Overlay my calendar** switch. It hatches the visitor's own busy
+blocks across the grid, and clashing slots dim and strike through. Pass the
+visitor's events directly, or connect their calendar the first time they flip
+the switch.
 
 Use it on the contact or "book a demo" page of an agency, consultancy or SaaS
 product, or for a founder's office hours.
@@ -32,7 +36,7 @@ export default function Contact() {
       hostTimeZone="Europe/Lisbon"
       hours={{ days: [1, 2, 3, 4, 5], from: "09:00", to: "17:00" }}
       hostBusy={busyFromYourCalendarApi}
-      visitorEvents={[]}
+      loadVisitorEvents={() => connectGoogleCalendarAndListBusy()}
       onBook={async (b) => {
         await fetch("/api/book", { method: "POST", body: JSON.stringify(b) })
       }}
@@ -63,20 +67,24 @@ another time.
 | `weeksAhead` | `6` | How far ahead the next-week arrow can go. |
 | `weekStartsOn` | `1` | `0` starts the week on Sunday, `1` on Monday. |
 | `clock` | `"24h"` | `"12h"` or `"24h"`. |
-| `hostBusy` | sample week | The host's busy time. Pass weekly rules `{ weekday, from, to }` in the host's zone, or dated spans `{ start, end }`. **Pass your real busy times, or `[]`.** |
-| `visitorEvents` | sample week | The visitor's calendar for the overlay. Pass weekly rules (in the visitor's zone) or dated spans. `[]` hides the switch. |
-| `defaultOverlay` | `true` | Whether the overlay starts switched on. |
+| `hostBusy` | sample week | The host's busy time. Pass weekly rules `{ weekday, from, to }` in the host's zone, or dated spans `{ start, end }`. **Pass your real busy times, or `[]`.** The default sample keeps the first frame from looking empty. |
+| `visitorEvents` | `[]` | The visitor's calendar for the overlay, if you already have it. Pass weekly rules (in the visitor's own zone) or dated spans. |
+| `loadVisitorEvents` | none | `() => events \| Promise<events>`. Called the first time the visitor turns the overlay on, when `visitorEvents` is empty. Connect their calendar here. While it resolves, the switch reads "Connecting your calendar…". On failure it offers a retry. Without this and without `visitorEvents`, the switch is hidden. |
+| `onOverlayChange` | none | `(on) => void`. |
+| `defaultOverlay` | `true` | Starts with the overlay on when `visitorEvents` is given. |
+| `chrome` | `"plain"` | `"plain"` is a header with the booking link and Copy link. `"browser"` adds window dots. |
 | `onBook` | none | `(booking) => unknown`. Gets `{ start, end, duration, timeZone, name, email, note }`. It may return a promise. |
 | `preset` | `"sunrise"` | `sunrise` (sun yellow, orange, blue), `lagoon` (mint, sea blue), `graphite` (signal red on mono), or `berry` (pink, apricot). |
 | `colors` | none | Overrides any of `slab`, `from`, `to`, `fromDark`, `toDark`, `action` or `window`. Text on the slab and on buttons switches between black and white automatically. |
 | `theme` | `"auto"` | `"auto"` follows `.dark`. `"light"` and `"dark"` force a theme. |
 | `fontFamily` | rounded system stack | The display face for the headline and numbers. |
 | `height` | `"100svh"` | Minimum height of the section. |
-| `gridHeight` | `408` | Maximum height of the scrolling slot grid, in px. |
+| `gridHeight` | `444` | Maximum height of the scrolling slot grid, in px. |
 
-The sample `hostBusy` and `visitorEvents` are there so the first frame looks lived
-in. Replace them with real data. Neither prop fetches anything; connecting a
-calendar is up to your backend.
+The component fetches nothing itself. Your backend provides real busy times and
+connects the visitor's calendar. `demo.tsx` passes a sample week as
+`visitorEvents`. `demo-lagoon.tsx` shows the connect-on-demand flow with a
+simulated 900 ms round trip.
 
 ## Notes
 

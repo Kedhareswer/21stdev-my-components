@@ -115,6 +115,12 @@ const plan = {
   const on = T.osbSlots({ ...plan, visitor, overlay: true })
   const clash = on.filter((s) => s.state === "clash")
   assert.deepEqual(clash.map((s) => [s.col, s.min, s.clash]), [[2, 540, "Gym"], [2, 570, "Gym"]])
+  // Weekly rules in the visitor's calendar are in the visitor's zone, not whatever zone they
+  // chose to display: a 09:00 gym in Lisbon is 08:00 when the grid is shown in UTC.
+  const utc = T.osbSlots({ ...plan, visitor, overlay: true, displayTz: "UTC", visitorTz: "Europe/Lisbon" })
+  assert.deepEqual(utc.filter((s) => s.state === "clash").map((s) => s.min), [480, 510])
+  const utcBlocks = T.osbBlocks(visitor, plan.weekKey, "UTC", "Europe/Lisbon")
+  assert.deepEqual(utcBlocks.map((b) => [b.col, b.from, b.to]), [[2, 480, 540]])
   // host busy wins over a clash
   const both = T.osbSlots({ ...plan, visitor, overlay: true, hostBusy: [{ weekday: 3, from: "09:00", to: "09:30" }] })
   assert.equal(both.find((s) => s.col === 2 && s.min === 540).state, "taken")
@@ -189,6 +195,7 @@ const plan = {
     const d = read(demo)
     assert.ok(d.includes('from "@/components/ui/open-slot-booking"'), demo + " imports the installed path")
     assert.match(d, /export default function (Demo|[A-Z]\w*)/, demo + " default-exports a capitalised function")
+    assert.doesNotMatch(d, /\w<[A-Za-z{[]/, demo + " carries no generics for the 21st CLI tokenizer")
   }
   const ts = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
   assert.ok(ts.includes('"@/components/ui/open-slot-booking"'), "tsconfig path line")

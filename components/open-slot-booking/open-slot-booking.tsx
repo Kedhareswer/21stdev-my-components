@@ -34,6 +34,8 @@ export type OsbPlan = {
   hostBusy: OsbBusy[]
   visitor: OsbBusy[]
   overlay: boolean
+  /** The zone the visitor's weekly rules are written in (their own). Defaults to displayTz. */
+  visitorTz?: string
 }
 
 export const OSB_DAY = 86400000
@@ -126,7 +128,7 @@ export function osbSlots(p: OsbPlan): OsbSlot[] {
   const step = Math.max(5, p.step)
   const dur = Math.max(5, p.duration)
   const busy = osbSpans(p.hostBusy, p.weekKey - 2, p.weekKey + 8, p.hostTz)
-  const mine = p.overlay ? osbSpans(p.visitor, p.weekKey - 2, p.weekKey + 8, p.displayTz) : []
+  const mine = p.overlay ? osbSpans(p.visitor, p.weekKey - 2, p.weekKey + 8, p.visitorTz || p.displayTz) : []
   const out: OsbSlot[] = []
   for (let k = p.weekKey - 1; k <= p.weekKey + 7; k++) {
     if (p.hours.days.indexOf(new Date(k * OSB_DAY).getUTCDay()) < 0) continue
@@ -153,10 +155,10 @@ export function osbSlots(p: OsbPlan): OsbSlot[] {
   return out.sort((a, b) => a.start - b.start)
 }
 
-/** The visitor's busy spans cut into per-column blocks for the display week. */
-export function osbBlocks(list: OsbBusy[], weekKey: number, tz: string): OsbBlock[] {
+/** The visitor's busy spans cut into per-column blocks for the display week. Weekly rules are read in `srcTz`. */
+export function osbBlocks(list: OsbBusy[], weekKey: number, tz: string, srcTz?: string): OsbBlock[] {
   const out: OsbBlock[] = []
-  for (const s of osbSpans(list, weekKey - 1, weekKey + 7, tz)) {
+  for (const s of osbSpans(list, weekKey - 2, weekKey + 8, srcTz || tz)) {
     let a = s.start
     let guard = 0
     while (a < s.end && guard++ < 14) {
@@ -270,6 +272,9 @@ export type OsbHost = {
   city?: string
 }
 
+/** Anything with a `then`: a promise from your calendar API. */
+export type OsbThenable = { then: (ok: (events: OsbBusy[]) => unknown, fail?: (err: unknown) => unknown) => unknown }
+
 export type OsbBooking = {
   start: Date
   end: Date
@@ -310,9 +315,18 @@ export type OpenSlotBookingProps = {
   clock?: "12h" | "24h"
   /** The host's busy time: weekly rules in the host's zone, or dated spans. */
   hostBusy?: OsbBusy[]
-  /** The visitor's own calendar for the overlay: weekly rules in their zone, or dated spans. Empty hides the switch. */
+  /** The visitor's own calendar for the overlay, if you already have it: weekly rules in their zone, or dated spans. */
   visitorEvents?: OsbBusy[]
+  /**
+   * Called the first time the visitor turns the overlay on, when `visitorEvents` is empty: connect their
+   * calendar (OAuth, your API) and resolve to their busy time. Without this or `visitorEvents` the switch is hidden.
+   */
+  loadVisitorEvents?: () => OsbBusy[] | OsbThenable
+  onOverlayChange?: (on: boolean) => void
+  /** Start with the overlay on when `visitorEvents` is given. */
   defaultOverlay?: boolean
+  /** "plain" is a header with the booking link; "browser" adds window dots. */
+  chrome?: "plain" | "browser"
   onBook?: (booking: OsbBooking) => unknown
   preset?: OsbPresetName
   colors?: { [K in keyof OsbColors]?: string }
@@ -335,14 +349,6 @@ const SAMPLE_HOST_BUSY: OsbBusy[] = [
   { weekday: 4, from: "09:00", to: "09:30" },
   { weekday: 4, from: "12:00", to: "13:30" },
   { weekday: 5, from: "14:30", to: "17:00" },
-]
-
-const SAMPLE_VISITOR: OsbBusy[] = [
-  { weekday: 1, from: "11:00", to: "12:00", title: "Standup + review" },
-  { weekday: 2, from: "09:00", to: "10:00", title: "Gym" },
-  { weekday: 3, from: "10:00", to: "11:30", title: "Design crit" },
-  { weekday: 4, from: "14:00", to: "15:00", title: "1:1 with Sam" },
-  { weekday: 5, from: "10:30", to: "12:00", title: "Sprint demo" },
 ]
 
 const DISPLAY_STACK =
@@ -386,10 +392,10 @@ function useReducedMotion(): boolean {
 const CSS = `
 .osb{--osb-ground:var(--color-background,#ffffff);--osb-ink:var(--color-foreground,#0d1020);--osb-muted:var(--color-muted-foreground,#5b6070);
   --osb-from:var(--osb-from-l);--osb-to:var(--osb-to-l);
-  --osb-win-ink:#eef1f8;--osb-win-muted:rgba(238,241,248,.64);--osb-win-faint:rgba(238,241,248,.38);--osb-win-line:rgba(238,241,248,.09);
+  --osb-win-ink:#eef1f8;--osb-win-muted:rgba(238,241,248,.74);--osb-win-faint:rgba(238,241,248,.62);--osb-win-line:rgba(238,241,248,.09);
   --osb-paper:#ffffff;--osb-paper-ink:#10131c;--osb-paper-muted:#5a5f6e;--osb-paper-line:#e4e6ec;
   position:relative;display:flex;flex-direction:column;justify-content:center;width:100%;box-sizing:border-box;
-  background:var(--osb-ground);color:var(--osb-ink);padding:clamp(56px,7vw,88px) clamp(16px,4vw,48px) clamp(64px,8vw,104px);overflow:hidden;
+  background:var(--osb-ground);color:var(--osb-ink);padding:clamp(32px,7vw,88px) clamp(16px,4vw,48px) clamp(56px,8vw,104px);overflow:hidden;
   -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 .osb *,.osb *::before,.osb *::after{box-sizing:border-box}
 .dark .osb,.osb[data-theme=dark]{--osb-from:var(--osb-from-d);--osb-to:var(--osb-to-d)}
@@ -404,11 +410,11 @@ const CSS = `
 .osb-h{font-family:var(--osb-display);font-weight:800;font-size:clamp(2.4rem,1.05rem + 4.3vw,5rem);line-height:1.02;letter-spacing:-.04em;margin:0;text-wrap:balance}
 .osb-h span{display:block}
 .osb-h .osb-accent{background:linear-gradient(92deg,var(--osb-from),var(--osb-to));-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.06em}
-.osb-sub{margin:20px auto 0;max-width:34rem;font-size:clamp(1rem,.95rem + .25vw,1.15rem);line-height:1.55;color:var(--osb-muted);text-wrap:pretty}
+.osb-sub{margin:clamp(14px,2vw,20px) auto 0;max-width:34rem;font-size:clamp(1rem,.95rem + .25vw,1.15rem);line-height:1.55;color:var(--osb-muted);text-wrap:pretty}
 .osb-alt{display:inline-block;margin-top:14px;font-size:.92rem;color:var(--osb-ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:color-mix(in srgb,var(--osb-ink) 35%,transparent);transition:text-decoration-color .2s ease}
 .osb-alt:hover{text-decoration-color:var(--osb-ink)}
 
-.osb-stage{position:relative;width:100%;max-width:1120px;margin:clamp(40px,5vw,60px) auto 0}
+.osb-stage{position:relative;width:100%;max-width:1120px;margin:clamp(26px,5vw,60px) auto 0}
 .osb-slab{position:absolute;inset:-20px -24px -28px -16px;border-radius:26px;background:var(--osb-slab);transform:rotate(-2deg);transform-origin:50% 60%}
 .osb-win{position:relative;border-radius:18px;background:var(--osb-window);color:var(--osb-win-ink);overflow:hidden;
   box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 40px 70px -40px rgba(8,10,24,.55),0 10px 24px -14px rgba(8,10,24,.35)}
@@ -441,7 +447,8 @@ const CSS = `
 .osb-seg button{position:relative;z-index:1;height:34px;border:0;background:transparent;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--osb-win-muted);transition:color .2s ease}
 .osb-seg button[aria-pressed=true]{color:var(--osb-window)}
 .osb-seg button:disabled{cursor:default}
-.osb-meta{display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--osb-win-muted)}
+.osb-opts{display:flex;flex-direction:column;gap:22px}
+.osb-meta{order:1;display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--osb-win-muted)}
 .osb-meta div{display:flex;align-items:center;gap:10px}
 .osb-meta svg{flex:none;opacity:.8}
 .osb-tz{position:relative;display:flex;align-items:center;gap:10px}
@@ -461,6 +468,9 @@ const CSS = `
 .osb-track i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .32s cubic-bezier(.34,1.36,.64,1)}
 .osb-switch[aria-checked=true] .osb-track{background:var(--osb-action)}
 .osb-switch[aria-checked=true] .osb-track i{transform:translateX(16px)}
+.osb-switch[data-linking=loading]{cursor:progress}
+.osb-switch[data-linking=loading] .osb-track i{animation:osb-breathe 1s ease-in-out infinite alternate}
+.osb-switch[data-linking=error]{color:#ff8f7a}
 .osb-weeknav{display:flex;align-items:center;gap:8px;width:100%}
 .osb-month{font-family:var(--osb-display);font-weight:800;font-size:20px;letter-spacing:-.02em;margin-right:auto}
 .osb-btn{display:inline-grid;place-items:center;height:32px;min-width:32px;padding:0 12px;border-radius:9px;border:1px solid var(--osb-win-line);background:rgba(238,241,248,.04);font-size:13px;font-weight:600;color:var(--osb-win-ink);transition:background-color .2s ease,border-color .2s ease,transform .16s ease,opacity .2s ease}
@@ -475,7 +485,7 @@ const CSS = `
 .osb-day b{display:grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:999px;font-family:var(--osb-display);font-size:16px;font-weight:800;color:var(--osb-win-ink)}
 .osb-day[data-today=true] b{background:var(--osb-action);color:var(--osb-action-ink)}
 .osb-day[data-past=true]{opacity:.45}
-.osb-scroll{position:relative;overflow-y:auto;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 34px),transparent);overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(238,241,248,.2) transparent}
+.osb-scroll{position:relative;overflow-y:auto;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 6px,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(to bottom,transparent 0,#000 6px,#000 calc(100% - 34px),transparent);overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(238,241,248,.2) transparent}
 .osb-rows{position:relative;display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr))}
 .osb-gutter{position:relative}
 .osb-hour{position:absolute;right:10px;transform:translateY(-50%);font-size:11px;color:var(--osb-win-faint);white-space:nowrap}
@@ -521,6 +531,7 @@ const CSS = `
 .osb-when small{display:block;font-size:12.5px;color:var(--osb-paper-muted)}
 .osb-when strong{display:block;margin-top:4px;font-family:var(--osb-display);font-weight:800;font-size:23px;letter-spacing:-.025em;line-height:1.15}
 .osb-when em{display:block;font-style:normal;margin-top:3px;font-size:14px;color:var(--osb-paper-muted)}
+.osb-when i{display:flex;align-items:center;gap:7px;font-style:normal;margin-top:8px;font-size:13px;color:var(--osb-paper-muted)}
 .osb-x{flex:none;display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:#f1f2f6;color:var(--osb-paper-ink);transition:background-color .2s ease,transform .16s ease}
 .osb-x:hover{background:#e5e7ee}
 .osb-x:active{transform:scale(.94)}
@@ -530,7 +541,8 @@ const CSS = `
 .osb-field input,.osb-field textarea{display:block;width:100%;border:1px solid var(--osb-paper-line);border-radius:10px;background:#fbfbfd;padding:10px 12px;font-size:14.5px;color:var(--osb-paper-ink);outline:none;resize:none;transition:border-color .2s ease,box-shadow .2s ease}
 .osb-field input::placeholder,.osb-field textarea::placeholder{color:#7d8291}
 .osb-field input:focus,.osb-field textarea:focus{border-color:var(--osb-action);box-shadow:0 0 0 3px color-mix(in srgb,var(--osb-action) 22%,transparent)}
-.osb-field[data-error=true] input{border-color:#d93a3a}
+.osb-field[data-error=true] input,.osb-field[data-error=true] input:focus{border-color:#d93a3a}
+.osb-field[data-error=true] input:focus{box-shadow:0 0 0 3px rgba(217,58,58,.2)}
 .osb-err{margin-top:6px;font-size:12.5px;color:#c62f2f}
 .osb-actions{display:flex;gap:10px;margin-top:18px}
 .osb-primary{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border:0;border-radius:999px;background:var(--osb-action);color:var(--osb-action-ink);font-weight:700;font-size:14.5px;transition:transform .16s ease,filter .2s ease}
@@ -550,7 +562,9 @@ const CSS = `
 .osb-stub{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:22px 8px;background:var(--osb-slab);color:var(--osb-slab-ink);border-radius:18px 0 0 18px;border-right:2px dashed color-mix(in srgb,var(--osb-slab-ink) 30%,transparent)}
 .osb-stub small{font-size:12px;font-weight:700;letter-spacing:.12em}
 .osb-stub strong{font-family:var(--osb-display);font-weight:800;font-size:52px;line-height:1;letter-spacing:-.04em}
-.osb-tbody{padding:22px 20px 20px}
+.osb-tbody{position:relative;padding:22px 20px 20px}
+.osb-tbody > p:first-of-type{padding-right:64px}
+.osb-press{position:absolute;right:8px;top:6px;width:92px;height:92px;color:var(--osb-action);opacity:.92;transform:rotate(-12deg);mix-blend-mode:multiply;pointer-events:none}
 .osb-tbody h3{margin:0;font-family:var(--osb-display);font-weight:800;font-size:24px;letter-spacing:-.025em}
 .osb-tbody p{margin:6px 0 0;font-size:14px;line-height:1.5;color:var(--osb-paper-muted)}
 .osb-tbody p b{color:var(--osb-paper-ink);font-weight:650}
@@ -563,6 +577,23 @@ const CSS = `
 .osb[data-compact=true] .osb-host{border-right:0;border-bottom:1px solid var(--osb-win-line);padding:20px 18px;gap:16px}
 .osb[data-compact=true] .osb-stamp{width:60px;height:60px}
 .osb[data-compact=true] .osb-meet{font-size:21px}
+.osb[data-compact=true] .osb-agenda{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.osb[data-compact=true] .osb-meta{display:none}
+.osb[data-compact=true] .osb-opts{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:10px;align-items:end}
+.osb[data-compact=true] .osb-seg button{height:36px;font-size:13px}
+.osb[data-compact=true] .osb-tz select{height:42px;padding-right:24px;padding-left:30px;font-size:12.5px}
+.osb[data-compact=true] .osb-tz .osb-globe{left:9px}
+.osb[data-compact=true] .osb-tz .osb-chev{right:8px}
+.osb[data-compact=true] .osb-who{gap:12px}
+.osb[data-compact=true] .osb-pick{display:none}
+.osb[data-compact=true] .osb-opts .osb-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.osb[data-compact=true] .osb-bar{height:42px}
+.osb[data-compact=true] .osb-who + div{margin-top:-2px}
+.osb[data-compact=true] .osb-calhead{gap:10px 12px;margin-bottom:12px}
+.osb[data-compact=true] .osb-host{gap:14px;padding:18px 16px}
+.osb[data-compact=true] .osb-chip{padding:6px 0 5px}
+.osb[data-compact=true] .osb-month{font-size:18px}
+.osb[data-compact=true] .osb-list{margin-top:10px}
 .osb[data-compact=true] .osb-cal{padding:18px 14px 18px}
 .osb[data-compact=true] .osb-url{justify-content:flex-start;padding:0 12px}
 .osb[data-compact=true] .osb-dots{display:none}
@@ -595,6 +626,7 @@ const CSS = `
 @keyframes osb-col-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 8px));filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
 @keyframes osb-list-in{from{opacity:0;transform:translateX(calc(var(--dir,1) * 8px));filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
 @keyframes osb-wipe{from{clip-path:inset(0 0 100% 0 round 9px)}to{clip-path:inset(0 0 0 0 round 9px)}}
+@keyframes osb-breathe{from{transform:translateX(0)}to{transform:translateX(8px)}}
 @keyframes osb-fade{from{opacity:0}to{opacity:1}}
 @keyframes osb-spin{to{transform:rotate(360deg)}}
 @keyframes osb-ping{0%{opacity:.7;transform:scale(.6)}80%,100%{opacity:0;transform:scale(1.6)}}
@@ -710,6 +742,33 @@ function Stamp({ host, uid }: { host: OsbHost; uid: string }) {
   )
 }
 
+/** The ink impression the host's stamp leaves on the ticket. */
+function Impression({ words, uid }: { words: string; uid: string }) {
+  const ring = words.toUpperCase().repeat(3).slice(0, 40)
+  return (
+    <svg className="osb-press" viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <path id={uid + "-press"} d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" />
+        <filter id={uid + "-ink"} x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.25 1.45" result="m" />
+          <feComposite in="SourceGraphic" in2="m" operator="in" />
+        </filter>
+      </defs>
+      <g filter={"url(#" + uid + "-ink)"} fill="none" stroke="currentColor">
+        <circle cx="60" cy="60" r="56" strokeWidth="4" />
+        <circle cx="60" cy="60" r="34" strokeWidth="2.6" />
+        <text fontSize="12" fontWeight="900" letterSpacing="1.2" fill="currentColor" stroke="none" style={{ fontFamily: "var(--osb-display)" }}>
+          <textPath href={"#" + uid + "-press"} textLength="276" lengthAdjust="spacing">
+            {ring}
+          </textPath>
+        </text>
+        <path d="M44 61l11 11 22-24" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
+  )
+}
+
 type Picked = { slot: OsbSlot; key: string }
 
 export default function OpenSlotBooking({
@@ -735,15 +794,18 @@ export default function OpenSlotBooking({
   weekStartsOn = 1,
   clock = "24h",
   hostBusy = SAMPLE_HOST_BUSY,
-  visitorEvents = SAMPLE_VISITOR,
+  visitorEvents = [],
+  loadVisitorEvents,
+  onOverlayChange,
   defaultOverlay = true,
+  chrome = "plain",
   onBook,
   preset = "sunrise",
   colors,
   theme = "auto",
   fontFamily,
   height = "100svh",
-  gridHeight = 408,
+  gridHeight = 444,
   className,
 }: OpenSlotBookingProps) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "")
@@ -764,6 +826,9 @@ export default function OpenSlotBooking({
   const [tz, setTz] = useState(hostTimeZone)
   const [duration, setDuration] = useState(durations.indexOf(defaultDuration) >= 0 ? defaultDuration : durations[0] || 30)
   const [overlay, setOverlay] = useState(defaultOverlay && visitorEvents.length > 0)
+  const [loadedEvents, setLoadedEvents] = useState(null as OsbBusy[] | null)
+  const [linking, setLinking] = useState("idle" as "idle" | "loading" | "error")
+  const [visitorTz, setVisitorTz] = useState(hostTimeZone)
   const [dir, setDir] = useState(1)
   const [compact, setCompact] = useState(false)
   const [inView, setInView] = useState(false)
@@ -783,6 +848,7 @@ export default function OpenSlotBooking({
     try {
       osbOffset(Date.now(), z)
       setTz(z)
+      setVisitorTz(z)
     } catch {
       /* unknown zone: stay on the host's */
     }
@@ -828,6 +894,40 @@ export default function OpenSlotBooking({
     return list
   }, [timeZones, tz, hostTimeZone])
 
+  const myEvents = visitorEvents.length ? visitorEvents : loadedEvents || []
+  const canOverlay = visitorEvents.length > 0 || !!loadVisitorEvents
+  const toggleOverlay = () => {
+    if (linking === "loading") return
+    if (overlay) {
+      setOverlay(false)
+      onOverlayChange?.(false)
+      return
+    }
+    if (myEvents.length || !loadVisitorEvents) {
+      setOverlay(true)
+      onOverlayChange?.(true)
+      return
+    }
+    setLinking("loading")
+    let r: OsbBusy[] | OsbThenable
+    try {
+      r = loadVisitorEvents()
+    } catch {
+      setLinking("error")
+      return
+    }
+    Promise.resolve(r as OsbBusy[]).then(
+      (list) => {
+        setLoadedEvents(Array.isArray(list) ? list : [])
+        setLinking("idle")
+        setOverlay(true)
+        onOverlayChange?.(true)
+        setLive("Your calendar is overlaid on the open slots")
+      },
+      () => setLinking("error"),
+    )
+  }
+
   const busyAll = useMemo(() => (booked.length ? hostBusy.concat(booked.map((b) => ({ start: b.start, end: b.end, title: b.title }))) : hostBusy), [hostBusy, booked])
 
   const basePlan: OsbPlan = {
@@ -840,7 +940,8 @@ export default function OpenSlotBooking({
     now,
     noticeMin: noticeHours * 60,
     hostBusy: busyAll,
-    visitor: visitorEvents,
+    visitor: myEvents,
+    visitorTz,
     overlay,
   }
   const thisWeek = basePlan.weekKey
@@ -859,16 +960,16 @@ export default function OpenSlotBooking({
   const slots = useMemo(
     () => osbSlots({ ...basePlan, weekKey }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [weekKey, tz, hostTimeZone, hours, duration, step, now, noticeHours, busyAll, visitorEvents, overlay],
+    [weekKey, tz, hostTimeZone, hours, duration, step, now, noticeHours, busyAll, myEvents, visitorTz, overlay],
   )
   const rangeSlots = useMemo(
     () => osbSlots({ ...basePlan, weekKey, overlay: false }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [weekKey, tz, hostTimeZone, hours, duration, step],
   )
-  const blocks = useMemo(() => (overlay ? osbBlocks(visitorEvents, weekKey, tz) : []), [overlay, visitorEvents, weekKey, tz])
+  const blocks = useMemo(() => (overlay ? osbBlocks(myEvents, weekKey, tz, visitorTz) : []), [overlay, myEvents, weekKey, tz, visitorTz])
   const [lo, hi] = osbRange(rangeSlots, duration)
-  const stepPx = 30
+  const stepPx = 36
   const ppm = stepPx / Math.max(5, step)
   const bodyPx = Math.max(60, (hi - lo) * ppm)
 
@@ -893,9 +994,10 @@ export default function OpenSlotBooking({
     (ms: number, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, ...opts }).format(new Date(ms)),
     [tz],
   )
+  // one clock style everywhere: "09:30" or "9:30am", "9am" on the hour
   const timeLabel = useCallback(
-    (ms: number) => {
-      const s = new Intl.DateTimeFormat(hour12 ? "en-US" : "en-GB", { timeZone: tz, hour: hour12 ? "numeric" : "2-digit", minute: "2-digit", hour12 }).format(new Date(ms))
+    (ms: number, zone?: string) => {
+      const s = new Intl.DateTimeFormat(hour12 ? "en-US" : "en-GB", { timeZone: zone || tz, hour: hour12 ? "numeric" : "2-digit", minute: "2-digit", hour12 }).format(new Date(ms))
       return hour12 ? s.replace(/\s?([AP])M/, (_, x: string) => x.toLowerCase() + "m").replace(":00", "") : s
     },
     [tz, hour12],
@@ -903,7 +1005,7 @@ export default function OpenSlotBooking({
   const hourLabel = (min: number) => {
     const h = Math.floor(min / 60) % 24
     if (!hour12) return String(h).padStart(2, "0") + ":00"
-    return (h % 12 || 12) + (h < 12 ? " am" : " pm")
+    return (h % 12 || 12) + (h < 12 ? "am" : "pm")
   }
 
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -934,7 +1036,7 @@ export default function OpenSlotBooking({
     const sc = scrollRef.current
     if (!sc) return
     const first = slots.find((s) => s.state === "open")
-    const target = first ? Math.max(0, (first.min - lo) * ppm - 36) : 0
+    const target = first ? Math.max(0, Math.floor((first.min - lo) / 60) * 60 * ppm) : 0
     sc.scrollTo({ top: target, behavior: "auto" })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekKey, duration, tz, compact])
@@ -955,7 +1057,7 @@ export default function OpenSlotBooking({
     const card = cardRef.current
     const cal = calRef.current
     if (!picked || !card || !cal) return
-    cal.querySelectorAll("[data-under]").forEach((n) => n.setAttribute("inert", ""))
+    rootRef.current?.querySelectorAll("[data-under]").forEach((n) => n.setAttribute("inert", ""))
     const from = originRef.current?.getBoundingClientRect()
     const to = card.getBoundingClientRect()
     if (!reduced && from && from.width > 0 && to.width > 0) {
@@ -978,7 +1080,7 @@ export default function OpenSlotBooking({
   }, [picked?.key])
 
   const finish = () => {
-    calRef.current?.querySelectorAll("[data-under]").forEach((n) => n.removeAttribute("inert"))
+    rootRef.current?.querySelectorAll("[data-under]").forEach((n) => n.removeAttribute("inert"))
     setPicked(null)
     setPhase("form")
     const o = originRef.current
@@ -1084,9 +1186,22 @@ export default function OpenSlotBooking({
         ],
         { duration: 460, easing: "cubic-bezier(.2,.8,.3,1)" },
       )
+      // the host's stamp comes down on the ticket; card and slab take the hit
+      card.querySelector(".osb-press")?.animate(
+        [
+          { transform: "rotate(-26deg) scale(1.8)", opacity: 0 },
+          { transform: "rotate(-12deg) scale(.9)", opacity: 0.95, offset: 0.62 },
+          { transform: "rotate(-12deg) scale(1)", opacity: 0.92 },
+        ],
+        { duration: 360, delay: 420, easing: "cubic-bezier(.3,0,.25,1)", fill: "backwards" },
+      )
+      card.querySelector(".osb-ticket")?.animate(
+        [{ transform: "none" }, { transform: "translateY(3px) scale(.994)" }, { transform: "none" }],
+        { duration: 240, delay: 640, easing: EASE },
+      )
       slabRef.current?.animate(
-        [{ transform: "rotate(-2deg)" }, { transform: "rotate(-3.6deg) translateY(5px)", offset: 0.4 }, { transform: "rotate(-2deg)" }],
-        { duration: 720, easing: EASE },
+        [{ transform: "rotate(-2deg)" }, { transform: "rotate(-3.4deg) translateY(6px)", offset: 0.35 }, { transform: "rotate(-2deg)" }],
+        { duration: 700, delay: 620, easing: EASE },
       )
     }
     ;(card.querySelector(".osb-primary") as HTMLElement | null)?.focus({ preventScroll: true })
@@ -1204,10 +1319,10 @@ export default function OpenSlotBooking({
   const dayIsPast = (i: number) => weekKey + i < todayKey
   const cols = [0, 1, 2, 3, 4, 5, 6].filter((col) => {
     const dow = new Date((weekKey + col) * OSB_DAY).getUTCDay()
-    return (dow >= 1 && dow <= 5) || rangeSlots.some((s) => s.col === col)
+    return hours.days.indexOf(dow) >= 0 || rangeSlots.some((s) => s.col === col)
   })
-  // days without a single slot stay as quiet narrow columns, so the bookable days get the room
-  const colTrack = cols.map((col) => (rangeSlots.some((s) => s.col === col) ? "minmax(0, 1fr)" : "minmax(0, .55fr)")).join(" ")
+  // past days and days without a single slot stay as quiet narrow columns, so the bookable days get the room
+  const colTrack = cols.map((col) => (weekKey + col >= todayKey && rangeSlots.some((s) => s.col === col) ? "minmax(0, 1fr)" : "minmax(0, .5fr)")).join(" ")
   const colTemplate = { gridTemplateColumns: "52px " + colTrack }
   const stripTemplate = { gridTemplateColumns: "repeat(" + cols.length + ", minmax(0, 1fr))" }
   const hoursMarks: number[] = []
@@ -1269,8 +1384,12 @@ export default function OpenSlotBooking({
                 </small>
                 <strong>{fmt(picked.slot.start, { weekday: "short", day: "numeric", month: "short" })}</strong>
                 <em>
-                  {timeLabel(picked.slot.start)} – {timeLabel(picked.slot.end)}, {zoneName(tz)} time
+                  {timeLabel(picked.slot.start)} – {timeLabel(picked.slot.end)}, <span style={{ whiteSpace: "nowrap" }}>{zoneName(tz)} time</span>
                 </em>
+                <i>
+                  {Icon.video}
+                  {location}
+                </i>
               </div>
               <button type="button" className="osb-x" onClick={close} aria-label="Back to the calendar">
                 {Icon.close}
@@ -1341,12 +1460,13 @@ export default function OpenSlotBooking({
               <small>{fmt(picked.slot.start, { weekday: "short" }).toUpperCase()}</small>
             </div>
             <div className="osb-tbody">
+              <Impression uid={uid} words={"Booked · " + fmt(picked.slot.start, { day: "numeric", month: "short" }) + " · "} />
               <h3 id={uid + "-when"}>You're booked.</h3>
               <p>
                 <b>
                   {fmt(picked.slot.start, { weekday: "long", day: "numeric", month: "long" })}, {timeLabel(picked.slot.start)} – {timeLabel(picked.slot.end)}
                 </b>{" "}
-                ({zoneName(tz)} time)
+                <span style={{ whiteSpace: "nowrap" }}>({zoneName(tz)} time)</span>
               </p>
               <p>
                 {meetingTitle} with {host.name}. The invite is on its way to {email.trim()}.
@@ -1380,7 +1500,7 @@ export default function OpenSlotBooking({
       aria-labelledby={uid + "-h"}
     >
       <style>{CSS}</style>
-      <div className="osb-head">
+      <div className="osb-head" data-under="">
         <h2 className="osb-h" id={uid + "-h"}>
           <span className="osb-rise" style={{ "--r": 0 } as React.CSSProperties}>
             {headline}
@@ -1406,12 +1526,14 @@ export default function OpenSlotBooking({
       <div className="osb-stage osb-rise" style={{ "--r": 3 } as React.CSSProperties}>
         <div ref={slabRef} className="osb-slab" aria-hidden="true" />
         <div ref={winRef} className="osb-win">
-          <div className="osb-bar">
-            <div className="osb-dots" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </div>
+          <div className="osb-bar" data-under="">
+            {chrome === "browser" && (
+              <div className="osb-dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </div>
+            )}
             <div className="osb-url">
               {Icon.link}
               <b>{bookingUrl}</b>
@@ -1422,7 +1544,7 @@ export default function OpenSlotBooking({
           </div>
 
           <div className="osb-body">
-            <aside className="osb-host" aria-label={"About the call with " + host.name}>
+            <aside className="osb-host" data-under="" aria-label={"About the call with " + host.name}>
               <div className="osb-who">
                 <Stamp host={host} uid={uid} />
                 <div>
@@ -1430,7 +1552,7 @@ export default function OpenSlotBooking({
                   {host.role && <div className="osb-role">{host.role}</div>}
                   <div className="osb-live">
                     <i aria-hidden="true" />
-                    {zoneName(hostTimeZone)}, {new Intl.DateTimeFormat(hour12 ? "en-US" : "en-GB", { timeZone: hostTimeZone, hour: "numeric", minute: "2-digit", hour12 }).format(new Date(now))} now
+                    {zoneName(hostTimeZone)}, {timeLabel(now, hostTimeZone)} now
                   </div>
                 </div>
               </div>
@@ -1438,6 +1560,7 @@ export default function OpenSlotBooking({
                 <h3 className="osb-meet">{meetingTitle}</h3>
                 {agenda && <p className="osb-agenda">{agenda}</p>}
               </div>
+              <div className="osb-opts">
               {durations.length > 1 && (
                 <div>
                   <span className="osb-label" id={uid + "-dur"}>
@@ -1457,19 +1580,7 @@ export default function OpenSlotBooking({
                   </div>
                 </div>
               )}
-              <div className="osb-meta">
-                <div>
-                  {Icon.video}
-                  {location}
-                </div>
-                {responseNote && (
-                  <div>
-                    {Icon.clock}
-                    {responseNote}
-                  </div>
-                )}
-              </div>
-              <div>
+              <div className="osb-tzwrap">
                 <label className="osb-label" htmlFor={uid + "-tz"}>
                   Show times in
                 </label>
@@ -1485,6 +1596,19 @@ export default function OpenSlotBooking({
                   {Icon.chev}
                 </div>
               </div>
+              </div>
+              <div className="osb-meta">
+                <div>
+                  {Icon.video}
+                  {location}
+                </div>
+                {responseNote && (
+                  <div>
+                    {Icon.clock}
+                    {responseNote}
+                  </div>
+                )}
+              </div>
             </aside>
 
             <div ref={calRef} className="osb-cal">
@@ -1494,12 +1618,20 @@ export default function OpenSlotBooking({
                     <span className="osb-pick-ico">{Icon.pointer}</span>
                     Pick an open slot
                   </div>
-                  {visitorEvents.length > 0 && (
-                    <button type="button" className="osb-switch" role="switch" aria-checked={overlay} onClick={() => setOverlay((o) => !o)}>
+                  {canOverlay && (
+                    <button
+                      type="button"
+                      className="osb-switch"
+                      role="switch"
+                      aria-checked={overlay}
+                      aria-busy={linking === "loading"}
+                      data-linking={linking}
+                      onClick={toggleOverlay}
+                    >
                       <span className="osb-track" aria-hidden="true">
                         <i />
                       </span>
-                      Overlay my calendar
+                      {linking === "loading" ? "Connecting your calendar…" : linking === "error" ? "Couldn't reach your calendar. Retry" : "Overlay my calendar"}
                     </button>
                   )}
                   <div className="osb-weeknav">
