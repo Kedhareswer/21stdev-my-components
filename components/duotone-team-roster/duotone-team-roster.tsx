@@ -105,10 +105,11 @@ export const PRESETS = {
   mono: { ground: "#090909", deep: "#262626", hot: "#8c8c8c", glow: "#e0e0e0", ink: "#fafafa", shadow: "#0d0d0d", highlight: "#f4f4f4" },
 }
 
-export function resolvePalette(preset: string, overrides: any) {
-  const base = PRESETS[preset as keyof typeof PRESETS] || PRESETS.ember
-  const out = Object.assign({}, base)
-  if (overrides) for (const k of Object.keys(base)) if (overrides[k]) (out as any)[k] = overrides[k]
+export function resolvePalette(preset: string, overrides: any): RosterPalette {
+  const table: any = PRESETS
+  const base = table[preset] || PRESETS.ember
+  const out: any = Object.assign({}, base)
+  if (overrides) for (const k of Object.keys(base)) if (overrides[k]) out[k] = overrides[k]
   return out
 }
 
@@ -144,13 +145,13 @@ export function initials(name: string) {
  */
 export function dealColumns(count: number, roleCount: number, columns: number, minPerColumn: number) {
   const cols = Math.max(1, Math.floor(columns) || 1)
-  const deck: { kind: string; index: number }[] = []
+  const deck: any[] = []
   for (let i = 0; i < count; i++) deck.push({ kind: "member", index: i })
   for (let r = 0; r < roleCount; r++) {
     const at = Math.min(deck.length, Math.round(((r + 1) * (count + roleCount)) / (roleCount + 1)) - 1 + r)
     deck.splice(Math.max(0, at), 0, { kind: "role", index: r })
   }
-  const out: { kind: string; index: number; dup: boolean }[][] = []
+  const out: any[][] = []
   for (let c = 0; c < cols; c++) out.push([])
   deck.forEach((d, i) => out[i % cols].push({ kind: d.kind, index: d.index, dup: false }))
   if (!deck.length) return out
@@ -225,47 +226,52 @@ const css = `
 .dtr-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .dtr-in{position:relative;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);height:100%}
 .dtr-copy{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--dtr-pad);padding-right:clamp(16px,2cqw,32px);min-width:0}
-.dtr-title{margin:0;font-family:var(--dtr-display);font-weight:900;line-height:.84;letter-spacing:-.035em;color:var(--dtr-ink);font-size:var(--dtr-ts,120px);text-transform:var(--dtr-case)}
+.dtr-title{margin:0;font-family:var(--dtr-display);font-weight:900;font-synthesis:none;line-height:.84;letter-spacing:-.035em;color:var(--dtr-ink);font-size:var(--dtr-ts,120px);text-transform:var(--dtr-case)}
 .dtr-eyebrow{display:block;font-size:.36em;line-height:1;letter-spacing:-.01em;margin:0 0 .16em .02em;transform:scaleX(var(--dtr-stretch));transform-origin:0 50%;white-space:nowrap}
 .dtr-line{display:block;overflow:hidden;padding-bottom:.04em;margin-bottom:-.04em}
 .dtr-line>span{display:inline-block;white-space:nowrap;transform:scaleX(var(--dtr-stretch));transform-origin:0 50%}
-.dtr-line>span>span{display:inline-block;animation:dtr-line-in 900ms var(--dtr-ease) both;animation-delay:calc(120ms + var(--i,0) * 70ms)}
+.dtr-line>span>span{display:inline-block;animation:dtr-line-in 900ms var(--dtr-ease) both;animation-delay:calc(120ms + var(--i,0) * 50ms)}
 .dtr-intro{margin:clamp(18px,2.2cqw,28px) 0 0;max-width:38ch;font-size:clamp(15px,1.15cqw,17px);line-height:1.55;color:color-mix(in srgb,var(--dtr-ink) 86%,transparent);text-wrap:pretty}
 .dtr-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:clamp(20px,2.4cqw,30px)}
 .dtr-cta{position:relative;display:inline-flex;align-items:center;gap:12px;height:46px;padding:0 18px 0 20px;border-radius:3px;background:var(--dtr-ink);color:var(--dtr-ground);font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;overflow:hidden;transition:transform 160ms var(--dtr-ease),background-color 220ms ease;outline:none}
+.dtr-cta::before{content:"";position:absolute;inset:0;background:var(--dtr-glow);clip-path:inset(0 100% 0 0);transition:clip-path 280ms var(--dtr-ease)}
+.dtr-cta>span{position:relative;z-index:1}
 .dtr-cta-label{position:relative;display:inline-block;overflow:hidden;height:1.2em;line-height:1.2em}
-.dtr-cta-label>span{display:block;transition:transform 380ms var(--dtr-ease)}
-.dtr-cta-arrow{display:inline-block;transition:transform 380ms var(--dtr-ease)}
+.dtr-cta-label>span{display:block;transition:transform 260ms var(--dtr-ease)}
+.dtr-cta-arrow{display:inline-block;transition:transform 260ms var(--dtr-ease)}
 .dtr-cta:active{transform:scale(.97)}
+.dtr-cta:focus-visible::before{clip-path:inset(0 0 0 0)}
 .dtr-cta:focus-visible,.dtr-link:focus-visible,.dtr-pause:focus-visible,.dtr-panel a:focus-visible{outline:2px solid var(--dtr-ink);outline-offset:3px}
 .dtr-link{color:var(--dtr-ink);font-size:14px;font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px;transition:text-underline-offset 220ms var(--dtr-ease),opacity 200ms ease;outline:none}
 .dtr-wall{position:relative;z-index:1;display:grid;grid-template-columns:repeat(var(--dtr-cols),minmax(0,1fr));gap:var(--dtr-gap);padding:0 var(--dtr-pad) 0 clamp(8px,1cqw,16px);height:100%;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 5%,#000 95%,transparent 100%)}
 .dtr-col{position:relative;min-width:0;animation:dtr-rise 1100ms var(--dtr-ease) both;animation-delay:calc(var(--ci) * 90ms)}
-.dtr-track{display:flex;flex-direction:column;will-change:transform;transition:translate 480ms var(--dtr-ease);animation:dtr-up var(--dtr-dur) linear infinite;animation-delay:var(--dtr-phase)}
+.dtr-track{display:flex;flex-direction:column;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-up var(--dtr-dur) linear infinite;animation-delay:var(--dtr-phase)}
 .dtr-col[data-dir="down"] .dtr-track{animation-name:dtr-down}
 .dtr[data-paused] .dtr-track,.dtr[data-active] .dtr-track,.dtr[data-offscreen] .dtr-track,.dtr-wall:focus-within .dtr-track,.dtr[data-paused] .dtr-strip-track,.dtr[data-active] .dtr-strip-track,.dtr[data-offscreen] .dtr-strip-track,.dtr-strip:focus-within .dtr-strip-track{animation-play-state:paused}
-.dtr-card{position:relative;margin:0 0 var(--dtr-gap);aspect-ratio:3/4;border-radius:3px;outline:none;cursor:pointer;transition:transform 420ms var(--dtr-ease),box-shadow 420ms var(--dtr-ease);-webkit-tap-highlight-color:transparent}
-.dtr-photo{position:absolute;inset:0;overflow:hidden;border-radius:3px;background:var(--dtr-deep);transition:opacity 420ms ease,filter 420ms ease}
+.dtr-card{position:relative;margin:0 0 var(--dtr-gap);aspect-ratio:3/4;border-radius:3px;outline:none;cursor:pointer;transition:transform 260ms var(--dtr-ease);-webkit-tap-highlight-color:transparent}
+.dtr-card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;box-shadow:0 2px 6px color-mix(in srgb,var(--dtr-ground) 40%,transparent),0 18px 44px -12px color-mix(in srgb,var(--dtr-ground) 85%,transparent);opacity:0;transition:opacity 260ms ease;pointer-events:none}
+.dtr-photo{position:absolute;inset:0;overflow:hidden;border-radius:3px;background:var(--dtr-deep);transition:opacity 260ms ease,filter 260ms ease}
 .dtr-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover}
-.dtr-true{opacity:0;transition:opacity 520ms ease}
+.dtr-true{opacity:0;transition:opacity 300ms ease}
 .dtr-plate{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(90% 70% at 50% 35%,var(--dtr-hot),var(--dtr-deep) 70%,var(--dtr-ground));font-family:var(--dtr-display);font-weight:900;color:var(--dtr-ink);font-size:clamp(40px,7cqw,96px);letter-spacing:-.04em}
 .dtr-plate span{transform:scaleX(var(--dtr-stretch))}
 .dtr-plate{grid-template-rows:1fr auto 1fr}.dtr-plate span{grid-row:2}
-.dtr-plate em{grid-row:3;align-self:start;margin-top:.9em;max-width:80%;font:700 12px/1.35 ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;font-style:normal;text-align:center;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
+.dtr-plate em{transition:opacity 160ms ease;grid-row:3;align-self:start;margin-top:.9em;max-width:80%;font:700 12px/1.35 ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;font-style:normal;text-align:center;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
 .dtr-role .dtr-plate{background:repeating-linear-gradient(135deg,transparent 0 10px,color-mix(in srgb,var(--dtr-ink) 9%,transparent) 10px 11px),radial-gradient(90% 70% at 50% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)),var(--dtr-ground) 85%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 28%,transparent);font-size:clamp(34px,5.2cqw,76px)}
-.dtr-chip,.dtr-panel{position:absolute;left:12px;bottom:12px;background:color-mix(in srgb,var(--dtr-ground) 92%,transparent);color:var(--dtr-ink);border-radius:3px}
+.dtr-chip,.dtr-panel{position:absolute;left:12px;bottom:12px;background:color-mix(in srgb,var(--dtr-ground) 95%,transparent);color:var(--dtr-ink);border-radius:3px}
 .dtr-chip{padding:8px 10px 7px;font-size:11px;font-weight:700;line-height:1;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;transition:opacity 160ms ease}
-.dtr-panel{right:12px;padding:12px 14px 13px;clip-path:inset(calc(100% - 26px) calc(100% - var(--dtr-cw)) 0 0 round 3px);opacity:0;transition:clip-path 360ms var(--dtr-ease),opacity 140ms ease 220ms;pointer-events:none}
+.dtr-panel{right:12px;padding:12px 14px 13px;clip-path:inset(calc(100% - 26px) calc(100% - var(--dtr-cw)) 0 0 round 3px);opacity:0;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms;pointer-events:none}
 .dtr-panel-craft{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--dtr-ink) 70%,transparent);margin-bottom:8px}
 .dtr-name{margin:0;font-size:clamp(16px,1.25cqw,19px);font-weight:800;line-height:1.15;letter-spacing:-.01em}
 .dtr-roleline{margin:3px 0 0;font-size:13px;line-height:1.35;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
 .dtr-bio{margin:8px 0 0;font-size:13px;line-height:1.45;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
 .dtr-panel a{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--dtr-ink);font-size:13px;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;outline:none}
 .dtr-panel a span{display:inline-block;transition:transform 260ms var(--dtr-ease)}
-.dtr-card[data-on]{z-index:3;transform:translateY(-6px) scale(1.02);box-shadow:0 24px 50px -18px color-mix(in srgb,var(--dtr-ground) 85%,transparent)}
+.dtr-card[data-on]{z-index:3;transform:translateY(-6px) scale(1.02)}
+.dtr-card[data-on]::after{opacity:1}
 .dtr-card[data-on] .dtr-true{opacity:.74}
-.dtr-card[data-on] .dtr-chip{opacity:0;transition-duration:90ms}
-.dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;pointer-events:auto;transition:clip-path 460ms var(--dtr-ease),opacity 80ms ease}
+.dtr-card[data-on] .dtr-chip,.dtr-card[data-on] .dtr-plate em{opacity:0;transition-duration:90ms}
+.dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;pointer-events:auto;transition:clip-path 300ms var(--dtr-ease),opacity 60ms ease}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-photo{opacity:.42;filter:saturate(.7)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-chip{opacity:.5}
 .dtr-card:focus-visible{box-shadow:0 0 0 2px var(--dtr-ground),0 0 0 4px var(--dtr-ink)}
@@ -277,7 +283,7 @@ const css = `
 .dtr[data-mode="strip"] .dtr-in{display:flex;flex-direction:column;height:auto}
 .dtr[data-mode="strip"] .dtr-wall{display:none}
 .dtr[data-mode="strip"] .dtr-strip{display:block;position:relative;order:-1;overflow:hidden;padding:20px 0 4px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%)}
-.dtr-strip-track{display:flex;width:max-content;will-change:transform;transition:translate 480ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
+.dtr-strip-track{display:flex;width:max-content;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
 .dtr-strip .dtr-card{width:clamp(170px,56cqw,250px);margin:0 10px 0 0;flex:none}
 .dtr[data-mode="strip"] .dtr-copy{padding:18px 20px 28px}
 @keyframes dtr-up{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-50%,0)}}
@@ -286,6 +292,7 @@ const css = `
 @keyframes dtr-rise{from{opacity:0;transform:translate3d(0,56px,0)}to{opacity:1;transform:none}}
 @keyframes dtr-line-in{from{transform:translate3d(0,104%,0)}to{transform:none}}
 @media (hover:hover) and (pointer:fine){
+.dtr-cta:hover::before{clip-path:inset(0 0 0 0)}
 .dtr-cta:hover .dtr-cta-label>span{transform:translateY(-100%)}
 .dtr-cta:hover .dtr-cta-arrow{transform:translateX(4px)}
 .dtr-link:hover{text-underline-offset:8px}
@@ -357,7 +364,6 @@ function Portrait(props: {
       tabIndex={hidden ? -1 : 0}
       aria-hidden={hidden ? true : undefined}
       aria-label={label}
-      aria-expanded={hidden ? undefined : on}
       style={{ ["--dtr-cw" as any]: Math.min(26, craft.length) * 0.74 + 2.2 + "em" }}
       onPointerDown={(e) => {
         pointer.current = e.pointerType
@@ -690,7 +696,7 @@ export default function DuotoneTeamRoster({
             </div>
           </div>
         ) : (
-          <div className="dtr-wall" role="list" aria-label="Team">
+          <div className="dtr-wall" role="group" aria-label="Team">
             {plan.map((col, c) => {
               const dur = Math.max(6, col.length * driftSeconds)
               const phase = phases[c % phases.length]
@@ -698,7 +704,6 @@ export default function DuotoneTeamRoster({
                 <div
                   className="dtr-col"
                   key={c}
-                  role="presentation"
                   data-dir={c % 2 ? "down" : "up"}
                   style={{
                     ["--ci" as any]: c,
@@ -712,7 +717,7 @@ export default function DuotoneTeamRoster({
                       col.map((e, i) => {
                         const slot = slotFor({ ...e, dup: e.dup || copy === 1 }, c + "-" + copy + "-" + i)
                         return (
-                          <div role={slot.dup ? undefined : "listitem"} key={slot.key}>
+                          <div key={slot.key}>
                             <Portrait
                               slot={slot}
                               on={active === slot.key}
