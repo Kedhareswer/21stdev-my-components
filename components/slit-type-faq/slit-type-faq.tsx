@@ -346,8 +346,8 @@ const css = `
 .stf-ch {
   display: inline-block;
   transform: translateY(0);
-  transition: transform 900ms var(--stf-ease-out);
-  transition-delay: calc(var(--i) * 32ms);
+  transition: transform 820ms var(--stf-ease-out);
+  transition-delay: min(calc(var(--i) * 26ms), 420ms);
 }
 .stf[data-intro="pending"] .stf-ch {
   transform: translateY(104%);
@@ -502,7 +502,9 @@ const css = `
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.025em;
+  text-wrap: balance;
 }
+.stf-btn:active .stf-plus { scale: 0.88; }
 .stf-row--inv {
   position: absolute;
   top: 0;
@@ -520,14 +522,14 @@ const css = `
 .stf-row--inv .stf-mark { background: var(--o); color: var(--k); }
 
 .stf-roll { position: relative; display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
-.stf-roll > span { display: block; transition: transform 420ms var(--stf-ease-out); }
+.stf-roll > span { display: block; transition: transform 280ms var(--stf-ease-out); }
 .stf-roll > span + span { position: absolute; left: 0; right: 0; top: 100%; }
 .stf-plus {
   position: relative;
   display: block;
   width: clamp(22px, 2.2cqi, 32px);
   height: clamp(22px, 2.2cqi, 32px);
-  transition: transform 420ms var(--stf-ease-out);
+  transition: transform 280ms var(--stf-ease-out), scale 120ms ease;
 }
 .stf-plus span { position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; margin-top: -0.75px; background: currentColor; }
 .stf-plus span + span { transform: rotate(90deg); }
@@ -562,7 +564,7 @@ const css = `
   font-weight: 500;
   letter-spacing: -0.005em;
 }
-.stf-text p { margin: 0 0 0.8em; }
+.stf-text p { margin: 0 0 0.8em; text-wrap: pretty; }
 .stf-text p:last-child { margin-bottom: 0; }
 .stf-text a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .stf-text .stf-mark { background: var(--o); color: var(--k); }
@@ -572,7 +574,8 @@ const css = `
   appearance: none;
   border: 0;
   background: none;
-  padding: 4px 0;
+  padding: 9px 0;
+  margin-top: -5px;
   color: var(--o);
   font: inherit;
   text-decoration: underline;
