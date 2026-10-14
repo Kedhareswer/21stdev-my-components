@@ -16,8 +16,9 @@ import * as React from "react"
  * Prev/next, a counter, autoplay with a progress line (pauses on hover,
  * focus, a hidden tab and the pause button), ←/→, and swipe. On a narrow
  * container it becomes one quote-over-photo pair that sweeps vertically.
- * Portraits that fail to load leave a monogram plate in the opposite colour,
- * so the quilt still reads as designed.
+ * A testimonial without a photo, or one whose photo fails, gets a plate with
+ * the person's initials in a third tone, so a text-only quilt still reads as
+ * four tiles.
  */
 
 export type QuiltPreset = "bottle" | "oxblood" | "marigold" | "mint" | "cobalt"
@@ -32,7 +33,7 @@ export type QuiltPalette = {
   /** Heading band and its text. */
   band: string
   bandInk: string
-  /** Monogram plate behind a portrait that is missing or still loading. Defaults to a mix of the two fields. */
+  /** Third tone behind portraits: shown while one loads, and with initials when there is no photo. */
   plate?: string
   plateInk?: string
 }
@@ -47,13 +48,16 @@ export type Testimonial = {
   alt?: string
   /** CSS object-position for the portrait, e.g. "50% 30%". */
   focus?: string
+  /** Without a photo: a company logo URL for the plate, or a figure such as { value: "9 → 4", label: "days to close the month" }. */
+  logo?: string
+  stat?: { value: string; label: string }
 }
 
 export type CheckerQuiltTestimonialsProps = {
   testimonials?: Testimonial[]
   heading?: React.ReactNode
-  /** Optional link in the heading band. */
-  cta?: { label: string; href: string }
+  /** Optional link in the heading band. Give it an onClick to open a booking modal instead. */
+  cta?: { label: string; href?: string; onClick?: (e: React.MouseEvent) => void }
   preset?: QuiltPreset
   /** Override any colour of the preset. */
   palette?: Partial<QuiltPalette>
@@ -61,6 +65,8 @@ export type CheckerQuiltTestimonialsProps = {
   rows?: 1 | 2
   /** ms per step; 0 turns autoplay off. */
   autoplay?: number
+  /** Page shown first. */
+  defaultPage?: number
   /** Height of the quilt on a wide container. Any CSS length. */
   height?: number | string
   /** Height of the quote + photo pair on a narrow container. */
@@ -140,10 +146,32 @@ export function remapPage(page: number, fromPer: number, toPer: number, total: n
   return wrap(Math.floor((page * fromPer) / Math.max(1, toPer)), pageCount(total, toPer))
 }
 
-/** Type size by quote length, so a long quote never overflows its tile. */
+/** Starting type size by quote length; the tile then fits it to its own height. */
 export function quoteSize(quote: string): "l" | "m" | "s" {
   const n = quote.length
   return n <= 120 ? "l" : n <= 200 ? "m" : "s"
+}
+
+/** Largest integer in [lo, hi] for which fits() holds (lo if none). Binary search, about 6 layout reads. */
+export function fitSize(lo: number, hi: number, fits: (n: number) => boolean): number {
+  let a = Math.ceil(lo)
+  let b = Math.floor(hi)
+  if (b <= a) return a
+  if (fits(b)) return b
+  while (b - a > 1) {
+    const mid = (a + b) >> 1
+    if (fits(mid)) a = mid
+    else b = mid
+  }
+  return a
+}
+
+/** A width-based srcset for an images.unsplash.com URL; empty for any other host. */
+export function unsplashSrcSet(url: string): string {
+  if (!/^https:\/\/images\.unsplash\.com\//.test(url)) return ""
+  const base = url.replace(/([?&])w=\d+&?/, "$1").replace(/[?&]$/, "")
+  const sep = base.includes("?") ? "&" : "?"
+  return [600, 1200, 1800].map((w) => base + sep + "w=" + w + " " + w + "w").join(", ")
 }
 
 export function initials(name: string): string {
@@ -156,11 +184,11 @@ export function initials(name: string): string {
 // #endregion logic
 
 const PRESETS: Record<QuiltPreset, QuiltPalette> = {
-  bottle: { fieldA: "#1d4535", inkA: "#fbeea0", fieldB: "#fbeea0", inkB: "#1d4535", band: "#13301f", bandInk: "#fbeea0" },
-  oxblood: { fieldA: "#5b1622", inkA: "#f9d3cc", fieldB: "#f6c3bb", inkB: "#4a111b", band: "#3f0e17", bandInk: "#f9d3cc" },
-  marigold: { fieldA: "#17181c", inkA: "#f4b23f", fieldB: "#f4b23f", inkB: "#17181c", band: "#0e0f12", bandInk: "#f4b23f" },
-  mint: { fieldA: "#0e3b2d", inkA: "#c4ecd2", fieldB: "#bfe8cd", inkB: "#0b3326", band: "#082a1f", bandInk: "#c4ecd2" },
-  cobalt: { fieldA: "#1c3a9e", inkA: "#dce8ff", fieldB: "#d3e3ff", inkB: "#152c7a", band: "#132a75", bandInk: "#dce8ff" },
+  bottle: { fieldA: "#1d4535", inkA: "#fbeea0", fieldB: "#fbeea0", inkB: "#1d4535", band: "#13301f", bandInk: "#fbeea0", plate: "#7fa487", plateInk: "#13301f" },
+  oxblood: { fieldA: "#5b1622", inkA: "#f9d3cc", fieldB: "#f6c3bb", inkB: "#4a111b", band: "#3f0e17", bandInk: "#f9d3cc", plate: "#b4566a", plateInk: "#3f0e17" },
+  marigold: { fieldA: "#17181c", inkA: "#f4b23f", fieldB: "#f4b23f", inkB: "#17181c", band: "#0e0f12", bandInk: "#f4b23f", plate: "#5a5d68", plateInk: "#f4b23f" },
+  mint: { fieldA: "#0e3b2d", inkA: "#c4ecd2", fieldB: "#bfe8cd", inkB: "#0b3326", band: "#082a1f", bandInk: "#c4ecd2", plate: "#5e9b81", plateInk: "#082a1f" },
+  cobalt: { fieldA: "#1c3a9e", inkA: "#dce8ff", fieldB: "#d3e3ff", inkB: "#152c7a", band: "#132a75", bandInk: "#dce8ff", plate: "#7090e2", plateInk: "#132a75" },
 }
 
 const U = "https://images.unsplash.com/"
@@ -178,12 +206,12 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
   },
   {
     quote:
-      "At sixty-eight I assumed a stiff shoulder was just part of the deal. Three months on I can reach the top shelf and lift my granddaughter again.",
+      "I assumed a stiff shoulder was just part of getting older. Three months on I can reach the top shelf and lift my granddaughter again.",
     name: "Graham Whitlock",
     context: "Frozen shoulder, after a fall",
     photo: U + "photo-1472099645785-5658abf4ff4e" + Q,
-    alt: "Graham, an older man with glasses and a green polo shirt",
-    focus: "50% 25%",
+    alt: "Graham, a grey-haired man with glasses and a green polo shirt",
+    focus: "50% 45%",
   },
   {
     quote:
@@ -192,7 +220,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     context: "Desk-job back pain",
     photo: U + "photo-1494790108377-be9c29b29330" + Q,
     alt: "Priya, a laughing woman with long dark hair in a red sweater",
-    focus: "50% 30%",
+    focus: "50% 18%",
   },
   {
     quote:
@@ -201,7 +229,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     context: "Ankle sprain, Sunday league",
     photo: U + "photo-1507003211169-0a1dd7228f2d" + Q,
     alt: "Daniel, a smiling man with short dark hair in a white T-shirt",
-    focus: "50% 30%",
+    focus: "50% 18%",
   },
   {
     quote:
@@ -223,21 +251,21 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
   },
 ]
 
-const COVER_MS = 420
 const ROW_STAGGER_MS = 90
+// Autoplay steps take their time; a step the visitor asked for answers faster.
+const TIMING = {
+  auto: { cover: 420, reveal: 680, rise: 560, lead: 30 },
+  user: { cover: 300, reveal: 500, rise: 420, lead: 0 },
+}
 
 const css = `
 .cqt { --cq-ease: cubic-bezier(0.23, 1, 0.32, 1); --cq-sweep: cubic-bezier(0.77, 0, 0.175, 1); container-type: inline-size; position: relative; width: 100%; font-family: var(--cq-uf); color: var(--cq-band-ink); background: var(--cq-band); -webkit-font-smoothing: antialiased; }
 .cqt *, .cqt *::before, .cqt *::after { box-sizing: border-box; }
 .cqt img { max-width: none; }
 
-.cqt-band { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; padding: clamp(22px, 3.2cqi, 44px) clamp(20px, 3.4cqi, 56px) clamp(20px, 2.6cqi, 36px); position: relative; }
-.cqt-heading { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: clamp(30px, 4.2cqi, 64px); line-height: 0.98; letter-spacing: -0.025em; max-width: 19ch; text-wrap: balance; }
+.cqt-band { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; padding: clamp(22px, 2.6cqi, 40px) clamp(20px, 3.4cqi, 56px) clamp(20px, 2.2cqi, 32px); position: relative; }
+.cqt-heading { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: clamp(30px, 3.6cqi, 58px); line-height: 0.98; letter-spacing: -0.025em; max-width: 19ch; text-wrap: balance; }
 .cqt-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.cqt[data-narrow="1"] .cqt-band { flex-direction: column; align-items: stretch; gap: 20px; }
-.cqt[data-narrow="1"] .cqt-controls { width: 100%; }
-.cqt[data-narrow="1"] .cqt-cta { flex: 1 0 100%; justify-content: center; margin: 0 0 6px; }
-.cqt[data-narrow="1"] .cqt-count { margin: 0 auto 0 0; }
 .cqt-count { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; margin: 0 10px 0 4px; white-space: nowrap; }
 .cqt-count b { font-weight: 600; }
 .cqt-count span { opacity: 0.72; }
@@ -247,8 +275,7 @@ const css = `
 .cqt-btn[data-dir="next"]:hover svg { transform: translateX(2px); }
 .cqt-btn[data-dir="prev"]:hover svg { transform: translateX(-2px); }
 .cqt-btn:active { transform: scale(0.96); }
-.cqt-btn:focus-visible, .cqt-cta:focus-visible, .cqt-quilt:focus-visible { outline: 2px solid var(--cq-band-ink); outline-offset: 3px; }
-.cqt-quilt:focus-visible { outline-offset: -4px; }
+.cqt-btn:focus-visible, .cqt-cta:focus-visible { outline: 2px solid var(--cq-band-ink); outline-offset: 3px; box-shadow: 0 0 0 6px var(--cq-band); }
 .cqt-cta { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 20px; margin-right: 10px; border-radius: 999px; font-size: 15px; font-weight: 600; text-decoration: none; color: var(--cq-band); background: var(--cq-band-ink); transition: transform 160ms var(--cq-ease), gap 260ms var(--cq-ease); white-space: nowrap; }
 .cqt-cta:hover { gap: 14px; }
 .cqt-cta:active { transform: scale(0.97); }
@@ -258,80 +285,124 @@ const css = `
 .cqt:hover .cqt-bar, .cqt:focus-within .cqt-bar, .cqt[data-paused="1"] .cqt-bar { animation-play-state: paused; }
 @keyframes cqt-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.cqt-quilt { display: grid; height: var(--cq-h); grid-template-rows: repeat(var(--cq-rows), minmax(0, 1fr)); touch-action: pan-y; outline: none; }
-.cqt[data-narrow="1"] .cqt-quilt { height: var(--cq-hm); }
+.cqt-quilt { position: relative; display: grid; height: var(--cq-h); grid-template-rows: repeat(var(--cq-rows), minmax(0, 1fr)); touch-action: pan-y; outline: none; }
+.cqt-quilt:focus-visible::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; box-shadow: inset 0 0 0 3px var(--cq-band), inset 0 0 0 5px var(--cq-band-ink), inset 0 0 0 8px var(--cq-band); }
 .cqt-row { position: relative; overflow: hidden; isolation: isolate; }
 
 .cqt-photo { position: absolute; top: 0; bottom: 0; width: 50%; overflow: hidden; }
 .cqt-photo[data-at="start"] { left: 0; }
 .cqt-photo[data-at="end"] { right: 0; }
-.cqt[data-narrow="1"] .cqt-photo { width: auto; left: 0; right: 0; height: 50%; }
-.cqt[data-narrow="1"] .cqt-photo[data-at="start"] { top: 0; bottom: auto; }
-.cqt[data-narrow="1"] .cqt-photo[data-at="end"] { top: auto; bottom: 0; }
-.cqt-plate { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cq-plate-ink); background: radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--cq-plate) 86%, #fff) 0%, var(--cq-plate) 58%, color-mix(in srgb, var(--cq-plate) 88%, #000) 100%); }
-.cqt-mono { font-family: var(--cq-qf); font-style: italic; font-size: clamp(72px, 13cqi, 200px); line-height: 1; letter-spacing: -0.04em; opacity: 0.86; user-select: none; }
-.cqt[data-narrow="1"] .cqt-mono { font-size: clamp(72px, 28cqi, 160px); }
-.cqt-img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; opacity: 0; transition: opacity 420ms ease; }
+.cqt-plate { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cq-plate-ink); background: var(--cq-plate); }
+.cqt-stat { display: grid; justify-items: center; gap: 10px; padding: 24px; text-align: center; }
+.cqt-stat b { font-family: var(--cq-qf); font-weight: 400; font-size: clamp(48px, 7cqi, 112px); line-height: 1; letter-spacing: -0.03em; }
+.cqt-stat span { font-size: 15px; line-height: 1.35; max-width: 22ch; opacity: 0.85; }
+.cqt-logo { width: 46%; height: 34%; object-fit: contain; max-width: none; }
+.cqt-mono { font-family: var(--cq-qf); font-style: italic; font-size: clamp(72px, 12cqi, 190px); line-height: 1; letter-spacing: -0.04em; opacity: 0.9; user-select: none; }
+.cqt-img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; opacity: 0; transition: opacity 360ms ease; }
 .cqt-img[data-loaded="1"] { opacity: 1; }
-.cqt-settle { position: absolute; inset: 0; animation: cqt-settle 1300ms var(--cq-ease) both; }
-@keyframes cqt-settle { from { transform: scale(1.09); } to { transform: scale(1); } }
+.cqt-img[data-cached="1"] { transition: none; }
+.cqt-settle { position: absolute; inset: 0; animation: cqt-settle calc(var(--cq-reveal-ms) * 1.9) var(--cq-ease) both; }
+@keyframes cqt-settle { from { transform: scale(1.08); } to { transform: scale(1); } }
 
 .cqt-field { position: absolute; inset: 0; z-index: 1; }
-.cqt-row[data-phase="reveal"] .cqt-field { transition: clip-path 680ms var(--cq-ease), background-color 300ms ease; }
-.cqt-row[data-side="start"] .cqt-field { clip-path: inset(0 50% 0 0); }
-.cqt-row[data-side="end"] .cqt-field { clip-path: inset(0 0 0 50%); }
-.cqt[data-narrow="1"] .cqt-row[data-side="start"] .cqt-field { clip-path: inset(0 0 50% 0); }
-.cqt[data-narrow="1"] .cqt-row[data-side="end"] .cqt-field { clip-path: inset(50% 0 0 0); }
-.cqt-row[data-phase="cover"] .cqt-field, .cqt[data-narrow="1"] .cqt-row[data-phase="cover"] .cqt-field { clip-path: inset(0 0 0 0); transition: clip-path 420ms var(--cq-sweep), background-color 300ms ease; }
+.cqt-row[data-side="start"] .cqt-field { clip-path: inset(-1px 50% -1px -1px); }
+.cqt-row[data-side="end"] .cqt-field { clip-path: inset(-1px -1px -1px 50%); }
+.cqt-row[data-phase="cover"] .cqt-field { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
+.cqt-row[data-phase="reveal"] .cqt-field { transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
 
-.cqt-quote { position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 4.6cqi, 88px) clamp(26px, 5cqi, 96px); }
+.cqt-sweep { display: none; }
+
+.cqt-quote { --cq-fs: 30px; position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: clamp(48px, 5cqi, 88px) clamp(28px, 5cqi, 96px); padding-left: max(clamp(28px, 5cqi, 96px), calc(var(--cq-fs) * 1.45 + 16px)); }
 .cqt-quote[data-at="start"] { left: 0; }
 .cqt-quote[data-at="end"] { right: 0; }
-.cqt[data-narrow="1"] .cqt-quote { width: auto; left: 0; right: 0; height: 50%; padding: 22px 22px 24px; }
-.cqt[data-narrow="1"] .cqt-quote[data-at="start"] { top: 0; bottom: auto; }
-.cqt[data-narrow="1"] .cqt-quote[data-at="end"] { top: auto; bottom: 0; }
-.cqt-mark { display: block; height: 0.42em; margin: 0 0 0.06em -0.04em; font-family: var(--cq-qf); font-size: clamp(88px, 9cqi, 150px); line-height: 0.82; opacity: 0.36; pointer-events: none; user-select: none; }
-.cqt[data-narrow="1"] .cqt-mark { font-size: 76px; }
-.cqt-words { position: relative; transition: opacity 180ms ease, transform 180ms ease; }
-.cqt-row[data-phase="cover"] .cqt-words { opacity: 0; transform: translateY(-10px); }
-.cqt-text { margin: 0; font-family: var(--cq-qf); font-weight: 400; letter-spacing: -0.018em; text-wrap: pretty; max-width: 23ch; hanging-punctuation: first; }
-.cqt-text[data-size="l"] { font-size: clamp(25px, 3.15cqi, 52px); line-height: 1.12; }
-.cqt-text[data-size="m"] { font-size: clamp(22px, 2.7cqi, 44px); line-height: 1.14; max-width: 25ch; }
-.cqt-text[data-size="s"] { font-size: clamp(19px, 2.25cqi, 36px); line-height: 1.18; max-width: 28ch; }
-.cqt[data-narrow="1"] .cqt-text[data-size="l"] { font-size: clamp(22px, 6.6cqi, 30px); }
-.cqt[data-narrow="1"] .cqt-text[data-size="m"] { font-size: clamp(20px, 5.8cqi, 26px); }
-.cqt[data-narrow="1"] .cqt-text[data-size="s"] { font-size: clamp(18px, 5cqi, 23px); }
-.cqt-who { margin-top: clamp(18px, 2.4cqi, 36px); font-size: 15px; line-height: 1.4; }
+.cqt-words { position: relative; max-width: 100%; transition: opacity 160ms ease, transform 160ms ease; }
+.cqt-row[data-phase="cover"] .cqt-words { opacity: 0; transform: translateY(-8px); transition-delay: calc(var(--cq-cover-ms) - 130ms + var(--cq-rd, 0ms)); }
+.cqt-quotebody { position: relative; }
+.cqt-mark { position: absolute; left: -0.6em; top: -0.06em; font-family: var(--cq-qf); font-size: calc(var(--cq-fs) * 2.4); line-height: 0.8; color: color-mix(in srgb, currentColor 32%, transparent); pointer-events: none; user-select: none; }
+.cqt-text { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: var(--cq-fs); line-height: 1.13; letter-spacing: -0.018em; text-wrap: pretty; max-width: 27ch; hanging-punctuation: first; }
+.cqt-words[data-size="m"] .cqt-text { line-height: 1.15; max-width: 30ch; }
+.cqt-words[data-size="s"] .cqt-text { line-height: 1.18; max-width: 33ch; }
+.cqt-who { margin-top: clamp(16px, calc(var(--cq-fs) * 0.8), 32px); font-size: 15px; line-height: 1.4; }
 .cqt-name { display: block; font-weight: 650; letter-spacing: 0.01em; }
 .cqt-ctx { display: block; opacity: 0.8; }
-.cqt-in { animation: cqt-rise 640ms var(--cq-ease) both; animation-delay: var(--d, 0ms); }
-@keyframes cqt-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+.cqt-in { animation: cqt-rise var(--cq-rise-ms) var(--cq-ease) both; animation-delay: var(--d, 0ms); }
+@keyframes cqt-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
 .cqt-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cqt-field, .cqt-row[data-phase="cover"] .cqt-field, .cqt-words, .cqt-btn, .cqt-btn svg, .cqt-cta { transition: none !important; }
+  .cqt-field, .cqt-row[data-phase] .cqt-field, .cqt-sweep, .cqt-row[data-phase] .cqt-sweep, .cqt-words, .cqt-btn, .cqt-btn svg, .cqt-cta, .cqt-img { transition: none !important; }
   .cqt-settle, .cqt-in { animation: none !important; }
   .cqt-bar[data-run="1"] { animation: none; }
 }
 `
 
+// Stacked layout. Written as a container query so the first paint (and server HTML) is already
+// stacked on a narrow container; SCOPE is replaced with this instance's selector.
+const narrowCss = `
+SCOPE .cqt-band { flex-direction: column; align-items: stretch; gap: 20px; }
+SCOPE .cqt-controls { width: 100%; }
+SCOPE .cqt-cta { flex: 1 0 100%; justify-content: center; margin: 0 0 6px; }
+SCOPE .cqt-count { margin: 0 auto 0 0; }
+SCOPE .cqt-quilt { height: var(--cq-hm); grid-template-rows: minmax(0, 1fr); }
+SCOPE .cqt-row:nth-child(n+2) { display: none; }
+SCOPE .cqt-photo, SCOPE .cqt-quote { width: auto; left: 0; right: 0; height: 50%; }
+SCOPE .cqt-photo[data-at="start"], SCOPE .cqt-quote[data-at="start"] { top: 0; bottom: auto; }
+SCOPE .cqt-photo[data-at="end"], SCOPE .cqt-quote[data-at="end"] { top: auto; bottom: 0; }
+SCOPE .cqt-quote { padding: 24px; align-items: stretch; }
+SCOPE .cqt-mono { font-size: clamp(72px, 26cqi, 150px); }
+SCOPE .cqt-row[data-side="start"] .cqt-field, SCOPE .cqt-row[data-side="start"][data-phase] .cqt-field { clip-path: inset(-1px -1px 50% -1px); transition: background-color 300ms ease; }
+SCOPE .cqt-row[data-side="end"] .cqt-field, SCOPE .cqt-row[data-side="end"][data-phase] .cqt-field { clip-path: inset(50% -1px -1px -1px); transition: background-color 300ms ease; }
+SCOPE .cqt-sweep { display: block; position: absolute; inset: 0; z-index: 1; clip-path: inset(-1px -1px -1px 100%); }
+SCOPE .cqt-row[data-dir="prev"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); }
+SCOPE .cqt-row[data-phase="cover"] .cqt-sweep { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
+SCOPE .cqt-row[data-phase="reveal"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
+SCOPE .cqt-row[data-phase="reveal"][data-dir="prev"] .cqt-sweep { clip-path: inset(-1px -1px -1px 100%); }
+SCOPE .cqt-text { max-width: none; }
+SCOPE .cqt-mark { position: static; display: block; height: 0.4em; margin: 0 0 0.12em -0.05em; }
+`
+
+function stackedCss(scope: string, below: number): string {
+  return "@container (max-width: " + (below - 0.02) + "px) {\n" + narrowCss.split("SCOPE").join(scope) + "\n}"
+}
+
 function toLen(v: number | string): string {
   return typeof v === "number" ? v + "px" : v
 }
 
-function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
-  const [loaded, setLoaded] = React.useState(false)
+// Portraits already decoded once; they skip the fade on later visits.
+const LOADED = new Set() as Set<string>
+
+const useIsoLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect
+
+function Portrait({ t, settle, eager }: { t: Testimonial; settle: boolean; eager: boolean }) {
+  const cached = !!t.photo && LOADED.has(t.photo)
+  const [loaded, setLoaded] = React.useState(cached)
   const [failed, setFailed] = React.useState(false)
   const imgRef = React.useRef(null as HTMLImageElement | null)
-  React.useEffect(() => {
+  useIsoLayoutEffect(() => {
     const el = imgRef.current
-    if (el && el.complete && el.naturalWidth > 0) setLoaded(true)
+    if (el && el.complete && el.naturalWidth > 0) {
+      if (t.photo) LOADED.add(t.photo)
+      setLoaded(true)
+    }
   }, [])
+  const showInitials = !t.photo || failed
   return (
     <div className={settle ? "cqt-settle" : undefined} style={settle ? undefined : { position: "absolute", inset: 0 }}>
-      <div className="cqt-plate" aria-hidden="true">
-        <span className="cqt-mono">{initials(t.name)}</span>
+      <div className="cqt-plate" aria-hidden={t.stat ? undefined : true}>
+        {showInitials ? (
+          t.logo ? (
+            <img className="cqt-logo" src={t.logo} alt="" width={320} height={160} draggable={false} style={{ maxWidth: "none" }} />
+          ) : t.stat ? (
+            <p className="cqt-stat" style={{ margin: 0 }}>
+              <b>{t.stat.value}</b>
+              <span>{t.stat.label}</span>
+            </p>
+          ) : (
+            <span className="cqt-mono">{initials(t.name)}</span>
+          )
+        ) : null}
       </div>
       {t.photo && !failed ? (
         <img
@@ -342,14 +413,115 @@ function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
           width={1200}
           height={1200}
           decoding="async"
+          loading={eager ? "eager" : "lazy"}
+          srcSet={unsplashSrcSet(t.photo) || undefined}
+          sizes="(max-width: 720px) 100vw, 50vw"
           draggable={false}
           data-loaded={loaded ? "1" : "0"}
-          onLoad={() => setLoaded(true)}
+          data-cached={cached ? "1" : "0"}
+          onLoad={() => {
+            if (t.photo) LOADED.add(t.photo)
+            setLoaded(true)
+          }}
           onError={() => setFailed(true)}
           style={{ objectPosition: t.focus || "50% 35%", maxWidth: "none" }}
         />
       ) : null}
     </div>
+  )
+}
+
+/** The quote tile. Its type is fitted to the tile, so no quote is ever clipped at any height. */
+function QuoteTile({
+  t,
+  side,
+  tone,
+  narrow,
+  animate,
+  delay,
+  lead,
+  contentKey,
+  onFitted,
+}: {
+  t: Testimonial
+  side: "start" | "end"
+  tone: "a" | "b"
+  narrow: boolean
+  animate: boolean
+  delay: number
+  lead: number
+  contentKey: string
+  onFitted: () => void
+}) {
+  const figRef = React.useRef(null as HTMLElement | null)
+  const wordsRef = React.useRef(null as HTMLDivElement | null)
+  const size = quoteSize(t.quote)
+
+  const fit = React.useCallback(() => {
+    const fig = figRef.current
+    const words = wordsRef.current
+    if (!fig || !words) return
+    const cs = getComputedStyle(fig)
+    const availH = fig.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+    const availW = fig.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    if (availH <= 0 || availW <= 0) return
+    const cap = narrow ? { l: 30, m: 27, s: 24 }[size] : { l: 50, m: 42, s: 35 }[size]
+    const hi = Math.min(cap, availW / (narrow ? 11 : 12))
+    const set = (n: number) => fig.style.setProperty("--cq-fs", n + "px")
+    const best = fitSize(15, hi, (n) => {
+      set(n)
+      return words.offsetHeight <= availH
+    })
+    set(best)
+    fig.dataset.fit = String(best)
+    onFitted()
+  }, [narrow, size, onFitted])
+
+  useIsoLayoutEffect(() => {
+    fit()
+  }, [fit, t.quote, t.name, t.context])
+
+  React.useEffect(() => {
+    const fig = figRef.current
+    if (!fig || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => fit())
+    ro.observe(fig)
+    return () => ro.disconnect()
+  }, [fit])
+
+  return (
+    <figure
+      ref={(el) => {
+        figRef.current = el
+      }}
+      className="cqt-quote"
+      data-at={side}
+      style={{ color: tone === "a" ? "var(--cq-ia)" : "var(--cq-ib)", margin: 0 }}
+    >
+      <div
+        ref={(el) => {
+          wordsRef.current = el
+        }}
+        className="cqt-words"
+        data-size={size}
+        style={{ ["--cq-rd" as string]: delay + "ms" } as React.CSSProperties}
+      >
+        <div key={contentKey} className="cqt-quotebody">
+          <span className={"cqt-mark" + (animate ? " cqt-in" : "")} aria-hidden="true" style={{ ["--d" as string]: delay + lead + "ms" } as React.CSSProperties}>
+            {"“"}
+          </span>
+          <blockquote style={{ margin: 0 }}>
+            <p className={"cqt-text" + (animate ? " cqt-in" : "")} style={{ ["--d" as string]: delay + lead + 40 + "ms" } as React.CSSProperties}>
+              {t.quote}
+            </p>
+          </blockquote>
+          <figcaption className={"cqt-who" + (animate ? " cqt-in" : "")} style={{ ["--d" as string]: delay + lead + 120 + "ms" } as React.CSSProperties}>
+            <span className="cqt-name">{t.name}</span>
+            {t.context ? <span className="cqt-ctx">{t.context}</span> : null}
+          </figcaption>
+        </div>
+      </div>
+    </figure>
   )
 }
 
@@ -361,8 +533,9 @@ export default function CheckerQuiltTestimonials({
   palette,
   rows = 2,
   autoplay = 8000,
-  height = "clamp(560px, 84svh, 940px)",
-  mobileHeight = "760px",
+  defaultPage = 0,
+  height = "clamp(560px, 76cqi, 1180px)",
+  mobileHeight = "min(700px, calc(100svh - 120px))",
   stackBelow = 720,
   quoteFont = '"Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif',
   uiFont = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif',
@@ -381,16 +554,19 @@ export default function CheckerQuiltTestimonials({
   const perPage = narrow ? 1 : rows
   const pages = pageCount(total, perPage)
 
-  const [page, setPage] = React.useState(0)
-  const [phase, setPhase] = React.useState("idle" as "idle" | "cover" | "reveal")
+  const startPage = wrap(Math.floor(defaultPage), pages)
+  const [page, setPage] = React.useState(startPage)
+  const [phase, setPhase] = React.useState("idle" as "idle" | "arm" | "cover" | "reveal")
+  const [dir, setDir] = React.useState("next" as "next" | "prev")
+  const [fast, setFast] = React.useState(false)
   const [step, setStep] = React.useState(0)
   const [userPaused, setUserPaused] = React.useState(false)
   const [hidden, setHidden] = React.useState(false)
   const [reduced, setReduced] = React.useState(false)
   const [announce, setAnnounce] = React.useState(false)
 
-  const pageRef = React.useRef(0)
-  const targetRef = React.useRef(0)
+  const pageRef = React.useRef(startPage)
+  const targetRef = React.useRef(startPage)
   const phaseRef = React.useRef("idle")
   const timers = React.useRef([] as number[])
   const perRef = React.useRef(perPage)
@@ -431,13 +607,14 @@ export default function CheckerQuiltTestimonials({
     }
   }, [])
 
-  // Warm the next page's portraits so the reveal never shows an empty plate.
+  // Warm the next page's portraits so the reveal shows a face, not a plate.
   React.useEffect(() => {
     const next = itemsOnPage(total, perPage, wrap(page + 1, pages))
     next.forEach((i) => {
       const src = list[i]?.photo
-      if (src) {
+      if (src && !LOADED.has(src)) {
         const im = new Image()
+        im.onload = () => LOADED.add(src)
         im.src = src
       }
     })
@@ -448,10 +625,10 @@ export default function CheckerQuiltTestimonials({
   }
 
   const go = React.useCallback(
-    (dir: number, fromUser: boolean) => {
+    (delta: number, fromUser: boolean) => {
       if (pages < 2) return
       if (fromUser) setAnnounce(true)
-      targetRef.current = wrap(targetRef.current + dir, pages)
+      targetRef.current = wrap(targetRef.current + delta, pages)
       const commit = () => {
         const p = targetRef.current
         pageRef.current = p
@@ -463,20 +640,31 @@ export default function CheckerQuiltTestimonials({
         commit()
         return
       }
-      if (phaseRef.current === "cover") return
-      phaseRef.current = "cover"
-      setPhase("cover")
-      later(() => {
-        commit()
-        phaseRef.current = "reveal"
-        setPhase("reveal")
-        later(() => {
-          if (phaseRef.current === "reveal") {
-            phaseRef.current = "idle"
-            setPhase("idle")
-          }
-        }, 900)
-      }, COVER_MS + ROW_STAGGER_MS)
+      if (phaseRef.current === "cover" || phaseRef.current === "arm") return
+      const tm = fromUser ? TIMING.user : TIMING.auto
+      const stagger = fromUser ? 50 : ROW_STAGGER_MS
+      setFast(fromUser)
+      setDir(delta < 0 ? "prev" : "next")
+      phaseRef.current = "arm"
+      setPhase("arm")
+      // One frame in the start position, so the narrow sweep enters from the side it travels toward.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          phaseRef.current = "cover"
+          setPhase("cover")
+          later(() => {
+            commit()
+            phaseRef.current = "reveal"
+            setPhase("reveal")
+            later(() => {
+              if (phaseRef.current === "reveal") {
+                phaseRef.current = "idle"
+                setPhase("idle")
+              }
+            }, tm.reveal + stagger + 120)
+          }, tm.cover + stagger)
+        }),
+      )
     },
     [pages, reduced, onChange],
   )
@@ -509,6 +697,8 @@ export default function CheckerQuiltTestimonials({
 
   const shown = itemsOnPage(total, perPage, page)
   const current = shown.map((i) => list[i])
+  const tm = fast ? TIMING.user : TIMING.auto
+  const stagger = fast ? 50 : ROW_STAGGER_MS
 
   const vars = {
     "--cq-a": pal.fieldA,
@@ -517,17 +707,36 @@ export default function CheckerQuiltTestimonials({
     "--cq-ib": pal.inkB,
     "--cq-band": pal.band,
     "--cq-band-ink": pal.bandInk,
-    "--cq-plate": pal.plate || "color-mix(in srgb, " + pal.fieldA + " 58%, " + pal.fieldB + ")",
-    "--cq-plate-ink": pal.plateInk || pal.band,
+    "--cq-plate": pal.plate || "color-mix(in srgb, " + pal.fieldA + " 82%, #ffffff)",
+    "--cq-plate-ink": pal.plateInk || pal.inkA,
     "--cq-h": toLen(height),
     "--cq-hm": toLen(mobileHeight),
     "--cq-rows": String(perPage),
     "--cq-auto": Math.max(1000, autoplay) + "ms",
+    "--cq-cover-ms": tm.cover + "ms",
+    "--cq-reveal-ms": tm.reveal + "ms",
+    "--cq-rise-ms": tm.rise + "ms",
     "--cq-qf": quoteFont,
     "--cq-uf": uiFont,
   } as React.CSSProperties
 
+  // Every quote on a page shares one size: the smallest any visible tile can take.
+  const quiltRef = React.useRef(null as HTMLDivElement | null)
+  const syncSizes = React.useCallback(() => {
+    const q = quiltRef.current
+    if (!q) return
+    const figs = Array.from(q.querySelectorAll(".cqt-quote")) as HTMLElement[]
+    const shown = figs.filter((f) => f.offsetParent !== null && f.dataset.fit)
+    if (!shown.length) return
+    const min = Math.min(...shown.map((f) => Number(f.dataset.fit)))
+    shown.forEach((f) => f.style.setProperty("--cq-fs", min + "px"))
+  }, [])
+  useIsoLayoutEffect(() => {
+    syncSizes()
+  })
+
   const headingId = React.useId()
+  const scope = '.cqt[data-cq="' + headingId + '"]'
 
   return (
     <section
@@ -536,13 +745,13 @@ export default function CheckerQuiltTestimonials({
       }}
       className={"cqt" + (className ? " " + className : "")}
       style={{ ...vars, ...style }}
-      data-narrow={narrow ? "1" : "0"}
+      data-cq={headingId}
       data-paused={running ? "0" : "1"}
       aria-roledescription="carousel"
       aria-label={heading ? undefined : ariaLabel}
       aria-labelledby={heading ? headingId : undefined}
     >
-      <style>{css}</style>
+      <style>{css + stackedCss(scope, stackBelow)}</style>
 
       <div className="cqt-band">
         {heading ? (
@@ -554,7 +763,7 @@ export default function CheckerQuiltTestimonials({
         )}
         <div className="cqt-controls">
           {cta ? (
-            <a className="cqt-cta" href={cta.href}>
+            <a className="cqt-cta" href={cta.href || "#"} onClick={cta.onClick}>
               {cta.label}
               <Arrow dir="next" />
             </a>
@@ -587,17 +796,15 @@ export default function CheckerQuiltTestimonials({
         </div>
         {playing ? (
           <div className="cqt-track" aria-hidden="true">
-            <div
-              key={page + ":" + step}
-              className="cqt-bar"
-              data-run="1"
-              onAnimationEnd={() => go(1, false)}
-            />
+            <div key={page + ":" + step} className="cqt-bar" data-run="1" onAnimationEnd={() => go(1, false)} />
           </div>
         ) : null}
       </div>
 
       <div
+        ref={(el) => {
+          quiltRef.current = el
+        }}
         className="cqt-quilt"
         role="group"
         tabIndex={0}
@@ -608,11 +815,13 @@ export default function CheckerQuiltTestimonials({
         onPointerCancel={() => (swipe.current = null)}
       >
         {current.map((t, row) => {
+          // On a narrow container the pair stacks; quote and photo still trade places each step, under a sideways sweep.
           const side = fieldSide(page, row)
           const photoAt = side === "start" ? "end" : "start"
           const tone = fieldTone(page, row, perPage)
-          const size = quoteSize(t.quote)
-          const delay = row * ROW_STAGGER_MS
+          const fill = tone === "a" ? "var(--cq-a)" : "var(--cq-b)"
+          const delay = row * stagger
+          const key = page + ":" + shown[row]
           return (
             <div
               key={row}
@@ -622,45 +831,25 @@ export default function CheckerQuiltTestimonials({
               aria-label={shown[row] + 1 + " of " + total}
               data-side={side}
               data-phase={phase}
-              style={{ background: tone === "a" ? "var(--cq-a)" : "var(--cq-b)" }}
+              data-dir={dir}
+              style={{ background: fill }}
             >
               <div className="cqt-photo" data-at={photoAt}>
-                <Portrait key={page + ":" + shown[row]} t={t} settle={step > 0 && !reduced} />
+                <Portrait key={key} t={t} settle={step > 0 && !reduced} eager={step === 0} />
               </div>
-              <div
-                className="cqt-field"
-                aria-hidden="true"
-                style={{ background: tone === "a" ? "var(--cq-a)" : "var(--cq-b)", transitionDelay: delay + "ms" }}
+              <div className="cqt-field" aria-hidden="true" style={{ background: fill, transitionDelay: delay + "ms" }} />
+              <div className="cqt-sweep" aria-hidden="true" style={{ background: fill }} />
+              <QuoteTile
+                t={t}
+                side={side}
+                tone={tone}
+                narrow={narrow}
+                animate={step > 0 && !reduced}
+                delay={delay}
+                lead={tm.lead}
+                contentKey={key}
+                onFitted={syncSizes}
               />
-              <figure
-                className="cqt-quote"
-                data-at={side}
-                style={{ color: tone === "a" ? "var(--cq-ia)" : "var(--cq-ib)", margin: 0 }}
-              >
-                <span className="cqt-mark" aria-hidden="true">
-                  {"“"}
-                </span>
-                <div className="cqt-words" style={{ transitionDelay: delay + "ms" }}>
-                  <div key={page + ":" + shown[row]}>
-                    <blockquote style={{ margin: 0 }}>
-                      <p
-                        className={"cqt-text" + (step > 0 ? " cqt-in" : "")}
-                        data-size={size}
-                        style={{ ["--d" as string]: delay + 160 + "ms" } as React.CSSProperties}
-                      >
-                        {t.quote}
-                      </p>
-                    </blockquote>
-                    <figcaption
-                      className={"cqt-who" + (step > 0 ? " cqt-in" : "")}
-                      style={{ ["--d" as string]: delay + 260 + "ms" } as React.CSSProperties}
-                    >
-                      <span className="cqt-name">{t.name}</span>
-                      {t.context ? <span className="cqt-ctx">{t.context}</span> : null}
-                    </figcaption>
-                  </div>
-                </div>
-              </figure>
             </div>
           )
         })}
