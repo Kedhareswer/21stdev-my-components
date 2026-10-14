@@ -17,9 +17,10 @@ product, or for a founder's office hours.
 
 - One file, scoped CSS, React only. No dependencies, no network requests, no web fonts.
 - Light and dark follow the host's `.dark` class, or force them with `theme`.
-- On a phone the 7-column grid becomes a day strip. Each day shows its slots as
+- Below 600 px of window width (phones) the week grid becomes a day strip, with
+  the calendar switch labelled "My calendar" next to the visitor's events. Each day shows its slots as
   large tap targets, and you swipe the list to change day.
-- Keyboard: the arrow keys move between open slots (up and down within a day, left
+- Keyboard: the grid is a single Tab stop, and the arrow keys move between open slots (up and down within a day, left
   and right across days). Escape closes the confirm card and puts focus back on
   the slot.
 - Reduced motion: no morph, flip, slab settle or ring spin. Every state is still there.
@@ -106,3 +107,5 @@ simulated 900 ms round trip.
 - Credits: the layout and feel follow the savvycal.com hero (a heavy two-tone
   headline and a dark app window on a tilted yellow slab). Its brand, copy and
   images were not used.
+- Limitation: the window is designed dark. `colors.window` should stay a dark
+  colour, because the text inside the window is light.
