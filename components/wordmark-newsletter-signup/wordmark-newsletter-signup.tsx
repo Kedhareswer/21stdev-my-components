@@ -549,7 +549,7 @@ function Wordmark(props: {
       return cache.get(s) as number
     }
     const capU = ctx.measureText("H").actualBoundingBoxAscent || 72
-    const padX = stack ? 12 : mode === "band" ? 0 : Math.max(12, box.w * 0.022)
+    const padX = stack ? 12 : mode === "band" ? Math.max(10, box.w * 0.008) : Math.max(12, box.w * 0.022)
     const opts: WordmarkOptions = {
       maxLines,
       fill,
@@ -560,7 +560,7 @@ function Wordmark(props: {
       padY: mode === "band" ? Math.max(16, box.w * 0.016) : Math.max(16, box.w * 0.02),
       mode,
       bandRatio: stack ? 1.75 : 1.6,
-      maxHeight: stack ? Math.max(220, window.innerHeight * 0.5) : Math.max(160, box.w * 0.24),
+      maxHeight: stack ? Math.max(220, window.innerHeight * 0.5) : Math.max(220, box.w * 0.24),
     }
     if (mode !== "band" || shownKey === baseKey) return layoutWordmark(shown, box, measure, capU, opts)
     // In the flow, the band keeps the name's height so nothing below moves when the word swaps.
