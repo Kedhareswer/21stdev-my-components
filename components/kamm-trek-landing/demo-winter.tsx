@@ -6,7 +6,7 @@ const STAGES = [
   {
     to: "Chamanna Sur Crap",
     alt: 2290,
-    at: [0.3, 0.68] as [number, number],
+    at: [0.32, 0.56] as [number, number],
     km: 9.4,
     hours: "4 h 30 min",
     profile: [1340, 1520, 1780, 2010, 2190, 2290],
@@ -52,7 +52,7 @@ const STAGES = [
   {
     to: "Sankt Alder",
     alt: 1310,
-    at: [0.83, 0.74] as [number, number],
+    at: [0.78, 0.54] as [number, number],
     km: 10.1,
     hours: "3 h",
     profile: [2180, 2290, 1980, 1640, 1310],
@@ -119,6 +119,14 @@ export default function DemoWinter() {
           { quote: "The north face on day three was the best run of my life, and Lea had checked it twice before she let us drop in.", name: "Tom H.", from: "Leeds", hut: "Grathütte", alt: 2912, date: "9.3.2026" },
           { quote: "I came to learn kick turns properly. By the second col I had stopped thinking about them.", name: "Ines W.", from: "Basel", hut: "Chamanna Lej Alv", alt: 2475, date: "23.2.2026" },
           { quote: "Warm huts, dry boots every morning and a guide who explained every decision. That is what you pay for.", name: "Pierre L.", from: "Lyon", hut: "Berghaus Sura", alt: 2180, date: "6.4.2026" },
+        ],
+      }}
+      guides={{
+        title: "Your guides",
+        items: [
+          { name: "Lea Tschudi", role: "IFMGA guide and ski instructor", text: "Leads most February weeks and teaches the avalanche refresher on the first morning." },
+          { name: "Marco Bezzola", role: "Guide, former warden at Grathütte", text: "Knows which slopes the wind loads and which hut keeps the warmest winter room." },
+          { name: "Anna Caduff", role: "IFMGA guide since 2011", text: "Takes the spring weeks, when the snow softens by eleven and the descents go on for ever." },
         ],
       }}
       faq={{

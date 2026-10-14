@@ -67,3 +67,23 @@ across widths; a `labels` prop for all UI copy; more map language below the hero
 collars, map behind the closing CTA); reveals that never hide content; ruled reviews starting
 at the text; a cleaner trail-sign blaze; no shift on the active hut; phone departure status
 under the meter; re-shoot focus and success states.
+
+## Critic round 2 (new subagent)
+
+Banned-looks gate: passes; the map language keeps the lower page out of the "tasteful minimal" family.
+
+| | Score | Evidence |
+|---|---|---|
+| (u) usability | 7 | excellent props (`labels`, computed `stages`, `onHold` with error, waitlist and done) but the hero cannot take a photo of the installer's own range; winter demo shows summer guide copy |
+| (a) idea | 8 | relief hero matches the reference composition; map language through the page |
+| (b) craft | 7 | trail stops short of the last pin under the scrim; labels on the trail; night-1 hut missing; murky dark hero with a flat horizon band; "6 kg" descender; stamp ring text runs end into start; clipped signpost tip; phone tabs cut mid-word |
+| (c) originality | 8 | profile-driven walker on a printed relief, signpost, hut stamps |
+| (d) install-safety | 9 | all gates pass, software-renderer safe |
+| (e) template | 8 | functional, real copy, dark mode, reduced motion, focus, menu |
+
+Average 7.83. **REDO.** Fixes asked for: a photo option for the hero with positioned pins;
+pins above the scrim, the trail reaching the last stop, every hut in view, labels kept off the
+trail, fewer labels on phones; a stronger dark relief and a soft horizon; spacing under the big
+figure; stamp ring text with a separator and a date inside the ring; winter guide copy; a
+solid signpost tip; phone day tabs that read as scrollable; draped contours fading with
+distance; trail casing drawn with the line; guide badges in the map language.

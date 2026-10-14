@@ -53,8 +53,9 @@ runtime, so it renders the same in a software GPU and in 21st's cover capture.
 | `accent` | waymark red | Trail and main buttons |
 | `seed` | `7` | Moves every mountain |
 | `contourInterval` | `50` | Metres between contours on the route map |
-| `hero` | | `title`, `text`, `cta`, `secondary`, `live: { stage, label } \| null` |
-| `route` | Rotgrat Traverse | `title`, `text`, `name`, `start: { name, alt, at }`, `stages`, `peaks` |
+| `hero` | | `title`, `text`, `cta`, `secondary`, `live: { stage, label } \| null`, and for a photo hero `image`, `imageAlt`, `trail` |
+| `route` | Rotgrat Traverse | `title`, `text`, `name`, `start: { name, alt, at }`, `stages`, `peaks` (names, or `{ name, at }` to pin a name near a spot) |
+| `labels` | English | every piece of interface copy: field labels, buttons, messages, "Walkers" (say "Skiers" or "Riders"), "Day {n} of {total}" and so on |
 | `huts` | | `title`, `text` (the huts come from `route.stages`) |
 | `included` | | `figure`, `title`, `text`, `items: { symbol, title, text }[]`, `excluded` |
 | `departures` | 12 summer dates | `title`, `text`, `currency`, `items`, `onHold` |
@@ -76,8 +77,16 @@ A **stage** is one day:
   sleep: "Dorm of 12, no shower", // leave out for the final village
   duffel: true,                // your bag is waiting here
   image: "/huts/grathuette.jpg", // optional photo; otherwise a map excerpt
+  heroAt: [0.41, 0.35],        // where the hut sits over a hero photo, as fractions of the hero
 }
 ```
+
+**Your own mountains.** The relief is generated from `seed`, so it is a believable
+range but not yours. To show the real place, pass `hero.image` (a wide photo of your
+range) plus `heroAt` on each stage and, optionally, `hero.trail` as a list of
+`[x, y]` fractions; the pins, live note and trail are then drawn over the photo with
+the same collision rules. The printed map and hut excerpts stay generated; give each
+hut an `image` to replace its excerpt.
 
 Ascent, descent, totals and the profile are computed from `profile`. `legend`
 symbols are `hut`, `guide`, `bag`, `meal`, `cable`, `rope`, `bus` and `shield`.
