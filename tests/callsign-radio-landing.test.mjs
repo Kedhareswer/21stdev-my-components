@@ -76,8 +76,13 @@ assert.match(src, /if \(res === false\) ok = false/, "onSupport, onRemind and on
 assert.match(src, /isEmail\(email\)/, "the newsletter validates before sending")
 assert.match(src, /aria-modal="true"/, "the phone menu is a modal dialog")
 assert.match(src, /e\.key === "Escape"/, "Escape closes it")
-assert.match(src, /aria-pressed=\{genre === g\}/, "archive filters are toggle buttons")
-assert.match(src, /Nothing in the archive for/, "with an empty state")
+assert.match(src, /aria-pressed=\{genre === g \|\| \(!genre && g === T\.allGenres\)\}/, "archive filters are toggle buttons")
+assert.match(src, /<li className="cr-empty">\{T\.emptyArchive\}<\/li>/, "with an empty state")
+assert.match(src, /labels\?: \{ \[K in keyof CrLabels\]\?: string \}/, "every interface string is a prop")
+assert.doesNotMatch(src, /euro/, "no currency baked into copy")
+assert.match(src, /React\.useState\(pref === "dark"\)/, "a dark page paints dark on the first frame (SSR)")
+assert.match(src, /const fstate = !ready \? "wait"/, "nothing claims to be on air before the clock is known")
+assert.match(src, /aria-label=\{T\.closePlayer\}/, "the dock can be closed")
 assert.ok(read("demo.tsx").includes("<CallsignRadioLanding theme=\"dark\" />"), "default demo is the component, full bleed, on carbon")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
 assert.match(read("demo-daytime.tsx"), /preset="daytime"/, "the second demo is another station")
@@ -86,7 +91,7 @@ assert.doesNotMatch(read("demo-daytime.tsx"), /https?:\/\//, "and stays capture-
 /* ---------- logic, executed ---------- */
 
 const code = region("content") + region("glyphs") + region("logic") +
-  "\nexport { PRESETS, DEFAULT_SHOWS, DEFAULT_SCHEDULE, DEFAULT_EPISODES, DEFAULT_TIERS, GLYPHS, GH, layoutText, wrapText, glyphPath, gNorm, toMin, fmtMin, runningOrder, onAirIndex, slotProgress, stationClock, envelope, rmsLevel, tierFor, perksFor, dialAmount, nextAmount, isEmail, archiveShape, fmtDuration, mulberry, seedOf }\n"
+  "\nexport { meterSegments, litEnd, peakSeg, PRESETS, DEFAULT_SHOWS, DEFAULT_SCHEDULE, DEFAULT_EPISODES, DEFAULT_TIERS, GLYPHS, GH, layoutText, wrapText, glyphPath, gNorm, toMin, fmtMin, runningOrder, onAirIndex, slotProgress, stationClock, envelope, rmsLevel, tierFor, perksFor, dialAmount, nextAmount, isEmail, archiveShape, fmtDuration, mulberry, seedOf }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 // the face: every glyph is drawable, and paths are finite
@@ -110,6 +115,29 @@ const wrapped = L.wrapText("Keep Kora on air", 900)
 assert.ok(wrapped.length >= 2, "breaks when it can't")
 for (const line of wrapped) assert.ok(L.layoutText(line).width <= 900 || !line.includes(" "), "every line fits")
 assert.deepEqual(L.wrapText("Supercalifragilistic", 100), ["Supercalifragilistic"], "a long word keeps its own line")
+
+// meter segments never leave slivers: every glyph is cut into whole segments
+for (const [seg, gap] of [[22, 6], [40, 12]]) {
+  for (const word of ["KORA 98.4", "VELD 107.2", "MIW 1"]) {
+    const lay = L.layoutText(word)
+    const sg = L.meterSegments(lay.items, seg, gap)
+    for (let i = 0; i < sg.starts.length; i++) assert.ok(sg.ends[i] - sg.starts[i] >= 0.5 * Math.min(seg, 30) - 1e-9, `${word}: no sliver segments at ${seg}`)
+    for (const it of lay.items) {
+      if (it.ch === " ") continue
+      const own = sg.starts.map((x, i) => [x, sg.ends[i]]).filter(([a, b]) => a >= it.x - 1e-9 && b <= it.x + it.w + 1e-9)
+      assert.ok(Math.abs(own[0][0] - it.x) < 1e-9 && Math.abs(own[own.length - 1][1] - (it.x + it.w)) < 1e-9, `${word}: ${it.ch} segments span exactly its box`)
+    }
+    const W = lay.width
+    assert.equal(L.litEnd(sg, 0, W), 0, "silence lights nothing")
+    assert.equal(L.litEnd(sg, 1, W), W, "full level lights everything")
+    for (let v = 0.01; v < 1; v += 0.037) {
+      const e = L.litEnd(sg, v, W)
+      assert.ok(sg.ends.some((x) => Math.abs(x - e) < 1e-9), "lit length always ends on a segment edge")
+      const [px, pw] = L.peakSeg(sg, v, W)
+      assert.ok(pw > 0 && Math.abs(px + pw - e) < 1e-9, "the peak tick sits in the last lit segment")
+    }
+  }
+}
 
 // the running order
 assert.equal(L.toMin("13:00"), 780)

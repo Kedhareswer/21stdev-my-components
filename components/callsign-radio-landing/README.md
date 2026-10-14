@@ -66,8 +66,9 @@ A stream that fails shows "The stream did not start" with a retry.
 | `listen` | `{ title, ways } \| null` | FM, DAB+, stream, studio line | `ways: { value, unit, text, href? }[]` |
 | `residents` | `{ title, text } \| null` | | Shows with `hidden: true` are left out. |
 | `archive` | `{ title, text } \| null` | | Genre filters come from each show's first genre. |
-| `support` | `{ title, text, currency, min, max, start, tiers } \| null` | €3 to €30, 4 tiers | Perks accumulate as the dial passes each tier. |
-| `footer` | `{ columns, address, email, newsletterTitle, newsletterText, legal } \| null` | | |
+| `support` | `{ title, text, currency, min, max, start, tiers, fallbackPerk, fallbackTier, doneTitle, doneText } \| null` | €3 to €30, 4 tiers | Perks accumulate as the dial passes each tier. `doneTitle` replaces `{tier}`. |
+| `footer` | `{ columns, address, addressTitle, email, newsletterTitle, newsletterText, successText, legal } \| null` | | |
+| `labels` | `Partial<CrLabels>` | English | Every interface string ("On air now", "Listen back", "Give", "a month", "Menu"...), for any language. |
 | `preset` | `"night" \| "daytime"` | `"night"` | Night: carbon and chalk, on-air red. Daytime: signal yellow, green tally, chunkier meter segments. |
 | `palette` | `{ light?: {...}, dark?: {...} }` | | Override any token: `ground, ink, muted, line, dim, tally, onTally, panel, paper`. |
 | `theme` | `"system" \| "light" \| "dark"` | `"system"` | |
