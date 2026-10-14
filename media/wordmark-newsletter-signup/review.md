@@ -145,3 +145,50 @@ Changes made for round 3:
 
 Decision: on wide screens the card shrinks to its content on success. The section height is fixed
 there, so nothing outside moves, and a tall empty card read worse than a compact one.
+
+## Round 3 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 7 |
+| (a) idea / reference feel | 7 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.0 |
+
+Found: below 1024px the section shrank on success and moved the host page; the signature only
+played after a signup; the reserved error slot left a 45px hole under the field; the success word
+sat at the bottom of an empty block on narrow screens; hard-coded English strings; "Arial Narrow"
+(no heavy weight) matched before "Arial Black" on Windows with Office; the phone band headline sat
+on its divider; the popup's close button crowded the headline on a phone; scroll lock shifted the
+page by the scrollbar width; a selected chip showed "×".
+
+Applied after round 3 (no fourth critic; the brief allows three rounds):
+
+- `intro` prop, default `"view"`: the letter drop plays once when the section or band first
+  scrolls a third into view (the popup plays it on open). Off under reduced motion.
+- Below 1024px the section holds its height through success and centres its content, so the host
+  page does not jump. On wide screens the section height is fixed and the card shrinks to its
+  content, which keeps the success word readable. Holding the card's height was tried and dropped:
+  the tall card hid "SEE YOU / SUNDAY" and read as an empty box.
+- The error sits under the field, absolutely positioned, and takes no space at rest.
+- `messages` prop for every built-in string (required, invalid, consent, failed, close).
+- Font order: Arial Black now comes before Arial Narrow.
+- Phone band headline padding; popup headline clears the close button; scroll lock pads by the
+  scrollbar width; selected chips show a check mark; the README says `height` applies at 1024px
+  and wider.
+- A swapped word in the stacked layout spreads over the name's space when the gaps stay tight,
+  otherwise it sits as a centred block.
+
+Not done: reserving the stacked wordmark's height for server rendering before the client measures
+it (critic fix 5). A client-rendered page paints it measured on the first frame; under SSR a phone
+sees the card drop once the wordmark measures.
+
+## Final
+
+Verdict after three rounds: **REDO (7.0)**, so the piece lives on `claude/review-wordmark-newsletter-signup`
+for the owner to judge. Strongest frames: `cover.png` (the name framing the card), `done.png`
+(SEE YOU / SUNDAY around the confirmation), `demo-modal.png`, `demo-band.png`, `mobile.png`.
+Where it goes on a real site: the newsletter block of a food, drink or consumer brand's home page or
+blog (section), an exit or timed popup (modal), or a strip just above the footer (band).

@@ -74,6 +74,10 @@ export type WordmarkNewsletterSignupProps = {
   /** Shown after a signup. A function gets the address. */
   successCopy?: React.ReactNode | ((email: string) => React.ReactNode)
   resetLabel?: string
+  /** Every built-in message, for other languages or another voice. */
+  messages?: Partial<typeof MESSAGES>
+  /** Play the letter drop when the section first scrolls into view ("view"), on mount, or never. */
+  intro?: "view" | "mount" | false
   /** Where the success state leads next, e.g. the latest issue. Set as a hard-bordered button. */
   successAction?: { label: string; href: string } | null
   /**
@@ -132,9 +136,18 @@ const PRESETS: Record<WordmarkPreset, { light: WordmarkPalette; dark: WordmarkPa
   },
 }
 
-// Set condensed: Helvetica Neue resolves to its Condensed Black on Apple systems, Arial Narrow and
-// Roboto Condensed where installed; elsewhere the heavy fallbacks are measured and stretched upright.
-const DISPLAY_FONT = '"Helvetica Neue", "Arial Narrow", "Roboto Condensed", "Arial Black", Inter, "Liberation Sans", Arial, sans-serif'
+// Set condensed: Helvetica Neue resolves to its Condensed Black on Apple systems and Roboto Condensed
+// where installed. Arial Black comes before Arial Narrow, which has no heavy weight. Elsewhere the
+// heavy fallbacks are measured and stretched upright. Pass a real condensed face as displayFont.
+const MESSAGES = {
+  required: "Enter your email address.",
+  invalid: "That address is missing something. Try name@domain.com.",
+  consent: "Tick the box below so we're allowed to send it.",
+  failed: "We couldn't sign you up just now. Try again in a moment.",
+  close: "Close",
+}
+
+const DISPLAY_FONT = '"Helvetica Neue", "Roboto Condensed", "Arial Black", "Arial Narrow", Inter, "Liberation Sans", Arial, sans-serif'
 const TEXT_FONT = '"Helvetica Neue", Helvetica, Inter, "Liberation Sans", Arial, sans-serif'
 
 // #region logic
@@ -376,7 +389,6 @@ const CSS = `
   transition: background-color 140ms ease, color 140ms ease, transform 120ms ease; }
 .wns-chip svg { width: 10px; height: 10px; transition: transform 200ms var(--wns-out); }
 .wns-chip[aria-pressed="true"] { background: var(--k); color: var(--p); }
-.wns-chip[aria-pressed="true"] svg { transform: rotate(45deg); }
 .wns-chip:active { transform: translateY(1px); }
 
 .wns-consent { display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start; font-size: 11.5px; line-height: 1.35;
@@ -411,7 +423,9 @@ const CSS = `
 @keyframes wns-bar { 0% { transform: scaleX(0); } 60% { transform: scaleX(1); transform-origin: left; } 61% { transform-origin: right; } 100% { transform: scaleX(0); transform-origin: right; } }
 
 .wns-status { min-height: 0; font-size: 13px; font-weight: 700; line-height: 1.35; display: flex; gap: 8px; align-items: flex-start; }
-.wns-form .wns-status { min-height: 18px; margin-top: -8px; }
+.wns-fieldwrap { position: relative; }
+.wns-fieldwrap .wns-status { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 1; }
+.wns-fieldwrap[data-error="true"] { margin-bottom: 18px; }
 .wns-status i { flex: none; width: 16px; height: 16px; margin-top: 1px; background: var(--a); color: var(--oa); font-style: normal; font-size: 12px;
   line-height: 16px; text-align: center; }
 .wns-proof { margin: 0; text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; opacity: 0.78; }
@@ -441,6 +455,7 @@ const CSS = `
 
 .wns-x { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; display: grid; place-items: center; appearance: none; border: 0;
   background: transparent; color: var(--k); cursor: pointer; }
+.wns-modal .wns-card > div > .wns-h, .wns-modal .wns-done .wns-h { padding-inline: 36px; }
 .wns-x svg { width: 26px; height: 26px; transition: transform 220ms var(--wns-out); }
 
 .wns-modal { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; overflow-y: auto;
@@ -458,7 +473,8 @@ const CSS = `
 @media (max-width: 1023px) {
   .wns-section > .wns-card, .wns-modal > .wns-card { align-self: center; }
   .wns-section, .wns-modal { display: flex; flex-direction: column; justify-content: flex-start; place-items: normal; padding: 0 16px 40px; }
-  .wns-section { min-height: 0; }
+  .wns-section { min-height: var(--wns-held); }
+  .wns-section[data-done] { justify-content: center; }
   .wns-modal[data-backdrop="dim"] { justify-content: center; }
   .wns-section > .wns-mark, .wns-modal > .wns-mark { position: relative; inset: auto; margin: 0 -16px; justify-self: stretch; }
   .wns-section > .wns-card, .wns-modal > .wns-card { margin-top: -36px; }
@@ -486,7 +502,8 @@ const CSS = `
 .wns-under .wns-status { color: inherit; }
 @media (max-width: 860px) {
   .wns-strip { grid-template-columns: 1fr; }
-  .wns-strip .wns-h { padding: 16px 16px 4px; }
+  .wns-strip .wns-h { padding: 14px 16px 12px; }
+  .wns-under > .wns-status { flex-basis: 100%; }
   .wns-strip .wns-field { border-width: 3px 0 0; }
   .wns-strip .wns-btn { border-width: 3px 0 0; width: 100%; }
   .wns-strip .wns-done { grid-template-columns: 1fr; text-align: center; justify-items: center; }
@@ -551,12 +568,15 @@ function Wordmark(props: {
   maxLines: number
   crop: number
   intro: boolean
+  /** With intro: wait until the wordmark is a third in view before dropping in. */
+  introOnView?: boolean
   reduced: boolean
   uid: string
   /** Phone: the stack sits in the flow above the card. */
   stack?: boolean
 }) {
-  const { text, maxLines, crop, intro, reduced, uid, stack = false } = props
+  const { text, maxLines, crop, intro, reduced, uid, stack = false, introOnView = false } = props
+  const [visible, setVisible] = React.useState(!introOnView)
   const mode = stack ? "band" : props.mode
   const wrapRef = React.useRef(null as HTMLDivElement | null)
   const [box, setBox] = React.useState({ w: 0, h: 0 })
@@ -571,6 +591,20 @@ function Wordmark(props: {
   const shownKey = JSON.stringify(shown)
   const prevKey = JSON.stringify(prev)
   const baseKey = JSON.stringify(props.base)
+
+  React.useEffect(() => {
+    if (visible) return
+    const el = wrapRef.current
+    if (!el || typeof IntersectionObserver === "undefined") return setVisible(true)
+    const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && setVisible(true), { threshold: 0.35 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [visible])
+
+  React.useEffect(() => {
+    if (reduced && phase === "pre") setPhase("rest")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduced])
 
   useIsoLayoutEffect(() => {
     const el = wrapRef.current
@@ -621,9 +655,19 @@ function Wordmark(props: {
       // In the flow the stack keeps the name's height, so nothing below moves when the word swaps.
       const base = layoutWordmark(props.base, box, measure, capU, opts)
       const next = layoutWordmark(t, box, measure, capU, { ...opts, maxCap: base.cap, maxLines: base.lines.length })
-      // Bottom-aligned, so the word sits against the card or strip below it.
-      const dy = base.height - next.height
-      return { ...next, height: base.height, lines: next.lines.map((l) => ({ ...l, y0: l.y0 + dy })) }
+      // One line sits against the card or strip below; more lines spread over the name's space.
+      // One line sits against the card or strip below. More lines spread over the name's space while
+      // the gaps stay tight, otherwise they sit as a block in its middle.
+      const n = next.lines.length
+      const lastY = base.lines[base.lines.length - 1].y0 + base.cap - next.cap
+      const firstY = base.lines[0].y0
+      const tight = n > 1 && (lastY - firstY) / (n - 1) <= next.cap * 1.6
+      const dy = n === 1 ? lastY - next.lines[0].y0 : (base.height - next.height) / 2
+      return {
+        ...next,
+        height: base.height,
+        lines: next.lines.map((l, i) => ({ ...l, y0: tight ? firstY + ((lastY - firstY) * i) / (n - 1) : l.y0 + dy })),
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseKey, box.w, box.h, family, fontsTick, mode, maxLines, crop, stack, condensedOk])
@@ -651,7 +695,7 @@ function Wordmark(props: {
   const outCount = count(prevLayout)
 
   React.useEffect(() => {
-    if (phase === "pre" && layout) {
+    if (phase === "pre" && layout && visible) {
       let r2 = 0
       const r1 = requestAnimationFrame(() => {
         r2 = requestAnimationFrame(() => setPhase("in"))
@@ -669,7 +713,7 @@ function Wordmark(props: {
       }, done)
       return () => window.clearTimeout(t)
     }
-  }, [phase, layout, inCount, outCount])
+  }, [phase, layout, inCount, outCount, visible])
 
   const height = mode === "band" ? (layout ? layout.height : 0) : undefined
   const h = mode === "band" ? (layout ? layout.height : 0) : box.h
@@ -731,10 +775,10 @@ function Wordmark(props: {
   )
 }
 
-function Check() {
+function Mark(props: { on: boolean }) {
   return (
     <svg viewBox="0 0 10 10" aria-hidden="true">
-      <path d="M5 0v10M0 5h10" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path d={props.on ? "M1 5.2l2.6 2.6L9 2.2" : "M5 0v10M0 5h10"} stroke="currentColor" strokeWidth="2" fill="none" />
     </svg>
   )
 }
@@ -761,6 +805,8 @@ export default function WordmarkNewsletterSignup({
     </>
   ),
   resetLabel = "Use a different email",
+  messages: messagesProp,
+  intro = "view",
   successAction = null,
   onSubscribe,
   variant = "section",
@@ -782,6 +828,7 @@ export default function WordmarkNewsletterSignup({
   className,
   style,
 }: WordmarkNewsletterSignupProps) {
+  const msg = { ...MESSAGES, ...messagesProp }
   const uid = "wns" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const reduced = usePrefersReducedMotion()
   const narrow = useNarrow()
@@ -796,6 +843,10 @@ export default function WordmarkNewsletterSignup({
   const [invalid, setInvalid] = React.useState("" as "" | "email" | "consent")
   const [doneEmail, setDoneEmail] = React.useState("")
   const [photoOk, setPhotoOk] = React.useState(true)
+  // Below 1024px the section sizes to its content; its last height is held through success so the
+  // host page below does not jump. Wide screens have a fixed section height and need no hold.
+  const sectionRef = React.useRef(null as HTMLElement | null)
+  const [formH, setFormH] = React.useState(0)
 
   const inputRef = React.useRef(null as HTMLInputElement | null)
   const boxRef = React.useRef(null as HTMLInputElement | null)
@@ -836,7 +887,11 @@ export default function WordmarkNewsletterSignup({
     const prev = document.activeElement as HTMLElement | null
     const root = document.documentElement
     const prevOverflow = root.style.overflow
+    const prevPad = root.style.paddingRight
+    // Keep the page from shifting by the scrollbar's width when it disappears.
+    const bar = window.innerWidth - root.clientWidth
     root.style.overflow = "hidden"
+    if (bar > 0) root.style.paddingRight = bar + "px"
     // A touch screen gets the dialog focused, not the field, so the keyboard does not cover it on open.
     const coarse = window.matchMedia("(pointer: coarse)").matches
     const t = window.setTimeout(() => (coarse ? cardRef.current : inputRef.current)?.focus({ preventScroll: true }), 40)
@@ -866,9 +921,18 @@ export default function WordmarkNewsletterSignup({
       window.clearTimeout(t)
       document.removeEventListener("keydown", onKey)
       root.style.overflow = prevOverflow
+      root.style.paddingRight = prevPad
       prev?.focus?.({ preventScroll: true })
     }
   }, [variant, isOpen, requestClose])
+
+  React.useEffect(() => {
+    const el = sectionRef.current
+    if (!el || status === "done" || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => setFormH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [status])
 
   // ---- form
   const toggleTopic = (t: string) => setPicked((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]))
@@ -879,21 +943,21 @@ export default function WordmarkNewsletterSignup({
     const value = email.trim()
     if (!value) {
       setInvalid("email")
-      setError("Enter your email address.")
+      setError(msg.required)
       setStatus("error")
       inputRef.current?.focus()
       return
     }
     if (!isEmail(value)) {
       setInvalid("email")
-      setError("That address is missing something. Try name@domain.com.")
+      setError(msg.invalid)
       setStatus("error")
       inputRef.current?.focus()
       return
     }
     if (mustConsent && !agreed) {
       setInvalid("consent")
-      setError("Tick the box below so we're allowed to send it.")
+      setError(msg.consent)
       setStatus("error")
       boxRef.current?.focus()
       return
@@ -910,7 +974,7 @@ export default function WordmarkNewsletterSignup({
       window.setTimeout(() => doneRef.current?.focus({ preventScroll: true }), 60)
     } catch (err) {
       if (!alive.current) return
-      setError(err instanceof Error && err.message ? err.message : "We couldn't sign you up just now. Try again in a moment.")
+      setError(err instanceof Error && err.message ? err.message : msg.failed)
       setStatus("error")
       inputRef.current?.focus()
     }
@@ -1047,7 +1111,7 @@ export default function WordmarkNewsletterSignup({
         <div className="wns-chips">
           {topics.map((t) => (
             <button key={t} type="button" className="wns-chip" aria-pressed={picked.includes(t)} onClick={() => toggleTopic(t)}>
-              <Check />
+              <Mark on={picked.includes(t)} />
               {t}
             </button>
           ))}
@@ -1056,9 +1120,13 @@ export default function WordmarkNewsletterSignup({
     ) : null
 
   const card = (
-    <div className="wns-card" ref={cardRef} tabIndex={variant === "modal" ? -1 : undefined}>
+    <div
+      className="wns-card"
+      ref={cardRef}
+      tabIndex={variant === "modal" ? -1 : undefined}
+    >
       {variant === "modal" && (
-        <button type="button" className="wns-x" aria-label="Close" onClick={requestClose}>
+        <button type="button" className="wns-x" aria-label={msg.close} onClick={requestClose}>
           <svg viewBox="0 0 26 26" aria-hidden="true">
             <path d="M3 3l20 20M23 3L3 23" stroke="currentColor" strokeWidth="2.5" />
           </svg>
@@ -1073,8 +1141,10 @@ export default function WordmarkNewsletterSignup({
           </h2>
           {description ? <p className="wns-desc">{description}</p> : null}
           <form className="wns-form" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
-            {field}
-            {statusLine}
+            <div className="wns-fieldwrap" data-error={error ? "true" : undefined}>
+              {field}
+              {statusLine}
+            </div>
             {topicsRow}
             {consentRow}
             {button}
@@ -1094,7 +1164,7 @@ export default function WordmarkNewsletterSignup({
     return (
       <section className={"wns wns-band" + (className ? " " + className : "")} aria-label={ariaLabel} {...common}>
         <style>{CSS}</style>
-        <Wordmark text={markText} base={brand} mode="band" maxLines={maxLines} crop={crop} intro={false} reduced={reduced} uid={uid} />
+        <Wordmark text={markText} base={brand} mode="band" maxLines={maxLines} crop={crop} intro={intro !== false} introOnView={intro === "view"} reduced={reduced} uid={uid} />
         <form className="wns-strip" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
           {done ? (
             <div className="wns-done wns-swap">
@@ -1145,7 +1215,7 @@ export default function WordmarkNewsletterSignup({
       >
         <style>{CSS}</style>
         <div className="wns-backdrop" onClick={requestClose} />
-        {backdrop === "dim" ? null : <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={true} reduced={reduced} uid={uid} stack={narrow} />}
+        {backdrop === "dim" ? null : <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={intro !== false} reduced={reduced} uid={uid} stack={narrow} />}
         {card}
       </div>,
       document.body,
@@ -1154,13 +1224,19 @@ export default function WordmarkNewsletterSignup({
 
   return (
     <section
+      ref={sectionRef}
+      data-done={done || undefined}
       className={"wns wns-section" + (className ? " " + className : "")}
       aria-label={ariaLabel}
       {...common}
-      style={{ ...common.style, ["--wns-h" as string]: typeof height === "number" ? height + "px" : height }}
+      style={{
+        ...common.style,
+        ["--wns-h" as string]: typeof height === "number" ? height + "px" : height,
+        ["--wns-held" as string]: done && formH ? formH + "px" : "0px",
+      }}
     >
       <style>{CSS}</style>
-      <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={false} reduced={reduced} uid={uid} stack={narrow} />
+      <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={intro !== false} introOnView={intro === "view"} reduced={reduced} uid={uid} stack={narrow} />
       {image && photoOk ? (
         <div className="wns-photo">
           <img src={image.src} alt={image.alt} width={600} height={750} loading="lazy" onError={() => setPhotoOk(false)} />
