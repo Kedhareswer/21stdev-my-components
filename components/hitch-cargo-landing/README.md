@@ -35,13 +35,26 @@ export default function Page() {
 }
 ```
 
-A different company, same page:
+A different company, with a part of its own, inside a site that already has a
+header:
 
 ```tsx
 <HitchCargoLanding
-  preset="fleet"                     // Kerbside: delivery fleets, safety yellow, EUR
-  modules={{ box: { price: 590 } }}  // re-price, rename or re-number any part
-  onReserve={(r) => sendToCrm(r)}
+  preset="fleet"                          // Kerbside: delivery fleets, safety yellow, EUR
+  nav={false}                             // your site header stays in charge
+  sections={["configure", "specs", "reserve", "faq"]}
+  idPrefix="bike"                         // ids become bike-configure, bike-specs, ...
+  parts={[
+    { id: "box", price: 590 },            // re-price a built-in part
+    { id: "seat", hidden: true },         // drop one
+    {                                     // add your own, drawn in the 1000 x 600 plate
+      id: "cage", name: "Parcel cage", code: "KS-37", mount: "rear",
+      price: 470, weight: 7.4, range: -6, note: "Lockable mesh cage.",
+      art: <g>{/* your SVG */}</g>,       // or image: { src, x, y, width, height }
+      anchor: [380, 128], tag: [380, 60], // callout
+    },
+  ]}
+  onReserve={(r) => fetch("/api/quote", { method: "POST", body: JSON.stringify(r) })}
 />
 ```
 
@@ -50,24 +63,30 @@ A different company, same page:
 | Prop | Default | What it does |
 |---|---|---|
 | `preset` | `"signal"` | `"signal"` (Hitch, consumer, orange) or `"fleet"` (Kerbside, fleets, yellow). Every prop below overrides it. |
-| `brand` | `"Hitch"` | Name in the nav, labels and the footer wordmark. |
-| `accent` | `#ff5b1a` | The signal colour. Text on it switches black or white by contrast. |
-| `frameColor` | `#b9bec4` | Paint of the drawn frame. |
-| `theme` | `"auto"` | `"auto"`, `"light"` or `"dark"`. |
-| `height` | `"100svh"` | Hero height; the drawing is sized to fit it. Use a definite length. |
+| `brand`, `accent`, `frameColor` | Hitch, `#ff5b1a`, `#b9bec4` | Name, signal colour (text on it switches black or white by contrast), frame paint. |
+| `theme` | `"auto"` | `"auto"` follows a `.dark` class on any ancestor, in CSS, with no flash. Or `"light"` / `"dark"`. |
+| `height` | `"100svh"` | Hero height on wide screens; the drawing is sized to fit it. Use a definite length. |
 | `currency`, `locale` | `USD`, `en-US` | Money formatting. |
-| `nav`, `cta` | | Links and the nav button. |
+| `nav`, `stickyNav`, `cta` | | Header links (`false` leaves the header out), whether it pins, the header button. |
+| `sections` | all six | Order of `"configure"`, `"specs"`, `"ownership"`, `"riders"`, `"reserve"`, `"faq"`. Leave one out to hide it; links to it go too. |
+| `idPrefix` | `"hitch"` | Prefix for every element id. In-page links use the section keys (`#specs`) whatever the prefix. |
 | `hero` | | `{ lead, body, buildLabel }`. The headline is `lead` + each build's `tail`. |
-| `builds` | 5 builds | `{ id, caption, tail, modules, image?, imageAlt? }`. `image` shows a photo instead of the drawing. |
+| `builds` | 5 builds | `{ id, caption, tail, modules }`, `modules` being part ids. |
 | `autoplay` | `7` | Seconds per build, `0` to turn off. |
-| `base` | | `{ price, weight, range, maxLoad }` of the bare frame. |
-| `modules` | | Per part: `{ name, code, mount, price, weight, range, note }`. Parts: `seat`, `footboards`, `flatbed`, `panniers`, `toolbox`, `box`, `basket`, `battery`. |
-| `configurator`, `specs`, `ownership`, `riders`, `reserve`, `faq`, `footer` | | Copy for each section (any field can be set alone). |
-| `onReserve` | | Called with `{ name, email, city, testRide, modules, total, code }`. |
+| `base` | | `{ price, weight, range, maxLoad }` of the bare product. |
+| `parts` | | Patches by id (rename, re-price, `hidden`), or new parts with `art` (SVG) or `image` (a cut-out photo) and an optional `anchor` / `tag` callout. Built-in drawn parts: `seat`, `footboards`, `flatbed`, `panniers`, `toolbox`, `box`, `basket`, `battery`. |
+| `mounts` | rear, side, front, power | `{ id, label, stack? }`. One part per mount unless `stack` is true. |
+| `productImage` / `productArt` | drawn bike | A photo or your own SVG for the bare product, laid over the same 1000 x 600 plate in the hero, configurator and spec sheet. Parts still drop on over it. |
+| `codePrefix` | first part code's prefix | Prefix of the reservation code. |
+| `configurator`, `specs`, `ownership`, `riders`, `reserve`, `faq`, `footer` | | Copy for each section; any field can be set alone. |
+| `labels` | English | Every short UI string (buttons, errors, mount hints, the configurator notes), with `{part}`, `{old}`, `{mount}`, `{brand}`, `{build}` placeholders. |
+| `onReserve` | | Called with `{ name, email, city, optIn, modules, total, code }`. Return a promise: the button shows a pending state, a rejection keeps the form and shows an error, and the confirmation appears only once it resolves. |
 
 ## Notes
 
 - No dependencies beyond React. No images, fonts or network requests by default.
+- The plate is one SVG with a viewBox of `0 0 1000 600`, ground at y 540, the bike
+  facing right. Draw custom parts and products in that space.
 - The display face is a system stack (`Arial Black`, then `Helvetica Neue`,
   Inter, Arial). Set your own on `.hx-root` with `--hx-display` if you load one.
 - Riders, quotes and numbers in the defaults are placeholders for a fictional

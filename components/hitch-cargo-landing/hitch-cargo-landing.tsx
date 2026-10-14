@@ -3,46 +3,80 @@
 // Hitch Cargo Landing — a complete landing page for a modular electric cargo
 // bike, laid out like a parts catalogue on charcoal sheets.
 //
-// The product is one bare longtail frame with four mounts (rear deck, sides,
-// front rack, power). The hero is a carousel of builds: the frame stays put
-// and the parts lift off and drop on, each with a part-number callout. The
-// same drawing runs the configurator below (live price, weight and range,
-// one part per mount), a dimensioned spec sheet, the ownership steps, rider
-// notes, a reservation form that never asks for a card, an FAQ and a footer.
+// The product is one bare longtail frame with mounts (rear deck, sides, front
+// rack, power). The hero is a carousel of builds: the frame stays put and the
+// parts lift off and drop on, each with a part-number callout. The same plate
+// runs the configurator below (live price, weight and range, one part per
+// mount unless a mount stacks), a dimensioned spec sheet, the ownership
+// steps, rider notes, a reservation form that never asks for a card, an FAQ
+// and a footer.
 //
-// Every bike is drawn in this file as a side elevation, so frame one is
-// finished with no network. Any build can show a photo instead (`image`).
-// Copy, parts, prices, colours and the whole content set are props; the
-// "fleet" preset turns it into a delivery-fleet company.
+// Every plate is one SVG in a 1000 x 600 space. The bike and its parts are
+// drawn in this file, so frame one is finished with no network; a product
+// photo, cut-out part photos or your own SVG art drop into the same space
+// through props, and keep the drop-on motion and the callouts. Copy, parts,
+// mounts, prices, colours, labels and section order are props; the "fleet"
+// preset turns it into a delivery-fleet company.
 import * as React from "react"
 
 /* ------------------------------------------------------------------ types */
 
-export type HitchModuleId = "seat" | "footboards" | "flatbed" | "panniers" | "toolbox" | "box" | "basket" | "battery"
-export type HitchMount = "rear" | "side" | "front" | "power"
-export type HitchModule = {
+export type HitchPart = {
+  /** Built-in drawn parts: seat, footboards, flatbed, panniers, toolbox, box, basket, battery. Any other id is your own part. */
+  id: string
   name: string
   /** Part number printed on the callout tag. */
   code: string
-  mount: HitchMount
+  /** A mount id from `mounts`. */
+  mount: string
   price: number
   /** Kilograms added. */
   weight: number
   /** Kilometres of range added (negative for weight that costs range). */
   range: number
   note: string
+  /** Your own SVG for this part, drawn in the plate's 1000 x 600 space (ground at y 540). */
+  art?: React.ReactNode
+  /** Or a cut-out photo placed in that space. */
+  image?: { src: string; x: number; y: number; width: number; height: number }
+  /** Where the callout points, and where its tag sits, in the same space. */
+  anchor?: number[]
+  tag?: number[]
+  /** "back" paints behind the frame. */
+  layer?: "back" | "front"
+  /** Leave a built-in part out of the page. */
+  hidden?: boolean
 }
-export type HitchModuleCatalog = { [K in HitchModuleId]: HitchModule }
+export type HitchPartPatch = {
+  id: string
+  name?: string
+  code?: string
+  mount?: string
+  price?: number
+  weight?: number
+  range?: number
+  note?: string
+  art?: React.ReactNode
+  image?: { src: string; x: number; y: number; width: number; height: number }
+  anchor?: number[]
+  tag?: number[]
+  layer?: "back" | "front"
+  hidden?: boolean
+}
+export type HitchMount = {
+  id: string
+  label: string
+  /** Parts on a stacking mount can be fitted together; otherwise one replaces another. */
+  stack?: boolean
+}
 export type HitchBuild = {
   id: string
   /** Caption under the carousel, e.g. "The school run". Set in caps. */
   caption: string
   /** The grey second half of the headline for this build. */
   tail: string
-  modules: HitchModuleId[]
-  /** A photo URL that replaces the drawing for this build. */
-  image?: string
-  imageAlt?: string
+  /** Part ids fitted in this build. */
+  modules: string[]
 }
 export type HitchLink = { label: string; href: string }
 export type HitchSpec = { label: string; value: string }
@@ -51,12 +85,13 @@ export type HitchRider = { name: string; place: string; build: string; distance:
 export type HitchFaq = { q: string; a: string }
 export type HitchColumn = { title: string; links: HitchLink[] }
 export type HitchPreset = "signal" | "fleet"
+export type HitchSectionKey = "configure" | "specs" | "ownership" | "riders" | "reserve" | "faq"
 export type HitchReservation = {
   name: string
   email: string
   city: string
-  testRide: boolean
-  modules: HitchModuleId[]
+  optIn: boolean
+  modules: string[]
   total: number
   code: string
 }
@@ -74,17 +109,62 @@ export type HitchReserveCopy = {
   cities: string[]
   button: string
   fineprint: string
-  /** Shown after submit, e.g. when the next batch opens. */
-  batch: string
   /** The opt-in checkbox label, and the line added to the confirmation when it is ticked. */
   checkbox: string
   checkboxNote: string
-  /** Confirmation heading; "{name}" is replaced with the first name. */
+  /** Confirmation heading and body; "{name}" and "{email}" are filled in. */
   doneTitle: string
+  doneBody: string
 }
 export type HitchFaqCopy = { title: string; items: HitchFaq[] }
 export type HitchFooterCopy = { tagline: string; columns: HitchColumn[]; legal: string }
-export type HitchModulePatch = { name?: string; code?: string; mount?: HitchMount; price?: number; weight?: number; range?: number; note?: string }
+
+/** Every short UI string. "{part}", "{old}", "{mount}", "{brand}", "{build}" are filled in. */
+export type HitchLabels = {
+  skip: string
+  menuOpen: string
+  menuClose: string
+  carousel: string
+  thisBuild: string
+  previous: string
+  next: string
+  pause: string
+  play: string
+  chooseBuild: string
+  bare: string
+  plateAlt: string
+  noParts: string
+  dimsAlt: string
+  price: string
+  weight: string
+  range: string
+  kg: string
+  km: string
+  mountOne: string
+  mountStack: string
+  mountSingle: string
+  added: string
+  removed: string
+  replaced: string
+  loaded: string
+  reset: string
+  startOver: string
+  yourBuild: string
+  bareFrame: string
+  total: string
+  changeParts: string
+  name: string
+  email: string
+  city: string
+  chooseCity: string
+  errorName: string
+  errorEmail: string
+  errorCity: string
+  pending: string
+  failed: string
+  edit: string
+  backToTop: string
+}
 
 export type HitchCargoLandingProps = {
   preset?: HitchPreset
@@ -95,19 +175,33 @@ export type HitchCargoLandingProps = {
   frameColor?: string
   /** "auto" follows a `.dark` class on any ancestor. */
   theme?: "auto" | "light" | "dark"
-  /** Hero height. A definite length, never a percentage. */
+  /** Hero height on wide screens. A definite length, never a percentage. */
   height?: string
   currency?: string
   locale?: string
-  nav?: HitchLink[]
+  /** Header links, or `false` to leave the header out (when your site already has one). */
+  nav?: HitchLink[] | false
+  /** Keep the header pinned while scrolling. */
+  stickyNav?: boolean
   cta?: HitchLink
+  /** Which sections follow the hero, in order. Links to a left-out section disappear with it. */
+  sections?: HitchSectionKey[]
+  /** Prefix for the element ids, so two instances (or your own ids) never collide. */
+  idPrefix?: string
   hero?: { [K in keyof HitchHeroCopy]?: HitchHeroCopy[K] }
   builds?: HitchBuild[]
   /** Seconds per build before the carousel advances. 0 turns autoplay off. */
   autoplay?: number
   base?: { [K in keyof HitchBase]?: HitchBase[K] }
-  /** Rename, re-price or re-number any part. */
-  modules?: { [K in HitchModuleId]?: HitchModulePatch }
+  /** Rename, re-price or hide built-in parts by id, or add your own with `art` or `image`. */
+  parts?: HitchPartPatch[]
+  mounts?: HitchMount[]
+  /** A photo of the bare product, placed over the whole 1000 x 600 plate. Replaces the drawn bike. */
+  productImage?: { src: string; alt?: string }
+  /** Or your own SVG for the bare product, drawn in the same space. */
+  productArt?: React.ReactNode
+  /** Prefix for reservation codes. Defaults to the first part code's prefix. */
+  codePrefix?: string
   configurator?: { [K in keyof HitchSectionCopy]?: HitchSectionCopy[K] }
   specs?: { [K in keyof HitchSpecsCopy]?: HitchSpecsCopy[K] }
   ownership?: { [K in keyof HitchOwnershipCopy]?: HitchOwnershipCopy[K] }
@@ -115,47 +209,68 @@ export type HitchCargoLandingProps = {
   reserve?: { [K in keyof HitchReserveCopy]?: HitchReserveCopy[K] }
   faq?: { [K in keyof HitchFaqCopy]?: HitchFaqCopy[K] }
   footer?: { [K in keyof HitchFooterCopy]?: HitchFooterCopy[K] }
-  onReserve?: (reservation: HitchReservation) => void
+  labels?: { [K in keyof HitchLabels]?: HitchLabels[K] }
+  /** Called on submit. Return a promise to show a pending state; a rejection shows the error and keeps the form. */
+  onReserve?: (reservation: HitchReservation) => unknown
   className?: string
 }
 
 /* ------------------------------------------------------------------ logic */
 
 // #region logic
-const MODULE_IDS = ["seat", "footboards", "flatbed", "panniers", "toolbox", "box", "basket", "battery"]
-const MOUNTS = ["rear", "side", "front", "power"]
+const BUILTIN_IDS = ["seat", "footboards", "flatbed", "panniers", "toolbox", "box", "basket", "battery"]
+const SECTION_KEYS = ["configure", "specs", "ownership", "riders", "reserve", "faq"]
 
-function mergeCatalog(base: HitchModuleCatalog, over?: { [K in HitchModuleId]?: HitchModulePatch }): HitchModuleCatalog {
-  const out = {} as HitchModuleCatalog
-  for (const id of MODULE_IDS as HitchModuleId[]) out[id] = { ...base[id], ...(over && over[id] ? over[id] : {}) }
-  return out
+type Catalog = { list: HitchPart[]; byId: { [id: string]: HitchPart } }
+
+/** Patch built-in parts by id, append new ones, drop hidden ones. */
+function mergeParts(base: HitchPart[], patches?: HitchPartPatch[]): Catalog {
+  const list = base.map((p) => ({ ...p }))
+  for (const patch of patches || []) {
+    const i = list.findIndex((p) => p.id === patch.id)
+    if (i > -1) list[i] = { ...list[i], ...patch }
+    else list.push({ name: patch.id, code: "", mount: "rear", price: 0, weight: 0, range: 0, note: "", ...patch })
+  }
+  const kept = list.filter((p) => !p.hidden)
+  const byId = {} as { [id: string]: HitchPart }
+  for (const p of kept) byId[p.id] = p
+  return { list: kept, byId }
 }
 
-/** Toggle one part. A part that shares a mount with one already fitted replaces it. */
-function toggleModule(build: HitchModuleId[], id: HitchModuleId, catalog: HitchModuleCatalog) {
-  if (build.includes(id)) return { build: build.filter((m) => m !== id), swapped: null as HitchModuleId | null }
-  const mount = catalog[id].mount
-  const clash = build.find((m) => catalog[m].mount === mount) || null
+function stacks(mounts: HitchMount[], id: string) {
+  const m = mounts.find((x) => x.id === id)
+  return !!(m && m.stack)
+}
+
+/** Toggle one part. A part that shares a single mount with one already fitted replaces it. */
+function toggleModule(build: string[], id: string, catalog: Catalog, mounts: HitchMount[]) {
+  const part = catalog.byId[id]
+  if (!part) return { build, swapped: null as string | null }
+  if (build.includes(id)) return { build: build.filter((m) => m !== id), swapped: null as string | null }
+  const clash = stacks(mounts, part.mount) ? null : build.find((m) => catalog.byId[m] && catalog.byId[m].mount === part.mount) || null
+  const order = catalog.list.map((p) => p.id)
   const next = build.filter((m) => m !== clash).concat(id)
-  next.sort((a, b) => MODULE_IDS.indexOf(a) - MODULE_IDS.indexOf(b))
+  next.sort((a, b) => order.indexOf(a) - order.indexOf(b))
   return { build: next, swapped: clash }
 }
 
-/** Keep only known parts, one per mount, in catalogue order. */
-function normalizeBuild(list: string[], catalog: HitchModuleCatalog) {
-  let out = [] as HitchModuleId[]
-  for (const id of list) if (MODULE_IDS.includes(id) && !out.includes(id as HitchModuleId)) out = toggleModule(out, id as HitchModuleId, catalog).build
+/** Keep only known parts, one per single mount, in catalogue order. */
+function normalizeBuild(list: string[], catalog: Catalog, mounts: HitchMount[]) {
+  let out = [] as string[]
+  for (const id of list) if (catalog.byId[id] && !out.includes(id)) out = toggleModule(out, id, catalog, mounts).build
   return out
 }
 
-function totals(build: HitchModuleId[], catalog: HitchModuleCatalog, base: HitchBase) {
+function totals(build: string[], catalog: Catalog, base: HitchBase) {
   let price = base.price
   let weight = base.weight
   let range = base.range
   for (const id of build) {
-    price += catalog[id].price
-    weight += catalog[id].weight
-    range += catalog[id].range
+    const p = catalog.byId[id]
+    if (!p) continue
+    price += p.price
+    weight += p.weight
+    range += p.range
   }
   return { price, weight: Math.round(weight * 10) / 10, range: Math.max(0, Math.round(range)) }
 }
@@ -176,12 +291,24 @@ function formatNumber(n: number, locale: string, digits: number) {
   }
 }
 
+/** Fill "{key}" placeholders. */
+function fill(template: string, vars: { [k: string]: string }) {
+  return template.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m))
+}
+
 function isEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim())
 }
 
+/** "HX" from "HX-21"; letters of the brand when there is no code. */
+function codePrefixOf(parts: HitchPart[], brand: string) {
+  const first = parts.find((p) => /^[A-Za-z]{1,4}-/.test(p.code))
+  if (first) return first.code.split("-")[0].toUpperCase()
+  return (brand.replace(/[^A-Za-z]/g, "").slice(0, 2) || "RS").toUpperCase()
+}
+
 /** A stable, readable reservation code from the email and the build. */
-function reservationCode(email: string, build: string[]) {
+function reservationCode(prefix: string, email: string, build: string[]) {
   const s = email.trim().toLowerCase() + "|" + build.join(",")
   let h = 2166136261
   for (let i = 0; i < s.length; i++) {
@@ -194,11 +321,26 @@ function reservationCode(email: string, build: string[]) {
     out += abc[h % 32]
     h = Math.floor(h / 32)
   }
-  return "HX-" + out
+  return prefix + "-" + out
 }
 
 function wrapIndex(i: number, n: number) {
   return n <= 0 ? 0 : ((i % n) + n) % n
+}
+
+/** The sections to render, in order, with unknown keys and repeats dropped. */
+function sectionList(keys?: string[]) {
+  const out = [] as string[]
+  for (const k of keys || SECTION_KEYS) if (SECTION_KEYS.includes(k) && !out.includes(k)) out.push(k)
+  return out
+}
+
+/** Drop in-page links that point at a section that is not on the page. */
+function liveLinks(links: HitchLink[], sections: string[]) {
+  return links.filter((l) => {
+    const k = l.href.startsWith("#") ? l.href.slice(1) : ""
+    return !SECTION_KEYS.includes(k) || sections.includes(k)
+  })
 }
 
 /** Black or white text on a hex colour, by WCAG relative luminance. */
@@ -213,6 +355,12 @@ function readableOn(hex: string) {
   })
   const L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
   return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? "#111214" : "#ffffff"
+}
+
+/** Wordmark size in a 1000-wide box, so any brand length fills it without stretching glyphs. */
+function wordmarkSize(text: string) {
+  const n = Math.max(1, text.length)
+  return Math.min(300, Math.round(1000 / (n * 0.74)))
 }
 
 /** Spoke lines for a wheel, as one path. */
@@ -241,7 +389,7 @@ const RA = [240, 420]
 const FA = [800, 420]
 const BB = [520, 415]
 
-/** Where each part's callout points, and where its tag sits (viewBox units). */
+/** Built-in callouts: where each part's leader points, and where its tag sits. */
 const CALLOUTS = {
   seat: { a: [300, 172], t: [300, 104] },
   footboards: { a: [285, 360], t: [285, 578] },
@@ -251,7 +399,7 @@ const CALLOUTS = {
   box: { a: [250, 96], t: [250, 40] },
   basket: { a: [800, 184], t: [800, 112] },
   battery: { a: [430, 340], t: [455, 578] },
-} as { [K in HitchModuleId]: { a: number[]; t: number[] } }
+} as { [id: string]: { a: number[]; t: number[] } }
 
 const DIM_LABELS = [
   { k: "length", x: 512, y: 30 },
@@ -276,26 +424,44 @@ function Wheel({ c, uid }: { c: number[]; uid: string }) {
   )
 }
 
-function Tube({ d, w, cls }: { d: string; w: number; cls?: string }) {
+function Tube({ d, w }: { d: string; w: number }) {
   return (
-    <g className={cls}>
+    <g>
       <path d={d} className="hx-b-paint" strokeWidth={w} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       <path d={d} className="hx-b-shine" strokeWidth={Math.max(1.5, w * 0.2)} fill="none" strokeLinecap="round" transform={"translate(0 " + (-w * 0.22).toFixed(1) + ")"} />
     </g>
   )
 }
 
-function ModuleArt({ id }: { id: HitchModuleId }) {
+/** Hard-shell corner caps for a case drawn from x0,y0 to x1,y1. */
+function Corners({ x0, y0, x1, y1 }: { x0: number; y0: number; x1: number; y1: number }) {
+  const s = 18
+  return (
+    <g className="hx-m-cap">
+      <path d={"M" + x0 + " " + (y0 + s) + "V" + (y0 + 8) + "Q" + x0 + " " + y0 + " " + (x0 + 8) + " " + y0 + "H" + (x0 + s) + "V" + (y0 + 6) + "H" + (x0 + 6) + "V" + (y0 + s) + "Z"} />
+      <path d={"M" + x1 + " " + (y0 + s) + "V" + (y0 + 8) + "Q" + x1 + " " + y0 + " " + (x1 - 8) + " " + y0 + "H" + (x1 - s) + "V" + (y0 + 6) + "H" + (x1 - 6) + "V" + (y0 + s) + "Z"} />
+      <path d={"M" + x0 + " " + (y1 - s) + "V" + (y1 - 8) + "Q" + x0 + " " + y1 + " " + (x0 + 8) + " " + y1 + "H" + (x0 + s) + "V" + (y1 - 6) + "H" + (x0 + 6) + "V" + (y1 - s) + "Z"} />
+      <path d={"M" + x1 + " " + (y1 - s) + "V" + (y1 - 8) + "Q" + x1 + " " + y1 + " " + (x1 - 8) + " " + y1 + "H" + (x1 - s) + "V" + (y1 - 6) + "H" + (x1 - 6) + "V" + (y1 - s) + "Z"} />
+    </g>
+  )
+}
+
+function BuiltinArt({ id }: { id: string }) {
   switch (id) {
     case "seat":
       return (
         <g>
-          <rect x={148} y={258} width={300} height={18} rx={8} className="hx-m-pad" />
-          <rect x={126} y={192} width={26} height={84} rx={9} className="hx-m-pad" />
-          <rect x={282} y={226} width={20} height={50} rx={7} className="hx-m-pad" />
+          <rect x={146} y={192} width={26} height={84} rx={11} className="hx-m-pad" />
+          <rect x={150} y={198} width={4} height={60} rx={2} className="hx-m-seam" />
+          <rect x={146} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
+          <rect x={288} y={200} width={26} height={76} rx={11} className="hx-m-pad" />
+          <rect x={292} y={206} width={4} height={52} rx={2} className="hx-m-seam" />
+          <rect x={288} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
           <path d="M122 280L122 186Q122 172 136 172L432 172Q446 172 446 186L446 280" className="hx-m-rail" strokeWidth={8} fill="none" strokeLinecap="round" />
           <path d="M122 222L446 222" className="hx-m-rail" strokeWidth={5} fill="none" />
           <path d="M126 174L444 174" className="hx-m-glint" strokeWidth={2} fill="none" />
+          <rect x={220} y={216} width={16} height={12} rx={3} className="hx-m-buckle" />
+          <rect x={362} y={216} width={16} height={12} rx={3} className="hx-m-buckle" />
         </g>
       )
     case "footboards":
@@ -309,6 +475,7 @@ function ModuleArt({ id }: { id: HitchModuleId }) {
     case "flatbed":
       return (
         <g>
+          <rect x={120} y={258} width={330} height={6} rx={3} className="hx-m-contact" />
           <rect x={128} y={178} width={164} height={84} rx={4} className="hx-m-load" />
           <rect x={300} y={198} width={142} height={64} rx={4} className="hx-m-load2" />
           <path d="M128 200L292 200M300 218L442 218" className="hx-m-tape" strokeWidth={3} fill="none" />
@@ -331,27 +498,35 @@ function ModuleArt({ id }: { id: HitchModuleId }) {
     case "toolbox":
       return (
         <g>
-          <rect x={104} y={176} width={366} height={100} rx={8} className="hx-m-case" />
-          <rect x={104} y={176} width={366} height={24} rx={8} className="hx-m-lid" />
-          <path d="M180 210L180 266M260 210L260 266M340 210L340 266M420 210L420 266" className="hx-m-rib" strokeWidth={3} fill="none" />
-          <rect x={136} y={192} width={18} height={14} rx={2} className="hx-m-buckle" />
-          <rect x={422} y={192} width={18} height={14} rx={2} className="hx-m-buckle" />
-          <path d="M248 176L248 162L322 162L322 176" className="hx-m-handle" strokeWidth={7} fill="none" strokeLinejoin="round" />
+          <rect x={110} y={270} width={356} height={6} rx={3} className="hx-m-contact" />
+          <rect x={104} y={176} width={366} height={98} rx={8} className="hx-m-case" />
+          <rect x={104} y={176} width={366} height={26} rx={8} className="hx-m-lid" />
+          <path d="M104 202H470" className="hx-m-seamline" strokeWidth={2} />
+          <path d="M172 212L172 262M240 212L240 262M334 212L334 262M402 212L402 262" className="hx-m-rib" strokeWidth={3} fill="none" />
+          <Corners x0={104} y0={176} x1={470} y1={274} />
+          <rect x={140} y={196} width={20} height={16} rx={3} className="hx-m-buckle" />
+          <rect x={414} y={196} width={20} height={16} rx={3} className="hx-m-buckle" />
+          <circle cx={287} cy={238} r={7} className="hx-m-lock" />
+          <path d="M248 176L248 162L326 162L326 176" className="hx-m-handle" strokeWidth={7} fill="none" strokeLinejoin="round" />
         </g>
       )
     case "box":
       return (
         <g>
-          <rect x={100} y={96} width={300} height={180} rx={10} className="hx-m-box" />
-          <rect x={118} y={114} width={264} height={144} rx={5} className="hx-m-door" strokeWidth={2} />
-          <path d="M360 168L360 204" className="hx-m-handle" strokeWidth={6} fill="none" strokeLinecap="round" />
-          <path d="M140 104L360 104" className="hx-m-glint" strokeWidth={2} fill="none" />
-          <rect x={134} y={130} width={84} height={22} rx={3} className="hx-m-badge" />
+          <rect x={106} y={270} width={290} height={6} rx={3} className="hx-m-contact" />
+          <rect x={100} y={96} width={300} height={178} rx={10} className="hx-m-box" />
+          <rect x={118} y={114} width={264} height={142} rx={5} className="hx-m-door" strokeWidth={2} />
+          <path d="M126 130V240" className="hx-m-hinge" strokeWidth={4} strokeLinecap="round" strokeDasharray="22 18" />
+          <path d="M358 166L358 204" className="hx-m-handle" strokeWidth={7} fill="none" strokeLinecap="round" />
+          <path d="M318 104H372M318 108H372" className="hx-m-vent" strokeWidth={1.5} />
+          <Corners x0={100} y0={96} x1={400} y1={274} />
+          <rect x={144} y={130} width={84} height={22} rx={3} className="hx-m-badge" />
         </g>
       )
     case "basket":
       return (
         <g>
+          <path d="M730 204L708 224M740 264L736 268" className="hx-m-stay" strokeWidth={5} strokeLinecap="round" />
           <rect x={726} y={184} width={146} height={80} rx={5} className="hx-m-wirefill" />
           <path d="M742 186V262M758 186V262M774 186V262M790 186V262M806 186V262M822 186V262M838 186V262M854 186V262M728 210H870M728 236H870" className="hx-m-wire" strokeWidth={1.6} fill="none" />
           <rect x={726} y={184} width={146} height={80} rx={5} className="hx-m-wireframe" strokeWidth={5} fill="none" />
@@ -360,6 +535,9 @@ function ModuleArt({ id }: { id: HitchModuleId }) {
     case "battery":
       return (
         <g>
+          <rect x={418} y={284} width={24} height={16} rx={3} className="hx-m-bracket-fill" />
+          <path d="M466 332H492" className="hx-m-bracket" strokeWidth={7} strokeLinecap="round" />
+          <circle cx={494} cy={332} r={7} className="hx-m-clamp" />
           <rect x={392} y={296} width={76} height={88} rx={9} className="hx-m-cell" />
           <rect x={400} y={304} width={60} height={10} rx={3} className="hx-m-lid" />
           <circle cx={412} cy={366} r={3} className="hx-m-led" />
@@ -369,62 +547,29 @@ function ModuleArt({ id }: { id: HitchModuleId }) {
         </g>
       )
   }
+  return null
 }
 
-/** Order parts are painted in: bags hang over the wheel, cases sit on the deck. */
-const PAINT_ORDER = ["battery", "panniers", "footboards", "flatbed", "toolbox", "box", "seat", "basket"] as HitchModuleId[]
+function PartArt({ part }: { part: HitchPart }) {
+  if (part.image)
+    return <image href={part.image.src} x={part.image.x} y={part.image.y} width={part.image.width} height={part.image.height} preserveAspectRatio="xMidYMid meet" />
+  if (part.art) return <>{part.art}</>
+  return <BuiltinArt id={part.id} />
+}
 
-function Bike({
-  modules,
-  live,
-  callouts,
-  dims,
-  uid,
-  stagger = true,
-}: {
-  modules: HitchModuleId[]
-  live?: HitchModuleId | null
-  callouts?: boolean
-  dims?: boolean
-  uid: string
-  stagger?: boolean
-}) {
-  let order = 0
+function layerOf(p: HitchPart) {
+  return p.layer || (p.id === "battery" ? "back" : "front")
+}
+
+function calloutOf(p: HitchPart) {
+  if (p.anchor && p.tag) return { a: p.anchor, t: p.tag }
+  if (!p.art && !p.image && CALLOUTS[p.id]) return CALLOUTS[p.id]
+  return null
+}
+
+function BareBike({ uid }: { uid: string }) {
   return (
-    <svg className="hx-svg" viewBox="0 0 1000 600" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id={uid + "-shadow"} cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" className="hx-b-shadow-a" />
-          <stop offset="1" className="hx-b-shadow-b" />
-        </radialGradient>
-        <radialGradient id={uid + "-wheel"} cx="0.5" cy="0.42" r="0.6">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0.07" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={uid + "-motor"} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#4a4f56" />
-          <stop offset="1" stopColor="#1d1f22" />
-        </linearGradient>
-      </defs>
-
-      <ellipse cx={520} cy={541} rx={470} ry={16} fill={"url(#" + uid + "-shadow)"} />
-      <path d="M40 540L980 540" className="hx-b-ground" strokeWidth={1.5} />
-
-      {dims ? (
-        <g className="hx-dim">
-          <path d="M104 30V270M920 30V412M240 430V594M800 430V594M640 84H970M38 276H112M38 540H180" strokeWidth={1} className="hx-dim-ext" fill="none" />
-          <path d="M104 30H920M240 586H800M958 84V540M48 276V540" strokeWidth={1.5} className="hx-dim-line" fill="none" />
-          <path d="M104 30l12-5v10zM920 30l-12-5v10zM240 586l12-5v10zM800 586l-12-5v10zM958 84l-5 12h10zM958 540l-5-12h10zM48 276l-5 12h10zM48 540l-5-12h10z" className="hx-dim-head" />
-        </g>
-      ) : null}
-
-      {/* parts that hang behind the frame */}
-      {PAINT_ORDER.slice(0, 1).map((id) => (
-        <g key={id} className="hx-mod" data-on={modules.includes(id) ? "true" : "false"} style={{ transitionDelay: modules.includes(id) && stagger ? order++ * 50 + "ms" : "0ms" }}>
-          <ModuleArt id={id} />
-        </g>
-      ))}
-
+    <g>
       {/* fenders and wheels */}
       <path d={arcPath(RA[0], RA[1], 128, 196, 344)} className="hx-b-fender" strokeWidth={7} fill="none" strokeLinecap="round" />
       <path d={arcPath(FA[0], FA[1], 128, 208, 334)} className="hx-b-fender" strokeWidth={7} fill="none" strokeLinecap="round" />
@@ -470,20 +615,93 @@ function Bike({
       <circle cx={BB[0]} cy={BB[1]} r={14} className="hx-b-hub" />
       <path d="M520 415L558 481" className="hx-b-crank" strokeWidth={11} strokeLinecap="round" />
       <rect x={542} y={477} width={34} height={9} rx={3} className="hx-b-pedal" />
+    </g>
+  )
+}
 
-      {/* parts on top of the frame */}
-      {PAINT_ORDER.slice(1).map((id) => (
-        <g key={id} className="hx-mod" data-on={modules.includes(id) ? "true" : "false"} style={{ transitionDelay: modules.includes(id) && stagger ? order++ * 50 + "ms" : "0ms" }}>
-          <ModuleArt id={id} />
+type Look = { productImage?: { src: string; alt?: string }; productArt?: React.ReactNode }
+
+function Bike({
+  modules,
+  catalog,
+  look,
+  live,
+  callouts,
+  dims,
+  uid,
+}: {
+  modules: string[]
+  catalog: Catalog
+  look: Look
+  live?: string | null
+  callouts?: boolean
+  dims?: boolean
+  uid: string
+}) {
+  let order = 0
+  const layer = (which: string) =>
+    catalog.list
+      .filter((p) => layerOf(p) === which)
+      .map((p) => {
+        const on = modules.includes(p.id)
+        return (
+          <g key={p.id} className="hx-mod" data-on={on ? "true" : "false"} style={{ transitionDelay: on ? order++ * 50 + "ms" : "0ms" }}>
+            <PartArt part={p} />
+          </g>
+        )
+      })
+  const drawn = !look.productImage && !look.productArt
+  return (
+    <svg className="hx-svg" viewBox="0 0 1000 600" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id={uid + "-shadow"} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" className="hx-b-shadow-a" />
+          <stop offset="1" className="hx-b-shadow-b" />
+        </radialGradient>
+        <radialGradient id={uid + "-wheel"} cx="0.5" cy="0.42" r="0.6">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.07" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={uid + "-motor"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#4a4f56" />
+          <stop offset="1" stopColor="#1d1f22" />
+        </linearGradient>
+      </defs>
+
+      {drawn ? (
+        <>
+          <ellipse cx={520} cy={541} rx={470} ry={16} fill={"url(#" + uid + "-shadow)"} />
+          <path d="M40 540L980 540" className="hx-b-ground" strokeWidth={1.5} />
+        </>
+      ) : null}
+
+      {dims ? (
+        <g className="hx-dim">
+          <path d="M104 30V270M920 30V412M240 430V594M800 430V594M640 84H970" strokeWidth={1} className="hx-dim-ext" fill="none" />
+          <path d="M38 276H112M38 540H180" strokeWidth={1} className="hx-dim-ext hx-dim-deck" fill="none" />
+          <path d="M104 30H920M240 586H800M958 84V540" strokeWidth={1.5} className="hx-dim-line" fill="none" />
+          <path d="M48 276V540" strokeWidth={1.5} className="hx-dim-line hx-dim-deck" fill="none" />
+          <path d="M104 30l12-5v10zM920 30l-12-5v10zM240 586l12-5v10zM800 586l-12-5v10zM958 84l-5 12h10zM958 540l-5-12h10z" className="hx-dim-head" />
+          <path d="M48 276l-5 12h10zM48 540l-5-12h10z" className="hx-dim-head hx-dim-deck" />
         </g>
-      ))}
+      ) : null}
+
+      {layer("back")}
+      {look.productImage ? (
+        <image href={look.productImage.src} x={0} y={0} width={1000} height={600} preserveAspectRatio="xMidYMid meet" />
+      ) : look.productArt ? (
+        <g>{look.productArt}</g>
+      ) : (
+        <BareBike uid={uid} />
+      )}
+      {layer("front")}
 
       {callouts
-        ? (MODULE_IDS as HitchModuleId[]).map((id) => {
-            const c = CALLOUTS[id]
-            const on = modules.includes(id)
+        ? catalog.list.map((p) => {
+            const c = calloutOf(p)
+            if (!c) return null
             return (
-              <g key={id} className="hx-lead" data-on={on ? "true" : "false"} data-live={live === id ? "true" : "false"}>
+              <g key={p.id} className="hx-lead" data-on={modules.includes(p.id) ? "true" : "false"} data-live={live === p.id ? "true" : "false"}>
                 <path d={"M" + c.a[0] + " " + c.a[1] + "L" + c.t[0] + " " + c.t[1]} className="hx-lead-halo" strokeWidth={6} fill="none" pathLength={1} />
                 <path d={"M" + c.a[0] + " " + c.a[1] + "L" + c.t[0] + " " + c.t[1]} className="hx-lead-line" strokeWidth={1.6} fill="none" pathLength={1} />
                 <circle cx={c.a[0]} cy={c.a[1]} r={6} className="hx-lead-dot" />
@@ -495,50 +713,45 @@ function Bike({
   )
 }
 
-/** The drawing (or a photo) plus its HTML callout tags, sized 5:3. */
+/** The plate: the drawing plus its HTML callout tags, sized 5:3. */
 function Plate({
   modules,
+  catalog,
+  look,
   live,
   callouts,
   dims,
-  image,
-  imageAlt,
-  catalog,
   dimensions,
   label,
 }: {
-  modules: HitchModuleId[]
-  live?: HitchModuleId | null
+  modules: string[]
+  catalog: Catalog
+  look: Look
+  live?: string | null
   callouts?: boolean
   dims?: boolean
-  image?: string
-  imageAlt?: string
-  catalog: HitchModuleCatalog
   dimensions?: HitchDimensions
-  label: string
+  label?: string
 }) {
   const uid = "hx" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   return (
-    <div className="hx-plate" role="img" aria-label={label}>
-      {image ? (
-        <img className="hx-photo" src={image} alt={imageAlt || label} width={1000} height={600} loading="lazy" draggable={false} />
-      ) : (
-        <Bike modules={modules} live={live} callouts={callouts} dims={dims} uid={uid} />
-      )}
-      {callouts && !image
-        ? (MODULE_IDS as HitchModuleId[]).map((id) => {
-            const c = CALLOUTS[id]
+    <div className="hx-plate" role={label ? "img" : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true}>
+      <Bike modules={modules} catalog={catalog} look={look} live={live} callouts={callouts} dims={dims} uid={uid} />
+      {callouts
+        ? catalog.list.map((p) => {
+            const c = calloutOf(p)
+            if (!c) return null
             return (
               <span
-                key={id}
+                key={p.id}
                 className="hx-tag"
                 aria-hidden="true"
-                data-on={modules.includes(id) ? "true" : "false"}
-                data-live={live === id ? "true" : "false"}
+                data-on={modules.includes(p.id) ? "true" : "false"}
+                data-live={live === p.id ? "true" : "false"}
                 style={{ left: c.t[0] / 10 + "%", top: (c.t[1] / 600) * 100 + "%" }}
               >
-                <b>{catalog[id].code}</b>
-                {catalog[id].name}
+                {p.code ? <b>{p.code}</b> : null}
+                {p.name}
               </span>
             )
           })
@@ -565,18 +778,90 @@ function Arrow({ dir = "right" }: { dir?: "left" | "right" | "up" }) {
   )
 }
 
+function Check() {
+  return (
+    <svg viewBox="0 0 16 16" className="hx-part-check" aria-hidden="true">
+      <path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /* ---------------------------------------------------------------- presets */
 
-const SIGNAL_MODULES: HitchModuleCatalog = {
-  seat: { name: "Kid seat and rail", code: "HX-21", mount: "rear", price: 420, weight: 4.6, range: -4, note: "Two padded seats inside a steel rail, for ages 1 to 7." },
-  footboards: { name: "Footboards", code: "HX-22", mount: "side", price: 110, weight: 1.4, range: 0, note: "Fold-down boards for small feet or an adult passenger." },
-  flatbed: { name: "Flatbed", code: "HX-31", mount: "rear", price: 380, weight: 6.2, range: -6, note: "A wide deck with stake rails and four strap points." },
-  panniers: { name: "Pannier pair", code: "HX-41", mount: "side", price: 240, weight: 2.2, range: -2, note: "Two 62 litre roll-top bags with a reflective band." },
-  toolbox: { name: "Lockable case", code: "HX-33", mount: "rear", price: 520, weight: 8.8, range: -7, note: "A 140 litre steel case with a keyed latch." },
-  box: { name: "Courier box", code: "HX-35", mount: "rear", price: 690, weight: 10.5, range: -9, note: "Insulated, 230 litres, with a side door." },
-  basket: { name: "Front crate", code: "HX-51", mount: "front", price: 150, weight: 1.6, range: -1, note: "Mounted to the frame, so the steering stays light." },
-  battery: { name: "Second battery", code: "HX-61", mount: "power", price: 890, weight: 3.1, range: 75, note: "Doubles the pack to 1,000 Wh." },
+const DEFAULT_MOUNTS: HitchMount[] = [
+  { id: "rear", label: "Rear deck" },
+  { id: "side", label: "Sides" },
+  { id: "front", label: "Front rack" },
+  { id: "power", label: "Power" },
+]
+
+const DEFAULT_LABELS: HitchLabels = {
+  skip: "Skip to content",
+  menuOpen: "Open menu",
+  menuClose: "Close menu",
+  carousel: "{brand} builds",
+  thisBuild: "This build",
+  previous: "Previous build",
+  next: "Next build",
+  pause: "Pause builds",
+  play: "Play builds",
+  chooseBuild: "Choose a build",
+  bare: "Bare frame, every mount empty",
+  plateAlt: "{brand} cargo bike, {build}",
+  noParts: "no parts fitted",
+  dimsAlt: "Side elevation: {length} long, {wheelbase} wheelbase, {height} tall, deck at {deck}",
+  price: "Price",
+  weight: "Weight",
+  range: "Range",
+  kg: "kg",
+  km: "km",
+  mountOne: "one at a time",
+  mountStack: "any number",
+  mountSingle: "optional",
+  added: "{part} added.",
+  removed: "{part} removed.",
+  replaced: "{part} replaced the {old}. Both use the {mount}.",
+  loaded: "Loaded into the builder. Change any part below.",
+  reset: "Back to the bare frame.",
+  startOver: "Start over",
+  yourBuild: "Your build",
+  bareFrame: "Bare frame",
+  total: "Total",
+  changeParts: "Change parts",
+  name: "Name",
+  email: "Email",
+  city: "Delivery city",
+  chooseCity: "Choose a city",
+  errorName: "Add the name for the reservation.",
+  errorEmail: "Enter an email like name@example.com.",
+  errorCity: "Pick the city for delivery.",
+  pending: "Reserving",
+  failed: "That did not go through, and nothing was reserved. Check the connection and try again.",
+  edit: "Edit the details",
+  backToTop: "Back to top",
 }
+
+const SIGNAL_PARTS: HitchPart[] = [
+  { id: "seat", name: "Kid seat and rail", code: "HX-21", mount: "rear", price: 420, weight: 4.6, range: -4, note: "Two padded seats inside a steel rail, for ages 1 to 7." },
+  { id: "footboards", name: "Footboards", code: "HX-22", mount: "side", price: 110, weight: 1.4, range: 0, note: "Fold-down boards for small feet or an adult passenger." },
+  { id: "flatbed", name: "Flatbed", code: "HX-31", mount: "rear", price: 380, weight: 6.2, range: -6, note: "A wide deck with stake rails and four strap points." },
+  { id: "panniers", name: "Pannier pair", code: "HX-41", mount: "side", price: 240, weight: 2.2, range: -2, note: "Two 62 litre roll-top bags with a reflective band." },
+  { id: "toolbox", name: "Lockable case", code: "HX-33", mount: "rear", price: 520, weight: 8.8, range: -7, note: "A 140 litre steel case with a keyed latch." },
+  { id: "box", name: "Courier box", code: "HX-35", mount: "rear", price: 690, weight: 10.5, range: -9, note: "Insulated, 230 litres, with a side door." },
+  { id: "basket", name: "Front crate", code: "HX-51", mount: "front", price: 150, weight: 1.6, range: -1, note: "Mounted to the frame, so the steering stays light." },
+  { id: "battery", name: "Second battery", code: "HX-61", mount: "power", price: 890, weight: 3.1, range: 75, note: "Doubles the pack to 1,000 Wh." },
+]
+
+const FLEET_PARTS: HitchPart[] = [
+  { id: "seat", name: "Passenger seat", code: "KS-21", mount: "rear", price: 420, weight: 4.6, range: -4, note: "For a second crew member on training rides." },
+  { id: "footboards", name: "Footboards", code: "KS-22", mount: "side", price: 110, weight: 1.4, range: 0, note: "Fold-down boards for a second crew member." },
+  { id: "flatbed", name: "Load bed", code: "KS-31", mount: "rear", price: 360, weight: 6.2, range: -6, note: "Pallet-width deck with six strap points." },
+  { id: "panniers", name: "Side bags", code: "KS-41", mount: "side", price: 220, weight: 2.2, range: -2, note: "Two 62 litre bags in hi-vis yellow." },
+  { id: "toolbox", name: "Service case", code: "KS-33", mount: "rear", price: 520, weight: 8.8, range: -7, note: "140 litres, keyed alike across the fleet." },
+  { id: "box", name: "Parcel box", code: "KS-35", mount: "rear", price: 640, weight: 10.5, range: -9, note: "230 litres, insulated, side door, fleet number plate." },
+  { id: "basket", name: "Front crate", code: "KS-51", mount: "front", price: 140, weight: 1.6, range: -1, note: "Frame-mounted, for the scanner and the next drop." },
+  { id: "battery", name: "Shift battery", code: "KS-61", mount: "power", price: 820, weight: 3.1, range: 75, note: "Swap at the depot and ride a double shift." },
+]
 
 type Content = {
   brand: string
@@ -589,7 +874,7 @@ type Content = {
   hero: HitchHeroCopy
   builds: HitchBuild[]
   base: HitchBase
-  modules: HitchModuleCatalog
+  parts: HitchPart[]
   configurator: HitchSectionCopy
   specs: HitchSpecsCopy
   ownership: HitchOwnershipCopy
@@ -597,6 +882,7 @@ type Content = {
   reserve: HitchReserveCopy
   faq: HitchFaqCopy
   footer: HitchFooterCopy
+  labels: { [K in keyof HitchLabels]?: HitchLabels[K] }
 }
 
 const PRESETS: { [K in HitchPreset]: Content } = {
@@ -627,7 +913,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       { id: "bare", caption: "The bare frame", tail: "what comes next.", modules: [] },
     ],
     base: { price: 3900, weight: 31, range: 90, maxLoad: 200 },
-    modules: SIGNAL_MODULES,
+    parts: SIGNAL_PARTS,
     configurator: {
       title: "Build yours",
       intro: "Every part bolts to one of four mounts with a single 5 mm hex key. Pick one part per mount and the numbers update as you go.",
@@ -672,10 +958,10 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       cities: ["Amsterdam", "Berlin", "Copenhagen", "Lyon", "Portland", "Somewhere else"],
       button: "Reserve this build",
       fineprint: "No card today. The $150 deposit is due when your batch opens, and it is refundable until delivery.",
-      batch: "Batch 07 opens in March.",
       checkbox: "Book a test ride before the deposit",
       checkboxNote: "A partner shop will offer test ride times first.",
       doneTitle: "Slot held for {name}.",
+      doneBody: "We will email {email} with your build and the date batch 07 opens.",
     },
     faq: {
       title: "Questions",
@@ -697,6 +983,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       ],
       legal: "Prices include sales tax. Range measured with a 75 kg rider on mixed city roads.",
     },
+    labels: {},
   },
   fleet: {
     brand: "Kerbside",
@@ -724,17 +1011,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       { id: "bulk", caption: "Bulk load", tail: "the bulk drop.", modules: ["flatbed", "battery"] },
     ],
     base: { price: 3400, weight: 33, range: 85, maxLoad: 220 },
-    modules: {
-      ...SIGNAL_MODULES,
-      box: { name: "Parcel box", code: "KS-35", mount: "rear", price: 640, weight: 10.5, range: -9, note: "230 litres, insulated, side door, fleet number plate." },
-      toolbox: { name: "Service case", code: "KS-33", mount: "rear", price: 520, weight: 8.8, range: -7, note: "140 litres, keyed alike across the fleet." },
-      flatbed: { name: "Load bed", code: "KS-31", mount: "rear", price: 360, weight: 6.2, range: -6, note: "Pallet-width deck with six strap points." },
-      panniers: { name: "Side bags", code: "KS-41", mount: "side", price: 220, weight: 2.2, range: -2, note: "Two 62 litre bags in hi-vis yellow." },
-      basket: { name: "Front crate", code: "KS-51", mount: "front", price: 140, weight: 1.6, range: -1, note: "Frame-mounted, for the scanner and the next drop." },
-      battery: { name: "Shift battery", code: "KS-61", mount: "power", price: 820, weight: 3.1, range: 75, note: "Swap at the depot and ride a double shift." },
-      seat: { name: "Passenger seat", code: "KS-21", mount: "rear", price: 420, weight: 4.6, range: -4, note: "For a second crew member on training rides." },
-      footboards: { name: "Footboards", code: "KS-22", mount: "side", price: 110, weight: 1.4, range: 0, note: "Fold-down boards for a second crew member." },
-    },
+    parts: FLEET_PARTS,
     configurator: { title: "Spec the fleet bike", intro: "One frame for every route. Pick a part per mount and see the price per bike, the weight and the range on a single charge." },
     specs: {
       title: "Fleet numbers",
@@ -776,10 +1053,10 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       cities: ["Dublin", "Bristol", "Hamburg", "Rotterdam", "Lyon", "Somewhere else"],
       button: "Request the quote",
       fineprint: "No commitment. Quotes include service, insurance and replacements.",
-      batch: "Trials start every month.",
       checkbox: "Include a two week trial with five bikes",
       checkboxNote: "The quote includes a trial on your busiest route.",
       doneTitle: "Quote on its way, {name}.",
+      doneBody: "We will send it to {email} within two working days.",
     },
     faq: {
       title: "Fleet questions",
@@ -799,6 +1076,17 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       ],
       legal: "Prices per bike, excluding VAT. Range measured with an 85 kg rider and 60 kg of cargo.",
     },
+    labels: {
+      bare: "Bare frame, ready for any route",
+      plateAlt: "{brand} fleet cargo bike, {build}",
+      yourBuild: "Your fleet bike",
+      price: "Per bike",
+      city: "Operating city",
+      errorName: "Add a name for the quote.",
+      errorCity: "Pick where the fleet operates.",
+      pending: "Sending",
+      failed: "The request did not go through. Check the connection and try again.",
+    },
   },
 }
 
@@ -817,51 +1105,48 @@ function useReducedMotion() {
   return reduced
 }
 
-function useHostDark(root: { current: HTMLElement | null }, theme: string) {
-  const [dark, setDark] = React.useState(theme === "dark")
-  React.useEffect(() => {
-    if (theme !== "auto") {
-      setDark(theme === "dark")
-      return
-    }
-    const check = () => setDark(!!root.current && !!root.current.parentElement && !!root.current.parentElement.closest(".dark"))
-    check()
-    const mo = new MutationObserver(check)
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"], subtree: true })
-    return () => mo.disconnect()
-  }, [theme, root])
-  return dark
+type Ctx = {
+  c: Content
+  L: HitchLabels
+  catalog: Catalog
+  mounts: HitchMount[]
+  look: Look
+  ids: (k: string) => string
+  sections: string[]
+  codePrefix: string
 }
 
 /* ------------------------------------------------------------------- hero */
 
 function Hero({
-  c,
+  x,
   height,
   autoplay,
   reduced,
   onBuild,
 }: {
-  c: Content
+  x: Ctx
   height: string
   autoplay: number
   reduced: boolean
-  onBuild: (modules: HitchModuleId[]) => void
+  onBuild: (modules: string[]) => void
 }) {
+  const { c, L, catalog, mounts, look } = x
   const builds = c.builds
   const n = builds.length
   const [index, setIndex] = React.useState(0)
-  const [prevMods, setPrevMods] = React.useState([] as HitchModuleId[])
+  const [prevMods, setPrevMods] = React.useState([] as string[])
   const [paused, setPaused] = React.useState(false)
   const [hold, setHold] = React.useState(false)
   const [visible, setVisible] = React.useState(true)
   const ref = React.useRef(null as HTMLElement | null)
   const drag = React.useRef(null as { x: number; y: number } | null)
 
-  const build = builds[wrapIndex(index, n)] || builds[0]
-  const mods = build ? normalizeBuild(build.modules, c.modules) : []
+  const cur = wrapIndex(index, n)
+  const build = builds[cur]
+  const mods = build ? normalizeBuild(build.modules, catalog, mounts) : []
   const live = mods.find((m) => !prevMods.includes(m)) || mods[mods.length - 1] || null
-  const sum = totals(mods, c.modules, c.base)
+  const sum = totals(mods, catalog, c.base)
 
   const go = (i: number) => {
     setPrevMods(mods)
@@ -878,28 +1163,25 @@ function Hero({
 
   const running = autoplay > 0 && !reduced && !paused && !hold && visible && n > 1
 
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowRight") {
-      e.preventDefault()
-      go(index + 1)
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault()
-      go(index - 1)
-    }
-  }
-
   if (!build) return null
-  const prev = builds[wrapIndex(index - 1, n)]
-  const next = builds[wrapIndex(index + 1, n)]
+  const prev = builds[wrapIndex(cur - 1, n)]
+  const next = builds[wrapIndex(cur + 1, n)]
+  const names = (list: string[]) => (list.length ? list.map((m) => catalog.byId[m].name).join(", ") : L.noParts)
 
   return (
     <section
       ref={ref}
       className="hx-hero"
-      style={{ minHeight: "calc(" + height + " - 72px)", ["--hx-h" as string]: height } as React.CSSProperties}
+      style={{ ["--hx-h" as string]: height } as React.CSSProperties}
       aria-roledescription="carousel"
-      aria-label={c.brand + " builds"}
-      onKeyDown={onKey}
+      aria-label={fill(L.carousel, { brand: c.brand })}
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return
+        const t = e.target as HTMLElement
+        if (t.closest("input,select,textarea")) return
+        e.preventDefault()
+        go(cur + (e.key === "ArrowRight" ? 1 : -1))
+      }}
       onMouseEnter={() => setHold(true)}
       onMouseLeave={() => setHold(false)}
       onFocus={() => setHold(true)}
@@ -909,14 +1191,20 @@ function Hero({
     >
       <div className="hx-hero-card">
         <h1 className="hx-h1">
-          <span className="hx-h1-lead">{c.hero.lead} </span>
-          <span className="hx-h1-tail" key={build.id}>
-            {build.tail.split(" ").map((w, i) => (
-              <React.Fragment key={i}>
-                <span className="hx-word" style={{ animationDelay: i * 45 + "ms" }}>
-                  {w}
-                </span>{" "}
-              </React.Fragment>
+          <span className="hx-h1-stack">
+            {builds.map((b, i) => (
+              <span key={b.id} className="hx-h1-v" data-on={i === cur ? "true" : "false"} aria-hidden={i === cur ? undefined : true}>
+                <span className="hx-h1-lead">{c.hero.lead} </span>
+                <span className="hx-h1-tail" key={i === cur ? "on" + index : "off"}>
+                  {b.tail.split(" ").map((w, k) => (
+                    <React.Fragment key={k}>
+                      <span className="hx-word" style={{ animationDelay: k * 45 + "ms" }}>
+                        {w}
+                      </span>{" "}
+                    </React.Fragment>
+                  ))}
+                </span>
+              </span>
             ))}
           </span>
         </h1>
@@ -924,7 +1212,7 @@ function Hero({
           <p className="hx-hero-body">{c.hero.body}</p>
           <div className="hx-hero-buy">
             <p className="hx-price">
-              <span className="hx-price-label">This build</span>
+              <span className="hx-price-label">{L.thisBuild}</span>
               <span className="hx-price-num">{formatMoney(sum.price, c.currency, c.locale)}</span>
             </p>
             <button type="button" className="hx-btn hx-btn-ghost" onClick={() => onBuild(mods)}>
@@ -945,37 +1233,29 @@ function Hero({
           drag.current = null
           if (!d) return
           const dx = e.clientX - d.x
-          if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(e.clientY - d.y)) go(index + (dx < 0 ? 1 : -1))
+          if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(e.clientY - d.y)) go(cur + (dx < 0 ? 1 : -1))
         }}
         onPointerCancel={() => (drag.current = null)}
       >
         {n > 1 ? (
           <>
-            <div className="hx-peek hx-peek-l" aria-hidden="true">
-              <Plate modules={normalizeBuild(prev.modules, c.modules)} image={prev.image} catalog={c.modules} label="" />
+            <div className="hx-peek hx-peek-l">
+              <Plate modules={normalizeBuild(prev.modules, catalog, mounts)} catalog={catalog} look={look} />
             </div>
-            <div className="hx-peek hx-peek-r" aria-hidden="true">
-              <Plate modules={normalizeBuild(next.modules, c.modules)} image={next.image} catalog={c.modules} label="" />
+            <div className="hx-peek hx-peek-r">
+              <Plate modules={normalizeBuild(next.modules, catalog, mounts)} catalog={catalog} look={look} />
             </div>
           </>
         ) : null}
         <div className="hx-stage-main">
-          <Plate
-            modules={mods}
-            live={live}
-            callouts
-            image={build.image}
-            imageAlt={build.imageAlt}
-            catalog={c.modules}
-            label={c.brand + " cargo bike, " + build.caption + (mods.length ? ": " + mods.map((m) => c.modules[m].name).join(", ") : ", no parts fitted")}
-          />
+          <Plate modules={mods} catalog={catalog} look={look} live={live} callouts label={fill(L.plateAlt, { brand: c.brand, build: build.caption + ": " + names(mods) })} />
         </div>
         {n > 1 ? (
           <>
-            <button type="button" className="hx-arrow hx-arrow-l" onClick={() => go(index - 1)} aria-label={"Previous build: " + prev.caption}>
+            <button type="button" className="hx-arrow hx-arrow-l" onClick={() => go(cur - 1)} aria-label={L.previous + ": " + prev.caption}>
               <Arrow dir="left" />
             </button>
-            <button type="button" className="hx-arrow hx-arrow-r" onClick={() => go(index + 1)} aria-label={"Next build: " + next.caption}>
+            <button type="button" className="hx-arrow hx-arrow-r" onClick={() => go(cur + 1)} aria-label={L.next + ": " + next.caption}>
               <Arrow />
             </button>
           </>
@@ -986,11 +1266,11 @@ function Hero({
         {mods.length ? (
           mods.map((m) => (
             <li key={m} data-live={m === live ? "true" : "false"}>
-              <b>{c.modules[m].code}</b> {c.modules[m].name}
+              {catalog.byId[m].code ? <b>{catalog.byId[m].code}</b> : null} {catalog.byId[m].name}
             </li>
           ))
         ) : (
-          <li>Bare frame, four empty mounts</li>
+          <li>{L.bare}</li>
         )}
       </ul>
 
@@ -998,26 +1278,24 @@ function Hero({
         <p className="hx-caption" aria-live={running ? "off" : "polite"}>
           {build.caption}
         </p>
-        <div className="hx-ticks" role="group" aria-label="Choose a build">
+        <div className="hx-ticks" role="group" aria-label={L.chooseBuild}>
           {builds.map((b, i) => (
-            <button
-              key={b.id}
-              type="button"
-              className="hx-tick"
-              aria-label={b.caption}
-              aria-current={i === wrapIndex(index, n) ? "true" : undefined}
-              onClick={() => go(i)}
-            >
-              <span className="hx-tick-fill" key={i === wrapIndex(index, n) ? "on" + index : "off"} style={i === wrapIndex(index, n) && autoplay > 0 && !reduced ? { animationDuration: autoplay + "s", animationPlayState: running ? "running" : "paused" } : undefined} onAnimationEnd={() => go(index + 1)} />
+            <button key={b.id} type="button" className="hx-tick" aria-label={b.caption} aria-current={i === cur ? "true" : undefined} onClick={() => go(i)}>
+              <span
+                className="hx-tick-fill"
+                key={i === cur ? "on" + index : "off"}
+                style={i === cur && autoplay > 0 && !reduced ? { animationDuration: autoplay + "s", animationPlayState: running ? "running" : "paused" } : undefined}
+                onAnimationEnd={() => go(cur + 1)}
+              />
             </button>
           ))}
         </div>
         <div className="hx-count">
           <span className="hx-count-num">
-            {String(wrapIndex(index, n) + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
+            {String(cur + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
           </span>
           {autoplay > 0 && !reduced && n > 1 ? (
-            <button type="button" className="hx-pause" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Play builds" : "Pause builds"}>
+            <button type="button" className="hx-pause" onClick={() => setPaused((p) => !p)} aria-label={paused ? L.play : L.pause}>
               {paused ? (
                 <svg viewBox="0 0 20 20" aria-hidden="true" className="hx-ico">
                   <path d="M7 5L15 10L7 15Z" fill="currentColor" />
@@ -1031,6 +1309,7 @@ function Hero({
           ) : null}
         </div>
       </div>
+      <p className="hx-hero-note">{c.hero.body}</p>
     </section>
   )
 }
@@ -1038,90 +1317,91 @@ function Hero({
 /* ----------------------------------------------------------- configurator */
 
 function Configurator({
-  c,
+  x,
   build,
   setBuild,
   note,
   setNote,
 }: {
-  c: Content
-  build: HitchModuleId[]
-  setBuild: (b: HitchModuleId[]) => void
+  x: Ctx
+  build: string[]
+  setBuild: (b: string[]) => void
   note: string
   setNote: (s: string) => void
 }) {
-  const [live, setLive] = React.useState(null as HitchModuleId | null)
-  const sum = totals(build, c.modules, c.base)
-  const mountLabel = { rear: "Rear deck", side: "Sides", front: "Front rack", power: "Power" } as { [K in HitchMount]: string }
+  const { c, L, catalog, mounts, look } = x
+  const [live, setLive] = React.useState(null as string | null)
+  const sum = totals(build, catalog, c.base)
+  const hid = x.ids("configure-h")
+  const mountLabel = (id: string) => (mounts.find((m) => m.id === id) || { label: id }).label
 
-  const flip = (id: HitchModuleId) => {
-    const r = toggleModule(build, id, c.modules)
+  const flip = (id: string) => {
+    const r = toggleModule(build, id, catalog, mounts)
+    const part = catalog.byId[id]
     setBuild(r.build)
     setLive(r.build.includes(id) ? id : null)
-    if (r.swapped) setNote(c.modules[id].name + " replaced the " + c.modules[r.swapped].name.toLowerCase() + ". Both use the " + mountLabel[c.modules[id].mount].toLowerCase() + ".")
-    else setNote(r.build.includes(id) ? c.modules[id].name + " added." : c.modules[id].name + " removed.")
+    if (r.swapped) setNote(fill(L.replaced, { part: part.name, old: catalog.byId[r.swapped].name.toLowerCase(), mount: mountLabel(part.mount).toLowerCase() }))
+    else setNote(fill(r.build.includes(id) ? L.added : L.removed, { part: part.name }))
   }
 
   return (
-    <section id="configure" className="hx-sheet hx-config hx-reveal" aria-labelledby="hx-config-h">
-      <div className="hx-config-art">
-        <Plate
-          modules={build}
-          live={live}
-          callouts
-          catalog={c.modules}
-          label={c.brand + " cargo bike with " + (build.length ? build.map((m) => c.modules[m].name).join(", ") : "no parts fitted")}
-        />
-        <dl className="hx-totals">
-          <div>
-            <dt>Price</dt>
-            <dd>{formatMoney(sum.price, c.currency, c.locale)}</dd>
-          </div>
-          <div>
-            <dt>Weight</dt>
-            <dd>
-              {formatNumber(sum.weight, c.locale, 1)}
-              <small> kg</small>
-            </dd>
-          </div>
-          <div>
-            <dt>Range</dt>
-            <dd>
-              {sum.range}
-              <small> km</small>
-            </dd>
-          </div>
-        </dl>
-      </div>
+    <section id={x.ids("configure")} data-sec="configure" className="hx-sheet hx-config hx-reveal" aria-labelledby={hid}>
       <div className="hx-config-head">
-        <h2 id="hx-config-h" className="hx-h2">
+        <h2 id={hid} className="hx-h2">
           {c.configurator.title}
         </h2>
         <p className="hx-lede">{c.configurator.intro}</p>
       </div>
+      <div className="hx-config-art">
+        <Plate
+          modules={build}
+          catalog={catalog}
+          look={look}
+          live={live}
+          callouts
+          label={fill(L.plateAlt, { brand: c.brand, build: build.length ? build.map((m) => catalog.byId[m].name).join(", ") : L.noParts })}
+        />
+        <dl className="hx-totals">
+          <div>
+            <dt>{L.price}</dt>
+            <dd>{formatMoney(sum.price, c.currency, c.locale)}</dd>
+          </div>
+          <div>
+            <dt>{L.weight}</dt>
+            <dd>
+              {formatNumber(sum.weight, c.locale, 1)}
+              <small> {L.kg}</small>
+            </dd>
+          </div>
+          <div>
+            <dt>{L.range}</dt>
+            <dd>
+              {sum.range}
+              <small> {L.km}</small>
+            </dd>
+          </div>
+        </dl>
+      </div>
       <div className="hx-config-side">
-        {(MOUNTS as HitchMount[]).map((mount) => {
-          const ids = (MODULE_IDS as HitchModuleId[]).filter((id) => c.modules[id].mount === mount)
-          if (!ids.length) return null
+        {mounts.map((mount) => {
+          const parts = catalog.list.filter((p) => p.mount === mount.id)
+          if (!parts.length) return null
           return (
-            <fieldset key={mount} className="hx-mount">
+            <fieldset key={mount.id} className="hx-mount">
               <legend>
-                {mountLabel[mount]}
-                <span>{ids.length > 1 ? "one at a time" : "optional"}</span>
+                {mount.label}
+                <span>{mount.stack ? L.mountStack : parts.length > 1 ? L.mountOne : L.mountSingle}</span>
               </legend>
-              {ids.map((id) => {
-                const m = c.modules[id]
-                const on = build.includes(id)
+              {parts.map((m) => {
+                const on = build.includes(m.id)
                 return (
-                  <button key={id} type="button" className="hx-part" aria-pressed={on} onClick={() => flip(id)}>
+                  <button key={m.id} type="button" className="hx-part" aria-pressed={on} onClick={() => flip(m.id)}>
                     <span className="hx-part-box" aria-hidden="true">
-                      <svg viewBox="0 0 16 16" className="hx-part-check">
-                        <path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <Check />
                     </span>
                     <span className="hx-part-text">
                       <span className="hx-part-name">
-                        <b>{m.code}</b> {m.name}
+                        {m.code ? <b>{m.code}</b> : null} {m.name}
                       </span>
                       <span className="hx-part-note">{m.note}</span>
                     </span>
@@ -1136,20 +1416,22 @@ function Configurator({
           {note}
         </p>
         <div className="hx-config-cta">
-          <a className="hx-btn hx-btn-accent" href="#reserve">
-            <span>{c.reserve.button}</span>
-            <Arrow />
-          </a>
+          {x.sections.includes("reserve") ? (
+            <a className="hx-btn hx-btn-accent" href="#reserve">
+              <span>{c.reserve.button}</span>
+              <Arrow />
+            </a>
+          ) : null}
           <button
             type="button"
             className="hx-link"
             onClick={() => {
               setBuild([])
               setLive(null)
-              setNote("Back to the bare frame.")
+              setNote(L.reset)
             }}
           >
-            Start over
+            {L.startOver}
           </button>
         </div>
       </div>
@@ -1159,16 +1441,18 @@ function Configurator({
 
 /* --------------------------------------------------------------- sections */
 
-function Specs({ c }: { c: Content }) {
+function Specs({ x }: { x: Ctx }) {
+  const { c, L, catalog, look } = x
+  const hid = x.ids("specs-h")
   return (
-    <section id="specs" className="hx-sheet hx-paper hx-specs hx-reveal" aria-labelledby="hx-specs-h">
+    <section id={x.ids("specs")} data-sec="specs" className="hx-sheet hx-paper hx-specs hx-reveal" aria-labelledby={hid}>
       <div className="hx-specs-head">
-        <h2 id="hx-specs-h" className="hx-h2">
+        <h2 id={hid} className="hx-h2">
           {c.specs.title}
         </h2>
         <p className="hx-lede">{c.specs.intro}</p>
       </div>
-      <Plate modules={[]} dims dimensions={c.specs.dimensions} catalog={c.modules} label={"Side elevation with dimensions: " + c.specs.dimensions.length + " long, " + c.specs.dimensions.wheelbase + " wheelbase, " + c.specs.dimensions.height + " tall, deck at " + c.specs.dimensions.deck} />
+      <Plate modules={[]} catalog={catalog} look={look} dims dimensions={c.specs.dimensions} label={fill(L.dimsAlt, c.specs.dimensions)} />
       <dl className="hx-spec-grid">
         {c.specs.rows.map((r) => (
           <div key={r.label}>
@@ -1181,11 +1465,13 @@ function Specs({ c }: { c: Content }) {
   )
 }
 
-function Ownership({ c }: { c: Content }) {
+function Ownership({ x }: { x: Ctx }) {
+  const { c } = x
+  const hid = x.ids("ownership-h")
   return (
-    <section id="ownership" className="hx-sheet hx-own hx-reveal" aria-labelledby="hx-own-h">
+    <section id={x.ids("ownership")} data-sec="ownership" className="hx-sheet hx-own hx-reveal" aria-labelledby={hid}>
       <div className="hx-own-head">
-        <h2 id="hx-own-h" className="hx-h2">
+        <h2 id={hid} className="hx-h2">
           {c.ownership.title}
         </h2>
         <p className="hx-lede">{c.ownership.intro}</p>
@@ -1206,15 +1492,17 @@ function Ownership({ c }: { c: Content }) {
   )
 }
 
-function Riders({ c }: { c: Content }) {
+function Riders({ x }: { x: Ctx }) {
+  const { c } = x
   const [i, setI] = React.useState(0)
   const items = c.riders.items
-  const tabs = React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  const tabs = x.ids("rider")
+  const hid = x.ids("riders-h")
   const r = items[Math.min(i, items.length - 1)]
   if (!r) return null
   return (
-    <section id="riders" className="hx-sheet hx-riders hx-reveal" aria-labelledby="hx-riders-h">
-      <h2 id="hx-riders-h" className="hx-h2">
+    <section id={x.ids("riders")} data-sec="riders" className="hx-sheet hx-riders hx-reveal" aria-labelledby={hid}>
+      <h2 id={hid} className="hx-h2">
         {c.riders.title}
       </h2>
       <div className="hx-riders-body">
@@ -1224,9 +1512,9 @@ function Riders({ c }: { c: Content }) {
               key={it.name}
               type="button"
               role="tab"
-              id={tabs + "t" + k}
+              id={tabs + "-t" + k}
               aria-selected={k === i}
-              aria-controls={tabs + "p"}
+              aria-controls={tabs + "-p"}
               tabIndex={k === i ? 0 : -1}
               className="hx-rider"
               onClick={() => setI(k)}
@@ -1235,7 +1523,8 @@ function Riders({ c }: { c: Content }) {
                 e.preventDefault()
                 const nx = wrapIndex(k + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1), items.length)
                 setI(nx)
-                const el = document.getElementById(tabs + "t" + nx)
+                const list = e.currentTarget.parentElement
+                const el = list && (list.children[nx] as HTMLElement | undefined)
                 if (el) el.focus()
               }}
             >
@@ -1248,7 +1537,7 @@ function Riders({ c }: { c: Content }) {
             </button>
           ))}
         </div>
-        <figure className="hx-quote" id={tabs + "p"} role="tabpanel" aria-labelledby={tabs + "t" + i} key={r.name}>
+        <figure className="hx-quote" id={tabs + "-p"} role="tabpanel" aria-labelledby={tabs + "-t" + i} key={r.name}>
           <blockquote>
             <p>{"“" + r.quote + "”"}</p>
           </blockquote>
@@ -1261,101 +1550,101 @@ function Riders({ c }: { c: Content }) {
   )
 }
 
-function Reserve({
-  c,
-  build,
-  onReserve,
-}: {
-  c: Content
-  build: HitchModuleId[]
-  onReserve?: (r: HitchReservation) => void
-}) {
+function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?: (r: HitchReservation) => unknown }) {
+  const { c, L, catalog } = x
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [city, setCity] = React.useState("")
-  const [ride, setRide] = React.useState(true)
+  const [optIn, setOptIn] = React.useState(true)
   const [errors, setErrors] = React.useState({} as { name?: string; email?: string; city?: string })
+  const [state, setState] = React.useState("idle" as "idle" | "pending" | "failed")
   const [done, setDone] = React.useState(null as HitchReservation | null)
-  const sum = totals(build, c.modules, c.base)
-  const fid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  const sum = totals(build, catalog, c.base)
+  const fid = x.ids("reserve-f")
+  const hid = x.ids("reserve-h")
   const nameRef = React.useRef(null as HTMLInputElement | null)
   const emailRef = React.useRef(null as HTMLInputElement | null)
   const cityRef = React.useRef(null as HTMLSelectElement | null)
+  const doneRef = React.useRef(null as HTMLDivElement | null)
 
-  const submit = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (done && doneRef.current) doneRef.current.focus()
+  }, [done])
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (state === "pending") return
     const errs = {} as { name?: string; email?: string; city?: string }
-    if (!name.trim()) errs.name = "Add the name for the reservation."
-    if (!isEmail(email)) errs.email = "Enter an email like name@example.com."
-    if (!city) errs.city = "Pick the city for delivery."
+    if (!name.trim()) errs.name = L.errorName
+    if (!isEmail(email)) errs.email = L.errorEmail
+    if (!city) errs.city = L.errorCity
     setErrors(errs)
     if (errs.name) return nameRef.current && nameRef.current.focus()
     if (errs.email) return emailRef.current && emailRef.current.focus()
     if (errs.city) return cityRef.current && cityRef.current.focus()
-    const r = { name: name.trim(), email: email.trim(), city, testRide: ride, modules: build, total: sum.price, code: reservationCode(email, build) }
-    setDone(r)
-    if (onReserve) onReserve(r)
+    const r = { name: name.trim(), email: email.trim(), city, optIn, modules: build, total: sum.price, code: reservationCode(x.codePrefix, email, build) }
+    setState("pending")
+    try {
+      if (onReserve) await Promise.resolve(onReserve(r))
+      setState("idle")
+      setDone(r)
+    } catch {
+      setState("failed")
+    }
   }
 
   return (
-    <section id="reserve" className="hx-sheet hx-reserve hx-reveal" aria-labelledby="hx-reserve-h">
+    <section id={x.ids("reserve")} data-sec="reserve" className="hx-sheet hx-reserve hx-reveal" aria-labelledby={hid}>
       <div className="hx-reserve-head">
-        <h2 id="hx-reserve-h" className="hx-h2 hx-h2-xl">
+        <h2 id={hid} className="hx-h2 hx-h2-xl">
           {c.reserve.title}
         </h2>
         <p className="hx-lede">{c.reserve.body}</p>
         <div className="hx-summary">
-          <p className="hx-summary-h">Your build</p>
+          <p className="hx-summary-h">{L.yourBuild}</p>
           <ul>
             <li>
-              <span>Bare frame</span>
+              <span>{L.bareFrame}</span>
               <span>{formatMoney(c.base.price, c.currency, c.locale)}</span>
             </li>
             {build.map((m) => (
               <li key={m}>
                 <span>
-                  <b>{c.modules[m].code}</b> {c.modules[m].name}
+                  {catalog.byId[m].code ? <b>{catalog.byId[m].code}</b> : null} {catalog.byId[m].name}
                 </span>
-                <span>+{formatMoney(c.modules[m].price, c.currency, c.locale)}</span>
+                <span>+{formatMoney(catalog.byId[m].price, c.currency, c.locale)}</span>
               </li>
             ))}
             <li className="hx-summary-total">
-              <span>Total</span>
+              <span>{L.total}</span>
               <span>{formatMoney(sum.price, c.currency, c.locale)}</span>
             </li>
           </ul>
-          <a className="hx-link" href="#configure">
-            Change parts
-          </a>
+          {x.sections.includes("configure") ? (
+            <a className="hx-link" href="#configure">
+              {L.changeParts}
+            </a>
+          ) : null}
         </div>
       </div>
 
       {done ? (
-        <div className="hx-done" role="status">
+        <div className="hx-done" role="status" tabIndex={-1} ref={doneRef}>
           <p className="hx-done-code">{done.code}</p>
-          <h3 className="hx-h3">{c.reserve.doneTitle.replace("{name}", done.name.split(" ")[0])}</h3>
+          <h3 className="hx-h3">{fill(c.reserve.doneTitle, { name: done.name.split(" ")[0] })}</h3>
           <p>
-            We sent the build to {done.email}. {c.reserve.batch}
-            {done.testRide ? " " + c.reserve.checkboxNote : ""}
+            {fill(c.reserve.doneBody, { email: done.email })}
+            {done.optIn ? " " + c.reserve.checkboxNote : ""}
           </p>
           <button type="button" className="hx-link" onClick={() => setDone(null)}>
-            Edit the details
+            {L.edit}
           </button>
         </div>
       ) : (
-        <form className="hx-form" onSubmit={submit} noValidate>
+        <form className="hx-form" onSubmit={submit} noValidate aria-busy={state === "pending"}>
           <div className="hx-field" data-error={errors.name ? "true" : "false"}>
-            <label htmlFor={fid + "n"}>Name</label>
-            <input
-              ref={nameRef}
-              id={fid + "n"}
-              name="name"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? fid + "ne" : undefined}
-            />
+            <label htmlFor={fid + "n"}>{L.name}</label>
+            <input ref={nameRef} id={fid + "n"} name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name} aria-describedby={errors.name ? fid + "ne" : undefined} />
             {errors.name ? (
               <p id={fid + "ne"} className="hx-err">
                 {errors.name}
@@ -1363,7 +1652,7 @@ function Reserve({
             ) : null}
           </div>
           <div className="hx-field" data-error={errors.email ? "true" : "false"}>
-            <label htmlFor={fid + "e"}>Email</label>
+            <label htmlFor={fid + "e"}>{L.email}</label>
             <input
               ref={emailRef}
               id={fid + "e"}
@@ -1383,21 +1672,13 @@ function Reserve({
             ) : null}
           </div>
           <div className="hx-field" data-error={errors.city ? "true" : "false"}>
-            <label htmlFor={fid + "c"}>Delivery city</label>
+            <label htmlFor={fid + "c"}>{L.city}</label>
             <div className="hx-select">
-              <select
-                ref={cityRef}
-                id={fid + "c"}
-                name="city"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                aria-invalid={!!errors.city}
-                aria-describedby={errors.city ? fid + "ce" : undefined}
-              >
-                <option value="">Choose a city</option>
-                {c.reserve.cities.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
+              <select ref={cityRef} id={fid + "c"} name="city" value={city} onChange={(e) => setCity(e.target.value)} aria-invalid={!!errors.city} aria-describedby={errors.city ? fid + "ce" : undefined}>
+                <option value="">{L.chooseCity}</option>
+                {c.reserve.cities.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
                   </option>
                 ))}
               </select>
@@ -1412,18 +1693,21 @@ function Reserve({
             ) : null}
           </div>
           <label className="hx-check">
-            <input type="checkbox" checked={ride} onChange={(e) => setRide(e.target.checked)} />
+            <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
             <span className="hx-part-box" aria-hidden="true">
-              <svg viewBox="0 0 16 16" className="hx-part-check">
-                <path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Check />
             </span>
             <span>{c.reserve.checkbox}</span>
           </label>
-          <button type="submit" className="hx-btn hx-btn-accent hx-btn-wide">
-            <span>{c.reserve.button}</span>
-            <Arrow />
+          <button type="submit" className="hx-btn hx-btn-accent hx-btn-wide" aria-disabled={state === "pending"} data-pending={state === "pending" ? "true" : "false"}>
+            <span>{state === "pending" ? L.pending : c.reserve.button}</span>
+            {state === "pending" ? <span className="hx-spin" aria-hidden="true" /> : <Arrow />}
           </button>
+          {state === "failed" ? (
+            <p className="hx-err hx-err-form" role="alert">
+              {L.failed}
+            </p>
+          ) : null}
           <p className="hx-fine">{c.reserve.fineprint}</p>
         </form>
       )}
@@ -1431,12 +1715,14 @@ function Reserve({
   )
 }
 
-function Faq({ c }: { c: Content }) {
+function Faq({ x }: { x: Ctx }) {
+  const { c } = x
   const [open, setOpen] = React.useState(0 as number)
-  const id = React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  const id = x.ids("faq")
+  const hid = x.ids("faq-h")
   return (
-    <section id="faq" className="hx-sheet hx-paper hx-faq hx-reveal" aria-labelledby="hx-faq-h">
-      <h2 id="hx-faq-h" className="hx-h2">
+    <section id={id} data-sec="faq" className="hx-sheet hx-paper hx-faq hx-reveal" aria-labelledby={hid}>
+      <h2 id={hid} className="hx-h2">
         {c.faq.title}
       </h2>
       <div className="hx-faq-list">
@@ -1445,7 +1731,7 @@ function Faq({ c }: { c: Content }) {
           return (
             <div key={f.q} className="hx-qa" data-open={on ? "true" : "false"}>
               <h3 className="hx-qa-h">
-                <button type="button" aria-expanded={on} aria-controls={id + "a" + i} id={id + "q" + i} onClick={() => setOpen(on ? -1 : i)}>
+                <button type="button" aria-expanded={on} aria-controls={id + "-a" + i} id={id + "-q" + i} onClick={() => setOpen(on ? -1 : i)}>
                   <span className="hx-qa-n" aria-hidden="true">
                     Q.{String(i + 1).padStart(2, "0")}
                   </span>
@@ -1453,7 +1739,7 @@ function Faq({ c }: { c: Content }) {
                   <span className="hx-qa-x" aria-hidden="true" />
                 </button>
               </h3>
-              <div className="hx-qa-a" id={id + "a" + i} role="region" aria-labelledby={id + "q" + i} hidden={!on}>
+              <div className="hx-qa-a" id={id + "-a" + i} role="region" aria-labelledby={id + "-q" + i} hidden={!on}>
                 <p>{f.a}</p>
               </div>
             </div>
@@ -1464,17 +1750,20 @@ function Faq({ c }: { c: Content }) {
   )
 }
 
-function Footer({ c, onTop }: { c: Content; onTop: () => void }) {
+function Footer({ x, onTop }: { x: Ctx; onTop: () => void }) {
+  const { c, L } = x
+  const word = c.brand.toUpperCase()
+  const fs = wordmarkSize(word)
   return (
     <footer className="hx-foot">
       <div className="hx-foot-top">
         <p className="hx-foot-tag">{c.footer.tagline}</p>
-        <nav className="hx-foot-cols" aria-label="Footer">
+        <nav className="hx-foot-cols" aria-label={c.brand}>
           {c.footer.columns.map((col) => (
             <div key={col.title}>
               <p className="hx-foot-h">{col.title}</p>
               <ul>
-                {col.links.map((l) => (
+                {liveLinks(col.links, x.sections).map((l) => (
                   <li key={l.label}>
                     <a href={l.href}>{l.label}</a>
                   </li>
@@ -1484,9 +1773,9 @@ function Footer({ c, onTop }: { c: Content; onTop: () => void }) {
           ))}
         </nav>
       </div>
-      <svg className="hx-wordmark" viewBox="0 0 1000 190" role="img" aria-label={c.brand}>
-        <text x="0" y="172" textLength="1000" lengthAdjust="spacingAndGlyphs">
-          {c.brand.toUpperCase()}
+      <svg className="hx-wordmark" viewBox={"0 0 1000 " + Math.round(fs * 0.78)} role="img" aria-label={c.brand}>
+        <text x="0" y={Math.round(fs * 0.74)} fontSize={fs} textLength="1000" lengthAdjust="spacing">
+          {word}
         </text>
       </svg>
       <div className="hx-foot-bottom">
@@ -1494,7 +1783,7 @@ function Footer({ c, onTop }: { c: Content; onTop: () => void }) {
           © {new Date().getFullYear()} {c.brand}. {c.footer.legal}
         </p>
         <button type="button" className="hx-link" onClick={onTop}>
-          Back to top <Arrow dir="up" />
+          {L.backToTop} <Arrow dir="up" />
         </button>
       </div>
     </footer>
@@ -1513,12 +1802,19 @@ export default function HitchCargoLanding({
   currency,
   locale,
   nav,
+  stickyNav = true,
   cta,
+  sections,
+  idPrefix = "hitch",
   hero,
   builds,
   autoplay = 7,
   base,
-  modules,
+  parts,
+  mounts,
+  productImage,
+  productArt,
+  codePrefix,
   configurator,
   specs,
   ownership,
@@ -1526,23 +1822,24 @@ export default function HitchCargoLanding({
   reserve,
   faq,
   footer,
+  labels,
   onReserve,
   className,
 }: HitchCargoLandingProps) {
   const p = PRESETS[preset] || PRESETS.signal
-  const catalog = mergeCatalog(p.modules, modules)
+  const order = sectionList(sections)
   const c: Content = {
     brand: brand || p.brand,
     accent: accent || p.accent,
     frameColor: frameColor || p.frameColor,
     currency: currency || p.currency,
     locale: locale || p.locale,
-    nav: nav || p.nav,
+    nav: liveLinks(nav || p.nav, order),
     cta: cta || p.cta,
     hero: { ...p.hero, ...(hero || {}) },
     builds: builds && builds.length ? builds : p.builds,
     base: { ...p.base, ...(base || {}) },
-    modules: catalog,
+    parts: p.parts,
     configurator: { ...p.configurator, ...(configurator || {}) },
     specs: { ...p.specs, ...(specs || {}) },
     ownership: { ...p.ownership, ...(ownership || {}) },
@@ -1550,32 +1847,49 @@ export default function HitchCargoLanding({
     reserve: { ...p.reserve, ...(reserve || {}) },
     faq: { ...p.faq, ...(faq || {}) },
     footer: { ...p.footer, ...(footer || {}) },
+    labels: p.labels,
+  }
+  const L: HitchLabels = { ...DEFAULT_LABELS, ...p.labels, ...(labels || {}) }
+  const catalog = mergeParts(p.parts, parts)
+  const mountList = mounts && mounts.length ? mounts : DEFAULT_MOUNTS
+  const prefix = idPrefix.replace(/[^a-zA-Z0-9_-]/g, "") || "hitch"
+  const x: Ctx = {
+    c,
+    L,
+    catalog,
+    mounts: mountList,
+    look: { productImage, productArt },
+    ids: (k: string) => prefix + "-" + k,
+    sections: order,
+    codePrefix: codePrefix || codePrefixOf(catalog.list, c.brand),
   }
 
   const rootRef = React.useRef(null as HTMLDivElement | null)
-  const dark = useHostDark(rootRef, theme)
   const reduced = useReducedMotion()
   const [menu, setMenu] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
-  const [build, setBuild] = React.useState(() => normalizeBuild((c.builds[0] && c.builds[0].modules) || [], catalog))
+  const [build, setBuild] = React.useState(() => normalizeBuild((c.builds[0] && c.builds[0].modules) || [], catalog, mountList))
   const [note, setNote] = React.useState("")
   const menuBtn = React.useRef(null as HTMLButtonElement | null)
-  const menuId = React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  const menuId = x.ids("menu")
+  const mainId = x.ids("main")
+  const showNav = nav !== false
 
   const scrollToHash = (href: string) => {
     if (!href.startsWith("#")) return false
     const root = rootRef.current
     if (!root) return false
-    const target = href === "#top" ? root : (root.querySelector(href) as HTMLElement | null)
+    const key = href.slice(1)
+    const target = key === "top" ? root : key === "main" ? (root.querySelector(".hx-main") as HTMLElement | null) : (root.querySelector('[data-sec="' + key + '"]') as HTMLElement | null)
     if (!target) return false
     target.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" })
-    if (href === "#hx-main") target.focus({ preventScroll: true })
+    if (key === "main") target.focus({ preventScroll: true })
     return true
   }
 
   const onLink = (e: React.MouseEvent) => {
     const a = (e.target as HTMLElement).closest("a")
-    if (!a) return
+    if (!a || !rootRef.current || !rootRef.current.contains(a)) return
     const href = a.getAttribute("href") || ""
     if (scrollToHash(href)) {
       e.preventDefault()
@@ -1584,11 +1898,12 @@ export default function HitchCargoLanding({
   }
 
   React.useEffect(() => {
+    if (!showNav || !stickyNav) return
     const onScroll = () => setScrolled(scrollY > 8)
     onScroll()
     addEventListener("scroll", onScroll, { passive: true })
     return () => removeEventListener("scroll", onScroll)
-  }, [])
+  }, [showNav, stickyNav])
 
   React.useEffect(() => {
     if (!menu) return
@@ -1633,82 +1948,88 @@ export default function HitchCargoLanding({
     "--hx-frame": c.frameColor,
   } as React.CSSProperties
 
+  const sectionEls: { [k: string]: React.ReactNode } = {
+    configure: <Configurator key="configure" x={x} build={build} setBuild={setBuild} note={note} setNote={setNote} />,
+    specs: <Specs key="specs" x={x} />,
+    ownership: <Ownership key="ownership" x={x} />,
+    riders: <Riders key="riders" x={x} />,
+    reserve: <Reserve key="reserve" x={x} build={build} onReserve={onReserve} />,
+    faq: <Faq key="faq" x={x} />,
+  }
+
   return (
     <div
       ref={rootRef}
-      id="top"
       className={"hx-root" + (className ? " " + className : "")}
-      data-theme={theme === "auto" ? (dark ? "dark" : "light") : theme}
+      data-theme={theme}
       data-reduced={reduced ? "true" : "false"}
       style={style}
       onClick={onLink}
     >
       <style>{HX_CSS}</style>
-      <a className="hx-skip" href="#hx-main">
-        Skip to content
+      <a className="hx-skip" href="#main">
+        {L.skip}
       </a>
-      <header className="hx-nav" data-scrolled={scrolled ? "true" : "false"}>
-        <a className="hx-logo" href="#top" aria-label={c.brand + ", back to top"}>
-          <svg viewBox="0 0 28 28" aria-hidden="true" className="hx-logo-mark">
-            <circle cx="7" cy="20" r="5" fill="none" stroke="currentColor" strokeWidth="2.4" />
-            <circle cx="21" cy="20" r="5" fill="none" stroke="currentColor" strokeWidth="2.4" />
-            <path d="M3 10H17L21 20M7 20L12 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-            <rect x="3" y="7" width="12" height="3" className="hx-logo-deck" />
-          </svg>
-          <span>{c.brand}</span>
-        </a>
-        <nav className="hx-links" aria-label="Main">
-          {c.nav.map((l) => (
-            <a key={l.label} href={l.href}>
-              <span>{l.label}</span>
-            </a>
-          ))}
-        </nav>
-        <a className="hx-btn hx-btn-accent hx-nav-cta" href={c.cta.href}>
-          <span>{c.cta.label}</span>
-          <Arrow />
-        </a>
-        <button ref={menuBtn} type="button" className="hx-menu-btn" aria-expanded={menu} aria-controls={menuId} onClick={() => setMenu((m) => !m)}>
-          <span className="hx-burger" aria-hidden="true">
-            <i />
-            <i />
-          </span>
-          <span className="hx-sr">{menu ? "Close menu" : "Open menu"}</span>
-        </button>
-        <div id={menuId} className="hx-menu" data-open={menu ? "true" : "false"} hidden={!menu}>
-          <nav aria-label="Menu">
+      {showNav ? (
+        <header className="hx-nav" data-sticky={stickyNav ? "true" : "false"} data-scrolled={scrolled ? "true" : "false"}>
+          <a className="hx-logo" href="#top" aria-label={c.brand}>
+            <svg viewBox="0 0 28 28" aria-hidden="true" className="hx-logo-mark">
+              <circle cx="7" cy="20" r="5" fill="none" stroke="currentColor" strokeWidth="2.4" />
+              <circle cx="21" cy="20" r="5" fill="none" stroke="currentColor" strokeWidth="2.4" />
+              <path d="M3 10H17L21 20M7 20L12 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
+              <rect x="3" y="7" width="12" height="3" className="hx-logo-deck" />
+            </svg>
+            <span>{c.brand}</span>
+          </a>
+          <nav className="hx-links" aria-label={c.brand}>
             {c.nav.map((l) => (
               <a key={l.label} href={l.href}>
-                {l.label}
+                <span>{l.label}</span>
               </a>
             ))}
-            <a href={c.cta.href} className="hx-menu-cta">
-              {c.cta.label}
-            </a>
           </nav>
-        </div>
-      </header>
+          <a className="hx-btn hx-btn-accent hx-nav-cta" href={c.cta.href}>
+            <span>{c.cta.label}</span>
+            <Arrow />
+          </a>
+          <button ref={menuBtn} type="button" className="hx-menu-btn" aria-expanded={menu} aria-controls={menuId} onClick={() => setMenu((m) => !m)}>
+            <span className="hx-burger" aria-hidden="true">
+              <i />
+              <i />
+            </span>
+            <span className="hx-sr">{menu ? L.menuClose : L.menuOpen}</span>
+          </button>
+          {menu ? <div className="hx-scrim" aria-hidden="true" onClick={() => setMenu(false)} /> : null}
+          <div id={menuId} className="hx-menu" data-open={menu ? "true" : "false"} hidden={!menu}>
+            <nav aria-label={c.brand}>
+              {c.nav.map((l) => (
+                <a key={l.label} href={l.href}>
+                  {l.label}
+                </a>
+              ))}
+              <a href={c.cta.href} className="hx-menu-cta">
+                {c.cta.label}
+              </a>
+            </nav>
+          </div>
+        </header>
+      ) : null}
 
-      <main className="hx-main" id="hx-main" tabIndex={-1}>
+      <main className="hx-main" id={mainId} tabIndex={-1}>
         <Hero
-          c={c}
+          x={x}
           height={height}
           autoplay={autoplay}
           reduced={reduced}
           onBuild={(m) => {
             setBuild(m)
-            setNote("Loaded into the builder. Change any part below.")
+            setNote(L.loaded)
             scrollToHash("#configure")
           }}
         />
-        <Configurator c={c} build={build} setBuild={setBuild} note={note} setNote={setNote} />
-        <Specs c={c} />
-        <Ownership c={c} />
-        <Riders c={c} />
-        <Reserve c={c} build={build} onReserve={onReserve} />
-        <Faq c={c} />
+        {order.map((k) => sectionEls[k])}
       </main>
-      <Footer c={c} onTop={() => scrollToHash("#top")} />
+      <Footer x={x} onTop={() => scrollToHash("#top")} />
     </div>
   )
 }
@@ -1729,7 +2050,7 @@ const HX_CSS = `
   font-family:var(--hx-sans);font-size:16px;line-height:1.5;overflow-x:clip;container-type:inline-size;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
-.hx-root[data-theme="dark"]{
+.hx-root[data-theme="dark"],.dark .hx-root[data-theme="auto"]{
   --hx-page:#0c0d0e;--hx-page-ink:#f1f2f3;--hx-page-muted:#9ba1a8;--hx-page-line:rgba(255,255,255,.1);
   --hx-panel:#1a1c1f;--hx-card:#24272b;
   --hx-paper:#24272b;--hx-paper-ink:#f1f2f3;--hx-paper-muted:#a3a9b0;--hx-paper-line:rgba(255,255,255,.1);
@@ -1752,7 +2073,9 @@ const HX_CSS = `
 .hx-photo{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain}
 
 /* nav */
-.hx-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;height:72px;padding:0 calc(var(--hx-gut) + 8px);background:var(--hx-page);transition:box-shadow .2s ease}
+.hx-nav{position:relative;z-index:20;display:flex;align-items:center;gap:10px;height:72px;padding:0 calc(var(--hx-gut) + 8px);background:var(--hx-page);transition:box-shadow .2s ease}
+.hx-nav[data-sticky="true"]{position:sticky;top:0}
+.hx-scrim{position:fixed;inset:0;z-index:-1;background:rgba(8,9,10,.55);animation:hx-fade .2s ease both}
 .hx-nav[data-scrolled="true"]{box-shadow:0 1px 0 var(--hx-page-line)}
 .hx-logo{display:inline-flex;align-items:center;gap:8px;min-width:0;font-family:var(--hx-display);font-weight:900;font-size:clamp(18px,5cqi,22px);letter-spacing:-.02em;text-transform:uppercase;margin-right:auto}
 .hx-logo-mark{width:30px;height:30px}
@@ -1813,22 +2136,28 @@ const HX_CSS = `
 .hx-reveal.hx-pre{opacity:0;transform:translateY(28px)}
 
 /* hero */
-.hx-hero{--hx-h:100svh;display:flex;flex-direction:column;overflow:hidden;padding:clamp(12px,1.4vw,18px);gap:0}
-.hx-hero-card{position:relative;z-index:1;display:grid;gap:20px;background:var(--hx-card);border-radius:calc(var(--hx-r) - 8px);padding:clamp(22px,3vw,44px) clamp(22px,3.4vw,52px) clamp(56px,6cqi,96px)}
-.hx-h1{font-size:clamp(34px,10cqi,64px);min-height:calc(3 * .92em)}
+.hx-hero{--hx-h:100svh;--hx-pw:125%;--hx-ovf:.34;display:flex;flex-direction:column;overflow:hidden;padding:clamp(12px,1.4vw,18px);gap:0}
+.hx-hero-card{position:relative;z-index:1;display:grid;gap:18px;background:var(--hx-card);border-radius:calc(var(--hx-r) - 8px);padding:clamp(22px,3vw,44px) clamp(22px,3.4vw,52px) calc(var(--hx-pw) * .6 * var(--hx-ovf) + 18px)}
+.hx-h1{font-size:clamp(34px,10cqi,64px)}
+.hx-h1-stack{display:grid}
+.hx-h1-v{grid-area:1/1;visibility:hidden}
+.hx-h1-v[data-on="true"]{visibility:visible}
+.hx-h1-v[data-on="false"] .hx-word{animation:none}
 .hx-h1-lead{color:var(--hx-ink)}
 .hx-h1-tail{color:#80868e}
 .hx-word{display:inline-block;animation:hx-word .55s var(--hx-ease) both}
 .hx-hero-side{display:flex;flex-direction:column;gap:18px}
-.hx-hero-body{color:var(--hx-muted);max-width:40ch;font-size:15px}
-.hx-hero-buy{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hx-hero-body{display:none;color:var(--hx-muted);max-width:40ch;font-size:15px}
+.hx-hero-note{color:var(--hx-muted);font-size:15px;padding:2px 8px 10px;max-width:46ch}
+.hx-hero-buy{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hx-hero-buy .hx-btn{height:42px;padding:0 14px 0 16px;font-size:13px}
 .hx-price{display:flex;flex-direction:column;line-height:1.1}
 .hx-price-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--hx-muted)}
 .hx-price-num{font-family:var(--hx-display);font-weight:900;font-size:26px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-.hx-stage{--hx-pw:100%;position:relative;z-index:2;flex:1 0 auto;display:flex;align-items:center;margin-top:clamp(-90px,-6cqi,-40px);touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.hx-stage-main{position:relative;width:var(--hx-pw);margin:0 auto}
+.hx-stage{position:relative;z-index:2;flex:1 0 auto;margin-top:calc(var(--hx-pw) * -.6 * var(--hx-ovf));touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.hx-stage-main{position:relative;width:var(--hx-pw);margin-left:-20%}
 .hx-plate{position:relative;width:100%;aspect-ratio:5/3}
-.hx-peek{display:none;position:absolute;top:50%;transform:translateY(-50%);width:var(--hx-pw);opacity:.22;filter:saturate(.4);pointer-events:none}
+.hx-peek{display:none;position:absolute;top:0;width:var(--hx-pw);opacity:.22;filter:saturate(.4);pointer-events:none}
 .hx-peek-l{right:calc(50% + var(--hx-pw) / 2 - 3%)}
 .hx-peek-r{left:calc(50% + var(--hx-pw) / 2 - 3%)}
 .hx-arrow{position:absolute;top:58%;z-index:3;display:none;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;color:var(--hx-ink);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3);background:rgba(26,28,31,.6);transition:transform .16s var(--hx-ease),box-shadow .2s ease,background-color .2s ease}
@@ -1915,7 +2244,18 @@ const HX_CSS = `
 .hx-b-shadow-a{stop-color:#000;stop-opacity:.55}
 .hx-b-shadow-b{stop-color:#000;stop-opacity:0}
 .hx-paper .hx-b-shadow-a{stop-opacity:.22}
-.hx-m-pad{fill:#33373c}
+.hx-m-pad{fill:#3a3f45}
+.hx-m-pad2{fill:#2b2f34}
+.hx-m-seam{fill:#4d535a}
+.hx-m-contact{fill:#000;opacity:.45}
+.hx-m-seamline{stroke:#2e3236}
+.hx-m-cap{fill:#26292d}
+.hx-m-lock{fill:#9aa0a6;stroke:#2a2d31;stroke-width:3}
+.hx-m-hinge{stroke:#2e3236}
+.hx-m-vent{stroke:#2e3236}
+.hx-m-stay{stroke:#2a2d31}
+.hx-m-bracket-fill{fill:#2a2d31}
+.hx-m-clamp{fill:#2a2d31;stroke:#6b7178;stroke-width:2}
 .hx-m-rail{stroke:#b3b9bf}
 .hx-m-glint{stroke:#ffffff;opacity:.35}
 .hx-m-bracket{stroke:#2a2d31}
@@ -2034,6 +2374,9 @@ const HX_CSS = `
 .hx-field input:focus-visible,.hx-select select:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--hx-accent)}
 .hx-field[data-error="true"] input,.hx-field[data-error="true"] select{box-shadow:inset 0 0 0 2px #ff7a6b}
 .hx-err{font-size:13px;color:#ff9b8f;font-weight:600}
+.hx-err-form{padding:10px 12px;border-radius:10px;background:rgba(255,122,107,.1)}
+.hx-btn[data-pending="true"]{cursor:progress;opacity:.85}
+.hx-spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:hx-spin .7s linear infinite}
 .hx-select{position:relative}
 .hx-select .hx-ico{position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--hx-muted)}
 .hx-select option{background:#1b1d20;color:#f1f2f3}
@@ -2071,12 +2414,14 @@ const HX_CSS = `
 .hx-foot-cols a{font-weight:600;transition:color .2s ease}
 .hx-foot-cols a:hover{color:var(--hx-page-muted);text-decoration:underline;text-decoration-color:var(--hx-accent);text-underline-offset:4px}
 .hx-wordmark{display:block;width:100%;height:auto;max-width:none;overflow:visible}
-.hx-wordmark text{font-family:var(--hx-display);font-weight:900;font-size:236px;letter-spacing:-.02em;fill:var(--hx-page-ink)}
+.hx-wordmark text{font-family:var(--hx-display);font-weight:900;fill:var(--hx-page-ink)}
 .hx-foot-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:13px;color:var(--hx-page-muted);border-top:1px solid var(--hx-page-line);padding-top:16px}
 .hx-foot-bottom .hx-link{color:var(--hx-page-ink)}
 
 @keyframes hx-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes hx-word{from{opacity:0;transform:translateY(.35em)}to{opacity:1;transform:none}}
+@keyframes hx-fade{from{opacity:0}to{opacity:1}}
+@keyframes hx-spin{to{transform:rotate(360deg)}}
 @keyframes hx-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 @container (min-width:720px){
@@ -2088,18 +2433,22 @@ const HX_CSS = `
   .hx-menu[hidden]{display:none}
 
   .hx-arrow{display:inline-flex}
-  .hx-stage{--hx-pw:min(90%,1080px,max(520px,calc((var(--hx-h) - 380px) * 1.6667)))}
+  .hx-hero{--hx-pw:78%;--hx-ovf:.3}
+  .hx-stage-main{margin:0 auto}
   .hx-peek{display:block}
-  .hx-h1{font-size:clamp(40px,7cqi,80px);min-height:calc(2 * .92em)}
+  .hx-h1{font-size:clamp(40px,7cqi,80px)}
   .hx-hero-side{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:24px}
-  .hx-hero-body{max-width:46ch}
+  .hx-hero-body{display:block;max-width:46ch}
+  .hx-hero-note{display:none}
+  .hx-hero-buy{justify-content:flex-start}
+  .hx-hero-buy .hx-btn{height:46px;padding:0 18px 0 20px;font-size:14px}
   .hx-tag,.hx-lead{display:block}
   .hx-chips{display:none}
   .hx-bar{grid-template-columns:1fr auto 1fr;padding:14px 28px 14px}
   .hx-caption{grid-column:auto;font-size:24px}
   .hx-count{justify-content:flex-end}
   .hx-tick{width:34px}
-  .hx-spec-grid{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:32px}
+  .hx-spec-grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px}
   .hx-step{grid-template-columns:90px minmax(0,1.1fr) minmax(0,1.6fr) 140px;grid-template-areas:"n h p t";align-items:baseline;padding:26px 0}
   .hx-step-n{font-size:56px}
   .hx-step-time{text-align:right;margin:0}
@@ -2107,20 +2456,21 @@ const HX_CSS = `
   .hx-own-head .hx-lede,.hx-specs-head .hx-lede{justify-self:end}
   .hx-riders-body{grid-template-columns:minmax(0,1fr) minmax(0,2.2fr);gap:56px;align-items:start}
   .hx-reserve{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
-  .hx-faq{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}
   .hx-foot-top{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
 }
 @container (min-width:1080px){
-  .hx-hero-card{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);align-items:start;gap:40px;padding-bottom:clamp(40px,3cqi,56px)}
+  .hx-hero{--hx-pw:min(84%,1080px,max(560px,calc((var(--hx-h) - 380px) * 1.6667)));min-height:calc(var(--hx-h) - 72px)}
+  .hx-hero-card{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);align-items:start;gap:40px}
   .hx-hero-side{flex-direction:column;align-items:stretch;justify-content:flex-start;padding-top:10px}
-  .hx-h1{font-size:clamp(40px,5.4cqi,80px);min-height:calc(3 * .92em)}
-  .hx-stage{--hx-pw:min(84%,1080px,max(560px,calc((var(--hx-h) - 380px) * 1.6667)))}
+  .hx-h1{font-size:clamp(40px,5.4cqi,80px)}
+  .hx-spec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hx-faq{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}
   .hx-config{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);grid-template-areas:"art head" "art side";grid-template-rows:auto 1fr;align-items:start}
   .hx-config-art{position:sticky;top:90px}
 }
 @container (max-width:719px){
   .hx-dimtag{font-size:10px;padding:3px 5px}
-  .hx-dimtag-deck{display:none}
+  .hx-dimtag-deck,.hx-dim-deck{display:none}
   .hx-qa-a{padding:0 0 18px 58px}
 }
 
