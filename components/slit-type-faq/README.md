@@ -23,7 +23,8 @@ along.
 - Search across questions and answers, with every word matched in any order and the matches
   marked. When a match is in an answer, a short excerpt around it appears under the question. Esc clears it, ↓ jumps to the first result, and an empty result offers to show
   every question again.
-- Optional category chips with live counts, and an optional ticker between rules.
+- Optional category chips with live counts, and an optional ticker between rules. The ticker
+  pauses on hover and on keyboard focus, and has its own pause button.
 - Light and dark versions of every preset. `theme="auto"` follows a `.dark` class on any
   ancestor (the shadcn / Tailwind convention).
 - Under `prefers-reduced-motion` the headline is simply there, the ticker stands still and
@@ -39,7 +40,7 @@ screen.
 |---|---|---|
 | `items` | 8 questions for a risograph print shop | `{ question, answer, answerText?, category?, id? }[]`. `answer` is any node; give `answerText` for search when it is not a string (otherwise its text is extracted). |
 | `headline` | "Before you\nsend files" | Set in capitals. `\n` breaks the line. Pass `""` to drop it. Screen readers get it as one plain string. |
-| `slit` | `0.42` | Share of each capital hidden by the slit at rest, `0` to `0.5`. `0` sets the headline whole. |
+| `slit` | `0.42` | Share of each capital hidden by the slit at rest, `0` to `0.5`. `0` sets the headline whole. Containers under 560 px cut a little shallower so the phone headline still reads. Very shallow cuts (under about 0.35) can leave slivers of round letters such as S. |
 | `intro` | one line about riso | Any node, shown beside the search. |
 | `preset` | `"signal"` | `signal` (red on white), `cobalt`, `moss`, `carbon`. Each has a designed dark version. |
 | `palette` / `darkPalette` | none | Override `paper`, `ink`, `onInk`. Without `onInk`, the text on the flood is picked for 4.5:1 contrast. |
@@ -50,12 +51,12 @@ screen.
 | `idPrefix` | `""` | Prefixed to every id, so two FAQs on one page never share a `#hash`. |
 | `search` / `searchLabel` | `true` / "Search the answers" | |
 | `categories` | none | Chip labels matched against `item.category`. Omit to hide the chips. |
-| `ticker` | none | Short phrases that run between rules under the headline. Pauses on hover. |
+| `ticker` | none | Short phrases that run between rules under the headline. Screen readers get them once, as text. |
 | `contact` | "Still have a question?" + mail link | `{ prompt, label, href }` or `null`. |
 | `copyLinks` | `true` | Copy-link button in each open answer. |
 | `syncHash` | `false` | Write the open question's id into `location.hash`. |
 | `minHeight` | `0` | Any CSS length. |
-| `displayFont` / `textFont` | Helvetica Neue, Inter, Arial Black / Arial | Pass your own stacks, e.g. `"var(--font-sans)"`. The headline wants a heavy weight (800 to 900). |
+| `displayFont` / `textFont` | Inter, then the system UI face (SF Pro, Segoe UI), Helvetica Neue, Arial | Pass your own stacks, e.g. `"var(--font-sans)"`. The headline is set at weight 900, so pick a family that has one. |
 | `onOpenChange` | none | Called with the ids of the open questions. |
 | `className`, `style`, `ariaLabel` | | |
 

@@ -29,7 +29,6 @@ export default function SlitTypeFaqCobaltDemo() {
                 </p>
               </>
             ),
-            answerText: "Yes. Drop in an xlsx or csv export and Rostra matches names to staff and times to shifts. import guide column layout spreadsheet",
           },
           {
             category: "Setup",

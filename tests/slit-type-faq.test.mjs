@@ -133,8 +133,11 @@ assert.deepEqual(clipRules(".stf-fill"), clipRules(".stf-row--inv"), "fill and i
 assert.equal(clipRules(".stf-fill").length, 3, "closed, open and closing clips")
 
 // The headline sits in its slit at rest, also under reduced motion.
-assert.ok(/transform: translateY\(var\(--stf-cut\)\);\n  transition: transform/.test(css), "letters rest at the cut")
-assert.ok(reduced.includes("translateY(var(--stf-cut))"), "reduced motion keeps the cut")
+assert.ok(/transform: translateY\(calc\(var\(--stf-cut\) \* var\(--stf-cut-k\)\)\);\n  transition: transform/.test(css), "letters rest at the cut")
+assert.ok(reduced.includes("translateY(calc(var(--stf-cut) * var(--stf-cut-k)))"), "reduced motion keeps the cut")
+
+// Moving content can be paused without a mouse (WCAG 2.2.2).
+assert.ok(/stf-ticker:focus-within \.stf-ticker-track/.test(css) && src.includes('aria-pressed={tickerPaused}'), "ticker pauses on focus and has a pause button")
 assert.ok(/slit = 0\.42,/.test(src), "sliced by default")
 
 // 21st's parser: no TypeScript generics before the first JSX element closes.
