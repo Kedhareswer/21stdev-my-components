@@ -68,7 +68,20 @@ export type HitchSectionCopy = { title: string; intro: string }
 export type HitchSpecsCopy = { title: string; intro: string; rows: HitchSpec[]; dimensions: HitchDimensions }
 export type HitchOwnershipCopy = { title: string; intro: string; steps: HitchStep[] }
 export type HitchRidersCopy = { title: string; items: HitchRider[] }
-export type HitchReserveCopy = { title: string; body: string; cities: string[]; button: string; fineprint: string; batch: string }
+export type HitchReserveCopy = {
+  title: string
+  body: string
+  cities: string[]
+  button: string
+  fineprint: string
+  /** Shown after submit, e.g. when the next batch opens. */
+  batch: string
+  /** The opt-in checkbox label, and the line added to the confirmation when it is ticked. */
+  checkbox: string
+  checkboxNote: string
+  /** Confirmation heading; "{name}" is replaced with the first name. */
+  doneTitle: string
+}
 export type HitchFaqCopy = { title: string; items: HitchFaq[] }
 export type HitchFooterCopy = { tagline: string; columns: HitchColumn[]; legal: string }
 export type HitchModulePatch = { name?: string; code?: string; mount?: HitchMount; price?: number; weight?: number; range?: number; note?: string }
@@ -660,6 +673,9 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       button: "Reserve this build",
       fineprint: "No card today. The $150 deposit is due when your batch opens, and it is refundable until delivery.",
       batch: "Batch 07 opens in March.",
+      checkbox: "Book a test ride before the deposit",
+      checkboxNote: "A partner shop will offer test ride times first.",
+      doneTitle: "Slot held for {name}.",
     },
     faq: {
       title: "Questions",
@@ -761,6 +777,9 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       button: "Request the quote",
       fineprint: "No commitment. Quotes include service, insurance and replacements.",
       batch: "Trials start every month.",
+      checkbox: "Include a two week trial with five bikes",
+      checkboxNote: "The quote includes a trial on your busiest route.",
+      doneTitle: "Quote on its way, {name}.",
     },
     faq: {
       title: "Fleet questions",
@@ -976,7 +995,7 @@ function Hero({
       </ul>
 
       <div className="hx-bar">
-        <p className="hx-caption" aria-live="polite">
+        <p className="hx-caption" aria-live={running ? "off" : "polite"}>
           {build.caption}
         </p>
         <div className="hx-ticks" role="group" aria-label="Choose a build">
@@ -1314,10 +1333,10 @@ function Reserve({
       {done ? (
         <div className="hx-done" role="status">
           <p className="hx-done-code">{done.code}</p>
-          <h3 className="hx-h3">Slot held for {done.name.split(" ")[0]}.</h3>
+          <h3 className="hx-h3">{c.reserve.doneTitle.replace("{name}", done.name.split(" ")[0])}</h3>
           <p>
             We sent the build to {done.email}. {c.reserve.batch}
-            {done.testRide ? " A partner shop will offer test ride times first." : ""}
+            {done.testRide ? " " + c.reserve.checkboxNote : ""}
           </p>
           <button type="button" className="hx-link" onClick={() => setDone(null)}>
             Edit the details
@@ -1399,7 +1418,7 @@ function Reserve({
                 <path d="M3.5 8.5L6.5 11.5L12.5 4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <span>Book a test ride before the deposit</span>
+            <span>{c.reserve.checkbox}</span>
           </label>
           <button type="submit" className="hx-btn hx-btn-accent hx-btn-wide">
             <span>{c.reserve.button}</span>
@@ -1550,6 +1569,7 @@ export default function HitchCargoLanding({
     const target = href === "#top" ? root : (root.querySelector(href) as HTMLElement | null)
     if (!target) return false
     target.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" })
+    if (href === "#hx-main") target.focus({ preventScroll: true })
     return true
   }
 
@@ -1624,6 +1644,9 @@ export default function HitchCargoLanding({
       onClick={onLink}
     >
       <style>{HX_CSS}</style>
+      <a className="hx-skip" href="#hx-main">
+        Skip to content
+      </a>
       <header className="hx-nav" data-scrolled={scrolled ? "true" : "false"}>
         <a className="hx-logo" href="#top" aria-label={c.brand + ", back to top"}>
           <svg viewBox="0 0 28 28" aria-hidden="true" className="hx-logo-mark">
@@ -1666,7 +1689,7 @@ export default function HitchCargoLanding({
         </div>
       </header>
 
-      <main className="hx-main">
+      <main className="hx-main" id="hx-main" tabIndex={-1}>
         <Hero
           c={c}
           height={height}
@@ -1719,15 +1742,19 @@ const HX_CSS = `
 .hx-root :where(a){color:inherit;text-decoration:none}
 .hx-root ::selection{background:var(--hx-accent);color:var(--hx-on-accent)}
 .hx-root :where(a,button,input,select,[tabindex]):focus-visible{outline:2px solid var(--hx-accent);outline-offset:3px;border-radius:6px}
+.hx-nav :focus-visible,.hx-foot :focus-visible{outline-color:var(--hx-page-ink)}
+.hx-skip{position:absolute;left:12px;top:-60px;z-index:30;padding:10px 16px;border-radius:999px;background:var(--hx-page-ink);color:var(--hx-page);font-weight:700;font-size:14px;transition:top .2s var(--hx-ease)}
+.hx-skip:focus{top:12px}
+.hx-root p{text-wrap:pretty}
 .hx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hx-ico{width:18px;height:18px;flex:none;display:block}
 .hx-svg{display:block;width:100%;height:100%;max-width:none;overflow:visible}
 .hx-photo{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain}
 
 /* nav */
-.hx-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;height:72px;padding:0 calc(var(--hx-gut) + 8px);background:var(--hx-page);transition:box-shadow .2s ease}
+.hx-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;height:72px;padding:0 calc(var(--hx-gut) + 8px);background:var(--hx-page);transition:box-shadow .2s ease}
 .hx-nav[data-scrolled="true"]{box-shadow:0 1px 0 var(--hx-page-line)}
-.hx-logo{display:inline-flex;align-items:center;gap:10px;font-family:var(--hx-display);font-weight:900;font-size:22px;letter-spacing:-.02em;text-transform:uppercase;margin-right:auto}
+.hx-logo{display:inline-flex;align-items:center;gap:8px;min-width:0;font-family:var(--hx-display);font-weight:900;font-size:clamp(18px,5cqi,22px);letter-spacing:-.02em;text-transform:uppercase;margin-right:auto}
 .hx-logo-mark{width:30px;height:30px}
 .hx-logo-deck{fill:var(--hx-accent)}
 .hx-links{display:none;gap:4px}
@@ -1736,7 +1763,8 @@ const HX_CSS = `
 .hx-links a span::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:2px;background:var(--hx-accent);transform:scaleX(0);transform-origin:right;transition:transform .25s var(--hx-ease)}
 .hx-links a:hover{color:var(--hx-page-ink)}
 .hx-links a:hover span::after{transform:scaleX(1);transform-origin:left}
-.hx-nav-cta{display:none}
+.hx-nav .hx-nav-cta{height:40px;padding:0 14px;font-size:13px;letter-spacing:.03em}
+.hx-nav .hx-nav-cta .hx-ico{display:none}
 .hx-menu-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:var(--hx-panel);color:var(--hx-ink)}
 .hx-burger{position:relative;width:18px;height:10px}
 .hx-burger i{position:absolute;left:0;right:0;height:2px;background:currentColor;border-radius:2px;transition:transform .25s var(--hx-ease)}
@@ -1772,6 +1800,7 @@ const HX_CSS = `
 .hx-link .hx-ico{width:15px;height:15px}
 
 /* sheets */
+.hx-main:focus{outline:none}
 .hx-main{display:flex;flex-direction:column;gap:var(--hx-gut);padding:0 var(--hx-gut)}
 .hx-sheet,.hx-hero{scroll-margin-top:84px;position:relative;background:var(--hx-panel);color:var(--hx-ink);border-radius:var(--hx-r);padding:clamp(22px,4vw,56px)}
 .hx-paper{background:var(--hx-paper);color:var(--hx-paper-ink);--hx-muted:var(--hx-paper-muted);--hx-line:var(--hx-paper-line)}
@@ -1818,8 +1847,8 @@ const HX_CSS = `
 .hx-caption{grid-column:1/-1;font-family:var(--hx-display);font-weight:900;text-transform:uppercase;letter-spacing:-.01em;font-size:20px;line-height:1}
 .hx-ticks{display:flex;gap:4px}
 .hx-tick{position:relative;width:26px;height:24px}
-.hx-tick::before{content:"";position:absolute;left:0;right:0;top:9px;height:6px;border-radius:2px;background:#4a4f56;transition:background-color .2s ease}
-.hx-tick:hover::before{background:#6b7179}
+.hx-tick::before{content:"";position:absolute;left:0;right:0;top:9px;height:6px;border-radius:2px;background:#6b7179;transition:background-color .2s ease}
+.hx-tick:hover::before{background:#9aa0a7}
 .hx-tick-fill{position:absolute;left:0;right:0;top:9px;height:6px;border-radius:2px;background:var(--hx-accent);transform:scaleX(0);transform-origin:left}
 .hx-tick[aria-current="true"] .hx-tick-fill{transform:scaleX(1)}
 .hx-tick[aria-current="true"] .hx-tick-fill[style]{animation:hx-fill linear both}
@@ -1912,7 +1941,7 @@ const HX_CSS = `
 .hx-m-cell{fill:#25282c}
 .hx-m-led{fill:var(--hx-accent)}
 .hx-m-led-off{fill:#4a4f56}
-.hx-mod{opacity:0;transform:translateY(-36px);transition:opacity .14s ease,transform .16s ease}
+.hx-mod{opacity:0;transform:translateY(-36px);transition:opacity .14s ease,transform 0s linear .15s}
 .hx-mod[data-on="true"]{opacity:1;transform:none;transition:opacity .22s ease,transform .38s cubic-bezier(.3,1.25,.5,1)}
 .hx-paper .hx-svg .hx-b-fork,.hx-paper .hx-svg .hx-b-stem,.hx-paper .hx-svg .hx-b-bar{stroke:#2a2d31}
 .hx-dim-ext{stroke:var(--hx-muted);stroke-dasharray:3 4;opacity:.7}
@@ -1941,7 +1970,7 @@ const HX_CSS = `
 .hx-part:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
 .hx-part:active{transform:scale(.985)}
 .hx-part[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--hx-accent);background:color-mix(in srgb,var(--hx-accent) 8%,var(--hx-card))}
-.hx-part-box{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-top:1px;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3);color:var(--hx-on-accent);transition:background-color .2s ease,box-shadow .2s ease}
+.hx-part-box{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-top:1px;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45);color:var(--hx-on-accent);transition:background-color .2s ease,box-shadow .2s ease}
 .hx-part-check{width:14px;height:14px;opacity:0;transform:scale(.6);transition:opacity .15s ease,transform .25s var(--hx-ease)}
 .hx-part[aria-pressed="true"] .hx-part-box,.hx-check input:checked + .hx-part-box{background:var(--hx-accent);box-shadow:none}
 .hx-part[aria-pressed="true"] .hx-part-check,.hx-check input:checked + .hx-part-box .hx-part-check{opacity:1;transform:none}
@@ -2000,8 +2029,8 @@ const HX_CSS = `
 .hx-form,.hx-done{display:flex;flex-direction:column;gap:16px;background:var(--hx-card);border-radius:calc(var(--hx-r) - 8px);padding:clamp(18px,2.6vw,36px);align-self:start}
 .hx-field{display:flex;flex-direction:column;gap:6px}
 .hx-field label{font-size:13px;font-weight:700}
-.hx-field input,.hx-select select{height:50px;width:100%;padding:0 14px;border-radius:12px;border:0;background:var(--hx-panel);color:var(--hx-ink);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);transition:box-shadow .2s ease;appearance:none;-webkit-appearance:none}
-.hx-field input:hover,.hx-select select:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.34)}
+.hx-field input,.hx-select select{height:50px;width:100%;padding:0 14px;border-radius:12px;border:0;background:var(--hx-panel);color:var(--hx-ink);box-shadow:inset 0 0 0 1px rgba(255,255,255,.34);transition:box-shadow .2s ease;appearance:none;-webkit-appearance:none}
+.hx-field input:hover,.hx-select select:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
 .hx-field input:focus-visible,.hx-select select:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--hx-accent)}
 .hx-field[data-error="true"] input,.hx-field[data-error="true"] select{box-shadow:inset 0 0 0 2px #ff7a6b}
 .hx-err{font-size:13px;color:#ff9b8f;font-weight:600}
@@ -2051,8 +2080,10 @@ const HX_CSS = `
 @keyframes hx-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 @container (min-width:720px){
+  .hx-nav{gap:20px}
   .hx-links{display:flex}
-  .hx-nav-cta{display:inline-flex}
+  .hx-nav .hx-nav-cta{height:46px;padding:0 18px 0 20px;font-size:14px}
+  .hx-nav .hx-nav-cta .hx-ico{display:block}
   .hx-menu-btn,.hx-menu{display:none}
   .hx-menu[hidden]{display:none}
 
