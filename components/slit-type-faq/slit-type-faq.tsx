@@ -55,9 +55,9 @@ export type SlitTypeFaqProps = {
   intro?: React.ReactNode
   preset?: SlitPreset
   /** Override the light palette of the preset. */
-  palette?: Partial<SlitPalette>
+  palette?: SlitPaletteInput
   /** Override the dark palette of the preset. */
-  darkPalette?: Partial<SlitPalette>
+  darkPalette?: SlitPaletteInput
   /** "auto" follows a `.dark` class on any ancestor (shadcn / Tailwind convention). */
   theme?: "auto" | "light" | "dark"
   /** "single" closes the open question when another opens. */
@@ -92,7 +92,7 @@ export type SlitTypeFaqProps = {
   style?: React.CSSProperties
 }
 
-const PRESETS: Record<SlitPreset, { light: SlitPalette; dark: SlitPalette }> = {
+const PRESETS: { [k: string]: { light: SlitPalette; dark: SlitPalette } } = {
   signal: {
     light: { paper: "#ffffff", ink: "#e10e17", onInk: "#ffffff" },
     dark: { paper: "#140c0c", ink: "#ff4a3d", onInk: "#140c0c" },
@@ -126,7 +126,7 @@ export function slugify(s: string): string {
 
 /** Ids for every item: its own id, or a slug of the question, made unique. */
 export function itemIds(questions: string[], ids: (string | undefined)[]): string[] {
-  const seen: Record<string, number> = {}
+  const seen: { [k: string]: number } = {}
   return questions.map((q, i) => {
     const base = ids[i] || slugify(q)
     seen[base] = (seen[base] || 0) + 1
@@ -1241,3 +1241,6 @@ function queryHint(items: FaqItem[]): string {
   }
   return ""
 }
+
+// Declared after the JSX: the 21st CLI tokenizer hangs on generics before it.
+export type SlitPaletteInput = Partial<SlitPalette>

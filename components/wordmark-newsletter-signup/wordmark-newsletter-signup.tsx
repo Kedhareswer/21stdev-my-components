@@ -88,9 +88,9 @@ export type WordmarkNewsletterSignupProps = {
   onOpenChange?: (open: boolean) => void
   preset?: WordmarkPreset
   /** Override the preset's light colours. */
-  palette?: Partial<WordmarkPalette>
+  palette?: WordmarkPaletteInput
   /** Override the preset's dark colours. */
-  darkPalette?: Partial<WordmarkPalette>
+  darkPalette?: WordmarkPaletteInput
   /** "auto" follows a `.dark` class on any ancestor (shadcn / Tailwind convention). */
   theme?: "auto" | "light" | "dark"
   /** Section minimum height. Any definite CSS length. */
@@ -111,7 +111,7 @@ export type WordmarkNewsletterSignupProps = {
   style?: React.CSSProperties
 }
 
-const PRESETS: Record<WordmarkPreset, { light: WordmarkPalette; dark: WordmarkPalette }> = {
+const PRESETS: { [k: string]: { light: WordmarkPalette; dark: WordmarkPalette } } = {
   sauce: {
     light: { ground: "#f6c6b8", mark: "#c4111b", paper: "#ffffff", ink: "#0e0e0e", accent: "#d80f1a", onAccent: "#ffffff" },
     dark: { ground: "#151212", mark: "#a50c15", paper: "#0b0b0b", ink: "#f3efe9", accent: "#ff4249", onAccent: "#0b0b0b" },
@@ -1118,3 +1118,6 @@ export default function WordmarkNewsletterSignup({
     </section>
   )
 }
+
+// Declared after the JSX: the 21st CLI tokenizer hangs on generics before it.
+export type WordmarkPaletteInput = Partial<WordmarkPalette>

@@ -110,7 +110,7 @@ export type DuotoneTeamRosterProps = {
   secondaryCta?: RosterLink | null
   preset?: RosterPreset
   /** Overrides any colour of the preset. */
-  palette?: Partial<RosterPalette>
+  palette?: RosterPaletteInput
   /** Portrait columns on wide screens (2 to 4). Tablets get 2; phones a strip. */
   columns?: number
   /** Seconds a column takes to drift past one portrait. Lower is faster. */
@@ -126,7 +126,7 @@ export type DuotoneTeamRosterProps = {
   uppercase?: boolean
   grain?: boolean
   /** Built-in strings (pause, play, team, openRole, hiring, roleLink, memberLink). */
-  labels?: Partial<RosterLabels>
+  labels?: RosterLabelsInput
   className?: string
   /** Called when a portrait is clicked or opened with the keyboard. */
   onMemberSelect?: (member: TeamMember) => void
@@ -878,3 +878,7 @@ export default function DuotoneTeamRoster({
     </section>
   )
 }
+
+// Declared after the JSX: the 21st CLI tokenizer hangs on generics before it.
+export type RosterPaletteInput = Partial<RosterPalette>
+export type RosterLabelsInput = Partial<RosterLabels>
