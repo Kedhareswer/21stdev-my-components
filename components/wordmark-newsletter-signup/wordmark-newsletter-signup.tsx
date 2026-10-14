@@ -74,6 +74,8 @@ export type WordmarkNewsletterSignupProps = {
   /** Shown after a signup. A function gets the address. */
   successCopy?: React.ReactNode | ((email: string) => React.ReactNode)
   resetLabel?: string
+  /** Where the success state leads next, e.g. the latest issue. Set as a hard-bordered button. */
+  successAction?: { label: string; href: string } | null
   /**
    * Called with the address, topics and consent. Return (or resolve) to show the success state;
    * throw (or reject) with an Error to show its message. Without it the form succeeds after a short pause.
@@ -130,7 +132,9 @@ const PRESETS: Record<WordmarkPreset, { light: WordmarkPalette; dark: WordmarkPa
   },
 }
 
-const DISPLAY_FONT = '"Arial Black", "Helvetica Neue", Inter, "Liberation Sans", Arial, sans-serif'
+// Set condensed: Helvetica Neue resolves to its Condensed Black on Apple systems, Arial Narrow and
+// Roboto Condensed where installed; elsewhere the heavy fallbacks are measured and stretched upright.
+const DISPLAY_FONT = '"Helvetica Neue", "Arial Narrow", "Roboto Condensed", "Arial Black", Inter, "Liberation Sans", Arial, sans-serif'
 const TEXT_FONT = '"Helvetica Neue", Helvetica, Inter, "Liberation Sans", Arial, sans-serif'
 
 // #region logic
@@ -139,7 +143,7 @@ export function isEmail(s: string): boolean {
 }
 
 /** Display size for the email field: full size while it fits, then shrinks with the address down to a floor. */
-export function emailFontSize(length: number, max = 26, min = 15, fits = 17): number {
+export function emailFontSize(length: number, max = 26, min = 14, fits = 17): number {
   if (length <= fits) return max
   return Math.max(min, Math.round(((max * fits) / length) * 10) / 10)
 }
@@ -247,6 +251,8 @@ export function layoutWordmark(
     }
   }
 
+  // One line alone in a tall field would leave it lopsided; it is set twice, top and bottom, like a sign.
+  if (o.mode === "fill" && best.lines.length === 1 && box.h - 2 * o.padY > 2.4 * best.cap) best = { ...best, lines: [best.lines[0], best.lines[0]] }
   const n = best.lines.length
   const cap = best.cap
   const total = stackH(n, cap)
@@ -292,13 +298,13 @@ export function contrast(a: string, b: string): number {
 }
 
 /** First colour that reads at 4.5:1 on the ground, else the one that reads best. Non-hex colours pass through. */
-export function pickReadable(ground: string, options: string[]): string {
+export function pickReadable(ground: string, options: string[], min = 4.5): string {
   let best = options[0]
   let bestC = -1
   for (const c of options) {
     const r = contrast(c, ground)
     if (Number.isNaN(r)) return options[0]
-    if (r >= 4.5) return c
+    if (r >= min) return c
     if (r > bestC) {
       bestC = r
       best = c
@@ -311,7 +317,7 @@ export function pickReadable(ground: string, options: string[]): string {
 const CSS = `
 .wns, .wns *, .wns *::before, .wns *::after { box-sizing: border-box; }
 .wns {
-  --g: var(--wl-ground); --m: var(--wl-mark); --p: var(--wl-paper); --k: var(--wl-ink); --a: var(--wl-accent); --oa: var(--wl-onAccent); --hl: var(--wl-headline); --u: var(--wl-under);
+  --g: var(--wl-ground); --m: var(--wl-mark); --p: var(--wl-paper); --k: var(--wl-ink); --a: var(--wl-accent); --oa: var(--wl-onAccent); --hl: var(--wl-headline); --u: var(--wl-under); --r: var(--wl-ring);
   --wns-out: cubic-bezier(0.23, 1, 0.32, 1);
   --wns-settle: cubic-bezier(0.2, 1.22, 0.36, 1);
   position: relative; width: 100%; background: var(--g); color: var(--k);
@@ -319,13 +325,14 @@ const CSS = `
   -webkit-font-smoothing: antialiased;
 }
 :where(.dark) .wns[data-theme="auto"], .wns[data-theme="dark"] {
-  --g: var(--wd-ground); --m: var(--wd-mark); --p: var(--wd-paper); --k: var(--wd-ink); --a: var(--wd-accent); --oa: var(--wd-onAccent); --hl: var(--wd-headline); --u: var(--wd-under);
+  --g: var(--wd-ground); --m: var(--wd-mark); --p: var(--wd-paper); --k: var(--wd-ink); --a: var(--wd-accent); --oa: var(--wd-onAccent); --hl: var(--wd-headline); --u: var(--wd-under); --r: var(--wd-ring);
 }
 .wns ::selection { background: var(--a); color: var(--oa); }
-.wns-section { display: grid; place-items: center; padding: clamp(72px, 9vw, 120px) 16px; }
+.wns-section { min-height: var(--wns-h); display: grid; place-items: center; padding: clamp(72px, 9vw, 120px) 16px; }
 .wns-mark { position: absolute; inset: 0; z-index: 0; pointer-events: none; font-family: var(--wns-display); }
 .wns-mark svg { display: block; width: 100%; height: 100%; overflow: visible; max-width: none; }
-.wns-mark text { fill: var(--m); font-weight: 900; font-size: 100px; }
+.wns-mark text { fill: var(--m); font-weight: 900; font-size: 100px; font-stretch: condensed; }
+.wns-mark[data-stretch="normal"] text { font-stretch: normal; }
 .wns-letter { transform: translateY(0); }
 .wns-letter[data-phase="out"] { transform: translateY(var(--drop)); transition: transform 300ms cubic-bezier(0.5, 0, 0.75, 0.3); }
 .wns-letter[data-phase="pre"] { transform: translateY(calc(var(--drop) * -1)); transition: none; }
@@ -349,12 +356,13 @@ const CSS = `
 .wns-form { margin: 26px 0 0; display: grid; gap: 16px; }
 .wns-field { position: relative; display: block; border: 3px solid var(--k); background: var(--p); padding: 9px 14px 8px; cursor: text;
   transition: box-shadow 160ms ease; }
-.wns-field:focus-within { box-shadow: 0 0 0 3px var(--p), 0 0 0 6px var(--a); }
+.wns-field:focus-within { box-shadow: 0 0 0 3px var(--p), 0 0 0 6px var(--r); }
+.wns-field[data-invalid="true"]:focus-within { box-shadow: 0 0 0 2px var(--p), 0 0 0 4px var(--r); }
 .wns-field[data-invalid="true"] { border-color: var(--a); }
 .wns-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; line-height: 1; }
 .wns-input { display: block; width: 100%; margin: 6px 0 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--k);
   font-family: var(--wns-text); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; height: 34px;
-  border-radius: 0; -webkit-appearance: none; appearance: none; transition: font-size 120ms ease; }
+  border-radius: 0; -webkit-appearance: none; appearance: none; }
 .wns-input::placeholder { color: var(--k); opacity: 0.38; text-transform: uppercase; }
 .wns-input[readonly] { opacity: 0.6; }
 .wns-btn[aria-disabled="true"] { cursor: progress; }
@@ -392,7 +400,7 @@ const CSS = `
 @media (hover: hover) and (pointer: fine) {
   .wns-btn:hover:not([aria-disabled="true"]) .wns-roll span { transform: translateY(-100%); }
   .wns-btn:hover:not([aria-disabled="true"])::before { clip-path: inset(0 0 0 0); }
-  .wns-btn:hover:not([aria-disabled="true"]) .wns-roll { color: var(--a); }
+  .wns-btn:hover:not([aria-disabled="true"]) .wns-roll { color: var(--p); }
   .wns-chip:hover { background: color-mix(in srgb, var(--k) 10%, transparent); }
   .wns-chip[aria-pressed="true"]:hover { background: var(--k); }
   .wns-link:hover { text-decoration-thickness: 3px; }
@@ -403,7 +411,7 @@ const CSS = `
 @keyframes wns-bar { 0% { transform: scaleX(0); } 60% { transform: scaleX(1); transform-origin: left; } 61% { transform-origin: right; } 100% { transform: scaleX(0); transform-origin: right; } }
 
 .wns-status { min-height: 0; font-size: 13px; font-weight: 700; line-height: 1.35; display: flex; gap: 8px; align-items: flex-start; }
-.wns-status:empty { display: none; }
+.wns-form .wns-status { min-height: 18px; margin-top: -8px; }
 .wns-status i { flex: none; width: 16px; height: 16px; margin-top: 1px; background: var(--a); color: var(--oa); font-style: normal; font-size: 12px;
   line-height: 16px; text-align: center; }
 .wns-proof { margin: 0; text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; opacity: 0.78; }
@@ -411,12 +419,23 @@ const CSS = `
 .wns-done { text-align: center; display: grid; gap: 14px; justify-items: center; }
 .wns-done p { margin: 0; font-size: 15px; line-height: 1.5; max-width: 34ch; text-wrap: pretty; }
 .wns-done strong { font-weight: 700; overflow-wrap: anywhere; }
+.wns-action { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border: 3px solid var(--k);
+  background: var(--a); color: var(--oa); font-size: 16px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; text-decoration: none;
+  position: relative; overflow: hidden; transition: transform 120ms ease; }
+.wns-action::before { content: ""; position: absolute; inset: 0; background: var(--k); clip-path: inset(100% 0 0 0); transition: clip-path 250ms var(--wns-out); }
+.wns-action span { position: relative; transition: color 200ms ease; }
+.wns-action:active { transform: translateY(2px); }
+@media (hover: hover) and (pointer: fine) {
+  .wns-action:hover::before { clip-path: inset(0 0 0 0); }
+  .wns-action:hover span { color: var(--p); }
+}
+.wns-strip .wns-action { min-height: 44px; }
 .wns-link { appearance: none; border: 0; background: none; padding: 10px 4px; min-height: 40px; color: var(--k); font: inherit; font-size: 12px; font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; cursor: pointer; }
 .wns-swap { animation: wns-swap 320ms var(--wns-out) both; }
 @keyframes wns-swap { from { opacity: 0; transform: translateY(8px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
 
-.wns :focus-visible { outline: 3px solid var(--a); outline-offset: 3px; }
+.wns :focus-visible { outline: 3px solid var(--r); outline-offset: 3px; }
 .wns .wns-input:focus-visible { outline: none; }
 .wns .wns-btn:focus-visible { outline-color: var(--k); outline-offset: 4px; }
 
@@ -436,25 +455,31 @@ const CSS = `
 .wns-modal .wns-backdrop { position: fixed; inset: 0; z-index: 0; }
 .wns-modal[data-backdrop="dim"] { background: rgba(8, 8, 8, 0.62); }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
+  .wns-section > .wns-card, .wns-modal > .wns-card { align-self: center; }
   .wns-section, .wns-modal { display: flex; flex-direction: column; justify-content: flex-start; place-items: normal; padding: 0 16px 40px; }
+  .wns-section { min-height: 0; }
   .wns-modal[data-backdrop="dim"] { justify-content: center; }
   .wns-section > .wns-mark, .wns-modal > .wns-mark { position: relative; inset: auto; margin: 0 -16px; justify-self: stretch; }
   .wns-section > .wns-card, .wns-modal > .wns-card { margin-top: -36px; }
 }
 .wns-band { padding: 0 16px clamp(24px, 3vw, 40px); }
 .wns-band .wns-mark { position: relative; inset: auto; margin: 0 -16px; }
-.wns-strip { position: relative; z-index: 2; margin: 0 auto; max-width: 1240px; background: var(--p); border: 3px solid var(--k);
+.wns-strip { position: relative; z-index: 2; margin: 0 auto; background: var(--p); border: 3px solid var(--k);
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) auto; align-items: stretch; }
 .wns-strip .wns-h { text-align: left; font-size: clamp(20px, 1.9vw, 28px); padding: 16px 20px; align-self: center; }
 .wns-strip .wns-field { border-width: 0 0 0 3px; padding-top: 12px; }
-.wns-strip .wns-field:focus-within { box-shadow: inset 0 0 0 3px var(--a); }
+.wns-strip .wns-field:focus-within { box-shadow: inset 0 0 0 3px var(--r); }
+.wns-strip .wns-btn:focus-visible { outline: 3px solid var(--k); outline-offset: -9px; }
+.wns-under .wns-box { background: transparent; border-color: var(--u); }
+.wns-under .wns-box:checked { background: var(--a); border-color: var(--a); }
+.wns-under :focus-visible { outline-color: var(--u); }
 .wns-strip .wns-btn { border-width: 0 0 0 3px; min-height: 72px; padding: 0 30px; width: auto; }
 .wns-strip .wns-btn:active:not([aria-disabled="true"]) { transform: none; }
 .wns-strip .wns-btn:active:not([aria-disabled="true"]) .wns-roll { transform: translateY(2px); }
-.wns-strip .wns-done { grid-column: 1 / -1; padding: 20px; grid-template-columns: auto 1fr auto; text-align: left; align-items: center; }
+.wns-strip .wns-done { grid-column: 1 / -1; padding: 0 20px; min-height: 72px; grid-template-columns: auto 1fr auto auto; gap: 20px; text-align: left; align-items: center; }
 .wns-strip .wns-done .wns-h { padding: 0; }
-.wns-under { max-width: 1240px; min-height: 36px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between;
+.wns-under { min-height: 36px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between;
   color: var(--u); }
 .wns-under .wns-consent { color: inherit; max-width: 640px; }
 .wns-under .wns-proof { text-align: right; }
@@ -494,17 +519,24 @@ function usePrefersReducedMotion() {
   return reduced
 }
 
-/** Matches the phone breakpoint in the CSS, where the section stacks the wordmark above the card. */
+/** Matches the breakpoint in the CSS below which the wordmark stacks above the card (phones and tablets). */
 function useNarrow() {
   const [narrow, setNarrow] = React.useState(false)
   React.useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)")
+    const mq = window.matchMedia("(max-width: 1023px)")
     const on = () => setNarrow(mq.matches)
     on()
     mq.addEventListener("change", on)
     return () => mq.removeEventListener("change", on)
   }, [])
   return narrow
+}
+
+function canMeasureCondensed() {
+  const ctx = document.createElement("canvas").getContext("2d") as (CanvasRenderingContext2D & { fontStretch?: string }) | null
+  if (!ctx || !("fontStretch" in ctx)) return false
+  ctx.fontStretch = "condensed"
+  return ctx.fontStretch === "condensed"
 }
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
@@ -530,6 +562,7 @@ function Wordmark(props: {
   const [box, setBox] = React.useState({ w: 0, h: 0 })
   const [family, setFamily] = React.useState("")
   const [fontsTick, setFontsTick] = React.useState(0)
+  const [condensedOk, setCondensedOk] = React.useState(true)
   const [shown, setShown] = React.useState(text)
   // The word on its way out, drawn under the new one while it falls.
   const [prev, setPrev] = React.useState(null as string | string[] | null)
@@ -543,6 +576,7 @@ function Wordmark(props: {
     const el = wrapRef.current
     if (!el) return
     setFamily(getComputedStyle(el).fontFamily)
+    setCondensedOk(canMeasureCondensed())
     const host = mode === "band" ? el : (el.parentElement as HTMLElement)
     const read = () => setBox({ w: host.clientWidth, h: mode === "band" ? 0 : host.clientHeight })
     read()
@@ -557,7 +591,10 @@ function Wordmark(props: {
     if (!box.w || !family || typeof document === "undefined") return null
     const ctx = document.createElement("canvas").getContext("2d")
     if (!ctx) return null
+    // Measure with the same condensed setting the SVG draws with. A browser whose canvas cannot
+    // take it draws normal width too (data-stretch), so measuring and drawing always agree.
     ctx.font = "900 100px " + family
+    if (condensedOk) (ctx as CanvasRenderingContext2D & { fontStretch: string }).fontStretch = "condensed"
     const cache = new Map()
     const measure = (s: string) => {
       if (!cache.has(s)) cache.set(s, ctx.measureText(s).width)
@@ -574,7 +611,8 @@ function Wordmark(props: {
       crop,
       // How uneven a split may be. A band line has nothing to hide it, so it stays even.
       balance: mode === "fill" ? 0.15 : stack ? 0.25 : 0.45,
-      padX: mode === "band" ? Math.max(10, box.w * (stack ? 0.032 : 0.008)) : Math.max(12, box.w * 0.022),
+      // The band's ink edges line up with its strip, which sits 16px in.
+      padX: mode === "band" ? (stack ? Math.max(12, box.w * 0.032) : 16) : Math.max(12, box.w * 0.022),
       padY: mode === "band" ? Math.max(16, box.w * 0.016) : Math.max(16, box.w * 0.02),
       maxHeight: stack ? Math.max(220, window.innerHeight * 0.42) : Math.max(220, box.w * 0.24),
     }
@@ -583,11 +621,12 @@ function Wordmark(props: {
       // In the flow the stack keeps the name's height, so nothing below moves when the word swaps.
       const base = layoutWordmark(props.base, box, measure, capU, opts)
       const next = layoutWordmark(t, box, measure, capU, { ...opts, maxCap: base.cap, maxLines: base.lines.length })
-      const dy = (base.height - next.height) / 2
+      // Bottom-aligned, so the word sits against the card or strip below it.
+      const dy = base.height - next.height
       return { ...next, height: base.height, lines: next.lines.map((l) => ({ ...l, y0: l.y0 + dy })) }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseKey, box.w, box.h, family, fontsTick, mode, maxLines, crop, stack])
+  }, [baseKey, box.w, box.h, family, fontsTick, mode, maxLines, crop, stack, condensedOk])
 
   const layout = React.useMemo(() => (lay ? lay(shown) : null), [lay, shownKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const prevLayout = React.useMemo(() => (lay && prev ? lay(prev) : null), [lay, prevKey]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -677,7 +716,7 @@ function Wordmark(props: {
     })
 
   return (
-    <div ref={wrapRef} className="wns-mark" aria-hidden="true" style={height !== undefined ? { height } : undefined}>
+    <div ref={wrapRef} className="wns-mark" aria-hidden="true" data-stretch={condensedOk ? undefined : "normal"} style={height !== undefined ? { height } : undefined}>
       {layout && (
         <svg width={box.w} height={h} viewBox={"0 0 " + box.w + " " + h}>
           <defs>
@@ -722,6 +761,7 @@ export default function WordmarkNewsletterSignup({
     </>
   ),
   resetLabel = "Use a different email",
+  successAction = null,
   onSubscribe,
   variant = "section",
   open: openProp,
@@ -853,7 +893,7 @@ export default function WordmarkNewsletterSignup({
     }
     if (mustConsent && !agreed) {
       setInvalid("consent")
-      setError("Tick the box so we're allowed to send it.")
+      setError("Tick the box below so we're allowed to send it.")
       setStatus("error")
       boxRef.current?.focus()
       return
@@ -896,6 +936,9 @@ export default function WordmarkNewsletterSignup({
     vars["--wl-" + k] = light[k]
     vars["--wd-" + k] = dark[k]
   }
+  // Focus rings and selected edges need 3:1 against the card; a pale accent falls back to ink.
+  vars["--wl-ring"] = pickReadable(light.paper, [light.accent, light.ink], 3)
+  vars["--wd-ring"] = pickReadable(dark.paper, [dark.accent, dark.ink], 3)
   vars["--wl-under"] = pickReadable(light.ground, [light.mark, light.ink, light.paper])
   vars["--wd-under"] = pickReadable(dark.ground, [dark.mark, dark.ink, dark.paper])
   vars["--wl-headline"] = light.headline ?? light.accent
@@ -906,7 +949,7 @@ export default function WordmarkNewsletterSignup({
   const errId = uid + "-err"
   const band = variant === "band"
   // Sized for whichever is longer, the address or the placeholder, so neither clips on a phone.
-  const fieldSize = emailFontSize(Math.max(email.length, placeholder.length), narrow ? 22 : band ? 24 : 26, 15, band ? 22 : narrow ? 15 : 17)
+  const fieldSize = emailFontSize(Math.max(email.length, placeholder.length), narrow ? 22 : band ? 24 : 26, 14, band ? 22 : narrow ? 15 : 17)
 
   const field = (
     <label className="wns-field" data-invalid={invalid === "email" ? "true" : undefined}>
@@ -986,6 +1029,11 @@ export default function WordmarkNewsletterSignup({
         {successTitle}
       </h2>
       <p>{typeof successCopy === "function" ? successCopy(doneEmail) : successCopy}</p>
+      {successAction ? (
+        <a className="wns-action" href={successAction.href}>
+          <span>{successAction.label}</span>
+        </a>
+      ) : null}
       <button type="button" className="wns-link" onClick={reset}>
         {resetLabel}
       </button>
@@ -1026,10 +1074,9 @@ export default function WordmarkNewsletterSignup({
           {description ? <p className="wns-desc">{description}</p> : null}
           <form className="wns-form" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
             {field}
-            {invalid === "consent" ? null : statusLine}
+            {statusLine}
             {topicsRow}
             {consentRow}
-            {invalid === "consent" ? statusLine : null}
             {button}
             {proof ? <p className="wns-proof">{proof}</p> : null}
           </form>
@@ -1055,6 +1102,11 @@ export default function WordmarkNewsletterSignup({
                 {successTitle}
               </h2>
               <p>{typeof successCopy === "function" ? successCopy(doneEmail) : successCopy}</p>
+              {successAction ? (
+                <a className="wns-action" href={successAction.href}>
+                  <span>{successAction.label}</span>
+                </a>
+              ) : null}
               <button type="button" className="wns-link" onClick={reset}>
                 {resetLabel}
               </button>
@@ -1105,7 +1157,7 @@ export default function WordmarkNewsletterSignup({
       className={"wns wns-section" + (className ? " " + className : "")}
       aria-label={ariaLabel}
       {...common}
-      style={{ ...common.style, minHeight: height }}
+      style={{ ...common.style, ["--wns-h" as string]: typeof height === "number" ? height + "px" : height }}
     >
       <style>{CSS}</style>
       <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={false} reduced={reduced} uid={uid} stack={narrow} />

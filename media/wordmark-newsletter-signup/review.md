@@ -100,3 +100,48 @@ Changes made for round 2:
 - Popup: `backdrop="dim"` option; touch screens focus the dialog rather than the field.
 - Default sauce preset now sits on a tomato-pink ground of our own, not the reference's grey.
 - Section default height `min(100svh, 880px)`.
+
+## Round 2 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 7 |
+| (a) idea / reference feel | 7 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.0 |
+
+Found: the submit hover label (accent on ink) failed contrast in six of eight palettes; mustard light
+lost its band borders and checkbox (ink on a near-black ground) and its focus ring (yellow on white);
+the card re-centred when an error line appeared; the phone success state floated in empty ground;
+on tablet the card never touched the letters; a single-line word left the field lopsided; the band's
+strip did not line up with the wordmark and grew on success; the type read as stretched rather than
+condensed; the success state was a dead end.
+
+Changes made for round 3:
+
+- Submit hover label is paper on the ink flood (tested at 4.5:1 or better for all eight palettes).
+- Focus rings use the accent only when it reads at 3:1 on the card, otherwise ink (mustard light).
+  A checkbox on the band's ground is drawn in the readable ground colour, with a transparent fill.
+  The band submit's focus ring sits inside the button.
+- The error slot under the field is reserved, so the card never re-centres when an error appears.
+  Consent errors use the same slot ("Tick the box below...") and focus the checkbox.
+- Phones and tablets (below 1024px) stack the wordmark above the card. The section's height applies
+  only on wide screens. A swapped word bottom-aligns against the card or strip.
+- A single line in a tall field is set twice, top and bottom, so the field never sits lopsided.
+  The popup demo's success word is "In the brine" (an even split).
+- The band's strip runs full width, so its edges line up with the wordmark's ink. The success strip
+  holds the form strip's height, so the page below does not move.
+- Wordmark stack: "Helvetica Neue" (its Condensed Black on Apple systems via `font-stretch:
+  condensed`), "Arial Narrow" and "Roboto Condensed" go first. The canvas measures with
+  `fontStretch` where supported; elsewhere the SVG draws at normal width too, so measuring and
+  drawing always agree. The sandbox has none of these faces, so the screenshots still show
+  Inter Black.
+- New `successAction` prop: a hard-bordered button so the success state leads somewhere
+  (demos: "Read last week's recipe", "See this month's jars").
+- Smaller fixes: no font-size transition on the field; the size floor is 14px; the invalid ring is
+  2px.
+
+Decision: on wide screens the card shrinks to its content on success. The section height is fixed
+there, so nothing outside moves, and a tall empty card read worse than a compact one.
