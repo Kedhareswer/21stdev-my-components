@@ -435,13 +435,13 @@ const BB = [520, 415]
 /** Built-in callouts: where each part's leader points, and where its tag sits. */
 const CALLOUTS = {
   seat: { a: [300, 172], t: [300, 104] },
-  footboards: { a: [285, 360], t: [285, 562] },
+  footboards: { a: [250, 360], t: [250, 562] },
   flatbed: { a: [470, 226], t: [470, 112] },
-  panniers: { a: [330, 384], t: [330, 562] },
+  panniers: { a: [250, 410], t: [250, 562] },
   toolbox: { a: [285, 164], t: [285, 104] },
   box: { a: [250, 96], t: [250, 40] },
   basket: { a: [800, 184], t: [800, 112] },
-  battery: { a: [430, 340], t: [455, 562] },
+  battery: { a: [455, 340], t: [455, 562] },
 } as { [id: string]: { a: number[]; t: number[] } }
 
 const DIM_LABELS = [
@@ -495,19 +495,23 @@ function BuiltinArt({ id }: { id: string }) {
       return (
         <g>
           <rect x={140} y={270} width={290} height={6} rx={3} className="hx-m-contact" />
-          <rect x={146} y={192} width={26} height={84} rx={11} className="hx-m-pad" />
-          <rect x={150} y={198} width={4} height={60} rx={2} className="hx-m-seam" />
+          <rect x={140} y={184} width={38} height={92} rx={13} className="hx-m-shell" />
+          <rect x={146} y={192} width={26} height={70} rx={10} className="hx-m-pad" />
+          <path d="M159 196V258" className="hx-m-harness" strokeWidth={5} strokeLinecap="round" />
+          <rect x={153} y={222} width={12} height={10} rx={2} className="hx-m-buckle" />
           <rect x={146} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
-          <rect x={288} y={200} width={26} height={76} rx={11} className="hx-m-pad" />
-          <rect x={292} y={206} width={4} height={52} rx={2} className="hx-m-seam" />
+          <rect x={282} y={192} width={38} height={84} rx={13} className="hx-m-shell" />
+          <rect x={288} y={200} width={26} height={62} rx={10} className="hx-m-pad" />
+          <path d="M301 204V258" className="hx-m-harness" strokeWidth={5} strokeLinecap="round" />
+          <rect x={295} y={226} width={12} height={10} rx={2} className="hx-m-buckle" />
           <rect x={288} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
           <path d="M156 256H262M298 256H404" className="hx-m-lit" strokeWidth={2} strokeLinecap="round" />
           <path d="M152 266H264M294 266H406" className="hx-m-stitch" strokeWidth={1.2} strokeDasharray="4 4" />
           <path d="M122 280L122 186Q122 172 136 172L432 172Q446 172 446 186L446 280" className="hx-m-rail" strokeWidth={8} fill="none" strokeLinecap="round" />
           <path d="M122 222L446 222" className="hx-m-rail" strokeWidth={5} fill="none" />
           <path d="M126 174L444 174" className="hx-m-glint" strokeWidth={2} fill="none" />
-          <rect x={220} y={216} width={16} height={12} rx={3} className="hx-m-buckle" />
-          <rect x={362} y={216} width={16} height={12} rx={3} className="hx-m-buckle" />
+          <rect x={115} y={266} width={14} height={16} rx={3} className="hx-m-clampblock" />
+          <rect x={439} y={266} width={14} height={16} rx={3} className="hx-m-clampblock" />
         </g>
       )
     case "footboards":
@@ -899,7 +903,7 @@ const DEFAULT_LABELS: HitchLabels = {
   fewer: "One bike fewer",
   more: "One bike more",
   fleetTotal: "Fleet total",
-  perMonth: "Per month, {months} months",
+  perMonth: "Monthly, {months} mo",
   summary: "Live build",
 }
 
@@ -987,7 +991,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       rows: [
         { label: "Motor", value: "Mid-drive, 85 Nm" },
         { label: "Battery", value: "500 Wh, removable" },
-        { label: "Range", value: "Up to 90 km, 165 km with two" },
+        { label: "Range", value: "Up to 90 km, 165 km with a second battery" },
         { label: "Drive", value: "Belt, 5-speed hub" },
         { label: "Brakes", value: "4-piston hydraulic discs" },
         { label: "Wheels", value: "20 in, 2.4 in tyres" },
@@ -1083,7 +1087,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       rows: [
         { label: "Motor", value: "Mid-drive, 90 Nm" },
         { label: "Battery", value: "500 Wh, depot-swappable" },
-        { label: "Range", value: "85 km, 160 km with two" },
+        { label: "Range", value: "85 km, 160 km with the shift battery" },
         { label: "Drive", value: "Belt, automatic hub" },
         { label: "Brakes", value: "4-piston hydraulic discs" },
         { label: "Max load", value: "220 kg, rider included" },
@@ -1387,7 +1391,6 @@ function Hero({
           ) : null}
         </div>
       </div>
-      <p className="hx-hero-note">{c.hero.body}</p>
     </section>
   )
 }
@@ -1414,15 +1417,34 @@ function Configurator({
   const hid = x.ids("configure-h")
   const qid = x.ids("configure-q")
   const artRef = React.useRef(null as HTMLDivElement | null)
+  const ctaRef = React.useRef(null as HTMLDivElement | null)
   const [artSeen, setArtSeen] = React.useState(true)
+  const [ctaSeen, setCtaSeen] = React.useState(false)
 
-  // the phone dock shows only once the drawing has scrolled away
+  // the phone dock shows only between the drawing scrolling away and the button arriving.
+  // Measured on scroll: an IntersectionObserver misses a jump straight past the drawing.
   React.useEffect(() => {
-    const el = artRef.current
-    if (!el || typeof IntersectionObserver !== "function") return
-    const io = new IntersectionObserver(([e]) => setArtSeen(e.isIntersecting), { threshold: 0.15 })
-    io.observe(el)
-    return () => io.disconnect()
+    let raf = 0
+    const measure = () => {
+      raf = 0
+      const plate = artRef.current && (artRef.current.querySelector(".hx-plate") as HTMLElement | null)
+      const cta = ctaRef.current
+      if (!plate || !cta) return
+      const r = plate.getBoundingClientRect()
+      setArtSeen(r.top + r.height / 2 > 0)
+      setCtaSeen(cta.getBoundingClientRect().top < innerHeight - 40)
+    }
+    const on = () => {
+      if (!raf) raf = requestAnimationFrame(measure)
+    }
+    measure()
+    addEventListener("scroll", on, { passive: true })
+    addEventListener("resize", on)
+    return () => {
+      removeEventListener("scroll", on)
+      removeEventListener("resize", on)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [])
   const mountLabel = (id: string) => (mounts.find((m) => m.id === id) || { label: id }).label
 
@@ -1544,7 +1566,7 @@ function Configurator({
         <p className="hx-note" aria-live="polite">
           {note}
         </p>
-        <div className="hx-config-cta">
+        <div className="hx-config-cta" ref={ctaRef}>
           {x.sections.includes("reserve") ? (
             <a className="hx-btn hx-btn-accent" href="#reserve">
               <span>{c.reserve.button}</span>
@@ -1563,18 +1585,20 @@ function Configurator({
             {L.startOver}
           </button>
         </div>
-      </div>
-      <div className="hx-dock" aria-hidden="true" data-show={artSeen ? "false" : "true"}>
-        <div className="hx-dock-plate">
-          <Plate modules={build} catalog={catalog} look={look} />
+        <div className="hx-dock-wrap">
+        <div className="hx-dock" aria-hidden="true" data-show={artSeen || ctaSeen ? "false" : "true"}>
+          <div className="hx-dock-plate">
+            <Plate modules={build} catalog={catalog} look={look} />
+          </div>
+          <p className="hx-dock-label">{L.summary}</p>
+          <p className="hx-dock-num">
+            {formatMoney(lease ? lease.total : sum.price, c.currency, c.locale)}
+            <small>
+              {formatNumber(sum.weight, c.locale, 1)} {L.kg} / {sum.range} {L.km}
+            </small>
+          </p>
         </div>
-        <p className="hx-dock-label">{L.summary}</p>
-        <p className="hx-dock-num">
-          {formatMoney(lease ? lease.total : sum.price, c.currency, c.locale)}
-          <small>
-            {formatNumber(sum.weight, c.locale, 1)} {L.kg} / {sum.range} {L.km}
-          </small>
-        </p>
+        </div>
       </div>
     </section>
   )
@@ -2259,7 +2283,7 @@ const HX_CSS = `
 .hx-root[data-theme="dark"],.dark .hx-root[data-theme="auto"]{
   --hx-page:#0c0d0e;--hx-page-ink:#f1f2f3;--hx-page-muted:#9ba1a8;--hx-page-line:rgba(255,255,255,.1);
   --hx-panel:#1a1c1f;--hx-card:#24272b;
-  --hx-paper:#24272b;--hx-paper-ink:#f1f2f3;--hx-paper-muted:#a3a9b0;--hx-paper-line:rgba(255,255,255,.1);
+  --hx-paper:#2b2f34;--hx-paper-ink:#f1f2f3;--hx-paper-muted:#a3a9b0;--hx-paper-line:rgba(255,255,255,.1);
 }
 .hx-root *,.hx-root *::before,.hx-root *::after{box-sizing:border-box}
 .hx-root :where(h1,h2,h3,p,ul,ol,dl,dd,figure,blockquote,fieldset){margin:0;padding:0}
@@ -2332,7 +2356,7 @@ const HX_CSS = `
 .hx-main:focus{outline:none}
 .hx-main{display:flex;flex-direction:column;gap:var(--hx-gut);padding:0 var(--hx-gut)}
 .hx-sheet,.hx-hero{scroll-margin-top:84px;position:relative;background:var(--hx-panel);color:var(--hx-ink);border-radius:var(--hx-r);padding:clamp(22px,4vw,56px)}
-.hx-root[data-theme="dark"] .hx-paper,.dark .hx-root[data-theme="auto"] .hx-paper{--hx-comp:#5d636a}
+.hx-root[data-theme="dark"] .hx-paper,.dark .hx-root[data-theme="auto"] .hx-paper{--hx-comp:#5d636a;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
 .hx-paper{--hx-comp:#2a2d31;background:var(--hx-paper);color:var(--hx-paper-ink);--hx-muted:var(--hx-paper-muted);--hx-line:var(--hx-paper-line)}
 .hx-h1,.hx-h2{font-family:var(--hx-display);font-weight:900;text-transform:uppercase;letter-spacing:-.025em;line-height:.92;text-wrap:balance}
 .hx-h2{font-size:clamp(34px,5.2cqi,76px);margin-bottom:16px}
@@ -2354,8 +2378,7 @@ const HX_CSS = `
 .hx-h1-tail{color:#80868e}
 .hx-word{display:inline-block;animation:hx-word .55s var(--hx-ease) both}
 .hx-hero-side{display:flex;flex-direction:column;gap:18px}
-.hx-hero-body{display:none;color:var(--hx-muted);max-width:40ch;font-size:15px}
-.hx-hero-note{color:var(--hx-muted);font-size:15px;padding:2px 8px 10px;max-width:46ch}
+.hx-hero-body{color:var(--hx-muted);max-width:40ch;font-size:15px}
 .hx-hero-buy{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .hx-hero-buy .hx-btn{height:42px;padding:0 14px 0 16px;font-size:13px}
 .hx-price{display:flex;flex-direction:column;line-height:1.1}
@@ -2453,6 +2476,9 @@ const HX_CSS = `
 .hx-paper .hx-b-shadow-a{stop-opacity:.22}
 .hx-m-pad{fill:#3a3f45}
 .hx-m-pad2{fill:#2b2f34}
+.hx-m-shell{fill:#4b5157}
+.hx-m-harness{stroke:#17181a}
+.hx-m-clampblock{fill:#2a2d31;stroke:#6b7178;stroke-width:1.5}
 .hx-m-seam{fill:#4d535a}
 .hx-m-contact{fill:#000;opacity:.45}
 .hx-m-seamline{stroke:#2e3236}
@@ -2499,7 +2525,7 @@ const HX_CSS = `
 .hx-dimtag{position:absolute;transform:translate(-50%,-50%);font-family:var(--hx-mono);font-size:12px;font-weight:600;line-height:1;padding:5px 8px;border-radius:6px;background:var(--hx-paper);color:var(--hx-paper-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* configurator */
-.hx-config{display:grid;grid-template-areas:"head" "art" "side" "dock";gap:clamp(20px,3vw,40px) clamp(20px,3vw,48px)}
+.hx-config{display:grid;grid-template-areas:"head" "art" "side";gap:clamp(20px,3vw,40px) clamp(20px,3vw,48px)}
 .hx-config-head{grid-area:head}
 .hx-config-head .hx-lede{margin-top:-4px}
 .hx-config-art{grid-area:art;display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -2529,6 +2555,7 @@ const HX_CSS = `
 .hx-part-price{font-family:var(--hx-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--hx-muted);padding-top:2px}
 .hx-part[aria-pressed="true"] .hx-part-price{color:var(--hx-ink)}
 .hx-note{min-height:1.5em;font-size:14px;color:var(--hx-muted)}
+.hx-totals div{display:flex;flex-direction:column;justify-content:flex-end}
 .hx-totals-fleet{grid-template-columns:repeat(2,1fr);border-top:0;margin-top:-6px}
 .hx-qty{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 10px 10px 14px;border-radius:14px;background:var(--hx-card)}
 .hx-qty label{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
@@ -2539,7 +2566,8 @@ const HX_CSS = `
 .hx-qty-ctl button:disabled{opacity:.35;cursor:not-allowed}
 .hx-qty-ctl input{width:72px;height:44px;border:0;border-radius:12px;background:var(--hx-panel);text-align:center;font-family:var(--hx-display);font-weight:900;font-size:22px;font-variant-numeric:tabular-nums;appearance:textfield;-moz-appearance:textfield}
 .hx-qty-ctl input::-webkit-inner-spin-button,.hx-qty-ctl input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-.hx-dock{grid-area:dock;position:sticky;bottom:12px;z-index:5;display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:14px;padding:6px 16px 6px 6px;border-radius:16px;background:var(--hx-card);box-shadow:0 18px 40px -14px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.1);transition:opacity .2s ease,transform .3s var(--hx-ease),visibility 0s}
+.hx-dock-wrap{position:sticky;bottom:12px;z-index:5;height:0;margin-top:-14px}
+.hx-dock{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:14px;padding:6px 16px 6px 6px;border-radius:16px;background:var(--hx-card);box-shadow:0 18px 40px -14px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.1);transition:opacity .2s ease,transform .3s var(--hx-ease),visibility 0s}
 .hx-dock[data-show="false"]{opacity:0;transform:translateY(16px);visibility:hidden;transition:opacity .15s ease,transform .15s ease,visibility 0s linear .15s}
 .hx-dock-plate{grid-row:1/3;background:var(--hx-panel);border-radius:11px}
 .hx-dock-label{align-self:end;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--hx-muted)}
@@ -2677,7 +2705,6 @@ const HX_CSS = `
   .hx-h1{font-size:clamp(40px,7cqi,80px)}
   .hx-hero-side{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:24px}
   .hx-hero-body{display:block;max-width:46ch}
-  .hx-hero-note{display:none}
   .hx-hero-buy{justify-content:flex-start}
   .hx-hero-buy .hx-btn{height:46px;padding:0 18px 0 20px;font-size:14px}
   .hx-tag,.hx-lead{display:block}
@@ -2700,7 +2727,7 @@ const HX_CSS = `
   .hx-steps{position:relative;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:32px;border-top:0;padding-top:52px}
   .hx-steps::before{content:"";position:absolute;left:0;right:10px;top:18px;height:1.5px;background:var(--hx-ink)}
   .hx-steps::after{content:"";position:absolute;right:0;top:13px;border-left:12px solid var(--hx-ink);border-top:6px solid transparent;border-bottom:6px solid transparent}
-  .hx-step{position:relative;grid-template-columns:1fr;grid-template-areas:"n" "h" "p";gap:10px;align-items:start;padding:20px 0 0;border-bottom:0}
+  .hx-step{position:relative;grid-template-columns:1fr;grid-template-areas:"n" "h" "p";gap:10px;align-items:start;align-content:start;padding:20px 0 0;border-bottom:0}
   .hx-step::before{content:"";position:absolute;left:0;top:-41px;width:1.5px;height:30px;background:var(--hx-ink)}
   .hx-step-time{position:absolute;left:12px;top:-50px;margin:0;padding:3px 8px;border-radius:6px;background:var(--hx-panel);text-align:left;font-size:12px}
   .hx-step-n{font-size:64px}
@@ -2708,10 +2735,11 @@ const HX_CSS = `
   .hx-hero-card{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);align-items:start;gap:40px}
   .hx-hero-side{flex-direction:column;align-items:stretch;justify-content:flex-start;padding-top:10px}
   .hx-h1{font-size:clamp(40px,5.4cqi,80px)}
+  .hx-stage{margin-top:calc(var(--hx-pw) * -.6 * (var(--hx-ovf) + .09))}
   .hx-spec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .hx-faq{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}
   .hx-config{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);grid-template-areas:"art head" "art side";grid-template-rows:auto 1fr;align-items:start}
-  .hx-dock{display:none}
+  .hx-dock-wrap{display:none}
   .hx-config-art{position:sticky;top:90px}
 }
 @container (max-width:719px){
