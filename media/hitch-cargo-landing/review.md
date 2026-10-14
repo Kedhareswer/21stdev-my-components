@@ -68,3 +68,31 @@ sheet (riders and ownership were ordinary rows); the phone hero cropped the rear
 neighbour bikes painted over the headline card; dark-mode spec drawing lost its fork and bars;
 part art flatter than the frame; small phone ticks; a thin success state; a forced `<main>` and
 `<h1>` when embedded; the fleet preset mostly a recolour; a lower callout crowding the caption.
+
+## Critic round 3 (new subagent, final round)
+
+Reading: a Slate-style product landing for a modular electric longtail; the hero is a carousel
+of builds on one frame with part-number callouts, and the configurator, the dimensioned spec
+drawing, the dimension-line timeline and the reserve flow keep the "parts catalogue on charcoal
+sheets" language. Banned-looks gate passed.
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 8 | 8 | 7 | 7 | 9 | 8 | 7.83 |
+
+Verdict: **REDO**. Nothing below 7; the critic called every missing point "a fixable craft
+defect, not a concept problem". Three rounds are spent, so the piece goes to
+`claude/review-hitch-cargo-landing` for the owner.
+
+Fixed after round 3 (not re-scored): ownership steps share one baseline; the phone dock shows
+only between the drawing scrolling away and the button arriving (measured on scroll, since an
+observer misses a jump past the drawing) and takes no space when hidden; "with two" range copy
+rewritten; every callout leader vertical; kid seats drawn as shells with harnesses and rail
+clamps; the hero bike rides higher into the headline card on desktop; phone hero copy moved
+under the headline; the monthly label shortened and stats bottom-aligned; dark-mode paper
+sheets lifted with a hairline.
+
+Left for the owner: the section order is still close to a familiar product page (hero,
+configurator, specs, steps, testimonial, form, FAQ, footer); the template only fits a modular
+product drawn in a 1000 x 600 plate; the flat vector bike is less arresting than the reference's
+photo (any build can take `productImage` and part `image`s once photos load).
