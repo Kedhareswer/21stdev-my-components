@@ -54,3 +54,49 @@ layout (#5).
   are typing into would be noise.
 - Primary hover (submit): ink floods up from the bottom while the label rolls. Chips and the
   reset link only change colour; they are utility controls.
+
+## Round 1 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea / reference feel | 7 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.2 |
+
+What the critic found, most important first, and what changed:
+
+1. The success word hid behind the card ("SEE Y U SUNDAY", "WEI COME IN") and so did the brand at
+   rest ("BIG" under the card, "S Y S E" on tablet).
+2. Faux-condensed stretch (ratio up to 1.75) visibly distorted the type.
+3. Focus dropped to the body while pending and after an error.
+4. The address broke mid-word in the success copy; the placeholder clipped at 375 px.
+5. The phone card jumped on success; the phone band was one puny line touching the edges.
+6. Accents (É, Ü) would be clipped by the line clip.
+7. About half a second of empty field mid-swap, with translucent ghosts.
+8. The popup was always a full takeover; it autofocused on touch (keyboard pops on open).
+9. The email error sat below the consent line, far from the field.
+10. The default preset was the reference's own grey and red.
+
+Changes made for round 2:
+
+- **Frame layout.** On wide screens the name frames the card: the first line sits on top and the
+  last drops just past the bottom edge, so both stay readable around a centred card ("BIG SUNDAY"
+  / "SAUCE CO.", "SEE YOU" / "SUNDAY", "WELCOME" / "IN"). The split is the even one with the
+  biggest capitals. Phones stack shorter lines above the card.
+- Stretch capped at 1.35x (was 1.75x), and the README names `displayFont` as the upgrade path.
+- **Two-layer swap.** The old letters fall through the baseline while the new ones drop through
+  the cap line 120 ms behind them, so the field is never empty. Both clip exactly at the cap height
+  while moving, which removes the slivers and ghosts. No opacity fade. At rest the window opens up
+  (0.32 cap above) so accents show; tested with CAFÉ.
+- Pending uses `readOnly` / `aria-disabled`, so focus stays put. Errors focus the field (or the
+  checkbox for consent), and the email error renders right under the field.
+- `overflow-wrap: anywhere` for the address. The field is sized for the longer of the address and
+  the placeholder (22px max on phones). Only the placeholder is uppercased.
+- Phone layout is top-aligned, so the card does not jump. The phone band breaks MUSTARD / CLUB with
+  side padding. In the flow, a swapped word keeps the name's height.
+- Popup: `backdrop="dim"` option; touch screens focus the dialog rather than the field.
+- Default sauce preset now sits on a tomato-pink ground of our own, not the reference's grey.
+- Section default height `min(100svh, 880px)`.

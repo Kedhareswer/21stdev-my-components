@@ -93,12 +93,14 @@ export type WordmarkNewsletterSignupProps = {
   darkPalette?: Partial<WordmarkPalette>
   /** "auto" follows a `.dark` class on any ancestor (shadcn / Tailwind convention). */
   theme?: "auto" | "light" | "dark"
-  /** Section minimum height. Any CSS length. */
+  /** Section minimum height. Any definite CSS length. */
   height?: number | string
   /** Most lines the wordmark may break into. */
   maxLines?: number
-  /** How tall the wordmark stack is against the section, 1 = exactly, above 1 crops the last line. */
-  fill?: number
+  /** How far the last wordmark line drops past the bottom edge, as a fraction of its height (0 to 0.5). */
+  crop?: number
+  /** Modal: "wordmark" fills the screen with the brand; "dim" darkens the page behind the card. */
+  backdrop?: "wordmark" | "dim"
   /** Optional photo tile beside the card (section only, wide screens). */
   image?: { src: string; alt: string } | null
   /** Font stacks. Pass your own, e.g. "var(--font-display)". The wordmark wants a heavy face. */
@@ -111,7 +113,7 @@ export type WordmarkNewsletterSignupProps = {
 
 const PRESETS: Record<WordmarkPreset, { light: WordmarkPalette; dark: WordmarkPalette }> = {
   sauce: {
-    light: { ground: "#bdbcb7", mark: "#b30d17", paper: "#ffffff", ink: "#0e0e0e", accent: "#d80f1a", onAccent: "#ffffff" },
+    light: { ground: "#f6c6b8", mark: "#c4111b", paper: "#ffffff", ink: "#0e0e0e", accent: "#d80f1a", onAccent: "#ffffff" },
     dark: { ground: "#151212", mark: "#a50c15", paper: "#0b0b0b", ink: "#f3efe9", accent: "#ff4249", onAccent: "#0b0b0b" },
   },
   pickle: {
@@ -162,26 +164,38 @@ export type WordmarkLine = { text: string; x0: number; y0: number; sx: number; s
 export type WordmarkLayout = { lines: WordmarkLine[]; cap: number; height: number; capU: number }
 export type WordmarkOptions = {
   maxLines: number
-  fill: number
+  /** "fill": first line at the top, last line cropped at the bottom edge, the card between. "band": a stack in the flow that reports its own height. */
+  mode: "fill" | "band"
+  /** Upright stretch range (cap height against width). Above about 1.35 a regular face starts to look distorted. */
   minRatio: number
   maxRatio: number
   /** Gap between lines, as a fraction of the cap height. */
   gap: number
   padX: number
   padY: number
-  /** "fill" sizes the stack to the box height; "band" sets one ratio and returns its own height. */
-  mode: "fill" | "band"
-  bandRatio: number
-  /** Band only: the tallest the stack may grow. The split with the biggest capitals under it wins. */
+  /** Fill only: how far the last line drops below the bottom edge, as a fraction of the cap height. */
+  crop: number
+  /** Shortest line against the longest. Splits less even than this are skipped, so no lone "IN" or "CO." line. */
+  balance: number
+  /** Band only: the tallest the stack may grow. */
   maxHeight?: number
   /** Band only: cap height ceiling, so a short word cannot grow taller than the name it replaces. */
   maxCap?: number
 }
 
+/** Clip window of each line, in cap heights: room above for accents (É, Ü), below for Q and commas. */
+export const CLIP_TOP = 0.32
+export const CLIP_BOTTOM = 1.14
+/** The window while letters move: cap line to baseline, plus a hair below for the settle of incoming letters. */
+export const SETTLE_CLIP = 0.03
+/** How far letters travel out of and into their line. Clears the clip window both ways. */
+export const DROP = 1.5
+
 /**
  * Lays the wordmark out in a box. `measure` returns a string's advance at 100px, `capU` the cap
- * height at 100px. Every line spans the width; the stack is stretched upright between minRatio and
- * maxRatio to fill the height. Without fixed lines the word split that gives the tallest capitals wins.
+ * height at 100px. The longest line spans the width and every line shares one size, stretched
+ * upright inside [minRatio, maxRatio]. Without fixed lines, the even split with the biggest
+ * capitals wins; ties go to fewer lines.
  */
 export function layoutWordmark(
   input: string | string[],
@@ -193,71 +207,66 @@ export function layoutWordmark(
   const fixed = toLines(input)
   const words = String(Array.isArray(input) ? input.join(" ") : input).trim().toUpperCase().split(/\s+/).filter(Boolean)
   const W = Math.max(1, box.w - 2 * o.padX)
-  const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
+  const stackH = (n: number, cap: number) => n * cap + (n - 1) * cap * o.gap
 
   const fit = (lines: string[]) => {
     const n = lines.length
-    const wmax = Math.max(1, ...lines.map(measure))
-    let sx = W / wmax
-    let ratio = o.bandRatio
-    if (o.mode === "fill") {
-      const capTarget = (box.h * o.fill) / (n + (n - 1) * o.gap)
-      ratio = capTarget / capU / sx
+    let sx = W / Math.max(1, ...lines.map(measure))
+    let sy = sx * o.maxRatio
+    // Too tall for its box: give up stretch first, then size.
+    const room = o.mode === "fill" ? box.h - 2 * o.padY : (o.maxHeight ?? Infinity)
+    if (stackH(n, sy * capU) > room) {
+      sy = Math.max(sx * o.minRatio, room / (n + (n - 1) * o.gap) / capU)
+      if (stackH(n, sy * capU) > room) {
+        sy = room / (n + (n - 1) * o.gap) / capU
+        sx = sy / o.minRatio
+      }
     }
-    ratio = clamp(ratio, o.minRatio, o.maxRatio)
-    let sy = sx * ratio
-    if (o.mode === "band" && o.maxCap && sy * capU > o.maxCap) {
+    if (o.maxCap && sy * capU > o.maxCap) {
       sy = o.maxCap / capU
       sx = Math.min(sx, sy / o.minRatio)
     }
-    const cap = sy * capU
-    // How much of the box the stack covers; the split that fills it wins, then the bigger capitals.
-    const cover = Math.min(1, (n * cap + (n - 1) * cap * o.gap) / Math.max(1, box.h * o.fill))
-    return { lines, sx, sy, cap, cover }
+    return { lines, sx, sy, cap: sy * capU }
   }
-  const better = (a: ReturnType<typeof fit>, b: ReturnType<typeof fit>) =>
-    a.cover > b.cover + 0.04 || (Math.abs(a.cover - b.cover) <= 0.04 && a.cap > b.cap * 1.04)
 
   let best = fit(fixed ?? [words.join(" ") || " "])
-  const stackH = (f: ReturnType<typeof fit>) => f.lines.length * f.cap + (f.lines.length - 1) * f.cap * o.gap
-  if (!fixed && o.mode === "band") {
-    const limit = o.maxHeight ?? Infinity
+  if (!fixed) {
     for (let n = 2; n <= Math.min(o.maxLines, words.length); n++) {
       let bestN: ReturnType<typeof fit> | null = null
+      let bestEven = 0
       for (const p of partitions(words, n)) {
-        const f = fit(p)
-        if (!bestN || f.cap > bestN.cap) bestN = f
-      }
-      if (bestN && stackH(bestN) <= limit && bestN.cap > best.cap * 1.04) best = bestN
-    }
-  }
-  if (!fixed && o.mode === "fill") {
-    for (let n = 2; n <= Math.min(o.maxLines, words.length); n++) {
-      let bestN: ReturnType<typeof fit> | null = null
-      let bestW = Infinity
-      for (const p of partitions(words, n)) {
-        const wmax = Math.max(...p.map(measure))
-        if (wmax < bestW) {
-          bestW = wmax
+        const widths = p.map(measure)
+        const even = Math.min(...widths) / Math.max(...widths)
+        if (even < o.balance) continue
+        if (even > bestEven) {
+          bestEven = even
           bestN = fit(p)
         }
       }
-      if (bestN && better(bestN, best)) best = bestN
+      if (bestN && bestN.cap > best.cap * 1.04) best = bestN
     }
   }
 
   const n = best.lines.length
-  const step = best.cap * (1 + o.gap)
-  const total = n * best.cap + (n - 1) * best.cap * o.gap
-  const height = o.mode === "band" ? total + 2 * o.padY : box.h
-  const y = o.mode === "band" || total > box.h - 2 * o.padY ? o.padY : (box.h - total) / 2
+  const cap = best.cap
+  const total = stackH(n, cap)
+  let height = box.h
+  let ys: number[]
+  if (o.mode === "band") {
+    height = total + 2 * o.padY
+    ys = best.lines.map((_, i) => o.padY + i * cap * (1 + o.gap))
+  } else {
+    // A frame: first line on top, last line dropped past the bottom edge, the rest spread between.
+    const last = Math.max(o.padY + (n - 1) * cap * (1 + o.gap), box.h - o.padY - cap + o.crop * cap)
+    ys = best.lines.map((_, i) => (n === 1 ? o.padY : o.padY + ((last - o.padY) * i) / (n - 1)))
+  }
   const lines = best.lines.map((text, i) => {
     const xs: number[] = []
     // Each glyph ends where its kerned prefix ends, so pairs like "TA" keep their kerning.
     for (let k = 0; k < text.length; k++) xs.push(k === 0 ? 0 : measure(text.slice(0, k + 1)) - measure(text[k]))
-    return { text, x0: (box.w - measure(text) * best.sx) / 2, y0: y + i * step, sx: best.sx, sy: best.sy, xs }
+    return { text, x0: (box.w - measure(text) * best.sx) / 2, y0: ys[i], sx: best.sx, sy: best.sy, xs }
   })
-  return { lines, cap: best.cap, height, capU }
+  return { lines, cap, height, capU }
 }
 
 /** Order letters left to right, line by line, skipping spaces. */
@@ -318,7 +327,7 @@ const CSS = `
 .wns-mark svg { display: block; width: 100%; height: 100%; overflow: visible; max-width: none; }
 .wns-mark text { fill: var(--m); font-weight: 900; font-size: 100px; }
 .wns-letter { transform: translateY(0); }
-.wns-letter[data-phase="out"] { transform: translateY(var(--drop)); opacity: 0; transition: transform 300ms cubic-bezier(0.5, 0, 0.75, 0.3), opacity 240ms ease 40ms; }
+.wns-letter[data-phase="out"] { transform: translateY(var(--drop)); transition: transform 300ms cubic-bezier(0.5, 0, 0.75, 0.3); }
 .wns-letter[data-phase="pre"] { transform: translateY(calc(var(--drop) * -1)); transition: none; }
 .wns-letter[data-phase="in"] { transform: translateY(0); transition: transform 560ms var(--wns-settle); }
 
@@ -344,9 +353,12 @@ const CSS = `
 .wns-field[data-invalid="true"] { border-color: var(--a); }
 .wns-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; line-height: 1; }
 .wns-input { display: block; width: 100%; margin: 6px 0 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--k);
-  font-family: var(--wns-text); font-weight: 700; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.15; height: 34px;
+  font-family: var(--wns-text); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; height: 34px;
   border-radius: 0; -webkit-appearance: none; appearance: none; transition: font-size 120ms ease; }
-.wns-input::placeholder { color: var(--k); opacity: 0.38; }
+.wns-input::placeholder { color: var(--k); opacity: 0.38; text-transform: uppercase; }
+.wns-input[readonly] { opacity: 0.6; }
+.wns-btn[aria-disabled="true"] { cursor: progress; }
+.wns-card:focus { outline: none; }
 
 .wns-topics { border: 0; margin: 0; padding: 0; min-width: 0; }
 .wns-topics legend { padding: 0; margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
@@ -374,14 +386,13 @@ const CSS = `
   overflow: hidden; border-radius: 0; transition: transform 120ms ease; }
 .wns-btn::before { content: ""; position: absolute; inset: 0; background: var(--k); clip-path: inset(100% 0 0 0);
   transition: clip-path 250ms var(--wns-out); }
-.wns-btn:active:not(:disabled) { transform: translateY(2px); }
-.wns-btn:disabled { cursor: progress; }
+.wns-btn:active:not([aria-disabled="true"]) { transform: translateY(2px); }
 .wns-roll { position: relative; display: block; height: 1.15em; overflow: hidden; line-height: 1.15; transition: color 200ms ease; }
 .wns-roll span { display: block; transition: transform 250ms var(--wns-out); }
 @media (hover: hover) and (pointer: fine) {
-  .wns-btn:hover:not(:disabled) .wns-roll span { transform: translateY(-100%); }
-  .wns-btn:hover:not(:disabled)::before { clip-path: inset(0 0 0 0); }
-  .wns-btn:hover:not(:disabled) .wns-roll { color: var(--a); }
+  .wns-btn:hover:not([aria-disabled="true"]) .wns-roll span { transform: translateY(-100%); }
+  .wns-btn:hover:not([aria-disabled="true"])::before { clip-path: inset(0 0 0 0); }
+  .wns-btn:hover:not([aria-disabled="true"]) .wns-roll { color: var(--a); }
   .wns-chip:hover { background: color-mix(in srgb, var(--k) 10%, transparent); }
   .wns-chip[aria-pressed="true"]:hover { background: var(--k); }
   .wns-link:hover { text-decoration-thickness: 3px; }
@@ -399,7 +410,7 @@ const CSS = `
 
 .wns-done { text-align: center; display: grid; gap: 14px; justify-items: center; }
 .wns-done p { margin: 0; font-size: 15px; line-height: 1.5; max-width: 34ch; text-wrap: pretty; }
-.wns-done strong { font-weight: 700; word-break: break-all; }
+.wns-done strong { font-weight: 700; overflow-wrap: anywhere; }
 .wns-link { appearance: none; border: 0; background: none; padding: 10px 4px; min-height: 40px; color: var(--k); font: inherit; font-size: 12px; font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; cursor: pointer; }
 .wns-swap { animation: wns-swap 320ms var(--wns-out) both; }
@@ -423,10 +434,11 @@ const CSS = `
 @keyframes wns-rise { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes wns-sink { to { opacity: 0; transform: scale(0.96); } }
 .wns-modal .wns-backdrop { position: fixed; inset: 0; z-index: 0; }
+.wns-modal[data-backdrop="dim"] { background: rgba(8, 8, 8, 0.62); }
 
 @media (max-width: 639px) {
-  .wns-section, .wns-modal { display: flex; flex-direction: column; justify-content: center; place-items: normal; padding: 0 16px 40px; }
-  .wns-modal { justify-content: flex-start; }
+  .wns-section, .wns-modal { display: flex; flex-direction: column; justify-content: flex-start; place-items: normal; padding: 0 16px 40px; }
+  .wns-modal[data-backdrop="dim"] { justify-content: center; }
   .wns-section > .wns-mark, .wns-modal > .wns-mark { position: relative; inset: auto; margin: 0 -16px; justify-self: stretch; }
   .wns-section > .wns-card, .wns-modal > .wns-card { margin-top: -36px; }
 }
@@ -438,8 +450,8 @@ const CSS = `
 .wns-strip .wns-field { border-width: 0 0 0 3px; padding-top: 12px; }
 .wns-strip .wns-field:focus-within { box-shadow: inset 0 0 0 3px var(--a); }
 .wns-strip .wns-btn { border-width: 0 0 0 3px; min-height: 72px; padding: 0 30px; width: auto; }
-.wns-strip .wns-btn:active:not(:disabled) { transform: none; }
-.wns-strip .wns-btn:active:not(:disabled) .wns-roll { transform: translateY(2px); }
+.wns-strip .wns-btn:active:not([aria-disabled="true"]) { transform: none; }
+.wns-strip .wns-btn:active:not([aria-disabled="true"]) .wns-roll { transform: translateY(2px); }
 .wns-strip .wns-done { grid-column: 1 / -1; padding: 20px; grid-template-columns: auto 1fr auto; text-align: left; align-items: center; }
 .wns-strip .wns-done .wns-h { padding: 0; }
 .wns-under { max-width: 1240px; min-height: 36px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between;
@@ -464,6 +476,8 @@ const CSS = `
 
 const OUT_MS = 300
 const IN_MS = 560
+/** The new word starts dropping this long after the old one starts falling. */
+const IN_LEAD = 120
 /** Per-letter stagger: 24ms out and 40ms in, shrunk for long words so the whole swap stays short. */
 const outStagger = (n: number) => Math.min(24, 260 / Math.max(1, n))
 const inStagger = (n: number) => Math.min(40, 420 / Math.max(1, n))
@@ -495,50 +509,51 @@ function useNarrow() {
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
 
-type Phase = "rest" | "out" | "pre" | "in"
+type Phase = "rest" | "pre" | "in"
 
 function Wordmark(props: {
   text: string | string[]
+  /** The brand: in the flow, a swapped word keeps its height. */
+  base: string | string[]
   mode: "fill" | "band"
   maxLines: number
-  fill: number
+  crop: number
   intro: boolean
   reduced: boolean
   uid: string
-  /** Phone section: the stack sits in the flow above the card. */
+  /** Phone: the stack sits in the flow above the card. */
   stack?: boolean
-  /** The brand: in the flow, the swapped word keeps its height. */
-  base: string | string[]
 }) {
-  const { text, maxLines, fill, intro, reduced, uid, stack = false } = props
+  const { text, maxLines, crop, intro, reduced, uid, stack = false } = props
   const mode = stack ? "band" : props.mode
   const wrapRef = React.useRef(null as HTMLDivElement | null)
   const [box, setBox] = React.useState({ w: 0, h: 0 })
   const [family, setFamily] = React.useState("")
   const [fontsTick, setFontsTick] = React.useState(0)
   const [shown, setShown] = React.useState(text)
+  // The word on its way out, drawn under the new one while it falls.
+  const [prev, setPrev] = React.useState(null as string | string[] | null)
   const [phase, setPhase] = React.useState((intro && !reduced ? "pre" : "rest") as Phase)
   const key = JSON.stringify(text)
   const shownKey = JSON.stringify(shown)
+  const prevKey = JSON.stringify(prev)
   const baseKey = JSON.stringify(props.base)
 
   useIsoLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
     setFamily(getComputedStyle(el).fontFamily)
-    const read = () => {
-      const host = mode === "band" ? el : (el.parentElement as HTMLElement)
-      setBox({ w: host.clientWidth, h: mode === "band" ? 0 : host.clientHeight })
-    }
+    const host = mode === "band" ? el : (el.parentElement as HTMLElement)
+    const read = () => setBox({ w: host.clientWidth, h: mode === "band" ? 0 : host.clientHeight })
     read()
     const ro = new ResizeObserver(read)
-    ro.observe(mode === "band" ? el : (el.parentElement as HTMLElement))
+    ro.observe(host)
     const fonts = (document as Document & { fonts?: FontFaceSet }).fonts
     fonts?.ready.then(() => setFontsTick((t) => t + 1))
     return () => ro.disconnect()
   }, [mode])
 
-  const layout = React.useMemo(() => {
+  const lay = React.useMemo(() => {
     if (!box.w || !family || typeof document === "undefined") return null
     const ctx = document.createElement("canvas").getContext("2d")
     if (!ctx) return null
@@ -549,45 +564,52 @@ function Wordmark(props: {
       return cache.get(s) as number
     }
     const capU = ctx.measureText("H").actualBoundingBoxAscent || 72
-    const padX = stack ? 12 : mode === "band" ? Math.max(10, box.w * 0.008) : Math.max(12, box.w * 0.022)
     const opts: WordmarkOptions = {
-      maxLines,
-      fill,
-      minRatio: 1.05,
-      maxRatio: 1.75,
-      gap: 0.16,
-      padX,
-      padY: mode === "band" ? Math.max(16, box.w * 0.016) : Math.max(16, box.w * 0.02),
+      // Behind a centred card only the top and bottom lines read, so the field frames it with two.
+      maxLines: mode === "fill" ? Math.min(maxLines, 2) : maxLines,
       mode,
-      bandRatio: stack ? 1.75 : 1.6,
-      maxHeight: stack ? Math.max(220, window.innerHeight * 0.5) : Math.max(220, box.w * 0.24),
+      minRatio: 1.0,
+      maxRatio: 1.35,
+      gap: 0.16,
+      crop,
+      // How uneven a split may be. A band line has nothing to hide it, so it stays even.
+      balance: mode === "fill" ? 0.15 : stack ? 0.25 : 0.45,
+      padX: mode === "band" ? Math.max(10, box.w * (stack ? 0.032 : 0.008)) : Math.max(12, box.w * 0.022),
+      padY: mode === "band" ? Math.max(16, box.w * 0.016) : Math.max(16, box.w * 0.02),
+      maxHeight: stack ? Math.max(220, window.innerHeight * 0.42) : Math.max(220, box.w * 0.24),
     }
-    if (mode !== "band" || shownKey === baseKey) return layoutWordmark(shown, box, measure, capU, opts)
-    // In the flow, the band keeps the name's height so nothing below moves when the word swaps.
-    const base = layoutWordmark(props.base, box, measure, capU, opts)
-    const next = layoutWordmark(shown, box, measure, capU, { ...opts, maxCap: base.cap, maxLines: base.lines.length })
-    const dy = (base.height - next.height) / 2
-    return { ...next, height: base.height, lines: next.lines.map((l) => ({ ...l, y0: l.y0 + dy })) }
+    return (t: string | string[]) => {
+      if (mode !== "band" || JSON.stringify(t) === baseKey) return layoutWordmark(t, box, measure, capU, opts)
+      // In the flow the stack keeps the name's height, so nothing below moves when the word swaps.
+      const base = layoutWordmark(props.base, box, measure, capU, opts)
+      const next = layoutWordmark(t, box, measure, capU, { ...opts, maxCap: base.cap, maxLines: base.lines.length })
+      const dy = (base.height - next.height) / 2
+      return { ...next, height: base.height, lines: next.lines.map((l) => ({ ...l, y0: l.y0 + dy })) }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownKey, baseKey, box.w, box.h, family, fontsTick, mode, maxLines, fill, stack])
+  }, [baseKey, box.w, box.h, family, fontsTick, mode, maxLines, crop, stack])
 
-  // A new word: letters drop out, the new ones drop in.
+  const layout = React.useMemo(() => (lay ? lay(shown) : null), [lay, shownKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prevLayout = React.useMemo(() => (lay && prev ? lay(prev) : null), [lay, prevKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new word: the old letters fall out of their lines while the new ones drop in behind them.
   React.useEffect(() => {
     if (key === shownKey) return
     if (reduced) {
+      setPrev(null)
       setShown(text)
       setPhase("rest")
       return
     }
-    setPhase("out")
-    const count = JSON.stringify(shown).replace(/[^A-Za-z0-9]/g, "").length
-    const t = window.setTimeout(() => {
-      setShown(text)
-      setPhase("pre")
-    }, OUT_MS + count * outStagger(count))
-    return () => window.clearTimeout(t)
+    setPrev(shown)
+    setShown(text)
+    setPhase("pre")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, reduced])
+
+  const count = (l: WordmarkLayout | null) => (l ? l.lines.reduce((n, x) => n + x.text.replace(/ /g, "").length, 0) : 0)
+  const inCount = count(layout)
+  const outCount = count(prevLayout)
 
   React.useEffect(() => {
     if (phase === "pre" && layout) {
@@ -600,56 +622,70 @@ function Wordmark(props: {
         cancelAnimationFrame(r2)
       }
     }
-    if (phase === "in" && layout) {
-      const count = layout.lines.reduce((n, l) => n + l.text.replace(/ /g, "").length, 0)
-      const t = window.setTimeout(() => setPhase("rest"), IN_MS + count * inStagger(count) + 40)
+    if (phase === "in") {
+      const done = Math.max(IN_LEAD + IN_MS + inCount * inStagger(inCount), OUT_MS + outCount * outStagger(outCount)) + 60
+      const t = window.setTimeout(() => {
+        setPrev(null)
+        setPhase("rest")
+      }, done)
       return () => window.clearTimeout(t)
     }
-  }, [phase, layout])
+  }, [phase, layout, inCount, outCount])
 
-  const order = layout ? letterOrder(layout.lines.map((l) => l.text)) : []
-  const letters = order.reduce((n, l) => n + l.filter((k) => k >= 0).length, 0)
-  const outS = outStagger(letters)
-  const inS = inStagger(letters)
   const height = mode === "band" ? (layout ? layout.height : 0) : undefined
+  const h = mode === "band" ? (layout ? layout.height : 0) : box.h
+
+  const draw = (l: WordmarkLayout, layer: "a" | "b", letterPhase: string, stagger: number, lead: number) => {
+    const order = letterOrder(l.lines.map((x) => x.text))
+    return l.lines.map((line, li) => (
+      <g key={layer + JSON.stringify(line.text) + li} transform={"translate(" + line.x0 + " " + line.y0 + ") scale(" + line.sx + " " + line.sy + ")"}>
+        <g clipPath={"url(#" + uid + layer + li + ")"}>
+          {line.text.split("").map((c, i) =>
+            c === " " ? null : (
+              <text
+                key={i}
+                className="wns-letter"
+                data-phase={letterPhase}
+                x={line.xs[i]}
+                y={l.capU}
+                style={
+                  {
+                    "--drop": l.capU * DROP + "px",
+                    transitionDelay: letterPhase === "rest" || letterPhase === "pre" ? undefined : lead + order[li][i] * stagger + "ms",
+                  } as React.CSSProperties
+                }
+              >
+                {c}
+              </text>
+            ),
+          )}
+        </g>
+      </g>
+    ))
+  }
+  // While letters move, the window is the cap height exactly, so they sink through the baseline and
+  // drop through the cap line with no slivers showing in the margins. At rest it opens up for accents.
+  const clips = (l: WordmarkLayout, layer: "a" | "b", moving: boolean) =>
+    l.lines.map((line, li) => {
+      const top = moving ? 0 : CLIP_TOP
+      const bottom = !moving ? CLIP_BOTTOM : layer === "a" ? 1 + SETTLE_CLIP : 1
+      return (
+        <clipPath id={uid + layer + li} key={layer + li}>
+          <rect x={-40} y={-l.capU * top} width={line.text.length * 140 + 80} height={l.capU * (top + bottom)} />
+        </clipPath>
+      )
+    })
 
   return (
     <div ref={wrapRef} className="wns-mark" aria-hidden="true" style={height !== undefined ? { height } : undefined}>
       {layout && (
-        <svg width={box.w} height={mode === "band" ? layout.height : box.h} viewBox={"0 0 " + box.w + " " + (mode === "band" ? layout.height : box.h)}>
+        <svg width={box.w} height={h} viewBox={"0 0 " + box.w + " " + h}>
           <defs>
-            {layout.lines.map((l, li) => (
-              <clipPath id={uid + "-c" + li} key={li}>
-                <rect x={-40} y={-layout.capU * 0.06} width={l.text.length * 140 + 80} height={layout.capU * 1.2} />
-              </clipPath>
-            ))}
+            {prevLayout && clips(prevLayout, "b", true)}
+            {clips(layout, "a", phase !== "rest")}
           </defs>
-          {layout.lines.map((l, li) => (
-            <g key={shownKey + li} transform={"translate(" + l.x0 + " " + l.y0 + ") scale(" + l.sx + " " + l.sy + ")"}>
-              <g clipPath={"url(#" + uid + "-c" + li + ")"}>
-                {l.text.split("").map((c, i) =>
-                  c === " " ? null : (
-                    <text
-                      key={i}
-                      className="wns-letter"
-                      data-phase={phase}
-                      x={l.xs[i]}
-                      y={layout.capU}
-                      style={
-                        {
-                          "--drop": layout.capU * 1.32 + "px",
-                          transitionDelay:
-                            phase === "out" ? order[li][i] * outS + "ms" : phase === "in" ? order[li][i] * inS + "ms" : undefined,
-                        } as React.CSSProperties
-                      }
-                    >
-                      {c}
-                    </text>
-                  ),
-                )}
-              </g>
-            </g>
-          ))}
+          {prevLayout && draw(prevLayout, "b", phase === "in" ? "out" : "rest", outStagger(outCount), 0)}
+          {draw(layout, "a", phase, inStagger(inCount), prevLayout ? IN_LEAD : 0)}
         </svg>
       )}
     </div>
@@ -695,9 +731,10 @@ export default function WordmarkNewsletterSignup({
   palette,
   darkPalette,
   theme = "auto",
-  height = "100svh",
+  height = "min(100svh, 880px)",
   maxLines = 4,
-  fill = 1.06,
+  crop = 0.14,
+  backdrop = "wordmark",
   image = null,
   displayFont = DISPLAY_FONT,
   textFont = TEXT_FONT,
@@ -721,6 +758,7 @@ export default function WordmarkNewsletterSignup({
   const [photoOk, setPhotoOk] = React.useState(true)
 
   const inputRef = React.useRef(null as HTMLInputElement | null)
+  const boxRef = React.useRef(null as HTMLInputElement | null)
   const doneRef = React.useRef(null as HTMLHeadingElement | null)
   const cardRef = React.useRef(null as HTMLDivElement | null)
   const alive = React.useRef(true)
@@ -759,7 +797,9 @@ export default function WordmarkNewsletterSignup({
     const root = document.documentElement
     const prevOverflow = root.style.overflow
     root.style.overflow = "hidden"
-    const t = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40)
+    // A touch screen gets the dialog focused, not the field, so the keyboard does not cover it on open.
+    const coarse = window.matchMedia("(pointer: coarse)").matches
+    const t = window.setTimeout(() => (coarse ? cardRef.current : inputRef.current)?.focus({ preventScroll: true }), 40)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault()
@@ -815,6 +855,7 @@ export default function WordmarkNewsletterSignup({
       setInvalid("consent")
       setError("Tick the box so we're allowed to send it.")
       setStatus("error")
+      boxRef.current?.focus()
       return
     }
     setInvalid("")
@@ -831,6 +872,7 @@ export default function WordmarkNewsletterSignup({
       if (!alive.current) return
       setError(err instanceof Error && err.message ? err.message : "We couldn't sign you up just now. Try again in a moment.")
       setStatus("error")
+      inputRef.current?.focus()
     }
   }
 
@@ -863,7 +905,8 @@ export default function WordmarkNewsletterSignup({
   const markText = done ? successWord : brand
   const errId = uid + "-err"
   const band = variant === "band"
-  const fieldSize = emailFontSize(email.length, band ? 24 : 26, 15, band ? 22 : 17)
+  // Sized for whichever is longer, the address or the placeholder, so neither clips on a phone.
+  const fieldSize = emailFontSize(Math.max(email.length, placeholder.length), narrow ? 22 : band ? 24 : 26, 15, band ? 22 : narrow ? 15 : 17)
 
   const field = (
     <label className="wns-field" data-invalid={invalid === "email" ? "true" : undefined}>
@@ -879,7 +922,7 @@ export default function WordmarkNewsletterSignup({
         autoCapitalize="off"
         placeholder={placeholder}
         value={email}
-        disabled={status === "pending"}
+        readOnly={status === "pending"}
         aria-invalid={invalid === "email" || undefined}
         aria-describedby={error ? errId : undefined}
         style={{ fontSize: fieldSize }}
@@ -896,7 +939,7 @@ export default function WordmarkNewsletterSignup({
   )
 
   const button = (
-    <button className="wns-btn" type="submit" disabled={status === "pending"} aria-busy={status === "pending" || undefined}>
+    <button className="wns-btn" type="submit" aria-disabled={status === "pending" || undefined} aria-busy={status === "pending" || undefined}>
       <span className="wns-roll">
         <span>{status === "pending" ? pendingLabel : buttonLabel}</span>
         <span aria-hidden="true">{status === "pending" ? pendingLabel : buttonLabel}</span>
@@ -907,6 +950,7 @@ export default function WordmarkNewsletterSignup({
   const consentRow = hasConsent ? (
     <label className="wns-consent" data-invalid={invalid === "consent" ? "true" : undefined}>
       <input
+        ref={boxRef}
         className="wns-box"
         type="checkbox"
         checked={agreed}
@@ -964,7 +1008,7 @@ export default function WordmarkNewsletterSignup({
     ) : null
 
   const card = (
-    <div className="wns-card" ref={cardRef}>
+    <div className="wns-card" ref={cardRef} tabIndex={variant === "modal" ? -1 : undefined}>
       {variant === "modal" && (
         <button type="button" className="wns-x" aria-label="Close" onClick={requestClose}>
           <svg viewBox="0 0 26 26" aria-hidden="true">
@@ -982,9 +1026,10 @@ export default function WordmarkNewsletterSignup({
           {description ? <p className="wns-desc">{description}</p> : null}
           <form className="wns-form" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
             {field}
+            {invalid === "consent" ? null : statusLine}
             {topicsRow}
             {consentRow}
-            {statusLine}
+            {invalid === "consent" ? statusLine : null}
             {button}
             {proof ? <p className="wns-proof">{proof}</p> : null}
           </form>
@@ -1002,7 +1047,7 @@ export default function WordmarkNewsletterSignup({
     return (
       <section className={"wns wns-band" + (className ? " " + className : "")} aria-label={ariaLabel} {...common}>
         <style>{CSS}</style>
-        <Wordmark text={markText} base={brand} mode="band" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} />
+        <Wordmark text={markText} base={brand} mode="band" maxLines={maxLines} crop={crop} intro={false} reduced={reduced} uid={uid} />
         <form className="wns-strip" noValidate onSubmit={submit} aria-labelledby={uid + "-h"}>
           {done ? (
             <div className="wns-done wns-swap">
@@ -1043,11 +1088,12 @@ export default function WordmarkNewsletterSignup({
         aria-labelledby={uid + "-h"}
         aria-label={done ? successTitle : undefined}
         data-closing={closing || undefined}
+        data-backdrop={backdrop}
         {...common}
       >
         <style>{CSS}</style>
         <div className="wns-backdrop" onClick={requestClose} />
-        <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} fill={fill} intro={true} reduced={reduced} uid={uid} stack={narrow} />
+        {backdrop === "dim" ? null : <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={true} reduced={reduced} uid={uid} stack={narrow} />}
         {card}
       </div>,
       document.body,
@@ -1062,7 +1108,7 @@ export default function WordmarkNewsletterSignup({
       style={{ ...common.style, minHeight: height }}
     >
       <style>{CSS}</style>
-      <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} fill={fill} intro={false} reduced={reduced} uid={uid} stack={narrow} />
+      <Wordmark text={markText} base={brand} mode="fill" maxLines={maxLines} crop={crop} intro={false} reduced={reduced} uid={uid} stack={narrow} />
       {image && photoOk ? (
         <div className="wns-photo">
           <img src={image.src} alt={image.alt} width={600} height={750} loading="lazy" onError={() => setPhotoOk(false)} />
