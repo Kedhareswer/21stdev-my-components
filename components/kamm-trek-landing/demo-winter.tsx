@@ -131,6 +131,12 @@ export default function DemoWinter() {
         ],
       }}
       footer={{ title: "Skins on in February.", note: "Guided ski tours on the Rotgrat from February to April." }}
+      labels={{
+        people: "Skiers",
+        hutCaption: "Night {n}, after {hours} on skis.",
+        errName: "Add the name the huts should book under.",
+        fine: "No payment now. We hold your places for 48 hours, then ask for the deposit and your avalanche course details.",
+      }}
     />
   )
 }

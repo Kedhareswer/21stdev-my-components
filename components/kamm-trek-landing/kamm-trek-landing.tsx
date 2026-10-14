@@ -28,6 +28,8 @@ export type KammPreset = "summer" | "winter"
 
 export type KammLink = { label: string; href?: string }
 
+export type KammPeak = { name: string; at?: [number, number] }
+
 /** Where the trek starts: a village in the valley. `at` is the map position, 0..1 from the north-west corner. */
 export type KammPlace = { name: string; alt: number; at: [number, number] }
 
@@ -91,7 +93,72 @@ export type KammQuote = {
 
 export type KammFaq = { q: string; a: string }
 
+/** Every piece of interface copy, for another language or another kind of trip. `{n}`-style tokens are filled in. */
+export type KammLabels = {
+  skip?: string
+  menu?: string
+  close?: string
+  distance?: string
+  ascent?: string
+  highest?: string
+  days?: string
+  /** "Day {n} of {total}" */
+  dayOf?: string
+  /** "Day" in the tabs and the profile */
+  day?: string
+  up?: string
+  down?: string
+  duffelWaiting?: string
+  /** "End of the trek, {alt} m." */
+  end?: string
+  night?: string
+  duffelHere?: string
+  /** "on the map, 1:25 000." after the hut's name, when it is shown on a map excerpt */
+  mapNote?: string
+  /** "Night {n}, after {hours} of walking." */
+  hutCaption?: string
+  notIncluded?: string
+  allMonths?: string
+  /** "{weekday}, with {guide}" */
+  withGuide?: string
+  placeLeft?: string
+  /** "{n} places left" */
+  placesLeft?: string
+  full?: string
+  holdTitle?: string
+  waitTitle?: string
+  /** What the party is called: walkers, skiers, riders. */
+  people?: string
+  nameField?: string
+  emailField?: string
+  holdOne?: string
+  /** "Hold {n} places" */
+  holdMany?: string
+  waitButton?: string
+  sending?: string
+  errName?: string
+  errEmail?: string
+  errSend?: string
+  fine?: string
+  heldTitle?: string
+  /** "{places} on {dates} with {guide} {are} yours. The deposit link is on its way to {email}." */
+  heldText?: string
+  waitDoneTitle?: string
+  /** "We will email {email} the moment {places} open up on {dates}." */
+  waitText?: string
+  holdAnother?: string
+  /** "Anything else? Write to" ... "A guide answers, usually the same day." */
+  askBefore?: string
+  askAfter?: string
+  /** "The next group leaves {start} on {date}." */
+  nextGroup?: string
+  noNext?: string
+  disclaimer?: string
+}
+
 export type KammTrekLandingProps = {
+  /** Interface copy: labels, buttons, form fields, messages. */
+  labels?: KammLabels
   brand?: string
   /** Shown next to the brand, e.g. "Hut treks". */
   tagline?: string
@@ -124,8 +191,11 @@ export type KammTrekLandingProps = {
     name?: string
     start?: KammPlace
     stages?: KammStage[]
-    /** Peak names placed on the highest summits of the map. */
-    peaks?: string[]
+    /**
+     * Summit names. A plain name goes on the next highest summit near the route; give
+     * `at` to pin a name near a map position (it snaps to the top of that summit).
+     */
+    peaks?: (string | KammPeak)[]
   }
   huts?: { title?: string; text?: string }
   included?: {
@@ -322,7 +392,7 @@ const SCENES: { [k: string]: KmmScene } = {
     contour: "#5a3a22", contourAlpha: 0.3, glow: 0.7,
   },
   "summer-night": {
-    skyTop: "#0d1729", skyMid: "#36395c", skyLow: "#d98d7c", haze: "#4b4766", hazeKm: 13,
+    skyTop: "#0d1729", skyMid: "#2f3557", skyLow: "#b27a78", haze: "#4a4565", hazeKm: 13,
     sunAz: 275, sunEl: 4, sun: [1.1, 0.5, 0.5], ambient: [0.15, 0.18, 0.31],
     valley: "#5c6e45", meadow: "#93975f", rock: "#9a9085", snow: "#f4f6f8", snowLine: 2950,
     contour: "#1a1830", contourAlpha: 0.3, glow: 0.8,
@@ -331,7 +401,7 @@ const SCENES: { [k: string]: KmmScene } = {
     skyTop: "#3f74b3", skyMid: "#9dbcd9", skyLow: "#e6eef4", haze: "#d9e4ee", hazeKm: 26,
     sunAz: 200, sunEl: 21, sun: [1.25, 1.18, 1.08], ambient: [0.42, 0.5, 0.66],
     valley: "#e9eef2", meadow: "#eef2f5", rock: "#7d7a78", snow: "#f6f8fa", snowLine: 1250,
-    contour: "#2c4a6e", contourAlpha: 0.22, glow: 0.35,
+    contour: "#2c4a6e", contourAlpha: 0.1, glow: 0.35,
   },
   "winter-night": {
     skyTop: "#060b17", skyMid: "#1b2a48", skyLow: "#6f7fa6", haze: "#28365a", hazeKm: 15,
@@ -359,6 +429,54 @@ const PRINTS: { [k: string]: KmmPrint } = {
     paper: "#0e1520", low: "#1d2838", high: "#283548", rock: "#2b3038", ice: "#2d3f58",
     light: "#3d4a66", shade: "#04060c", contour: "#8fb3dd", iceContour: "#9cc6ef", contourAlpha: 0.55, interval: 50, snow: 1250,
   },
+}
+const DEFAULT_LABELS = {
+  skip: "Skip to the route",
+  menu: "Menu",
+  close: "Close",
+  distance: "Distance",
+  ascent: "Ascent",
+  highest: "Highest point",
+  days: "Days",
+  dayOf: "Day {n} of {total}",
+  day: "Day",
+  up: "Up",
+  down: "Down",
+  duffelWaiting: "Your duffel is waiting.",
+  end: "End of the trek, {alt} m.",
+  night: "Night",
+  duffelHere: "Duffel here",
+  mapNote: "on the map, 1:25 000.",
+  hutCaption: "Night {n}, after {hours} of walking.",
+  notIncluded: "Not included",
+  allMonths: "All",
+  withGuide: "{weekday}, with {guide}",
+  placeLeft: "1 place left",
+  placesLeft: "{n} places left",
+  full: "Full, waitlist open",
+  holdTitle: "Hold places",
+  waitTitle: "Join the waitlist",
+  people: "Walkers",
+  nameField: "Name for the hut bookings",
+  emailField: "Email",
+  holdOne: "Hold 1 place",
+  holdMany: "Hold {n} places",
+  waitButton: "Join the waitlist",
+  sending: "Holding",
+  errName: "Add the name the huts should book under.",
+  errEmail: "Add an email address like ruth@example.com.",
+  errSend: "That did not go through. Nothing was held; try again in a moment.",
+  fine: "No payment now. We hold your places for 48 hours and email a deposit link.",
+  heldTitle: "Held for 48 hours.",
+  heldText: "{places} on {dates} with {guide} {are} yours. The deposit link is on its way to {email}.",
+  waitDoneTitle: "You are on the waitlist.",
+  waitText: "We will email {email} the moment {places} open up on {dates}.",
+  holdAnother: "Hold another departure",
+  askBefore: "Anything else? Write to",
+  askAfter: "A guide answers, usually the same day.",
+  nextGroup: "The next group leaves {start} on {date}.",
+  noNext: "Next season's dates open in January.",
+  disclaimer: "Relief and contours drawn for illustration. Not for navigation.",
 }
 // #endregion content
 
@@ -470,14 +588,20 @@ function farTerrain(u: number, v: number, seed: number) {
 type KmmGrid = { n: number; u0: number; v0: number; span: number; h: Float32Array }
 
 function makeGrid(n: number, u0: number, v0: number, span: number, seed: number, octaves = 6, distant = false): KmmGrid {
-  const h = new Float32Array(n * n)
-  for (let j = 0; j < n; j++)
+  const g = { n, u0, v0, span, h: new Float32Array(n * n) }
+  gridRows(g, 0, n, seed, octaves, distant)
+  return g
+}
+
+/** Fills rows j0..j1 of a grid; the page calls it in small slices so the main thread stays free. */
+function gridRows(g: KmmGrid, j0: number, j1: number, seed: number, octaves = 6, distant = false) {
+  const { n, u0, v0, span, h } = g
+  for (let j = j0; j < Math.min(n, j1); j++)
     for (let i = 0; i < n; i++) {
       const u = u0 + (i / (n - 1)) * span
       const v = v0 + (j / (n - 1)) * span
       h[j * n + i] = distant ? farTerrain(u, v, seed) : terrain(u, v, seed, octaves)
     }
-  return { n, u0, v0, span, h }
 }
 
 /** Bilinear height at map position, clamped to the grid. */
@@ -593,6 +717,8 @@ function printSheet(
   view: { u0: number; v0: number; span: number },
   p: KmmPrint,
   scale = 1,
+  y0 = 0,
+  y1 = H,
 ) {
   const low = hex(p.low)
   const high = hex(p.high)
@@ -608,7 +734,7 @@ function printSheet(
   const metresPerPx = (view.span * MAP_KM * 1000) / W
   const k = (g.n - 1) / g.span
   const iv = p.interval
-  for (let y = 0; y < H; y++) {
+  for (let y = y0; y < Math.min(H, y1); y++) {
     for (let x = 0; x < W; x++) {
       const u = view.u0 + ((x + 0.5) / W) * view.span
       const v = view.v0 + ((y + 0.5) / W) * view.span
@@ -695,8 +821,14 @@ type KmmScene = {
 
 /** Shaded colours for every grid cell under the scene's light, with cast shadows (computed once). */
 function shadeGrid(g: KmmGrid, sc: KmmScene, seed: number) {
+  const out = new Float32Array(g.n * g.n * 3)
+  shadeRows(g, sc, seed, out, 0, g.n)
+  return out
+}
+
+/** Shades rows j0..j1 of a grid into `out` (three floats per cell). */
+function shadeRows(g: KmmGrid, sc: KmmScene, seed: number, out: Float32Array, j0: number, j1: number) {
   const n = g.n
-  const out = new Float32Array(n * n * 3)
   const L = lightVec(sc.sunAz, sc.sunEl)
   const cell = (g.span * MAP_KM * 1000) / (n - 1)
   const val = hex(sc.valley)
@@ -707,7 +839,7 @@ function shadeGrid(g: KmmGrid, sc: KmmScene, seed: number) {
   const hl = Math.hypot(L[0], L[1]) || 1
   const sx = L[0] / hl
   const sy = L[1] / hl
-  for (let j = 0; j < n; j++) {
+  for (let j = j0; j < Math.min(n, j1); j++) {
     for (let i = 0; i < n; i++) {
       const k = j * n + i
       const h = g.h[k]
@@ -864,6 +996,12 @@ function renderVista(
       const h = g.h[c] * w00 + g.h[c + 1] * w10 + g.h[c + n] * w01 + g.h[c + n + 1] * w11
       const Y = hy + ((cam.alt - h * EXAG) / z) * focal
       const band = Math.floor(h / 100)
+      if (Y < yb && yb - Y > 4 && dz > 0.7 && pr >= 0) {
+        // a steep face ahead: step back and sample it finer, so it is drawn, not smeared
+        dz *= 0.5
+        z -= dz
+        continue
+      }
       if (Y < yb) {
         const c3 = c * 3
         const c3b = (c + 1) * 3
@@ -872,9 +1010,12 @@ function renderVista(
         let r = shade[c3] * w00 + shade[c3b] * w10 + shade[c3c] * w01 + shade[c3d] * w11
         let gg = shade[c3 + 1] * w00 + shade[c3b + 1] * w10 + shade[c3c + 1] * w01 + shade[c3d + 1] * w11
         let b = shade[c3 + 2] * w00 + shade[c3b + 2] * w10 + shade[c3c + 2] * w01 + shade[c3d + 2] * w11
-        r = Math.min(1, r) * 255
-        gg = Math.min(1, gg) * 255
-        b = Math.min(1, b) * 255
+        // close ground gets fine grain (scree, pasture, scrub) that fades with distance
+        const near = 1 - smoothstep(5000, 13000, z)
+        const grain = near > 0 ? 1 + near * (0.11 * noise2(u * 650, v * 650, 3) + 0.07 * noise2(u * 1900, v * 1900, 4)) : 1
+        r = Math.min(1, r * grain) * 255
+        gg = Math.min(1, gg * grain) * 255
+        b = Math.min(1, b * grain) * 255
         const fog = (1 - Math.exp(-z / (sc.hazeKm * 1000))) * (0.6 + 0.4 * smoothstep(3200, 1200, h))
         r = mix(r, hz[0], fog)
         gg = mix(gg, hz[1], fog)
@@ -915,7 +1056,7 @@ function renderVista(
       }
       lastBand = band
       z += dz
-      dz = Math.max(2, z * 0.003)
+      dz = Math.min(Math.max(2, z * 0.003), dz * 1.5)
     }
     ybuf[x] = yb
     // sky: three stops, warmer toward the sun
@@ -930,24 +1071,14 @@ function renderVista(
       let r: number
       let gg: number
       let b: number
-      if (t < 0.78) {
-        const q = t / 0.78
-        r = mix(top[0], mid[0], q)
-        gg = mix(top[1], mid[1], q)
-        b = mix(top[2], mid[2], q)
-      } else if (t < 1) {
-        const q = smoothstep(0.78, 1, t)
-        r = mix(mid[0], low[0], q)
-        gg = mix(mid[1], low[1], q)
-        b = mix(mid[2], low[2], q)
-      } else {
-        // below the horizon the far valleys are only haze
-        const q = smoothstep(1, 1.35, t)
-        r = mix(low[0], hz[0], q)
-        gg = mix(low[1], hz[1], q)
-        b = mix(low[2], hz[2], q)
-      }
-      const gw = glow * smoothstep(0.3, 1, t) * (1 - smoothstep(1, 1.4, t))
+      // one continuous sky: top to mid, mid to the warm band at the horizon, then haze below it
+      const q1 = smoothstep(0, 0.82, t)
+      const q2 = smoothstep(0.62, 1, t)
+      const q3 = smoothstep(0.97, 1.2, t)
+      r = mix(mix(mix(top[0], mid[0], q1), low[0], q2), hz[0], q3)
+      gg = mix(mix(mix(top[1], mid[1], q1), low[1], q2), hz[1], q3)
+      b = mix(mix(mix(top[2], mid[2], q1), low[2], q2), hz[2], q3)
+      const gw = glow * smoothstep(0.4, 1, t) * (1 - smoothstep(0.98, 1.15, t)) * 0.6
       r = mix(r, low[0], gw)
       gg = mix(gg, low[1], gw)
       b = mix(b, low[2], gw)
@@ -1141,6 +1272,36 @@ function findPeaks(g: KmmGrid, count: number, gap: number, box?: { u0: number; v
   return out
 }
 
+/**
+ * Names the summits once per terrain, independent of the frame, so a name always
+ * sits on the same summit with the same height at every screen width.
+ */
+function resolvePeaks(g: KmmGrid, peaks: (string | KammPeak)[], stops: [number, number][]) {
+  const box = mapView(stops, 1, 0.12)
+  const auto = findPeaks(g, 40, 0.13, { u0: box.u0, v0: box.v0, w: box.w, h: box.h }).filter((pk) => stops.every((a) => Math.hypot(a[0] - pk.u, a[1] - pk.v) > 0.075))
+  const used = new Set()
+  const out: { name: string; u: number; v: number; h: number }[] = []
+  const n = g.n
+  for (const raw of peaks) {
+    const pk = typeof raw === "string" ? { name: raw } : raw
+    if (pk.at) {
+      const ci = Math.round(((pk.at[0] - g.u0) / g.span) * (n - 1))
+      const cj = Math.round(((pk.at[1] - g.v0) / g.span) * (n - 1))
+      const r = Math.max(2, Math.round((0.035 / g.span) * (n - 1)))
+      let best = { i: clamp(ci, 0, n - 1), j: clamp(cj, 0, n - 1), h: -Infinity }
+      for (let j = Math.max(0, cj - r); j <= Math.min(n - 1, cj + r); j++)
+        for (let i = Math.max(0, ci - r); i <= Math.min(n - 1, ci + r); i++) if (g.h[j * n + i] > best.h) best = { i, j, h: g.h[j * n + i] }
+      out.push({ name: pk.name, u: g.u0 + (best.i / (n - 1)) * g.span, v: g.v0 + (best.j / (n - 1)) * g.span, h: best.h })
+    } else {
+      const next = auto.find((a) => !used.has(a))
+      if (!next) continue
+      used.add(next)
+      out.push({ name: pk.name, u: next.u, v: next.v, h: next.h })
+    }
+  }
+  return out
+}
+
 /** "2,912" with the separator the page asks for. */
 function fmtNum(n: number, sep = ",") {
   const s = String(Math.round(Math.abs(n)))
@@ -1244,6 +1405,11 @@ function placeLabels(labels: { x: number; y: number; w: number; h: number; gap: 
   })
 }
 
+/** Fills "{name}" tokens in interface copy. */
+function fill(text: string, vars: { [k: string]: string | number }) {
+  return text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
+}
+
 /** Initials for a guide without a photo. */
 function initials(name: string) {
   return name
@@ -1260,21 +1426,59 @@ function initials(name: string) {
 const GRID_CACHE: { [k: string]: KmmGrid } = {}
 const SHADE_CACHE: { [k: string]: Float32Array } = {}
 
-function nearGrid(seed: number) {
-  const k = "near" + seed
-  return GRID_CACHE[k] || (GRID_CACHE[k] = makeGrid(640, -0.22, -0.38, 1.45, seed, 6))
+const NEAR = { n: 640, u0: -0.22, v0: -0.38, span: 1.45 }
+
+/** Runs `step(from, to)` over `total` rows in slices of about 12 ms, yielding to the page between slices. */
+async function sliced(total: number, step: (a: number, b: number) => void, alive: () => boolean) {
+  let j = 0
+  while (j < total) {
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now()
+    while (j < total && (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0 < 12) {
+      step(j, j + 4)
+      j += 4
+    }
+    if (!alive()) return false
+    if (j < total) await new Promise((r) => setTimeout(r, 0))
+  }
+  return true
+}
+
+/** Prints a sheet in slices, then paints it; false if the component went away first. */
+async function printSliced(cv: HTMLCanvasElement, W: number, H: number, g: KmmGrid, view: { u0: number; v0: number; span: number }, p: KmmPrint, scale: number, alive: () => boolean) {
+  const out = new Uint8ClampedArray(W * H * 4)
+  if (!(await sliced(H, (a, b) => printSheet(out, W, H, g, view, p, scale, a, b), alive))) return false
+  paint(cv, W, H, out)
+  return true
+}
+
+/** The hero's height grid and its shading, built in slices and cached per seed and light. */
+async function heroData(seed: number, key: string, alive: () => boolean) {
+  const gk = "near" + seed
+  if (!GRID_CACHE[gk]) {
+    const g = { ...NEAR, h: new Float32Array(NEAR.n * NEAR.n) }
+    if (!(await sliced(g.n, (a, b) => gridRows(g, a, b, seed, 6), alive))) return null
+    GRID_CACHE[gk] = g
+  }
+  const g = GRID_CACHE[gk]
+  const sk = key + seed
+  if (!SHADE_CACHE[sk]) {
+    const out = new Float32Array(g.n * g.n * 3)
+    if (!(await sliced(g.n, (a, b) => shadeRows(g, SCENES[key], seed, out, a, b), alive))) return null
+    SHADE_CACHE[sk] = out
+  }
+  return { g, sh: SHADE_CACHE[sk], far: farGrid(seed) }
 }
 function farGrid(seed: number) {
   const k = "far" + seed
   return GRID_CACHE[k] || (GRID_CACHE[k] = makeGrid(180, -2.6, -3.6, 5.6, seed, 4, true))
 }
-function planGrid(seed: number) {
+/** The printed map's grid, built in slices and cached per seed. */
+async function planGrid(seed: number, alive: () => boolean) {
   const k = "plan" + seed
-  return GRID_CACHE[k] || (GRID_CACHE[k] = makeGrid(460, -0.25, -0.25, 1.5, seed, 6))
-}
-function shadeFor(seed: number, key: string) {
-  const k = key + seed
-  return SHADE_CACHE[k] || (SHADE_CACHE[k] = shadeGrid(nearGrid(seed), SCENES[key], seed))
+  if (GRID_CACHE[k]) return GRID_CACHE[k]
+  const g = { n: 460, u0: -0.25, v0: -0.25, span: 1.5, h: new Float32Array(460 * 460) }
+  if (!(await sliced(g.n, (a, b) => gridRows(g, a, b, seed, 6), alive))) return null
+  return (GRID_CACHE[k] = g)
 }
 
 /* ---------- hooks ---------- */
@@ -1481,6 +1685,17 @@ function LegendSymbol({ kind }: { kind: KammLegendItem["symbol"] }) {
   )
 }
 
+/** A section's top rule, drawn like the edge of a map sheet: grid square, kilometre ticks, a note. */
+function Collar({ grid, note }: { grid: string; note: string }) {
+  return (
+    <div className="kmm-collar-rule" aria-hidden="true">
+      <b>{grid}</b>
+      <i />
+      <span>{note}</span>
+    </div>
+  )
+}
+
 /** The kamm mark: one ridge drawn as three contour lines. */
 function Mark() {
   return (
@@ -1493,7 +1708,7 @@ function Mark() {
 
 /* ---------- hero: the relief model ---------- */
 
-type KmmPin = { i: number; x: number; y: number; name: string; alt: number; side: "l" | "r" | "n" }
+type KmmPin = { i: number; x: number; y: number; name: string; alt: number; lx: number; ly: number; has: boolean }
 
 function HeroScene({
   seed,
@@ -1518,19 +1733,19 @@ function HeroScene({
   const cv = React.useRef(null as HTMLCanvasElement | null)
   const size = useSize(wrap)
   const [ready, setReady] = React.useState("")
-  const [trail, setTrail] = React.useState([] as string[])
+  const [trail, setTrail] = React.useState([] as { d: string; hidden: boolean }[])
   const [pins, setPins] = React.useState([] as KmmPin[])
-  const [livePt, setLivePt] = React.useState(null as null | { x: number; y: number; side: string })
+  const [livePt, setLivePt] = React.useState(null as null | KmmPin)
 
   React.useEffect(() => {
     const el = cv.current
     if (!el || size.w < 10 || size.h < 10) return
     let dead = false
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       if (dead) return
-      const g = nearGrid(seed)
-      const far = farGrid(seed)
-      const sh = shadeFor(seed, sceneKey)
+      const data = await heroData(seed, sceneKey, () => !dead)
+      if (!data || dead) return
+      const { g, sh, far } = data
       const ratio = canvasRatio(size.w, size.h, typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 1.4e6)
       const W = Math.max(1, Math.round(size.w * ratio))
       const H = Math.max(1, Math.round(size.h * ratio))
@@ -1548,42 +1763,69 @@ function HeroScene({
         const seen = x >= 0 && y >= 0 && x < W && y < H && depth[y * W + x] >= p.z - 260
         return { x: p.x / ratio, y: p.y / ratio, seen }
       }
-      const runs: string[] = []
+      // the trail: solid where you can see it, a faint dash where a ridge hides it
+      const runs: { d: string; hidden: boolean }[] = []
       let cur = ""
+      let curHidden = false
       for (const p of path) {
         const q = vis(p.u, p.v, 12)
-        if (q && q.seen) cur += (cur ? "L" : "M") + q.x.toFixed(1) + " " + q.y.toFixed(1)
-        else if (cur) {
-          if (cur.indexOf("L") > 0) runs.push(cur)
+        if (!q || q.x < -60 || q.x > size.w + 60 || q.y < -60) {
+          if (cur.indexOf("L") > 0) runs.push({ d: cur, hidden: curHidden })
           cur = ""
+          continue
         }
+        const pt = q.x.toFixed(1) + " " + q.y.toFixed(1)
+        if (cur && !q.seen !== curHidden) {
+          runs.push({ d: cur + "L" + pt, hidden: curHidden })
+          cur = "M" + pt
+        } else cur += (cur ? "L" : "M") + pt
+        curHidden = !q.seen
       }
-      if (cur.indexOf("L") > 0) runs.push(cur)
-      const found: KmmPin[] = []
-      stages.forEach((st, i) => {
-        if (live && live.stage === i) return
-        const q = vis(st.at[0], st.at[1], 30)
-        if (!q || !q.seen || q.y > size.h * 0.66 || q.x < 12 || q.x > size.w - 12) return
-        found.push({ i, x: q.x, y: q.y, name: st.to, alt: st.alt, side: q.x > size.w * 0.62 ? "l" : "r" })
-      })
-      // keep pins apart, then put each label on the side with room
-      const kept: KmmPin[] = []
-      for (const p of found) if (kept.every((k) => Math.abs(k.x - p.x) > 46 || Math.abs(k.y - p.y) > 30)) kept.push(p)
-      kept.sort((a, b) => a.x - b.x)
-      const near = (a: KmmPin, b: KmmPin) => Math.abs(a.y - b.y) < 34
-      kept.forEach((p, k) => {
-        const next = kept.slice(k + 1).find((q) => near(p, q))
-        const prev = kept.slice(0, k).reverse().find((q) => near(p, q))
-        const r = (!next || next.x - p.x > 175) && p.x < size.w - 175
-        const l = p.x > 175 && (!prev || p.x - prev.x > (prev.side === "r" ? 350 : 175))
-        p.side = r ? "r" : l ? "l" : "n"
-      })
-      let lp = null as null | { x: number; y: number; side: string }
+      if (cur.indexOf("L") > 0) runs.push({ d: cur, hidden: curHidden })
+      // keep pins and labels clear of the nav, the headline, the text and the buttons
+      const host = wrap.current
+      const hostR = host ? host.getBoundingClientRect() : null
+      const keepOut: KmmBox[] = [{ x0: 0, y0: 0, x1: size.w, y1: 84 }]
+      const hero = host ? host.parentElement : null
+      if (hero && hostR)
+        for (const el of Array.from(hero.querySelectorAll(".kmm-hero-text h1, .kmm-hero-text p, .kmm-hero-actions"))) {
+          const r = el.getBoundingClientRect()
+          keepOut.push({ x0: r.left - hostR.left - 14, y0: r.top - hostR.top - 14, x1: r.right - hostR.left + 14, y1: r.bottom - hostR.top + 14 })
+        }
+      const clear = (x: number, y: number) => x > 14 && x < size.w - 14 && keepOut.every((b) => x < b.x0 || x > b.x1 || y < b.y0 || y > b.y1)
+      let lp = null as null | KmmPin
       if (live && stages[live.stage]) {
         const st = stages[live.stage]
         const q = vis(st.at[0], st.at[1], 30)
-        if (q && q.seen && q.y < size.h * 0.66) lp = { x: q.x, y: q.y, side: q.x + 230 < size.w ? "r" : q.x > 240 ? "l" : "c" }
+        if (q && q.seen && clear(q.x, q.y)) lp = { i: live.stage, x: q.x, y: q.y, name: st.to, alt: st.alt, lx: 0, ly: 0, has: false }
       }
+      const kept: KmmPin[] = []
+      stages.forEach((st, i) => {
+        if (live && live.stage === i) return
+        const q = vis(st.at[0], st.at[1], 30)
+        if (!q || !q.seen || !clear(q.x, q.y)) return
+        if ([lp, ...kept].every((k) => !k || Math.hypot(k.x - q.x, k.y - q.y) > 26)) kept.push({ i, x: q.x, y: q.y, name: st.to, alt: st.alt, lx: 0, ly: 0, has: false })
+      })
+      const all = (lp ? [lp] : []).concat(kept)
+      const dots = all.map((k) => ({ x0: k.x - 12, y0: k.y - 12, x1: k.x + 12, y1: k.y + 12 }))
+      const spots = placeLabels(
+        all.map((k, n) =>
+          n === 0 && lp
+            ? { x: k.x, y: k.y, w: Math.max(live ? live.label.length * 7.2 : 0, (k.name.length + 9) * 6.4) + 22, h: 46, gap: 14, order: "trlb" }
+            : { x: k.x, y: k.y, w: Math.max(k.name.length * 7.6, 60) + 18, h: 38, gap: 13, order: "rltb" },
+        ),
+        size.w,
+        size.h,
+        [...keepOut, ...dots],
+      )
+      all.forEach((k, n) => {
+        const sp = spots[n]
+        if (sp) {
+          k.lx = sp.x - k.x
+          k.ly = sp.y - k.y
+          k.has = true
+        }
+      })
       if (dead) return
       setTrail(runs)
       setPins(kept)
@@ -1602,19 +1844,23 @@ function HeroScene({
     <div ref={wrap} className="kmm-scene" data-ready={ready ? "1" : "0"}>
       <canvas ref={cv} className="kmm-canvas" aria-hidden="true" style={{ width: size.w + "px", height: size.h + "px" }} />
       <svg className="kmm-trail" width={size.w} height={size.h} viewBox={"0 0 " + Math.max(1, size.w) + " " + Math.max(1, size.h)} aria-hidden="true">
-        {trail.map((d, i) => (
-          <g key={ready + i}>
-            <path d={d} className="kmm-trail-case" pathLength={1} />
-            <path d={d} className="kmm-trail-line" pathLength={1} style={{ animationDelay: 700 + i * 120 + "ms" }} />
-          </g>
-        ))}
+        {trail.map((r, i) =>
+          r.hidden ? (
+            <path key={ready + i} d={r.d} className="kmm-trail-hidden" />
+          ) : (
+            <g key={ready + i}>
+              <path d={r.d} className="kmm-trail-case" pathLength={1} />
+              <path d={r.d} className="kmm-trail-line" pathLength={1} style={{ animationDelay: 700 + i * 60 + "ms" }} />
+            </g>
+          ),
+        )}
       </svg>
       <div className="kmm-pins">
         {pins.map((p, n) => (
           <button
             key={p.i + ready}
             type="button"
-            className={"kmm-pin kmm-pin-" + p.side}
+            className="kmm-pin"
             style={{ left: p.x + "px", top: p.y + "px", animationDelay: 1100 + n * 40 + "ms" }}
             onClick={() => onPick(p.i)}
             aria-label={"Day " + (p.i + 1) + ": " + p.name + ", " + fmtNum(p.alt, sep) + " m. Show on the route map"}
@@ -1622,22 +1868,26 @@ function HeroScene({
             <span className="kmm-pin-dot">
               <HutMark size={10} />
             </span>
-            <span className="kmm-pin-label">
-              <b>{p.name}</b>
-              <span>{fmtNum(p.alt, sep)} m</span>
-            </span>
+            {p.has ? (
+              <span className="kmm-pin-label" style={{ left: p.lx + 11 + "px", top: p.ly + 11 + "px" }}>
+                <b>{p.name}</b>
+                <span>{fmtNum(p.alt, sep)} m</span>
+              </span>
+            ) : null}
           </button>
         ))}
         {livePt && liveStage && live ? (
-          <span className={"kmm-live kmm-live-" + livePt.side} style={{ left: livePt.x + "px", top: livePt.y + "px" }}>
+          <span className="kmm-live" style={{ left: livePt.x + "px", top: livePt.y + "px" }}>
             <span className="kmm-live-ring" aria-hidden="true" />
             <span className="kmm-live-dot" aria-hidden="true" />
-            <span className="kmm-live-label">
-              <b>{live.label}</b>
-              <span>
-                {liveStage.to}, {fmtNum(liveStage.alt, sep)} m
+            {livePt.has ? (
+              <span className="kmm-live-label" style={{ left: livePt.lx + "px", top: livePt.ly + "px" }}>
+                <b>{live.label}</b>
+                <span>
+                  {liveStage.to}, {fmtNum(liveStage.alt, sep)} m
+                </span>
               </span>
-            </span>
+            ) : null}
           </span>
         ) : null}
       </div>
@@ -1666,7 +1916,7 @@ function RouteMap({
   start: KammPlace
   stages: KammStage[]
   path: KmmTrailPt[]
-  peaks: string[]
+  peaks: (string | KammPeak)[]
   pos: { u: number; v: number }
   active: number
   name: string
@@ -1685,31 +1935,29 @@ function RouteMap({
   const X = (u: number) => ((u - view.u0) / view.w) * VW
   const Y = (v: number) => ((v - view.v0) / view.h) * VH
   const px = size.w > 0 ? VW / size.w : 1
-  const [summits, setSummits] = React.useState([] as { u: number; v: number; h: number }[])
+  const [named, setNamed] = React.useState([] as { name: string; u: number; v: number; h: number }[])
 
   React.useEffect(() => {
     const el = cv.current
     if (!el || !near || size.w < 10) return
     let dead = false
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       if (dead) return
-      const g = planGrid(seed)
+      const g = await planGrid(seed, () => !dead)
+      if (!g || dead) return
       const ratio = canvasRatio(size.w, size.h, typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 1.1e6)
       const W = Math.max(1, Math.round(size.w * ratio))
       const H = Math.max(1, Math.round(size.h * ratio))
-      const out = new Uint8ClampedArray(W * H * 4)
       const p = { ...PRINTS[printKey], interval }
-      printSheet(out, W, H, g, { u0: view.u0, v0: view.v0, span: view.w }, p, Math.max(1, ratio * 0.9))
-      paint(el, W, H, out)
-      const stops = [start.at, ...stages.map((s) => s.at)]
-      setSummits(findPeaks(g, 24, 0.14, view).filter((pk) => stops.every((a) => Math.hypot(a[0] - pk.u, a[1] - pk.v) > 0.075)).slice(0, Math.min(peaks.length, 6)))
+      if (!(await printSliced(el, W, H, g, { u0: view.u0, v0: view.v0, span: view.w }, p, Math.max(1, ratio * 0.9), () => !dead))) return
+      setNamed(resolvePeaks(g, peaks, pts))
       setReady(true)
     }, 60)
     return () => {
       dead = true
       clearTimeout(t)
     }
-  }, [near, seed, printKey, interval, size.w, size.h, view, peaks.length, start, stages])
+  }, [near, seed, printKey, interval, size.w, size.h, view, peaks, pts])
 
   const d = (list: KmmTrailPt[]) => list.map((p, i) => (i ? "L" : "M") + X(p.u).toFixed(1) + " " + Y(p.v).toFixed(1)).join("")
   const all = d(path)
@@ -1732,11 +1980,13 @@ function RouteMap({
     { x0: VW - 40 * px, y0: 0, x1: VW, y1: 56 * px },
   ]
   const fsS = fs * 1.05
-  const peakList = summits.slice(0, size.w > 0 && size.w < 520 ? 3 : 6)
+  const inView = named.filter((pk) => pk.u > view.u0 + view.w * 0.04 && pk.u < view.u0 + view.w * 0.96 && pk.v > view.v0 + view.h * 0.06 && pk.v < view.v0 + view.h * 0.95)
+  const peakList = inView.slice(0, size.w > 0 && size.w < 520 ? 4 : 6)
+  const summits = peakList
   const placed = placeLabels(
     [
       ...stops.map((p) => ({ x: p.x, y: p.y, w: wd(p.text, fsS), h: fsS * 1.25, gap: 10 * px, order: "rltb" })),
-      ...peakList.map((pk, i) => ({ x: X(pk.u), y: Y(pk.v), w: Math.max(wd(peaks[i] || "", fs), wd("0,000", fs * 0.85)), h: fs * 2.25, gap: 7 * px, order: "tbrl" })),
+      ...peakList.map((pk, i) => ({ x: X(pk.u), y: Y(pk.v), w: Math.max(wd(pk.name, fs), wd("0,000", fs * 0.85)), h: fs * 2.25, gap: 7 * px, order: "tbrl" })),
     ],
     VW,
     VH,
@@ -1744,7 +1994,7 @@ function RouteMap({
   )
   const letters = [
     ...stops.map((p, i) => ({ key: p.key, text: p.text, sub: "", fs: fsS, cls: p.cls, at: placed[i] })),
-    ...peakList.map((pk, i) => ({ key: "pk" + i, text: peaks[i] || "", sub: fmtNum(pk.h, sep), fs, cls: "kmm-lt-peak", at: placed[stops.length + i] })),
+    ...peakList.map((pk, i) => ({ key: "pk" + i, text: pk.name, sub: fmtNum(pk.h, sep), fs, cls: "kmm-lt-peak", at: placed[stops.length + i] })),
   ]
   return (
     <div ref={wrap} className="kmm-map" data-ready={ready ? "1" : "0"}>
@@ -1840,6 +2090,7 @@ function Profile({
   onScrub,
   sep,
   reduced,
+  dayWord,
 }: {
   start: KammPlace
   stages: KammStage[]
@@ -1848,6 +2099,7 @@ function Profile({
   onScrub: (km: number) => void
   sep: string
   reduced: boolean
+  dayWord: string
 }) {
   const wrap = React.useRef(null as HTMLDivElement | null)
   const size = useSize(wrap)
@@ -1922,7 +2174,7 @@ function Profile({
       aria-valuemin={0}
       aria-valuemax={Math.round(total * 10) / 10}
       aria-valuenow={Math.round(km * 10) / 10}
-      aria-valuetext={"Day " + (at.i + 1) + ", kilometre " + fmtKm(km) + ", " + fmtNum(alt, sep) + " metres"}
+      aria-valuetext={dayWord + " " + (at.i + 1) + ", kilometre " + fmtKm(km) + ", " + fmtNum(alt, sep) + " metres"}
       onKeyDown={onKey}
       onPointerDown={(e) => {
         dragging.current = true
@@ -1971,7 +2223,7 @@ function Profile({
         ))}
         {stages.map((st, i) => (
           <text key={"d" + i} x={(X(starts[i]) + X(starts[i + 1])) / 2} y={Hh - 6} textAnchor="middle" className={"kmm-pday" + (i === active ? " kmm-pday-on" : "")}>
-            {W < 520 ? "D" + (i + 1) : "Day " + (i + 1)}
+            {W < 520 ? dayWord.charAt(0) + (i + 1) : dayWord + " " + (i + 1)}
           </text>
         ))}
         {tops.map((t) =>
@@ -2013,16 +2265,14 @@ function Excerpt({ seed, printKey, stage, path, index, sep }: { seed: number; pr
     const el = cv.current
     if (!el || !near || size.w < 10 || stage.image) return
     let dead = false
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       if (dead) return
       const key = seed + ":" + stage.at[0].toFixed(4) + ":" + stage.at[1].toFixed(4)
       const g = EXCERPT_CACHE[key] || (EXCERPT_CACHE[key] = makeGrid(170, stage.at[0] - span * 0.6, stage.at[1] - span * 0.6, span * 1.2, seed, 7))
       const ratio = canvasRatio(size.w, size.h, typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 0.7e6)
       const W = Math.max(1, Math.round(size.w * ratio))
       const H = Math.max(1, Math.round(size.h * ratio))
-      const out = new Uint8ClampedArray(W * H * 4)
-      printSheet(out, W, H, g, { u0, v0, span: vw }, { ...PRINTS[printKey], interval: 20 }, Math.max(1, ratio * 0.9))
-      paint(el, W, H, out)
+      if (!(await printSliced(el, W, H, g, { u0, v0, span: vw }, { ...PRINTS[printKey], interval: 20 }, Math.max(1, ratio * 0.9), () => !dead))) return
       setReady(key + printKey + size.w)
     }, 40 + index * 30)
     return () => {
@@ -2056,6 +2306,60 @@ function Excerpt({ seed, printKey, stage, path, index, sep }: { seed: number; pr
           </span>
         </>
       )}
+    </div>
+  )
+}
+
+/* ---------- the footer: the last sheet of the walk, faded behind the closing line ---------- */
+
+function FooterMap({ seed, printKey, interval, stages, path }: { seed: number; printKey: string; interval: number; stages: KammStage[]; path: KmmTrailPt[] }) {
+  const wrap = React.useRef(null as HTMLDivElement | null)
+  const cv = React.useRef(null as HTMLCanvasElement | null)
+  const size = useSize(wrap)
+  const near = useNear(wrap)
+  const [ready, setReady] = React.useState(false)
+  const end = stages[stages.length - 1]
+  const aspect = size.w > 0 && size.h > 0 ? size.w / size.h : 3
+  const vw = 0.62
+  const vh = vw / aspect
+  const u0 = (end ? end.at[0] : 0.5) - vw * 0.62
+  const v0 = (end ? end.at[1] : 0.5) - vh * 0.5
+  React.useEffect(() => {
+    const el = cv.current
+    if (!el || !near || size.w < 10) return
+    let dead = false
+    const t = setTimeout(async () => {
+      if (dead) return
+      const ratio = canvasRatio(size.w, size.h, typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 0.8e6)
+      const W = Math.max(1, Math.round(size.w * ratio))
+      const H = Math.max(1, Math.round(size.h * ratio))
+      const g = await planGrid(seed, () => !dead)
+      if (!g || dead) return
+      if (!(await printSliced(el, W, H, g, { u0, v0, span: vw }, { ...PRINTS[printKey], interval }, Math.max(1, ratio * 0.9), () => !dead))) return
+      setReady(true)
+    }, 80)
+    return () => {
+      dead = true
+      clearTimeout(t)
+    }
+  }, [near, seed, printKey, interval, size.w, size.h, u0, v0, vw])
+  const X = (u: number) => ((u - u0) / vw) * 1000
+  const VH = 1000 / aspect
+  const Y = (v: number) => ((v - v0) / vh) * VH
+  const px = size.w > 0 ? 1000 / size.w : 1
+  const d = path.map((p, i) => (i ? "L" : "M") + X(p.u).toFixed(1) + " " + Y(p.v).toFixed(1)).join("")
+  return (
+    <div ref={wrap} className="kmm-footmap" data-ready={ready ? "1" : "0"} aria-hidden="true">
+      <canvas ref={cv} className="kmm-canvas" style={{ width: size.w + "px", height: size.h + "px" }} />
+      <svg className="kmm-map-svg" viewBox={"0 0 1000 " + VH.toFixed(1)}>
+        <path d={d} className="kmm-route-case" strokeWidth={6 * px} />
+        <path d={d} className="kmm-route" strokeWidth={2.4 * px} strokeDasharray={7 * px + " " + 4 * px} />
+        {end ? (
+          <g className="kmm-town" transform={"translate(" + X(end.at[0]).toFixed(1) + " " + Y(end.at[1]).toFixed(1) + ")"}>
+            <circle r={6 * px} strokeWidth={2.4 * px} />
+          </g>
+        ) : null}
+      </svg>
     </div>
   )
 }
@@ -2169,7 +2473,9 @@ export default function KammTrekLanding({
   guides = {},
   faq = {},
   footer = {},
+  labels = {},
 }: KammTrekLandingProps) {
+  const t = { ...DEFAULT_LABELS, ...labels }
   const uid = React.useId().replace(/:/g, "")
   const root = React.useRef(null as HTMLDivElement | null)
   const heroRef = React.useRef(null as HTMLElement | null)
@@ -2305,7 +2611,7 @@ export default function KammTrekLanding({
 
   /* --- departures --- */
   const months = Array.from(new Set(deps.map((d) => monthKey(d.start))))
-  const [month, setMonth] = React.useState("All")
+  const [month, setMonth] = React.useState("")
   const [held, setHeld] = React.useState({} as { [id: string]: number })
   const [sel, setSel] = React.useState(() => {
     const open = deps.find((d) => spotsLeft(d) > 0)
@@ -2324,7 +2630,7 @@ export default function KammTrekLanding({
   React.useEffect(() => {
     if (people > maxPeople) setPeople(Math.max(1, maxPeople))
   }, [maxPeople, people])
-  const shown = deps.filter((d) => month === "All" || monthKey(d.start) === month)
+  const shown = deps.filter((d) => !month || monthKey(d.start) === month)
   const formRef = React.useRef(null as HTMLFormElement | null)
   const choose = (d: KammDeparture) => {
     setSel(d.id)
@@ -2338,8 +2644,8 @@ export default function KammTrekLanding({
     e.preventDefault()
     if (!chosen) return
     const err: { [k: string]: string } = {}
-    if (!name.trim()) err.name = "Add the name the huts should book under."
-    if (!isEmail(email)) err.email = "Add an email address like ruth@example.com."
+    if (!name.trim()) err.name = t.errName
+    if (!isEmail(email)) err.email = t.errEmail
     setErrors(err)
     if (Object.keys(err).length) {
       const f = formRef.current ? (formRef.current.querySelector(err.name ? "input[name=name]" : "input[name=email]") as HTMLInputElement | null) : null
@@ -2373,6 +2679,16 @@ export default function KammTrekLanding({
   const team = guides.items || DEFAULT_GUIDES
   const questions = faq.items || DEFAULT_FAQ
   const firstOpen = deps.find((d) => spotsLeft(d) > 0)
+  const hutAlts = hutList.map((h) => h.s.alt)
+  // the rule above each section: a map-sheet edge whose note is a real fact about that section
+  const collar = {
+    route: trekName + ", " + fmtKm(totals.km) + " km, 1:50 000",
+    huts: hutList.length + " " + (hutList.length === 1 ? "hut" : "huts") + (hutAlts.length ? ", " + fmtNum(Math.min(...hutAlts), sep) + " to " + fmtNum(Math.max(...hutAlts), sep) + " m" : ""),
+    included: stages.length + " " + t.days.toLowerCase() + ", one price",
+    departures: deps.length + " departures" + (months.length ? ", " + months[0] + " to " + months[months.length - 1] : ""),
+    reviews: quotes.length + " entries, " + new Set(quotes.map((q) => q.hut)).size + " huts",
+    faq: questions.length + " questions",
+  }
   const end = stages[stages.length - 1]
 
   return (
@@ -2386,7 +2702,7 @@ export default function KammTrekLanding({
     >
       <style>{KMM_CSS}</style>
       <a className="kmm-skip" href={"#" + sid("main")}>
-        Skip to the route
+        {t.skip}
       </a>
       <header className={"kmm-nav" + (solid ? " kmm-nav-solid" : "")}>
         <a className="kmm-brand" href={"#" + sid("top")} onClick={(e) => { e.preventDefault(); if (root.current) root.current.scrollIntoView({ behavior: reduced ? "auto" : "smooth" }) }}>
@@ -2415,7 +2731,7 @@ export default function KammTrekLanding({
             <span>{cta}</span>
           </a>
           <button ref={menuBtn} type="button" className="kmm-menubtn" aria-expanded={menu} aria-controls={sid("menu")} onClick={() => setMenu(true)}>
-            Menu
+            {t.menu}
           </button>
         </div>
       </header>
@@ -2427,7 +2743,7 @@ export default function KammTrekLanding({
               <b>{brand}</b>
             </span>
             <button type="button" className="kmm-menubtn kmm-menuclose" onClick={() => { setMenu(false); if (menuBtn.current) menuBtn.current.focus() }}>
-              Close
+              {t.close}
             </button>
           </div>
           <nav aria-label="Menu links">
@@ -2472,34 +2788,35 @@ export default function KammTrekLanding({
 
       <main id={sid("main")} tabIndex={-1} className="kmm-main">
         <section className="kmm-sec kmm-route-sec" id={sid("route")} aria-labelledby={sid("route-h")}>
+          <Collar grid="A1" note={collar.route} />
           <div className="kmm-head kmm-rv">
             <h2 id={sid("route-h")}>{route.title || totals.km + " km, five huts, one ridge."}</h2>
             <p>{route.text || "Every day ends at a staffed hut with dinner on the table. Move along the profile, or pick a day, to see where you will be."}</p>
           </div>
           <dl className="kmm-totals kmm-rv">
             <div>
-              <dt>Distance</dt>
+              <dt>{t.distance}</dt>
               <dd>
                 {fmtKm(totals.km)}
                 <small> km</small>
               </dd>
             </div>
             <div>
-              <dt>Ascent</dt>
+              <dt>{t.ascent}</dt>
               <dd>
                 {fmtNum(totals.up, sep)}
                 <small> m</small>
               </dd>
             </div>
             <div>
-              <dt>Highest point</dt>
+              <dt>{t.highest}</dt>
               <dd>
                 {fmtNum(totals.high, sep)}
                 <small> m</small>
               </dd>
             </div>
             <div>
-              <dt>Days</dt>
+              <dt>{t.days}</dt>
               <dd>{totals.days}</dd>
             </div>
           </dl>
@@ -2512,7 +2829,7 @@ export default function KammTrekLanding({
             </div>
             <article className="kmm-day" aria-live="polite" aria-atomic="true">
               <p className="kmm-dayno">
-                Day {active + 1} of {stages.length}
+                {fill(t.dayOf, { n: active + 1, total: stages.length })}
               </p>
               <h3>{st.title}</h3>
               <div className="kmm-sign">
@@ -2521,23 +2838,19 @@ export default function KammTrekLanding({
                   <span>{fmtNum(st.alt, sep)} m</span>
                 </span>
                 <span className="kmm-sign-time">{st.hours}</span>
-                <span className="kmm-sign-tip" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
+                <span className="kmm-sign-tip" aria-hidden="true" />
               </div>
               <dl className="kmm-daystats">
                 <div>
-                  <dt>Distance</dt>
+                  <dt>{t.distance}</dt>
                   <dd>{fmtKm(st.km)} km</dd>
                 </div>
                 <div>
-                  <dt>Up</dt>
+                  <dt>{t.up}</dt>
                   <dd>{fmtNum(stats.up, sep)} m</dd>
                 </div>
                 <div>
-                  <dt>Down</dt>
+                  <dt>{t.down}</dt>
                   <dd>{fmtNum(stats.down, sep)} m</dd>
                 </div>
               </dl>
@@ -2547,13 +2860,14 @@ export default function KammTrekLanding({
                   <HutMark size={13} />
                   <span>
                     {st.sleep}
-                    {st.duffel ? ". Your duffel is waiting." : "."}
+                    {". "}
+                    {st.duffel ? t.duffelWaiting : ""}
                   </span>
                 </p>
               ) : (
                 <p className="kmm-sleep">
                   <span className="kmm-endmark" aria-hidden="true" />
-                  <span>End of the trek, {fmtNum(st.alt, sep)} m.</span>
+                  <span>{fill(t.end, { alt: fmtNum(st.alt, sep) })}</span>
                 </p>
               )}
             </article>
@@ -2562,17 +2876,20 @@ export default function KammTrekLanding({
             <div className="kmm-tabs" role="tablist" aria-label="Day" ref={tabs} style={{ ["--kmm-n" as string]: stages.length }}>
               {stages.map((s, i) => (
                 <button key={i} type="button" role="tab" aria-selected={i === active} tabIndex={i === active ? 0 : -1} onClick={() => pickDay(i)} onKeyDown={(e) => onTabKey(e, i)}>
-                  <b>Day {i + 1}</b>
+                  <b>
+                    {t.day} {i + 1}
+                  </b>
                   <span>{s.to}</span>
                 </button>
               ))}
             </div>
-            <Profile start={start} stages={stages} km={km} active={active} onScrub={scrub} sep={sep} reduced={reduced} />
+            <Profile start={start} stages={stages} km={km} active={active} onScrub={scrub} sep={sep} reduced={reduced} dayWord={t.day} />
           </div>
         </section>
 
         {hut ? (
           <section className="kmm-sec kmm-huts" id={sid("huts")} aria-labelledby={sid("huts-h")}>
+            <Collar grid="B2" note={collar.huts} />
             <div className="kmm-head kmm-rv">
               <h2 id={sid("huts-h")}>{huts.title || "Where you sleep."}</h2>
               <p>{huts.text || "Five staffed huts, all booked before you arrive. Dinner is at seven, lights out at ten, and breakfast is waiting at six."}</p>
@@ -2581,19 +2898,22 @@ export default function KammTrekLanding({
               <div className="kmm-hutview">
                 <Excerpt key={hut.i + sceneKey} seed={seed} printKey={sceneKey} stage={hut.s} path={path} index={0} sep={sep} />
                 <p className="kmm-hutcap">
-                  <b>{hut.s.to}</b> {hut.s.image ? "" : "on the map, 1:25 000. "}Night {hut.i + 1}, after {hut.s.hours} of walking.
+                  <b>{hut.s.to}</b> {hut.s.image ? "" : t.mapNote + " "}
+                  {fill(t.hutCaption, { n: hut.i + 1, hours: hut.s.hours })}
                 </p>
               </div>
               <ol className="kmm-hutlist">
                 {hutList.map((h, n) => (
                   <li key={h.i}>
                     <button type="button" aria-pressed={n === hutOn} onClick={() => setHutOn(n)} onMouseEnter={() => setHutOn(n)} onFocus={() => setHutOn(n)}>
-                      <span className="kmm-hutnight">Night {h.i + 1}</span>
+                      <span className="kmm-hutnight">
+                        {t.night} {h.i + 1}
+                      </span>
                       <span className="kmm-hutname">{h.s.to}</span>
                       <span className="kmm-hutalt">{fmtNum(h.s.alt, sep)} m</span>
                       <span className="kmm-hutsleep">
                         {h.s.sleep}
-                        {h.s.duffel ? <em>Duffel here</em> : null}
+                        {h.s.duffel ? <em>{t.duffelHere}</em> : null}
                       </span>
                     </button>
                   </li>
@@ -2604,6 +2924,7 @@ export default function KammTrekLanding({
         ) : null}
 
         <section className="kmm-sec kmm-incl" id={sid("included")} aria-labelledby={sid("incl-h")}>
+          <Collar grid="C3" note={collar.included} />
           <div className="kmm-incl-lead kmm-rv">
             <p className="kmm-figure" aria-hidden="true">
               {included.figure || "6 kg"}
@@ -2624,7 +2945,7 @@ export default function KammTrekLanding({
           </ul>
           {excluded.length ? (
             <div className="kmm-excl">
-              <h3>Not included</h3>
+              <h3>{t.notIncluded}</h3>
               <ul>
                 {excluded.map((x) => (
                   <li key={x}>{x}</li>
@@ -2635,6 +2956,7 @@ export default function KammTrekLanding({
         </section>
 
         <section className="kmm-sec kmm-deps" id={sid("departures")} aria-labelledby={sid("deps-h")}>
+          <Collar grid="D4" note={collar.departures} />
           <div className="kmm-head kmm-rv">
             <h2 id={sid("deps-h")}>{departures.title || "Summer 2027 departures."}</h2>
             <p>{departures.text || "Groups of up to 10 with one guide. " + currency + " 2,480 per person with half board and hut fees. A deposit of " + currency + " 500 confirms your place."}</p>
@@ -2642,9 +2964,9 @@ export default function KammTrekLanding({
           <div className="kmm-depgrid">
             <div className="kmm-deplist">
               <div className="kmm-filter" role="radiogroup" aria-label="Month">
-                {["All", ...months].map((m) => (
-                  <button key={m} type="button" role="radio" aria-checked={month === m} onClick={() => setMonth(m)}>
-                    {m}
+                {["", ...months].map((m) => (
+                  <button key={m || "all"} type="button" role="radio" aria-checked={month === m} onClick={() => setMonth(m)}>
+                    {m || t.allMonths}
                   </button>
                 ))}
               </div>
@@ -2658,13 +2980,13 @@ export default function KammTrekLanding({
                         <span className="kmm-row-date">
                           <b>{dateRange(d.start, stages.length)}</b>
                           <span>
-                            {weekday(d.start)}, with {d.guide}
+                            {fill(t.withGuide, { weekday: weekday(d.start), guide: d.guide })}
                             {d.note ? <em>{d.note}</em> : null}
                           </span>
                         </span>
                         <span className="kmm-row-spots">
                           <SpotsMeter d={d} held={held[d.id] || 0} />
-                          <span>{l === 0 ? "Full, waitlist open" : l === 1 ? "1 place left" : l + " places left"}</span>
+                          <span>{l === 0 ? t.full : l === 1 ? t.placeLeft : fill(t.placesLeft, { n: l })}</span>
                         </span>
                         <span className="kmm-row-price">{formatPrice(d.price, currency)}</span>
                         <span className="kmm-row-go" aria-hidden="true">
@@ -2681,33 +3003,33 @@ export default function KammTrekLanding({
                 {status === "done" && done ? (
                   <div className="kmm-done" role="status">
                     <Stamp hut={done.wait ? "Waitlist " + trekName : trekName} date={dayMonth(done.d.start)} sep={sep} />
-                    <h3 id={sid("form-h")}>{done.wait ? "You are on the waitlist." : "Held for 48 hours."}</h3>
+                    <h3 id={sid("form-h")}>{done.wait ? t.waitDoneTitle : t.heldTitle}</h3>
                     <p>
                       {done.wait
-                        ? "We will email " + done.email + " the moment " + (done.people === 1 ? "a place" : done.people + " places") + " open up on " + dateRange(done.d.start, stages.length) + "."
-                        : (done.people === 1 ? "One place" : done.people + " places") + " on " + dateRange(done.d.start, stages.length) + " with " + done.d.guide + (done.people === 1 ? " is" : " are") + " yours. The deposit link is on its way to " + done.email + "."}
+                        ? fill(t.waitText, { email: done.email, places: done.people === 1 ? "a place" : done.people + " places", dates: dateRange(done.d.start, stages.length) })
+                        : fill(t.heldText, { places: done.people === 1 ? "One place" : done.people + " places", dates: dateRange(done.d.start, stages.length), guide: done.d.guide, are: done.people === 1 ? "is" : "are", email: done.email })}
                     </p>
                     <button type="button" className="kmm-btn kmm-btn-ghost" onClick={() => { setStatus("idle"); setDone(null) }}>
-                      Hold another departure
+                      {t.holdAnother}
                     </button>
                   </div>
                 ) : (
                   <>
-                    <h3 id={sid("form-h")}>{waitlist ? "Join the waitlist" : "Hold places"}</h3>
+                    <h3 id={sid("form-h")}>{waitlist ? t.waitTitle : t.holdTitle}</h3>
                     <p className="kmm-form-sum">
                       <b>{dateRange(chosen.start, stages.length)}</b>
                       <span>
-                        {trekName} with {chosen.guide}. {waitlist ? "This group is full." : left === 1 ? "1 place left." : left + " places left."}
+                        {trekName}, {fill(t.withGuide, { weekday: weekday(chosen.start), guide: chosen.guide })}. {waitlist ? t.full + "." : left === 1 ? t.placeLeft + "." : fill(t.placesLeft, { n: left }) + "."}
                       </span>
                     </p>
                     <div className="kmm-field">
                       <span className="kmm-label" id={sid("ppl")}>
-                        Walkers
+                        {t.people}
                       </span>
-                      <Stepper value={people} min={1} max={maxPeople} onChange={setPeople} label="Walkers" />
+                      <Stepper value={people} min={1} max={maxPeople} onChange={setPeople} label={t.people} />
                     </div>
                     <label className="kmm-field">
-                      <span className="kmm-label">Name for the hut bookings</span>
+                      <span className="kmm-label">{t.nameField}</span>
                       <input name="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? sid("e-name") : undefined} />
                       {errors.name ? (
                         <span className="kmm-err" id={sid("e-name")}>
@@ -2716,7 +3038,7 @@ export default function KammTrekLanding({
                       ) : null}
                     </label>
                     <label className="kmm-field">
-                      <span className="kmm-label">Email</span>
+                      <span className="kmm-label">{t.emailField}</span>
                       <input name="email" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" aria-invalid={!!errors.email} aria-describedby={errors.email ? sid("e-email") : undefined} />
                       {errors.email ? (
                         <span className="kmm-err" id={sid("e-email")}>
@@ -2734,14 +3056,14 @@ export default function KammTrekLanding({
                     ) : null}
                     <button type="submit" className="kmm-btn kmm-btn-solid kmm-btn-lg kmm-btn-block" disabled={status === "sending"}>
                       <Waymark />
-                      <span>{status === "sending" ? "Holding" : waitlist ? "Join the waitlist" : people === 1 ? "Hold 1 place" : "Hold " + people + " places"}</span>
+                      <span>{status === "sending" ? t.sending : waitlist ? t.waitButton : people === 1 ? t.holdOne : fill(t.holdMany, { n: people })}</span>
                     </button>
                     {status === "error" ? (
                       <p className="kmm-err" role="alert">
-                        That did not go through. Nothing was held; try again in a moment.
+                        {t.errSend}
                       </p>
                     ) : (
-                      <p className="kmm-fine">No payment now. We hold your places for 48 hours and email a deposit link.</p>
+                      <p className="kmm-fine">{t.fine}</p>
                     )}
                   </>
                 )}
@@ -2751,6 +3073,7 @@ export default function KammTrekLanding({
         </section>
 
         <section className="kmm-sec kmm-book" id={sid("reviews")} aria-labelledby={sid("book-h")}>
+          <Collar grid="E5" note={collar.reviews} />
           <div className="kmm-head kmm-rv">
             <h2 id={sid("book-h")}>{reviews.title || "From the hut books."}</h2>
           </div>
@@ -2787,11 +3110,12 @@ export default function KammTrekLanding({
         </section>
 
         <section className="kmm-sec kmm-faq" id={sid("faq")} aria-labelledby={sid("faq-h")}>
+          <Collar grid="F6" note={collar.faq} />
           <div className="kmm-head kmm-rv">
             <h2 id={sid("faq-h")}>{faq.title || "Before you book."}</h2>
             <p>
-              Anything else? Write to{" "}
-              <a href={"mailto:" + (footer.email || "trek@kamm.example")}>{footer.email || "trek@kamm.example"}</a>. A guide answers, usually the same day.
+              {t.askBefore}{" "}
+              <a href={"mailto:" + (footer.email || "trek@kamm.example")}>{footer.email || "trek@kamm.example"}</a>. {t.askAfter}
             </p>
           </div>
           <div className="kmm-qs">
@@ -2813,13 +3137,16 @@ export default function KammTrekLanding({
       </main>
 
       <footer className="kmm-foot">
+        <div className="kmm-foot-top">
+        <FooterMap seed={seed} printKey={sceneKey} interval={contourInterval} stages={stages} path={path} />
         <div className="kmm-foot-cta">
-          <p className="kmm-foot-title">{footer.title || (firstOpen ? "The next group leaves " + start.name + " on " + dayMonth(firstOpen.start) + "." : "Next summer's dates open in January.")}</p>
+          <p className="kmm-foot-title">{footer.title || (firstOpen ? fill(t.nextGroup, { start: start.name, date: dayMonth(firstOpen.start) }) : t.noNext)}</p>
           <a className="kmm-btn kmm-btn-solid kmm-btn-lg" {...linkProps({ label: cta, href: "#departures" })}>
             <Waymark />
             <span>{cta}</span>
             <Arrow />
           </a>
+        </div>
         </div>
         <div className="kmm-collar">
           <div className="kmm-collar-brand">
@@ -2854,7 +3181,7 @@ export default function KammTrekLanding({
             <em>2 km</em>
           </span>
           <span>{trekName}, sheet 1 of 1</span>
-          <span>Relief and contours drawn for illustration. Not for navigation.</span>
+          <span>{t.disclaimer}</span>
           <span>
             {brand} {new Date().getFullYear()}
           </span>
@@ -2931,28 +3258,19 @@ const KMM_CSS = `
 .kmm-trail-line{fill:none;stroke:var(--kmm-accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:kmm-draw 1.8s cubic-bezier(.65,0,.35,1) forwards}
 .kmm-scene[data-ready="0"] .kmm-trail{display:none}
 .kmm-pins{position:absolute;inset:0;pointer-events:none}
-.kmm-pin{position:absolute;display:flex;align-items:center;gap:8px;pointer-events:auto;transform:translate(-9px,-50%);color:#fff;animation:kmm-pop .5s var(--kmm-ease) both}
-.kmm-pin-l{flex-direction:row-reverse;transform:translate(calc(-100% + 9px),-50%)}
-.kmm-pin-dot{display:grid;place-items:center;width:18px;height:18px;background:#fff;color:#14211f;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.35);transition:transform .25s var(--kmm-ease),background-color .2s ease,color .2s ease}
-.kmm-pin-label{display:flex;flex-direction:column;line-height:1.15;text-shadow:0 0 2px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.6);padding:3px 6px;border-radius:3px;transition:background-color .2s ease,transform .25s var(--kmm-ease)}
-.kmm-pin-l .kmm-pin-label{text-align:right}
-.kmm-pin-n .kmm-pin-label{display:none}
+.kmm-trail-hidden{fill:none;stroke:rgba(255,255,255,.55);stroke-width:1.4;stroke-dasharray:2 5;stroke-linecap:round;opacity:0;animation:kmm-fade .8s ease 1.4s forwards}
+.kmm-pin{position:absolute;width:22px;height:22px;display:grid;place-items:center;pointer-events:auto;transform:translate(-50%,-50%);color:#fff;animation:kmm-pop .5s var(--kmm-ease) both}
+.kmm-pin-dot{display:grid;place-items:center;width:18px;height:18px;background:#fff;color:#14211f;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.35);transition:transform .2s var(--kmm-ease),background-color .2s ease,color .2s ease}
+.kmm-pin-label{position:absolute;display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;white-space:nowrap;background:rgba(9,13,15,.68);padding:5px 9px 6px;border-radius:3px;text-align:left;transition:background-color .2s ease,transform .2s var(--kmm-ease)}
 .kmm-pin-label b{font-size:13.5px;font-weight:700}
-.kmm-pin-label span{font-size:12px;opacity:.9}
+.kmm-pin-label span{font-size:12px;opacity:.88;font-variant-numeric:tabular-nums}
 .kmm-pin:hover .kmm-pin-dot,.kmm-pin:focus-visible .kmm-pin-dot{background:var(--kmm-accent);color:#fff;transform:scale(1.15)}
-.kmm-pin:hover .kmm-pin-label,.kmm-pin:focus-visible .kmm-pin-label{background:rgba(10,14,16,.72);text-shadow:none;transform:translateX(3px)}
-.kmm-pin-l:hover .kmm-pin-label,.kmm-pin-l:focus-visible .kmm-pin-label{transform:translateX(-3px)}
-.kmm-pin:focus-visible{outline:none}
-.kmm-pin:focus-visible .kmm-pin-label{outline:2px solid #fff;outline-offset:1px}
+.kmm-pin:hover .kmm-pin-label,.kmm-pin:focus-visible .kmm-pin-label{background:var(--kmm-accent);transform:translateY(-2px)}
+.kmm-pin:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:4px}
 .kmm-live{position:absolute;width:0;height:0;animation:kmm-fade .6s ease 1.5s both}
 .kmm-live-dot,.kmm-live-ring{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:var(--kmm-accent);box-shadow:0 0 0 2.5px #fff}
 .kmm-live-ring{background:transparent;box-shadow:0 0 0 2px var(--kmm-accent);animation:kmm-pulse 2.4s cubic-bezier(.2,.6,.3,1) infinite}
-.kmm-live-label{position:absolute;left:16px;bottom:10px;display:flex;flex-direction:column;white-space:nowrap;background:var(--kmm-accent);color:#fff;padding:7px 10px 8px;border-radius:4px;line-height:1.2;box-shadow:0 6px 20px rgba(0,0,0,.25)}
-.kmm-live-label::after{content:"";position:absolute;left:-1px;bottom:-6px;border:6px solid transparent;border-left-color:var(--kmm-accent);border-top-color:var(--kmm-accent);border-width:6px 6px 0 0}
-.kmm-live-l .kmm-live-label{left:auto;right:16px}
-.kmm-live-l .kmm-live-label::after{left:auto;right:-1px;border-width:6px 0 0 6px;border-color:transparent;border-top-color:var(--kmm-accent);border-right:6px solid var(--kmm-accent)}
-.kmm-live-c .kmm-live-label{left:0;bottom:18px;transform:translateX(-50%)}
-.kmm-live-c .kmm-live-label::after{left:50%;margin-left:-6px;bottom:-6px;border-width:6px 6px 0;border-color:transparent;border-top-color:var(--kmm-accent)}
+.kmm-live-label{position:absolute;display:flex;flex-direction:column;white-space:nowrap;background:var(--kmm-accent);color:#fff;padding:7px 11px 8px;border-radius:4px;line-height:1.2;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .kmm-live-label b{font-size:13px;font-weight:700}
 .kmm-live-label span{font-size:12px;opacity:.92}
 .kmm-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(6,10,12,.82) 0%,rgba(6,10,12,.52) 24%,rgba(6,10,12,0) 50%),linear-gradient(180deg,rgba(6,10,12,.42) 0,rgba(6,10,12,0) 132px)}
@@ -2968,13 +3286,17 @@ const KMM_CSS = `
 .kmm-main{display:block}
 .kmm-main:focus{outline:none}
 .kmm-sec{padding:var(--kmm-pad) var(--kmm-gut) 0;max-width:1440px;margin:0 auto;scroll-margin-top:68px}
+.kmm-collar-rule{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-bottom:clamp(28px,3.5vw,44px);font-size:12px;color:var(--kmm-muted);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.kmm-collar-rule b{flex:none;min-width:30px;text-align:center;padding:2px 6px;border:1px solid var(--kmm-ink);color:var(--kmm-ink);font-weight:700;border-radius:2px}
+.kmm-collar-rule i{flex:1;height:7px;border-top:1px solid color-mix(in srgb,var(--kmm-ink) 45%,transparent);background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--kmm-ink) 30%,transparent) 0 1px,transparent 1px 56px)}
+.kmm-collar-rule span{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
 .kmm-head{display:grid;gap:14px;max-width:760px;margin-bottom:clamp(32px,4vw,52px)}
 .kmm-head h2,.kmm-incl-lead h2{font-size:clamp(32px,3.7vw,56px);line-height:1.02;letter-spacing:-.03em;font-weight:700;text-wrap:balance}
 .kmm-head p{color:var(--kmm-muted);max-width:56ch}
 .kmm-head a{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;color:var(--kmm-ink)}
 .kmm-head a:hover{color:var(--kmm-accent-text)}
-.kmm-rv.kmm-armed{opacity:0;transform:translateY(18px)}
-.kmm-rv.kmm-armed.kmm-shown{opacity:1;transform:none;transition:opacity .6s ease,transform .8s var(--kmm-ease)}
+.kmm-rv.kmm-armed{transform:translateY(22px)}
+.kmm-rv.kmm-armed.kmm-shown{transform:none;transition:transform .8s var(--kmm-ease)}
 
 .kmm-totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:2px solid var(--kmm-ink);margin-bottom:28px}
 .kmm-totals div{padding:14px 16px 0 0}
@@ -3019,9 +3341,8 @@ const KMM_CSS = `
 .kmm-sign-plate b{font-size:16.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kmm-sign-plate span{font-size:12.5px;color:var(--kmm-muted);font-variant-numeric:tabular-nums}
 .kmm-sign-time{font-weight:700;font-size:15px;padding-right:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.kmm-sign-tip{align-self:stretch;margin:-1.5px 0;display:grid;grid-template-rows:1fr 1fr 1fr;clip-path:polygon(0 0,100% 50%,0 100%);background:var(--kmm-ink);padding:1.5px 3px 1.5px 0}
-.kmm-sign-tip i{display:block;background:#fff}
-.kmm-sign-tip i:nth-child(2){background:var(--kmm-accent)}
+.kmm-sign-tip{position:relative;align-self:stretch;margin:-1.5px 0;clip-path:polygon(0 0,100% 50%,0 100%);background:var(--kmm-ink)}
+.kmm-sign-tip::before{content:"";position:absolute;left:0;top:2.5px;bottom:2.5px;right:4.5px;clip-path:polygon(0 0,100% 50%,0 100%);background:linear-gradient(180deg,var(--kmm-sheet) 0 34%,var(--kmm-accent) 34% 66%,var(--kmm-sheet) 66%)}
 .kmm-daystats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--kmm-rule);border-bottom:1px solid var(--kmm-rule);padding:12px 0}
 .kmm-daystats dt{font-size:13px;color:var(--kmm-muted)}
 .kmm-daystats dd{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -3071,11 +3392,10 @@ const KMM_CSS = `
 .kmm-hutlist button::before{content:"";position:absolute;left:-14px;top:18px;bottom:18px;width:3px;background:var(--kmm-accent);transform:scaleY(0);transition:transform .3s var(--kmm-ease)}
 .kmm-hutlist button[aria-pressed="true"]::before{transform:scaleY(1)}
 .kmm-hutnight{font-size:13.5px;color:var(--kmm-muted);font-variant-numeric:tabular-nums}
-.kmm-hutname{font-size:clamp(20px,1.8vw,24px);font-weight:700;letter-spacing:-.02em;line-height:1.15;transition:transform .3s var(--kmm-ease),color .2s ease}
+.kmm-hutname{font-size:clamp(20px,1.8vw,24px);font-weight:700;letter-spacing:-.02em;line-height:1.15;transition:color .2s ease}
 .kmm-hutalt{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
 .kmm-hutsleep{grid-column:2/4;font-size:14.5px;color:var(--kmm-muted);display:flex;flex-wrap:wrap;gap:4px 10px}
 .kmm-hutsleep em{font-style:normal;font-weight:600;color:var(--kmm-ink);font-size:13px;border:1px solid var(--kmm-rule);border-radius:3px;padding:0 6px}
-.kmm-hutlist button[aria-pressed="true"] .kmm-hutname{transform:translateX(6px)}
 .kmm-hutlist button:hover .kmm-hutname{color:var(--kmm-accent-text)}
 
 .kmm-incl{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(32px,5vw,88px);align-items:start}
@@ -3141,7 +3461,7 @@ const KMM_CSS = `
 .kmm-done p{color:var(--kmm-soft)}
 
 .kmm-entries{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(20px,3vw,40px);align-items:start;padding-top:40px}
-.kmm-entry{position:relative;padding:28px 26px 26px;background:var(--kmm-sheet);border:1px solid var(--kmm-rule);border-radius:6px;background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--kmm-faint) 31px,var(--kmm-faint) 32px)}
+.kmm-entry{position:relative;padding:62px 26px 24px;background:var(--kmm-sheet);border:1px solid var(--kmm-rule);border-radius:6px}
 .kmm-entry:nth-child(2){margin-top:56px}
 .kmm-entry:nth-child(3){margin-top:20px}
 .kmm-entry .kmm-stamp{position:absolute;right:10px;top:-58px;color:var(--kmm-accent);opacity:.88;transform:rotate(-9deg);mix-blend-mode:multiply;transition:transform .4s var(--kmm-ease)}
@@ -3149,7 +3469,7 @@ const KMM_CSS = `
 .kmm-entry:nth-child(2) .kmm-stamp{transform:rotate(7deg)}
 .kmm-entry:nth-child(3) .kmm-stamp{transform:rotate(-3deg)}
 .kmm-entry:hover .kmm-stamp{transform:rotate(0deg) scale(1.04)}
-.kmm-entry blockquote p{font-size:clamp(18px,1.5vw,20px);line-height:1.6;letter-spacing:-.005em;padding-top:36px}
+.kmm-entry blockquote p{font-size:19px;line-height:32px;letter-spacing:-.005em;background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,color-mix(in srgb,var(--kmm-ink) 12%,transparent) 31px,color-mix(in srgb,var(--kmm-ink) 12%,transparent) 32px)}
 .kmm-who{margin-top:18px;font-size:14.5px;color:var(--kmm-muted)}
 .kmm-who b{color:var(--kmm-ink);margin-right:6px}
 .kmm-guides{margin-top:clamp(56px,7vw,96px);border-top:2px solid var(--kmm-ink);padding-top:22px}
@@ -3179,9 +3499,11 @@ const KMM_CSS = `
 .kmm-q-on .kmm-a{animation:kmm-open .25s var(--kmm-ease) both}
 
 .kmm-foot{border-top:2px solid var(--kmm-ink);background:var(--kmm-sheet)}
-.kmm-foot-cta{max-width:1440px;margin:0 auto;padding:clamp(56px,7vw,96px) var(--kmm-gut);display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap}
+.kmm-foot-top{position:relative;overflow:hidden;border-bottom:1px solid var(--kmm-rule)}
+.kmm-footmap{position:absolute;inset:0;opacity:.62;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.25) 30%,#000 70%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.25) 30%,#000 70%);pointer-events:none}
+.kmm-foot-cta{position:relative;max-width:1440px;margin:0 auto;padding:clamp(72px,9vw,132px) var(--kmm-gut);display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap}
 .kmm-foot-title{font-size:clamp(32px,4.4vw,68px);font-weight:700;letter-spacing:-.035em;line-height:1;max-width:16ch;text-wrap:balance}
-.kmm-collar{max-width:1440px;margin:0 auto;padding:32px var(--kmm-gut);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,3fr) minmax(0,4fr);gap:32px;border-top:1px solid var(--kmm-rule)}
+.kmm-collar{max-width:1440px;margin:0 auto;padding:32px var(--kmm-gut);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,3fr) minmax(0,4fr);gap:32px}
 .kmm-collar-brand p{margin-top:12px;color:var(--kmm-muted);font-size:15px;max-width:40ch}
 .kmm-collar-links{display:grid;gap:6px;align-content:start;font-size:15px}
 .kmm-collar-links a,.kmm-collar-contact a{width:max-content;transition:color .2s ease}
@@ -3208,7 +3530,7 @@ const KMM_CSS = `
 @keyframes kmm-rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes kmm-fade{from{opacity:0}to{opacity:1}}
 @keyframes kmm-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
-@keyframes kmm-pop{from{opacity:0;transform:translate(-9px,-30%)}to{opacity:1}}
+@keyframes kmm-pop{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes kmm-pulse{0%{transform:scale(1);opacity:.9}80%,100%{transform:scale(3.2);opacity:0}}
 @keyframes kmm-breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.55}}
 @keyframes kmm-stamp{from{opacity:0;transform:rotate(-8deg) scale(1.5)}to{opacity:1;transform:rotate(-8deg) scale(1)}}
@@ -3243,7 +3565,6 @@ const KMM_CSS = `
 .kmm-hero-copy{grid-template-columns:minmax(0,1fr);gap:22px}
 .kmm-hero-actions{justify-content:flex-start}
 .kmm-hero-actions .kmm-btn{flex:1 1 auto}
-.kmm-pin-label{display:none}
 .kmm-totals{grid-template-columns:repeat(2,minmax(0,1fr))}
 .kmm-totals div:nth-child(n+3){border-top:1px solid var(--kmm-rule);margin-top:12px}
 .kmm-map{height:auto;aspect-ratio:1/1.08}
@@ -3253,7 +3574,7 @@ const KMM_CSS = `
 .kmm-legend li{padding-right:0}
 .kmm-excl{grid-template-columns:minmax(0,1fr)}
 .kmm-row{grid-template-columns:minmax(0,1fr) auto;row-gap:10px;padding:14px 4px 14px 12px}
-.kmm-row-spots{grid-column:1;grid-row:2;flex-direction:row;align-items:center;gap:10px}
+.kmm-row-spots{grid-column:1;grid-row:2;gap:5px}
 .kmm-row-price{grid-column:2;grid-row:1}
 .kmm-row-go{grid-column:2;grid-row:2;justify-self:end}
 .kmm-form{padding:22px 18px}
@@ -3266,7 +3587,7 @@ const KMM_CSS = `
 @media (prefers-reduced-motion:reduce){
 .kmm-root *,.kmm-root *::before,.kmm-root *::after{animation-duration:.001ms !important;animation-delay:0ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
 .kmm-live-ring,.kmm-walker-halo{animation:none !important}
-.kmm-rv.kmm-armed{opacity:1;transform:none}
+.kmm-rv.kmm-armed{transform:none}
 }
 `
 

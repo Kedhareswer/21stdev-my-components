@@ -46,3 +46,24 @@ places left, working hold form, specific copy); the map language in every sectio
 default to relief crops, with an `image` prop; render cheaply on a 2D canvas inside a pixel
 budget; props for brand, copy, stages, departures, two presets and a seed; a designed phone
 layout.
+
+## Critic round 1 (fresh subagent)
+
+Banned-looks gate: passes (reference layout kept; the map language runs below the hero).
+
+| | Score | Evidence |
+|---|---|---|
+| (u) usability | 7 | real props (`stages`, `departures` + `onHold`, `preset`, `accent`, `seed`) and a working hold flow, but much UI copy is hard-coded ("Walkers" on a ski tour); peak names drift with viewport |
+| (a) idea | 7 | keeps the reference composition; relief reads as a CG model, soft green foreground |
+| (b) craft | 6 | hard orange sky stripe, trail fragments behind ridges, unreadable pin label on snow, winter streaks, pins colliding with the headline at phone/tablet, dark full-page capture lost a section head |
+| (c) originality | 7 | relief hero, printed sheet, profile-driven walker and hut stamps come from the subject |
+| (d) install-safety | 9 | checks pass, scoped CSS, react only, no URLs |
+| (e) template | 8 | functional throughout, real copy, designed dark mode |
+
+Average 7.33. **REDO.** Fixes asked for, most important first: continuous sky, trail shown
+faint behind ridges instead of dropped, plates under pin labels, foreground detail, no winter
+streaks; collision pass for hero pins and keep them out of the headline; peak names stable
+across widths; a `labels` prop for all UI copy; more map language below the hero (section
+collars, map behind the closing CTA); reveals that never hide content; ruled reviews starting
+at the text; a cleaner trail-sign blaze; no shift on the active hut; phone departure status
+under the meter; re-shoot focus and success states.

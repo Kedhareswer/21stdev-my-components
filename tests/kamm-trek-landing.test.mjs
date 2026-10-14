@@ -62,7 +62,7 @@ assert.match(css[1], /--kmm-accent-text:#ff7a7d/, "red text is lifted for contra
 for (const k of ["route", "huts", "included", "departures", "reviews", "faq"]) assert.ok(src.includes(`sid("${k}")`), `section ${k} is addressable`)
 assert.match(src, /scrollIntoView\(\{ behavior: reduced \? "auto" : "smooth", block: "start" \}\)/, "in-page links scroll, instantly under reduced motion")
 assert.match(src, /role="slider"/, "the profile is a slider")
-assert.match(src, /aria-valuetext=\{"Day " \+ \(at\.i \+ 1\)/, "and says where you are")
+assert.match(src, /aria-valuetext=\{dayWord \+ " " \+ \(at\.i \+ 1\)/, "and says where you are")
 assert.match(src, /e\.key === "PageUp"/, "PageUp jumps a day")
 assert.match(src, /touch-action:pan-y/, "the profile scrubs sideways without trapping vertical scrolling on phones")
 assert.match(src, /role="tablist" aria-label="Day"/, "days are a tablist")
