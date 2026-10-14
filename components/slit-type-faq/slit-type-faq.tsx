@@ -49,6 +49,8 @@ export type SlitTypeFaqProps = {
   items?: FaqItem[]
   /** Display headline. Use "\n" for line breaks. Set in capitals. */
   headline?: string
+  /** How much of each capital the slit hides at rest, 0 to 0.5. Hovering the headline lifts the letters clear. 0 sets it whole. */
+  slit?: number
   /** One or two sentences under the headline. */
   intro?: React.ReactNode
   preset?: SlitPreset
@@ -62,6 +64,10 @@ export type SlitTypeFaqProps = {
   type?: "single" | "multiple"
   /** Index or id of the question(s) open on first render. Pass [] for none. */
   defaultOpen?: number | string | (number | string)[]
+  /** Controlled: the ids of the open questions. Pair with `onOpenChange`. */
+  open?: string[]
+  /** Prefixed to every question id, so two FAQs on one page never share a #hash. */
+  idPrefix?: string
   /** Show the search field. */
   search?: boolean
   searchLabel?: string
@@ -75,7 +81,7 @@ export type SlitTypeFaqProps = {
   copyLinks?: boolean
   /** Write the open question's id into location.hash. */
   syncHash?: boolean
-  /** Minimum height of the section. Any CSS length. */
+  /** Minimum height of the section. Any CSS length. The default 0 lets the section size to its questions. */
   minHeight?: number | string
   /** Font stacks. Pass your own, e.g. "var(--font-sans)". */
   displayFont?: string
@@ -162,13 +168,32 @@ export function highlightRuns(text: string, query: string): { text: string; hit:
   return runs
 }
 
+/** A short excerpt of `text` around the first matched word, or "" when nothing matches. */
+export function snippet(text: string, query: string, radius = 44): string {
+  const words = queryWords(query)
+  if (!words.length || !text) return ""
+  const t = text.toLowerCase()
+  let at = -1
+  for (const w of words) {
+    const i = t.indexOf(w)
+    if (i > -1 && (at < 0 || i < at)) at = i
+  }
+  if (at < 0) return ""
+  let from = Math.max(0, at - radius)
+  let to = Math.min(text.length, at + radius * 2)
+  if (from > 0) from = text.indexOf(" ", from) + 1 || from
+  if (to < text.length) to = text.lastIndexOf(" ", to) > at ? text.lastIndexOf(" ", to) : to
+  return (from > 0 ? "…" : "") + text.slice(from, to).trim() + (to < text.length ? "…" : "")
+}
+
 /** Which ids start open, from an index, an id, or a list of both. */
-export function resolveOpen(spec: number | string | (number | string)[] | undefined, ids: string[], single: boolean): string[] {
+export function resolveOpen(spec: number | string | (number | string)[] | undefined, ids: string[], single: boolean, prefix = ""): string[] {
   if (spec === undefined) return []
   const list = Array.isArray(spec) ? spec : [spec]
   const out: string[] = []
   for (const s of list) {
-    const id = typeof s === "number" ? ids[s] : ids.includes(s) ? s : undefined
+    const named = typeof s === "string" ? (ids.includes(s) ? s : ids.includes(prefix + s) ? prefix + s : undefined) : undefined
+    const id = typeof s === "number" ? ids[s] : named
     if (id && !out.includes(id)) out.push(id)
   }
   return single ? out.slice(0, 1) : out
@@ -217,6 +242,8 @@ export function pickOnInk(ink: string, paper: string): string {
 // #endregion
 
 /** Plain text of a React node, for search. */
+const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
+
 function nodeText(node: React.ReactNode): string {
   if (node == null || typeof node === "boolean") return ""
   if (typeof node === "string" || typeof node === "number") return String(node)
@@ -244,9 +271,10 @@ function Marked({ text, query }: { text: string; query: string }) {
 
 function PlusIcon() {
   return (
-    <span className="stf-plus" aria-hidden="true">
-      <span />
-      <span />
+    <span className="stf-cell" aria-hidden="true">
+      <svg className="stf-plus" viewBox="0 0 32 32" fill="none">
+        <path d="M16 1v30M1 16h30" stroke="currentColor" strokeWidth="2" />
+      </svg>
     </span>
   )
 }
@@ -296,8 +324,9 @@ const DEFAULT_ITEMS: FaqItem[] = [
 
 const css = `
 .stf {
-  --stf-flood-in: 560ms;
-  --stf-flood-out: 360ms;
+  --stf-flood-in: 400ms;
+  --stf-flood-out: 280ms;
+  --stf-rule: 1px;
   --stf-ease-flood: cubic-bezier(0.76, 0, 0.24, 1);
   --stf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --stf-gutter: clamp(16px, 4cqi, 64px);
@@ -342,10 +371,11 @@ const css = `
   padding-top: 0.06em;
   margin-top: -0.06em;
 }
+.stf-title[data-slit="true"] { cursor: default; }
 .stf-word { display: inline-block; white-space: nowrap; }
 .stf-ch {
   display: inline-block;
-  transform: translateY(0);
+  transform: translateY(var(--stf-cut));
   transition: transform 820ms var(--stf-ease-out);
   transition-delay: min(calc(var(--i) * 26ms), 420ms);
 }
@@ -353,18 +383,27 @@ const css = `
   transform: translateY(104%);
   transition: none;
 }
+@media (hover: hover) and (pointer: fine) {
+  .stf-title[data-slit="true"]:hover .stf-ch {
+    transform: translateY(0);
+    transition-duration: 420ms;
+    transition-delay: min(calc(var(--i) * 14ms), 220ms);
+  }
+}
 
 .stf-ticker {
   margin-top: clamp(28px, 3.4cqi, 48px);
-  border-top: 1.5px solid var(--k);
-  border-bottom: 1.5px solid var(--k);
+  border-top: var(--stf-rule) solid var(--k);
+  border-bottom: var(--stf-rule) solid var(--k);
   overflow: hidden;
   white-space: nowrap;
   font-size: clamp(15px, 1.7cqi, 24px);
   font-weight: 500;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   padding: 0.55em 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 .stf-ticker-track { display: inline-flex; animation: stf-ticker 38s linear infinite; }
 .stf-ticker:hover .stf-ticker-track { animation-play-state: paused; }
@@ -399,7 +438,7 @@ const css = `
   letter-spacing: 0.02em;
   margin-bottom: 6px;
 }
-.stf-field { position: relative; display: flex; align-items: center; border-bottom: 1.5px solid var(--k); }
+.stf-field { position: relative; display: flex; align-items: center; border-bottom: var(--stf-rule) solid var(--k); }
 .stf-field svg { flex: none; width: 20px; height: 20px; margin-right: 10px; }
 .stf-field input {
   flex: 1;
@@ -416,7 +455,7 @@ const css = `
 }
 .stf-field input::placeholder { color: var(--k); opacity: 0.55; }
 .stf-field input::-webkit-search-cancel-button { display: none; }
-.stf-field:focus-within { box-shadow: 0 1.5px 0 var(--k); }
+.stf-field:focus-within { box-shadow: 0 1px 0 var(--k); }
 .stf-clear {
   flex: none;
   appearance: none;
@@ -456,11 +495,11 @@ const css = `
 .stf-chip:active { transform: scale(0.97); }
 .stf-chip:focus-visible { outline: 2px solid var(--k); outline-offset: 3px; }
 
-.stf-list { margin: 0; padding: 0; list-style: none; border-bottom: 1.5px solid var(--k); }
-.stf-item { position: relative; border-top: 1.5px solid var(--k); }
+.stf-list { margin: 0; padding: 0; list-style: none; border-bottom: var(--stf-rule) solid var(--k); }
+.stf-item { position: relative; border-top: var(--stf-rule) solid var(--k); }
 .stf-fill {
   position: absolute;
-  top: -1.5px;
+  top: calc(var(--stf-rule) * -1);
   bottom: 0;
   left: calc(var(--stf-gutter) * -1);
   right: calc(var(--stf-gutter) * -1);
@@ -468,7 +507,6 @@ const css = `
   clip-path: inset(0 100% 0 0);
   pointer-events: none;
 }
-.stf-item[data-state="closed"] .stf-fill { transition: clip-path 260ms var(--stf-ease-out); }
 .stf-item[data-state="open"] .stf-fill { clip-path: inset(0 0 0 0); transition: clip-path var(--stf-flood-in) var(--stf-ease-flood); }
 .stf-item[data-state="closing"] .stf-fill { clip-path: inset(0 0 0 100%); transition: clip-path var(--stf-flood-out) var(--stf-ease-flood); }
 
@@ -489,8 +527,19 @@ const css = `
   -webkit-tap-highlight-color: transparent;
 }
 .stf-btn:focus-visible { outline: none; }
-.stf-btn:focus-visible .stf-row:not(.stf-row--inv) { box-shadow: inset 0 0 0 2px var(--k); }
-.stf-btn:focus-visible .stf-row--inv { box-shadow: inset 0 0 0 2px var(--o); }
+.stf-btn::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: calc(var(--stf-gutter) * -0.5);
+  right: calc(var(--stf-gutter) * -0.5);
+  box-shadow: inset 0 0 0 2px var(--k);
+  opacity: 0;
+  pointer-events: none;
+}
+.stf-item[data-state="open"] .stf-btn::after { box-shadow: inset 0 0 0 2px var(--o); }
+.stf-btn:focus-visible::after { opacity: 1; }
 .stf-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -521,33 +570,48 @@ const css = `
 .stf-item[data-state="closing"] .stf-row--inv { clip-path: inset(0 0 0 100%); transition: clip-path var(--stf-flood-out) var(--stf-ease-flood); }
 .stf-row--inv .stf-mark { background: var(--o); color: var(--k); }
 
-.stf-roll { position: relative; display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
-.stf-roll > span { display: block; transition: transform 280ms var(--stf-ease-out); }
-.stf-roll > span + span { position: absolute; left: 0; right: 0; top: 100%; }
+.stf-label { display: block; transition: transform 240ms var(--stf-ease-out); }
+.stf-snippet { display: block; margin-top: 8px; font-size: clamp(15px, 1.15cqi, 17px); font-weight: 500; line-height: 1.4; letter-spacing: -0.005em; opacity: 0.9; }
+.stf-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 3.9cqi, 56px);
+  height: clamp(44px, 3.9cqi, 56px);
+}
+.stf-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--k);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 220ms var(--stf-ease-out);
+}
+.stf-row--inv .stf-cell::before { display: none; }
 .stf-plus {
   position: relative;
   display: block;
+  overflow: visible;
   width: clamp(22px, 2.2cqi, 32px);
   height: clamp(22px, 2.2cqi, 32px);
   transition: transform 280ms var(--stf-ease-out), scale 120ms ease;
 }
-.stf-plus span { position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; margin-top: -0.75px; background: currentColor; }
-.stf-plus span + span { transform: rotate(90deg); }
 .stf-item[data-state="open"] .stf-plus { transform: rotate(135deg); transition-duration: var(--stf-flood-in); }
 @media (hover: hover) and (pointer: fine) {
-  .stf-item[data-state="closed"] .stf-btn:hover .stf-roll > span { transform: translateY(-100%); }
-  .stf-item[data-state="closed"] .stf-btn:hover .stf-plus { transform: rotate(90deg); }
-  .stf-item[data-state="closed"]:has(.stf-btn:hover) .stf-fill { clip-path: inset(0 calc(100% - var(--stf-gutter) * 0.45) 0 0); }
+  .stf-btn:hover .stf-label { transform: translateX(0.3em); }
+  .stf-item[data-state="closed"] .stf-btn:hover .stf-cell::before { clip-path: inset(0 0 0 0); }
+  .stf-item[data-state="closed"] .stf-btn:hover .stf-plus { color: var(--o); }
 }
-.stf-mark { background: var(--k); color: var(--o); padding: 0 0.06em; margin: 0 -0.06em; border-radius: 0; }
+.stf-plus { transition: transform 280ms var(--stf-ease-out), scale 120ms ease, color 160ms ease; }
+.stf-mark { background: var(--k); color: var(--o); border-radius: 0; }
 
 .stf-panel {
   position: relative;
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 280ms var(--stf-ease-out);
+  transition: grid-template-rows 240ms var(--stf-ease-out);
 }
-.stf-item[data-state="open"] .stf-panel { grid-template-rows: 1fr; transition: grid-template-rows 520ms var(--stf-ease-out); }
+.stf-item[data-state="open"] .stf-panel { grid-template-rows: 1fr; transition: grid-template-rows 360ms var(--stf-ease-out); }
 .stf-panel-in { overflow: hidden; min-height: 0; }
 .stf-item[data-state="closed"] .stf-panel-in { visibility: hidden; }
 .stf-answer {
@@ -589,7 +653,7 @@ const css = `
   .stf-text { order: 1; }
 }
 
-.stf-empty { padding: clamp(28px, 4cqi, 56px) 0; border-top: 1.5px solid var(--k); }
+.stf-empty { padding: clamp(28px, 4cqi, 56px) 0; border-top: var(--stf-rule) solid var(--k); }
 .stf-reset { color: var(--k); font-size: 16px; font-weight: 600; }
 .stf-reset:focus-visible { outline-color: var(--k); }
 .stf-empty p { margin: 0 0 14px; font-size: clamp(20px, 2.15cqi, 34px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
@@ -639,27 +703,29 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .stf-ch,
-  .stf[data-intro="pending"] .stf-ch { transform: none; transition: none; }
+  .stf[data-intro="pending"] .stf-ch { transform: translateY(var(--stf-cut)); transition: none; }
   .stf-ticker-track { animation: none; }
   .stf-fill,
   .stf-row--inv,
   .stf-panel,
   .stf-plus,
-  .stf-roll > span,
+  .stf-label,
+  .stf-cell::before,
   .stf-cta > span + span,
   .stf-cta svg,
   .stf-item[data-state] .stf-fill,
   .stf-item[data-state] .stf-row--inv,
   .stf-item[data-state] .stf-panel { transition: none !important; }
-  .stf-btn:hover .stf-roll > span { transform: none !important; }
+  .stf-btn:hover .stf-label { transform: none !important; }
+  .stf-title[data-slit="true"]:hover .stf-ch { transition: none !important; }
 }
 `
 
-function Headline({ text, id }: { text: string; id: string }) {
+function Headline({ text, id, slit }: { text: string; id: string; slit: boolean }) {
   let n = 0
   const lines = text.split("\n")
   return (
-    <h2 className="stf-title" id={id} aria-label={lines.join(" ")}>
+    <h2 className="stf-title" id={id} aria-label={lines.join(" ")} data-slit={slit ? "true" : "false"}>
       {lines.map((line, li) => (
         <span className="stf-line" key={li} aria-hidden="true">
           {line.split(" ").map((word, wi, words) => (
@@ -683,6 +749,7 @@ function Headline({ text, id }: { text: string; id: string }) {
 export default function SlitTypeFaq({
   items = DEFAULT_ITEMS,
   headline = "Before you\nsend files",
+  slit = 0.42,
   intro = "Riso is a stencil process with soy ink and real drums. Most surprises start with file setup, so here is what to know first.",
   preset = "signal",
   palette,
@@ -690,6 +757,8 @@ export default function SlitTypeFaq({
   theme = "auto",
   type = "single",
   defaultOpen = 0,
+  open: openProp,
+  idPrefix = "",
   search = true,
   searchLabel = "Search the answers",
   categories,
@@ -697,8 +766,8 @@ export default function SlitTypeFaq({
   contact = { prompt: "Still have a question?", label: "Email the press room", href: "mailto:hello@drumroom.press" },
   copyLinks = true,
   syncHash = false,
-  minHeight = "100svh",
-  displayFont = '"Helvetica Neue", Helvetica, "Inter Display", Inter, Arial, sans-serif',
+  minHeight = 0,
+  displayFont = '"Helvetica Neue", Helvetica, "Inter Display", Inter, "Arial Black", Arial, sans-serif',
   textFont = '"Helvetica Neue", Helvetica, Inter, Arial, system-ui, sans-serif',
   onOpenChange,
   ariaLabel,
@@ -716,15 +785,24 @@ export default function SlitTypeFaq({
       itemIds(
         items.map((it) => it.question),
         items.map((it) => it.id),
-      ),
-    [items],
+      ).map((id) => idPrefix + id),
+    [items, idPrefix],
   )
-  const texts = React.useMemo(
-    () => items.map((it) => it.question + " " + (it.answerText ?? nodeText(it.answer))),
-    [items],
-  )
+  const answers = React.useMemo(() => items.map((it) => it.answerText ?? nodeText(it.answer)), [items])
+  const texts = React.useMemo(() => items.map((it, i) => it.question + " " + answers[i]), [items, answers])
 
-  const [open, setOpen] = React.useState(() => resolveOpen(defaultOpen, ids, single))
+  const [openState, setOpenState] = React.useState(() => resolveOpen(defaultOpen, ids, single, idPrefix))
+  const open = openProp ?? openState
+  const openRef = React.useRef(open)
+  openRef.current = open
+  const controlledRef = React.useRef(false)
+  controlledRef.current = openProp !== undefined
+  const onChangeRef = React.useRef(onOpenChange)
+  onChangeRef.current = onOpenChange
+  const commit = React.useCallback((next: string[]) => {
+    if (!controlledRef.current) setOpenState(next)
+    onChangeRef.current?.(next)
+  }, [])
   const [closing, setClosing] = React.useState([] as string[])
   const [query, setQuery] = React.useState("")
   const [category, setCategory] = React.useState(null as string | null)
@@ -765,14 +843,15 @@ export default function SlitTypeFaq({
     const fromHash = () => {
       const h = decodeURIComponent(location.hash.replace(/^#/, ""))
       if (!h || !ids.includes(h)) return
-      setOpen((cur) => (single ? [h] : cur.includes(h) ? cur : [...cur, h]))
+      const cur = openRef.current
+      if (!cur.includes(h)) commit(single ? [h] : [...cur, h])
       const i = ids.indexOf(h)
       window.setTimeout(() => btnRefs.current[i]?.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" }), 60)
     }
     fromHash()
     window.addEventListener("hashchange", fromHash)
     return () => window.removeEventListener("hashchange", fromHash)
-  }, [ids, single, reduced])
+  }, [ids, single, reduced, commit])
 
   React.useEffect(() => {
     const t = timers.current
@@ -788,28 +867,32 @@ export default function SlitTypeFaq({
         window.clearTimeout(timers.current[id])
         timers.current[id] = window.setTimeout(() => {
           setClosing((cur) => cur.filter((c) => c !== id))
-        }, 380)
+        }, 300)
       }
     },
     [reduced],
   )
 
+  // Whatever changes the open set (a click, a #hash, a controlled prop), a question that
+  // closes wipes its ink out to the right before it is put away. Layout effect: the
+  // closing state lands before paint, so the ink never blinks.
+  const prevOpen = React.useRef(open)
+  const openKey = open.join("|")
+  useIsoLayoutEffect(() => {
+    const prev = prevOpen.current
+    const now = openRef.current
+    prevOpen.current = now
+    const added = now.filter((id) => !prev.includes(id))
+    if (added.length) {
+      for (const id of added) window.clearTimeout(timers.current[id])
+      setClosing((cur) => cur.filter((c) => !added.includes(c)))
+    }
+    beginClose(prev.filter((id) => !now.includes(id)))
+  }, [openKey, beginClose])
+
   const toggle = (id: string) => {
     const isOpen = open.includes(id)
-    let next: string[]
-    let closed: string[]
-    if (isOpen) {
-      next = open.filter((o) => o !== id)
-      closed = [id]
-    } else {
-      next = single ? [id] : [...open, id]
-      closed = single ? open.filter((o) => o !== id) : []
-    }
-    window.clearTimeout(timers.current[id])
-    setClosing((cur) => cur.filter((c) => c !== id))
-    beginClose(closed)
-    setOpen(next)
-    onOpenChange?.(next)
+    commit(isOpen ? open.filter((o) => o !== id) : single ? [id] : [...open, id])
     if (syncHash && typeof history !== "undefined") {
       const url = location.pathname + location.search + (isOpen ? "" : "#" + id)
       history.replaceState(history.state, "", url)
@@ -865,7 +948,10 @@ export default function SlitTypeFaq({
   const onLight = palette?.onInk ?? (palette?.ink || palette?.paper ? pickOnInk(light.ink, light.paper) : light.onInk)
   const onDark = darkPalette?.onInk ?? (darkPalette?.ink || darkPalette?.paper ? pickOnInk(dark.ink, dark.paper) : dark.onInk)
 
+  // The slit sits on the baseline: each capital drops by a share of its cap height (about 0.72em).
+  const cut = Math.min(0.5, Math.max(0, slit))
   const vars = {
+    "--stf-cut": cut > 0 ? "calc(" + (cut * 0.72).toFixed(3) + "em + 0.05em)" : "0px",
     "--stf-paper-l": light.paper,
     "--stf-ink-l": light.ink,
     "--stf-on-l": onLight,
@@ -893,7 +979,7 @@ export default function SlitTypeFaq({
     >
       <style>{css}</style>
       <div className="stf-wrap">
-        {headline ? <Headline text={headline} id={uid + "-h"} /> : null}
+        {headline ? <Headline text={headline} id={uid + "-h"} slit={cut > 0} /> : null}
 
         {ticker && ticker.length ? (
           <div className="stf-ticker" aria-label={ticker.join(", ")} role="note">
@@ -982,12 +1068,16 @@ export default function SlitTypeFaq({
               const state = isOpen ? "open" : closing.includes(id) ? "closing" : "closed"
               const btnId = uid + "-b-" + i
               const panelId = uid + "-p-" + i
-              const label = <Marked text={it.question} query={query} />
+              const excerpt = query.trim() && !isOpen ? snippet(answers[i], query) : ""
               const row = (inv: boolean) => (
                 <span className={"stf-row" + (inv ? " stf-row--inv" : "")} aria-hidden={inv ? "true" : undefined}>
-                  <span className="stf-roll">
-                    <span>{label}</span>
-                    <span aria-hidden="true">{label}</span>
+                  <span className="stf-label">
+                    <Marked text={it.question} query={query} />
+                    {excerpt ? (
+                      <span className="stf-snippet">
+                        <Marked text={excerpt} query={query} />
+                      </span>
+                    ) : null}
                   </span>
                   <PlusIcon />
                 </span>

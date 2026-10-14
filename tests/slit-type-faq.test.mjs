@@ -49,6 +49,15 @@ assert.deepEqual(m.resolveOpen([0, "c", 0], ids, false), ["a", "c"])
 assert.deepEqual(m.resolveOpen([0, "c"], ids, true), ["a"])
 assert.deepEqual(m.resolveOpen(["nope", 9], ids, false), [])
 assert.deepEqual(m.resolveOpen(undefined, ids, false), [])
+assert.deepEqual(m.resolveOpen("b", ["faq-a", "faq-b"], true, "faq-"), ["faq-b"], "unprefixed ids still resolve")
+
+// Search snippets: an excerpt around the first match, trimmed at word boundaries.
+const ans = "Uncoated stock from 90 to 300 gsm, in white, natural and about thirty colours. Soy ink never fully dries on coated or glossy paper, so we will not run it."
+const snip = m.snippet(ans, "glossy")
+assert.ok(snip.includes("glossy") && snip.startsWith("…") && snip.length < 150, snip)
+assert.equal(m.snippet(ans, "laminate"), "")
+assert.equal(m.snippet(ans, ""), "")
+assert.ok(!m.snippet(ans, "uncoated").startsWith("…"), "a match at the start needs no leading ellipsis")
 
 // Roving focus wraps; unknown keys are left alone.
 assert.equal(m.nextFocus("ArrowDown", 2, 3), 0)
@@ -72,7 +81,8 @@ assert.ok(Number.isNaN(m.contrast("red", "#fff")))
 
 // A root that inherits its height renders here and collapses once installed.
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full anywhere")
-assert.ok(/minHeight = "100svh"/.test(src), "minimum height must default to a definite length")
+assert.ok(/minHeight = 0,/.test(src), "minimum height defaults to a definite length (0: the section sizes to its questions)")
+assert.doesNotMatch(src, /height:\s*\d+%/, "no percentage heights")
 
 // 21st ships this file alone; the CSS must not reach the host page.
 const cssStart = src.indexOf("const css = `") + 13
@@ -116,6 +126,16 @@ const inv = rule(".stf-row--inv")
 for (const k of ["left: calc(var(--stf-gutter) * -1);", "right: calc(var(--stf-gutter) * -1);", "clip-path: inset(0 100% 0 0);"]) {
   assert.ok(fill.includes(k) && inv.includes(k), "flood and inverted row must share: " + k)
 }
+
+// The ink and the inverted copy must never disagree: every rule that moves one clip moves the other.
+const clipRules = (sel) => [...css.matchAll(new RegExp("([^\\n{}]*)" + sel.replace(/[.[\]-]/g, "\\$&") + "\\s*\\{[^}]*clip-path:\\s*([^;]+);", "g"))].map((x) => x[1].trim() + " => " + x[2])
+assert.deepEqual(clipRules(".stf-fill"), clipRules(".stf-row--inv"), "fill and inverted row clip in step")
+assert.equal(clipRules(".stf-fill").length, 3, "closed, open and closing clips")
+
+// The headline sits in its slit at rest, also under reduced motion.
+assert.ok(/transform: translateY\(var\(--stf-cut\)\);\n  transition: transform/.test(css), "letters rest at the cut")
+assert.ok(reduced.includes("translateY(var(--stf-cut))"), "reduced motion keeps the cut")
+assert.ok(/slit = 0\.42,/.test(src), "sliced by default")
 
 // 21st's parser: no TypeScript generics before the first JSX element closes.
 const firstJsx = src.indexOf("</")
