@@ -50,8 +50,10 @@ export type TeamMember = {
   /** object-position for the portrait, e.g. "50% 30%". */
   focus?: string
   href?: string
-  /** Link text in the unfolded card. Defaults to "Say hello". */
+  /** Link text in the unfolded card. Defaults to labels.memberLink. */
   linkLabel?: string
+  /** Brightens (>1) or darkens (<1) this portrait before the tritone, for very dark or bright photos. */
+  exposure?: number
 }
 
 export type OpenRole = {
@@ -63,6 +65,32 @@ export type OpenRole = {
   note?: string
   /** Big word in the empty frame. Defaults to "You?". */
   mark?: string
+  /** Link text in the unfolded card. Defaults to labels.roleLink. */
+  linkLabel?: string
+}
+
+/** Every built-in string, for translation. */
+export type RosterLabels = {
+  pause: string
+  play: string
+  /** Accessible name of the portrait wall. */
+  team: string
+  /** Prefix read before an open role's title. */
+  openRole: string
+  /** Chip on an open-role frame without its own craft. */
+  hiring: string
+  roleLink: string
+  memberLink: string
+}
+
+export const DEFAULT_LABELS: RosterLabels = {
+  pause: "Pause",
+  play: "Play",
+  team: "Team",
+  openRole: "Open role",
+  hiring: "Hiring",
+  roleLink: "See the role",
+  memberLink: "Say hello",
 }
 
 export type RosterLink = { label: string; href: string }
@@ -93,7 +121,10 @@ export type DuotoneTeamRosterProps = {
   stretch?: number
   uppercase?: boolean
   grain?: boolean
+  /** Built-in strings (pause, play, team, openRole, hiring, roleLink, memberLink). */
+  labels?: Partial<RosterLabels>
   className?: string
+  /** Called when a portrait is clicked or opened with the keyboard. Without it, a click follows the person's link. */
   onMemberSelect?: (member: TeamMember) => void
 }
 
@@ -119,6 +150,13 @@ export function hexToUnit(hex: string) {
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
   if (!/^[0-9a-fA-F]{6}$/.test(h)) return [0, 0, 0]
   return [0, 2, 4].map((i) => Math.round((parseInt(h.slice(i, i + 2), 16) / 255) * 1000) / 1000)
+}
+
+/** Mixes two hex colours, t = 0 gives a, t = 1 gives b. */
+export function mixHex(a: string, b: string, t: number) {
+  const x = hexToUnit(a)
+  const y = hexToUnit(b)
+  return "#" + [0, 1, 2].map((i) => Math.round((x[i] + (y[i] - x[i]) * t) * 255).toString(16).padStart(2, "0")).join("")
 }
 
 /** One feFuncR/G/B table per channel: shadow, midtone, highlight. */
@@ -216,21 +254,24 @@ export const DEFAULT_MEMBERS: TeamMember[] = [
   { name: "Noa Brandt", role: "Studio manager", craft: "Studio", bio: "Runs the suites, the kit room and, under protest, the coffee rota.", photo: U + "photo-1524504388940-b1c1722653e1" + Q, focus: "50% 30%", href: "mailto:noa@foxglove-post.example" },
 ]
 
+const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
+
 const DISPLAY_STACK = '"Arial Black", "Archivo Black", "Helvetica Neue", Inter, "Segoe UI", system-ui, sans-serif'
 
 const css = `
 .dtr{position:relative;isolation:isolate;overflow:hidden;width:100%;container-type:inline-size;color:var(--dtr-ink);background:var(--dtr-ground);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;--dtr-ease:cubic-bezier(.23,1,.32,1);--dtr-gap:14px;--dtr-pad:clamp(20px,3.2cqw,48px)}
 .dtr *,.dtr *::before,.dtr *::after{box-sizing:border-box}
-.dtr-field{position:absolute;inset:0;z-index:-2;background:radial-gradient(70% 62% at 34% 36%,var(--dtr-glow) 0%,var(--dtr-hot) 26%,color-mix(in srgb,var(--dtr-hot) 55%,var(--dtr-deep)) 48%,transparent 78%),radial-gradient(60% 90% at 78% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)) 0%,transparent 70%),linear-gradient(98deg,var(--dtr-ground) 0%,var(--dtr-deep) 16%,transparent 42%),linear-gradient(0deg,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-deep) 85%,transparent) 30%,transparent 62%),var(--dtr-deep)}
+.dtr-field{position:absolute;inset:0;z-index:-2;background:radial-gradient(38cqw 46cqw at 0% 100%,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-ground) 55%,var(--dtr-deep)) 96.5%,transparent 100%),radial-gradient(70% 62% at 34% 36%,var(--dtr-glow) 0%,var(--dtr-hot) 26%,color-mix(in srgb,var(--dtr-hot) 55%,var(--dtr-deep)) 48%,transparent 78%),radial-gradient(60% 90% at 78% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)) 0%,transparent 70%),linear-gradient(98deg,var(--dtr-ground) 0%,var(--dtr-deep) 16%,transparent 42%),linear-gradient(0deg,var(--dtr-ground) 0%,color-mix(in srgb,var(--dtr-deep) 85%,transparent) 30%,transparent 62%),var(--dtr-deep)}
 .dtr-grain{position:absolute;inset:-50%;z-index:-1;pointer-events:none;opacity:.2;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.6 -.35'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");background-size:220px 220px}
 .dtr-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .dtr-in{position:relative;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);height:100%}
-.dtr-copy{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--dtr-pad);padding-right:clamp(16px,2cqw,32px);min-width:0}
-.dtr-title{margin:0;font-family:var(--dtr-display);font-weight:900;font-synthesis:none;line-height:.84;letter-spacing:-.035em;color:var(--dtr-ink);font-size:var(--dtr-ts,120px);text-transform:var(--dtr-case)}
+.dtr-copy{position:relative;z-index:2;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--dtr-pad);padding-right:clamp(16px,2cqw,32px);min-width:0}
+.dtr-title{position:relative;margin:0;text-shadow:0 .02em .14em color-mix(in srgb,var(--dtr-ground) 30%,transparent);font-family:var(--dtr-display);font-weight:900;font-synthesis:none;line-height:.84;letter-spacing:-.035em;color:var(--dtr-ink);font-size:var(--dtr-ts,clamp(56px,9cqw,200px));text-transform:var(--dtr-case)}
 .dtr-eyebrow{display:block;font-size:.36em;line-height:1;letter-spacing:-.01em;margin:0 0 .16em .02em;transform:scaleX(var(--dtr-stretch));transform-origin:0 50%;white-space:nowrap}
-.dtr-line{display:block;overflow:hidden;padding-bottom:.04em;margin-bottom:-.04em}
+.dtr-line{display:block;clip-path:inset(-30% -400% 0 -10%);padding-bottom:.04em;margin-bottom:-.04em}
 .dtr-line>span{display:inline-block;white-space:nowrap;transform:scaleX(var(--dtr-stretch));transform-origin:0 50%}
 .dtr-line>span>span{display:inline-block;animation:dtr-line-in 900ms var(--dtr-ease) both;animation-delay:calc(120ms + var(--i,0) * 50ms)}
+.dtr-intro,.dtr-actions{pointer-events:auto}
 .dtr-intro{margin:clamp(18px,2.2cqw,28px) 0 0;max-width:38ch;font-size:clamp(15px,1.15cqw,17px);line-height:1.55;color:color-mix(in srgb,var(--dtr-ink) 86%,transparent);text-wrap:pretty}
 .dtr-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:clamp(20px,2.4cqw,30px)}
 .dtr-cta{position:relative;display:inline-flex;align-items:center;gap:12px;height:46px;padding:0 18px 0 20px;border-radius:3px;background:var(--dtr-ink);color:var(--dtr-ground);font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;overflow:hidden;transition:transform 160ms var(--dtr-ease),background-color 220ms ease;outline:none}
@@ -248,34 +289,39 @@ const css = `
 .dtr-track{display:flex;flex-direction:column;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-up var(--dtr-dur) linear infinite;animation-delay:var(--dtr-phase)}
 .dtr-col[data-dir="down"] .dtr-track{animation-name:dtr-down}
 .dtr[data-paused] .dtr-track,.dtr[data-active] .dtr-track,.dtr[data-offscreen] .dtr-track,.dtr-wall:focus-within .dtr-track,.dtr[data-paused] .dtr-strip-track,.dtr[data-active] .dtr-strip-track,.dtr[data-offscreen] .dtr-strip-track,.dtr-strip:focus-within .dtr-strip-track{animation-play-state:paused}
-.dtr-card{position:relative;margin:0 0 var(--dtr-gap);aspect-ratio:3/4;border-radius:3px;outline:none;cursor:pointer;transition:transform 260ms var(--dtr-ease);-webkit-tap-highlight-color:transparent}
+.dtr-card{position:relative;container:dtrcard/inline-size;margin:0 0 var(--dtr-gap);aspect-ratio:3/4;border-radius:3px;transition:transform 260ms var(--dtr-ease);-webkit-tap-highlight-color:transparent}
 .dtr-card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;box-shadow:0 2px 6px color-mix(in srgb,var(--dtr-ground) 40%,transparent),0 18px 44px -12px color-mix(in srgb,var(--dtr-ground) 85%,transparent);opacity:0;transition:opacity 260ms ease;pointer-events:none}
 .dtr-photo{position:absolute;inset:0;overflow:hidden;border-radius:3px;background:var(--dtr-deep);transition:opacity 260ms ease,filter 260ms ease}
-.dtr-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover}
+.dtr-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover;transition:transform 300ms var(--dtr-ease)}
+.dtr-photo img{transform-origin:50% 0}
+.dtr-card[data-on] .dtr-photo img{transform:translateY(-10%) scale(1.12)}
+.dtr-hit{position:absolute;inset:0;z-index:1;margin:0;padding:0;border:0;border-radius:3px;background:transparent;cursor:default;outline:none;-webkit-tap-highlight-color:transparent}
+.dtr-card[data-click] .dtr-hit{cursor:pointer}
+.dtr-hit:focus-visible{box-shadow:0 0 0 2px var(--dtr-ground),0 0 0 4px var(--dtr-ink)}
 .dtr-true{opacity:0;transition:opacity 300ms ease}
 .dtr-plate{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(90% 70% at 50% 35%,var(--dtr-hot),var(--dtr-deep) 70%,var(--dtr-ground));font-family:var(--dtr-display);font-weight:900;color:var(--dtr-ink);font-size:clamp(40px,7cqw,96px);letter-spacing:-.04em}
-.dtr-plate span{transform:scaleX(var(--dtr-stretch))}
+.dtr-plate span{transform:scaleX(var(--dtr-stretch));transition:transform 300ms var(--dtr-ease)}
+.dtr-card[data-on] .dtr-plate span{transform:translateY(-.95em) scaleX(var(--dtr-stretch)) scale(.82)}
 .dtr-plate{grid-template-rows:1fr auto 1fr}.dtr-plate span{grid-row:2}
 .dtr-plate em{transition:opacity 160ms ease;grid-row:3;align-self:start;margin-top:.9em;max-width:80%;font:700 12px/1.35 ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;font-style:normal;text-align:center;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
 .dtr-role .dtr-plate{background:repeating-linear-gradient(135deg,transparent 0 10px,color-mix(in srgb,var(--dtr-ink) 9%,transparent) 10px 11px),radial-gradient(90% 70% at 50% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)),var(--dtr-ground) 85%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 28%,transparent);font-size:clamp(34px,5.2cqw,76px)}
 .dtr-chip,.dtr-panel{position:absolute;left:12px;bottom:12px;background:color-mix(in srgb,var(--dtr-ground) 95%,transparent);color:var(--dtr-ink);border-radius:3px}
 .dtr-chip{padding:8px 10px 7px;font-size:11px;font-weight:700;line-height:1;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;transition:opacity 160ms ease}
-.dtr-panel{right:12px;padding:12px 14px 13px;clip-path:inset(calc(100% - 26px) calc(100% - var(--dtr-cw)) 0 0 round 3px);opacity:0;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms;pointer-events:none}
-.dtr-panel-craft{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--dtr-ink) 70%,transparent);margin-bottom:8px}
+.dtr-panel{z-index:2;right:12px;max-height:calc(100% - 24px);overflow:hidden;padding:11px 13px 12px;clip-path:inset(calc(100% - 26px) calc(100% - var(--dtr-cw)) 0 0 round 3px);opacity:0;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms;pointer-events:none}
+.dtr-panel-craft{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--dtr-ink) 70%,transparent);margin-bottom:6px}
 .dtr-name{margin:0;font-size:clamp(16px,1.25cqw,19px);font-weight:800;line-height:1.15;letter-spacing:-.01em}
 .dtr-roleline{margin:3px 0 0;font-size:13px;line-height:1.35;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
-.dtr-bio{margin:8px 0 0;font-size:13px;line-height:1.45;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
-.dtr-panel a{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--dtr-ink);font-size:13px;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;outline:none}
+.dtr-bio{margin:6px 0 0;font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
+.dtr-panel a{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--dtr-ink);font-size:13px;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;outline:none}
 .dtr-panel a span{display:inline-block;transition:transform 260ms var(--dtr-ease)}
 .dtr-card[data-on]{z-index:3;transform:translateY(-6px) scale(1.02)}
 .dtr-card[data-on]::after{opacity:1}
-.dtr-card[data-on] .dtr-true{opacity:.74}
+.dtr-card[data-on] .dtr-true{opacity:1}
 .dtr-card[data-on] .dtr-chip,.dtr-card[data-on] .dtr-plate em{opacity:0;transition-duration:90ms}
 .dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;pointer-events:auto;transition:clip-path 300ms var(--dtr-ease),opacity 60ms ease}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-photo{opacity:.42;filter:saturate(.7)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-chip{opacity:.5}
-.dtr-card:focus-visible{box-shadow:0 0 0 2px var(--dtr-ground),0 0 0 4px var(--dtr-ink)}
-.dtr-pause{margin-left:auto;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
+.dtr-pause{position:absolute;right:var(--dtr-pad);bottom:16px;z-index:4;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
 .dtr-pause:active{transform:scale(.96)}
 .dtr-pause i{display:inline-block;width:8px;height:9px;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .dtr[data-paused] .dtr-pause i{border-right:0;border-left:8px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;width:0;height:0}
@@ -283,12 +329,14 @@ const css = `
 .dtr[data-mode="strip"] .dtr-in{display:flex;flex-direction:column;height:auto}
 .dtr[data-mode="strip"] .dtr-wall{display:none}
 .dtr[data-mode="strip"] .dtr-strip{display:block;position:relative;order:-1;overflow:hidden;padding:20px 0 4px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%)}
-.dtr-strip-track{display:flex;width:max-content;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
+.dtr-strip-track{display:flex;width:max-content;padding-left:20px;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
 .dtr-strip .dtr-card{width:clamp(170px,56cqw,250px);margin:0 10px 0 0;flex:none}
 .dtr[data-mode="strip"] .dtr-copy{padding:18px 20px 28px}
+.dtr[data-mode="strip"] .dtr-pause{position:relative;right:auto;bottom:auto;display:flex;width:max-content;margin:12px 20px 0 auto}
+@container dtrcard (max-width:229px){.dtr-bio{display:none}}
 @keyframes dtr-up{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-50%,0)}}
 @keyframes dtr-down{from{transform:translate3d(0,-50%,0)}to{transform:translate3d(0,0,0)}}
-@keyframes dtr-left{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@keyframes dtr-left{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(-50% + 10px),0,0)}}
 @keyframes dtr-rise{from{opacity:0;transform:translate3d(0,56px,0)}to{opacity:1;transform:none}}
 @keyframes dtr-line-in{from{transform:translate3d(0,104%,0)}to{transform:none}}
 @media (hover:hover) and (pointer:fine){
@@ -304,7 +352,7 @@ const css = `
 .dtr-strip-track{transform:none}
 .dtr-col,.dtr-line>span>span{animation:none}
 .dtr-card,.dtr-panel,.dtr-cta-label>span,.dtr-cta-arrow{transition-duration:1ms}
-.dtr-card[data-on]{transform:none}
+.dtr-card[data-on],.dtr-card[data-on] .dtr-photo img{transform:none}
 .dtr-pause{display:none}
 }
 `
@@ -321,7 +369,9 @@ function bringIntoView(card: HTMLElement) {
   const f = frame.getBoundingClientRect()
   const r = card.getBoundingClientRect()
   const vertical = track.classList.contains("dtr-track")
-  const parts = (track.style.translate || "0px 0px").split(" ")
+  // Start from where the track is right now (it may still be easing back).
+  const now = getComputedStyle(track).translate
+  const parts = !now || now === "none" ? ["0", "0"] : now.split(" ")
   let x = parseFloat(parts[0]) || 0
   let y = parseFloat(parts[1] || "0") || 0
   const m = 24
@@ -335,35 +385,50 @@ function bringIntoView(card: HTMLElement) {
   track.style.translate = Math.round(x) + "px " + Math.round(y) + "px"
 }
 
+/** Lets the track ease back into its loop once focus moves on. */
+function releaseNudge(card: HTMLElement) {
+  const track = card.closest(".dtr-track, .dtr-strip-track") as HTMLElement | null
+  if (track) track.style.translate = ""
+}
+
 function Portrait(props: {
   slot: Slot
   on: boolean
   filterId: string
+  labels: RosterLabels
   onEnter: (key: string) => void
   onLeave: (key: string) => void
   onToggle: (key: string) => void
   onSelect?: (member: TeamMember) => void
 }) {
-  const { slot, on, filterId, onEnter, onLeave, onToggle, onSelect } = props
+  const { slot, on, filterId, labels, onEnter, onLeave, onToggle, onSelect } = props
   const [failed, setFailed] = React.useState(false)
   const pointer = React.useRef("mouse")
+  const panelId = "p" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const hidden = slot.dup
   const isRole = slot.kind === "role"
   const member = slot.kind === "member" ? slot.member : null
   const role = slot.kind === "role" ? slot.role : null
-  const craft = member ? member.craft || member.role : role ? role.craft || "Hiring" : ""
-  const label = member ? member.name + ", " + member.role : role ? "Open role: " + role.title : ""
+  const craft = member ? member.craft || member.role : role ? role.craft || labels.hiring : ""
+  const label = member ? member.name + ", " + member.role : role ? labels.openRole + ": " + role.title : ""
   const photo = member && member.photo && !failed ? member.photo : ""
   const href = member ? member.href : role ? role.href : undefined
-  const linkLabel = member ? member.linkLabel || "Say hello" : "See the role"
+  const linkLabel = member ? member.linkLabel || labels.memberLink : (role && role.linkLabel) || labels.roleLink
+  const exposure = member && member.exposure && member.exposure > 0 ? member.exposure : 1
+  const focus = (member && member.focus) || "50% 30%"
+  const clickable = Boolean((member && onSelect) || href)
+
+  const follow = (card: HTMLElement) => {
+    const a = card.querySelector(".dtr-panel a") as HTMLAnchorElement | null
+    if (a) a.click()
+  }
 
   return (
-    <article
+    <div
       className={"dtr-card" + (isRole ? " dtr-role" : "")}
       data-on={on ? "" : undefined}
-      tabIndex={hidden ? -1 : 0}
+      data-click={clickable ? "" : undefined}
       aria-hidden={hidden ? true : undefined}
-      aria-label={label}
       style={{ ["--dtr-cw" as any]: Math.min(26, craft.length) * 0.74 + 2.2 + "em" }}
       onPointerDown={(e) => {
         pointer.current = e.pointerType
@@ -374,37 +439,10 @@ function Portrait(props: {
       onPointerLeave={(e) => {
         if (e.pointerType === "mouse") onLeave(slot.key)
       }}
-      onFocus={(e) => {
-        const el = e.currentTarget as HTMLElement
-        // Pointer focus is handled by hover and tap; only keyboard focus unfolds here.
-        if (e.target === el && !el.matches(":focus-visible")) return
-        onEnter(slot.key)
-        bringIntoView(el)
-      }}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onLeave(slot.key)
-      }}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest("a")) return
-        if (member && onSelect) onSelect(member)
-        if (pointer.current !== "mouse") {
-          if (!on) bringIntoView(e.currentTarget as HTMLElement)
-          onToggle(slot.key)
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) {
-          if (e.key === "Escape") (e.currentTarget as HTMLElement).focus()
-          return
-        }
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          if (member && onSelect) onSelect(member)
-          const a = e.currentTarget.querySelector("a")
-          if (a) a.focus()
-        } else if (e.key === "Escape") {
-          ;(e.currentTarget as HTMLElement).blur()
-        }
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+        onLeave(slot.key)
+        releaseNudge(e.currentTarget)
       }}
     >
       <div className="dtr-photo">
@@ -419,7 +457,10 @@ function Portrait(props: {
               loading="lazy"
               decoding="async"
               draggable={false}
-              style={{ filter: "url(#" + filterId + ")", objectPosition: (member && member.focus) || "50% 30%" }}
+              style={{
+                filter: (exposure !== 1 ? "brightness(" + exposure + ") " : "") + "url(#" + filterId + ")",
+                objectPosition: focus,
+              }}
               onError={() => setFailed(true)}
             />
             <img
@@ -431,7 +472,7 @@ function Portrait(props: {
               loading="lazy"
               decoding="async"
               draggable={false}
-              style={{ objectPosition: (member && member.focus) || "50% 30%" }}
+              style={{ objectPosition: focus }}
             />
           </>
         ) : (
@@ -444,20 +485,67 @@ function Portrait(props: {
       <span className="dtr-chip" aria-hidden="true">
         {craft}
       </span>
-      <div className="dtr-panel">
+      <button
+        type="button"
+        className="dtr-hit"
+        tabIndex={hidden ? -1 : 0}
+        aria-label={label}
+        aria-expanded={hidden ? undefined : on}
+        aria-controls={panelId}
+        onFocus={(e) => {
+          // Pointer focus is handled by hover and tap; keyboard focus unfolds here.
+          if (!e.currentTarget.matches(":focus-visible")) return
+          onEnter(slot.key)
+          bringIntoView(e.currentTarget.parentElement as HTMLElement)
+        }}
+        onClick={(e) => {
+          const card = e.currentTarget.parentElement as HTMLElement
+          if (member && onSelect) onSelect(member)
+          if (e.detail === 0) {
+            // Keyboard: Enter opens the card, a second Enter moves to its link.
+            if (!on) {
+              onEnter(slot.key)
+              bringIntoView(card)
+            } else {
+              const a = card.querySelector(".dtr-panel a") as HTMLElement | null
+              if (a) a.focus()
+            }
+            return
+          }
+          if (pointer.current === "mouse") {
+            if (!(member && onSelect)) follow(card)
+            return
+          }
+          if (!on) bringIntoView(card)
+          onToggle(slot.key)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onLeave(slot.key)
+        }}
+      />
+      <div
+        className="dtr-panel"
+        id={panelId}
+        onKeyDown={(e) => {
+          if (e.key !== "Escape") return
+          const btn = e.currentTarget.parentElement?.querySelector(".dtr-hit") as HTMLElement | null
+          if (btn) btn.focus()
+          onLeave(slot.key)
+        }}
+      >
         <span className="dtr-panel-craft" aria-hidden="true">
           {craft}
         </span>
         <p className="dtr-name">{member ? member.name : role ? role.title : ""}</p>
-        <p className="dtr-roleline">{member ? member.role : role ? role.note || "We are hiring" : ""}</p>
+        {member || (role && role.note) ? <p className="dtr-roleline">{member ? member.role : role ? role.note : ""}</p> : null}
         {member && member.bio ? <p className="dtr-bio">{member.bio}</p> : null}
         {href ? (
-          <a href={href} tabIndex={hidden || !on ? -1 : 0} onClick={(e) => e.stopPropagation()}>
+          <a href={href} tabIndex={hidden || !on ? -1 : 0}>
             {linkLabel} <span aria-hidden="true">↗</span>
           </a>
         ) : null}
       </div>
-    </article>
+    </div>
   )
 }
 
@@ -478,10 +566,12 @@ export default function DuotoneTeamRoster({
   stretch = 1.16,
   uppercase = true,
   grain = true,
+  labels,
   className = "",
   onMemberSelect,
 }: DuotoneTeamRosterProps) {
   const pal = resolvePalette(preset, palette)
+  const text: RosterLabels = { ...DEFAULT_LABELS, ...(labels || {}) }
   const rawId = React.useId()
   const uid = "dtr" + rawId.replace(/[^a-zA-Z0-9]/g, "")
   const filterId = uid + "-tone"
@@ -496,7 +586,8 @@ export default function DuotoneTeamRoster({
   const [offscreen, setOffscreen] = React.useState(false)
 
   const lines = splitLines(title)
-  const tables = tritoneTables(pal.shadow, pal.hot, pal.highlight)
+  // The shadow end is lifted toward the field so dark skin and dark clothes keep their detail.
+  const tables = tritoneTables(mixHex(pal.shadow, pal.deep, 0.4), pal.hot, pal.highlight)
   const [minPer, setMinPer] = React.useState(4)
   const plan = React.useMemo(
     () => dealColumns(members.length, openRoles.length, cols || 1, cols ? minPer : 0),
@@ -509,7 +600,7 @@ export default function DuotoneTeamRoster({
       : { key: prefix, kind: "member", member: members[e.index], dup: e.dup }
 
   // Measure the container: choose the layout and fit the headline to its column.
-  React.useLayoutEffect(() => {
+  useIsoLayoutEffect(() => {
     const root = rootRef.current
     const copy = copyRef.current
     const head = titleRef.current
@@ -536,8 +627,10 @@ export default function DuotoneTeamRoster({
         const need = Math.max(3, Math.ceil(h / Math.max(80, cardH)))
         setMinPer((m) => (m === need ? m : need))
       }
-      const maxByHeight = strip ? 200 : Math.max(56, (h * 0.5) / Math.max(1, lines.length + 0.45))
-      setTitleSize(fitTitleSize(avail, widestAt100, stretch, 40, Math.min(260, maxByHeight)))
+      const maxByHeight = strip ? 200 : Math.max(56, (h * 0.52) / Math.max(1, lines.length + 0.45))
+      // On the wall layout the widest line runs on into the first column of portraits, like a poster.
+      const overhang = strip ? 1 : 1.18
+      setTitleSize(fitTitleSize(avail * overhang, widestAt100, stretch, 40, Math.min(280, maxByHeight)))
     }
     fit()
     const ro = new ResizeObserver(fit)
@@ -589,7 +682,6 @@ export default function DuotoneTeamRoster({
     ["--dtr-sdur" as any]: Math.max(8, (members.length + openRoles.length) * driftSeconds * 0.55) + "s",
     height: cols === 0 ? "auto" : height,
     minHeight: cols === 0 ? undefined : "600px",
-    visibility: titleSize ? undefined : ("hidden" as const),
   } as React.CSSProperties
 
   const pauseButton = (
@@ -600,7 +692,7 @@ export default function DuotoneTeamRoster({
       onClick={() => setPaused((p) => !p)}
     >
       <i aria-hidden="true" />
-      {paused ? "Play" : "Pause"}
+      {paused ? text.play : text.pause}
     </button>
   )
 
@@ -622,9 +714,9 @@ export default function DuotoneTeamRoster({
         <filter id={filterId} colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values="0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0" />
           <feComponentTransfer>
-            <feFuncR type="table" tableValues="0 0.06 0.5 0.94 1" />
-            <feFuncG type="table" tableValues="0 0.06 0.5 0.94 1" />
-            <feFuncB type="table" tableValues="0 0.06 0.5 0.94 1" />
+            <feFuncR type="table" tableValues="0 0.13 0.5 0.9 1" />
+            <feFuncG type="table" tableValues="0 0.13 0.5 0.9 1" />
+            <feFuncB type="table" tableValues="0 0.13 0.5 0.9 1" />
           </feComponentTransfer>
           <feComponentTransfer>
             <feFuncR type="table" tableValues={tables[0]} />
@@ -650,7 +742,7 @@ export default function DuotoneTeamRoster({
             ))}
           </h2>
           {intro ? <p className="dtr-intro">{intro}</p> : null}
-          {
+          {cta || secondaryCta ? (
             <div className="dtr-actions">
               {cta ? (
                 <a className="dtr-cta" href={cta.href}>
@@ -668,9 +760,8 @@ export default function DuotoneTeamRoster({
                   {secondaryCta.label}
                 </a>
               ) : null}
-              {pauseButton}
             </div>
-          }
+          ) : null}
         </div>
 
         {cols === 0 ? (
@@ -685,6 +776,7 @@ export default function DuotoneTeamRoster({
                       slot={slot}
                       on={active === slot.key}
                       filterId={filterId}
+                      labels={text}
                       onEnter={onEnter}
                       onLeave={onLeave}
                       onToggle={onToggle}
@@ -694,9 +786,10 @@ export default function DuotoneTeamRoster({
                 }),
               )}
             </div>
+            {pauseButton}
           </div>
         ) : (
-          <div className="dtr-wall" role="group" aria-label="Team">
+          <div className="dtr-wall" role="group" aria-label={text.team}>
             {plan.map((col, c) => {
               const dur = Math.max(6, col.length * driftSeconds)
               const phase = phases[c % phases.length]
@@ -722,6 +815,7 @@ export default function DuotoneTeamRoster({
                               slot={slot}
                               on={active === slot.key}
                               filterId={filterId}
+                              labels={text}
                               onEnter={onEnter}
                               onLeave={onLeave}
                               onToggle={onToggle}
@@ -735,6 +829,7 @@ export default function DuotoneTeamRoster({
                 </div>
               )
             })}
+            {pauseButton}
           </div>
         )}
       </div>
