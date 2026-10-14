@@ -20,6 +20,7 @@ assert.ok(start > -1 && end > start, "logic region markers missing")
 const js = src
   .slice(start, end)
   .replace(/\): ("start" \| "end"|"a" \| "b"|"l" \| "m" \| "s"|number\[\]|number|string) \{/g, ") {")
+  .replace(", fits: (n: number) => boolean", ", fits")
   .replace(/(\w+): (number|string)(?=[,)])/g, "$1")
   .replace("const out: number[] = []", "const out = []")
 const m = await import("data:text/javascript," + encodeURIComponent(js))
@@ -59,13 +60,25 @@ assert.equal(m.quoteSize("x".repeat(80)), "l")
 assert.equal(m.quoteSize("x".repeat(160)), "m")
 assert.equal(m.quoteSize("x".repeat(260)), "s")
 assert.equal(m.initials("Graham Whitlock"), "GW")
+
+// The quote tile fits its type to its own height: largest size that fits, floor if none.
+assert.equal(m.fitSize(15, 50, (n) => n <= 33), 33)
+assert.equal(m.fitSize(15, 50, () => true), 50)
+assert.equal(m.fitSize(15, 50, () => false), 15)
+assert.equal(m.fitSize(15, 12, () => true), 15)
 assert.equal(m.initials("  cher "), "C")
 assert.equal(m.initials("Mary Anne de la Cruz"), "MC")
+// Unsplash portraits get a real srcset; other hosts are left alone.
+assert.equal(
+  m.unsplashSrcSet("https://images.unsplash.com/photo-1?auto=format&fit=crop&w=1200&q=80"),
+  "https://images.unsplash.com/photo-1?auto=format&fit=crop&q=80&w=600 600w, https://images.unsplash.com/photo-1?auto=format&fit=crop&q=80&w=1200 1200w, https://images.unsplash.com/photo-1?auto=format&fit=crop&q=80&w=1800 1800w",
+)
+assert.equal(m.unsplashSrcSet("/team/ana.jpg"), "")
 // #endregion
 
 // A root that inherits its height renders here and collapses once installed.
-assert.ok(/height = "clamp\(560px, 84svh, 940px\)"/.test(src), "quilt height must default to a definite length")
-assert.ok(/mobileHeight = "760px"/.test(src), "stacked height must default to a definite length")
+assert.ok(/height = "clamp\(560px, 76cqi, 1180px\)"/.test(src), "quilt height must default to a definite length")
+assert.ok(/mobileHeight = "min\(700px, calc\(100svh - 120px\)\)"/.test(src), "stacked height must default to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full anywhere")
 
 // 21st ships this file alone; the CSS must not reach the host page.
@@ -79,6 +92,17 @@ for (const line of css.split("\n")) {
   for (const part of sel.split(",")) assert.ok(part.trim().startsWith(".cqt"), "unscoped selector: " + part.trim())
 }
 
+// The stacked layout is a container query scoped to this instance, so the first
+// paint on a phone is already stacked and two instances never fight.
+const narrow = src.slice(src.indexOf("const narrowCss = `") + 19, src.indexOf("`", src.indexOf("const narrowCss = `") + 19))
+assert.ok(narrow.length > 300, "narrow css not found")
+assert.doesNotMatch(narrow, /\$\{|@import/, "no template expressions or imports in the narrow CSS")
+for (const line of narrow.split("\n").filter(Boolean)) {
+  for (const part of line.split("{")[0].split(",")) assert.ok(part.trim().startsWith("SCOPE "), "narrow rule not scoped: " + part.trim())
+}
+assert.ok(src.includes('"@container (max-width: "'), "stacked layout must be a container query")
+assert.ok(src.includes('data-cq={headingId}'), "each instance needs its own scope")
+
 // Tailwind Preflight's img { max-width: 100% } must not shrink the portraits.
 assert.ok(src.includes('maxWidth: "none"') && css.includes(".cqt img { max-width: none; }"), "portraits need a max-width escape")
 assert.ok(/width=\{1200\}/.test(src) && /height=\{1200\}/.test(src), "portraits need explicit dimensions")
@@ -87,6 +111,16 @@ assert.ok(/width=\{1200\}/.test(src) && /height=\{1200\}/.test(src), "portraits 
 for (const url of src.match(/https:\/\/[^"'\s)]+/g) || []) {
   assert.ok(/^https:\/\/images\.unsplash\.com\//.test(url), "unexpected host: " + url)
 }
+
+// No quote may be clipped by its tile: the type is fitted to the tile's height
+// whenever the quote or the tile size changes.
+assert.ok(/fitSize\(15, hi,/.test(src) && /words\.offsetHeight <= availH/.test(src), "quote tile must fit its type to its height")
+assert.ok(/new ResizeObserver\(\(\) => fit\(\)\)/.test(src), "quote tile must refit on resize")
+assert.ok(css.includes("padding: clamp(48px"), "quote tile keeps at least 48px of vertical padding")
+
+// One type size per page, and a quote mark whose faintness survives the entrance animation.
+assert.ok(src.includes("Math.min(...shown.map((f) => Number(f.dataset.fit)))"), "quotes on a page must share one size")
+assert.doesNotMatch(css.slice(css.indexOf(".cqt-mark {"), css.indexOf("}", css.indexOf(".cqt-mark {"))), /opacity/, "the mark's faintness must not be an opacity the rise animation overrides")
 
 // Motion is not optional, and autoplay can be stopped.
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "must honour prefers-reduced-motion")
