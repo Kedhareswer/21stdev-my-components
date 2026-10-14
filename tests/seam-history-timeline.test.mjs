@@ -127,6 +127,7 @@ assert.ok(/draggable=\{false\}/.test(src), "images are not native-draggable")
 // Accessibility and behaviour hooks.
 assert.ok(src.includes('aria-live="polite"'), "live region announces each milestone")
 assert.ok(/aria-current=\{i === active \? "step"/.test(src), "rail marks the current year")
+assert.ok(/maxShift = Infinity/.test(src), "the last milestone rests on the same left line as the others")
 assert.ok(/aria-label=\{labels\?\.previous \|\| "Previous milestone"\}/.test(src))
 assert.ok(/aria-label=\{labels\?\.next \|\| "Next milestone"\}/.test(src))
 assert.ok(/"ArrowRight"/.test(src) && /"ArrowLeft"/.test(src) && /"Home"/.test(src) && /"End"/.test(src), "keyboard navigation")

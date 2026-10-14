@@ -24,8 +24,9 @@ years rests as two fused pills, on the rail and on its photo.
 - Images fail gracefully: without an image, or if it does not load, the card shows a plate in
   the field colour with the year set large.
 - A two-year milestone is one capsule on the rail, so it reads as one target.
-- Keyboard focus on the strip rings the current year and underlines the focused title (the
-  cards are clipped by their seams, so an outline would be cut).
+- Keyboard focus on the strip rings the current year and draws a bar down the left of the
+  focused card's text (the cards are clipped by their seams, so an outline would be cut).
+- Photos load up front and fade in when they arrive, so a far jump never shows a pop.
 - Light and dark versions of every preset. `theme="auto"` follows a `.dark` class on any
   ancestor (the shadcn / Tailwind convention).
 - Under `prefers-reduced-motion` the strip and the pill jump instead of flowing.
@@ -52,6 +53,7 @@ section sizes to its content (`minHeight` is optional).
 | `index` / `onChange` | none | Controlled focus, or just listen for changes. |
 | `minHeight` | none | Any CSS length, e.g. `"100svh"`. |
 | `displayFont` / `textFont` | Inter Display / Inter, then the system UI face, Helvetica Neue, Arial | Pass your own stacks, e.g. `"var(--font-sans)"`. |
+| `labelFont` | the system serif (`ui-serif`, Iowan Old Style, Charter, Georgia) | The small label over the heading: a quiet second voice. |
 | `labels` | English | `{ previous, next, rail }` accessible names. |
 | `className` | none | On the `<section>`. |
 

@@ -89,6 +89,8 @@ export type SeamHistoryTimelineProps = {
   /** Any CSS length. The section sizes to its content by default. */
   minHeight?: string
   displayFont?: string
+  /** The small label over the heading. A serif by default, as a quiet second voice. */
+  labelFont?: string
   textFont?: string
   /** Accessible names for the buttons and the region. */
   labels?: { previous?: string; next?: string; rail?: string }
@@ -289,7 +291,7 @@ const STYLES = `
 .sht ::selection{background:var(--pill);color:var(--on-pill)}
 .sht__wrap{width:100%;max-width:1280px;margin:0 auto;padding:0 clamp(16px,5vw,64px)}
 .sht__head{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px clamp(32px,6vw,96px);align-items:end}
-.sht__eyebrow{margin:0 0 18px;font-size:14px;line-height:1.2;font-weight:500;color:var(--muted-on-field)}
+.sht__eyebrow{margin:0 0 14px;font-family:var(--label-font);font-size:21px;line-height:1.2;font-weight:400;letter-spacing:-.005em;color:var(--on-field)}
 .sht__h{margin:0;font-family:var(--display-font);font-weight:600;font-size:clamp(40px,5.6vw,80px);line-height:.96;letter-spacing:-.038em;color:var(--on-field);text-wrap:balance;max-width:13ch}
 .sht__side{display:flex;flex-direction:column;gap:28px;padding-bottom:6px}
 .sht__intro{margin:0;font-size:17px;line-height:1.55;color:var(--muted-on-field);max-width:44ch;text-wrap:pretty}
@@ -299,7 +301,7 @@ const STYLES = `
 .sht__btn:not([disabled]):active{transform:scale(.96)}
 .sht__btn[disabled]{cursor:default;background:transparent;color:var(--muted-on-field);box-shadow:inset 0 0 0 1.5px currentColor;opacity:.55}
 .sht__btn:focus-visible,.sht__slot:focus-visible,.sht__link:focus-visible,.sht__viewport:focus-visible{outline:2px solid var(--on-field);outline-offset:3px}
-@supports selector(:has(a)){.sht__viewport:focus-visible{outline:none}.sht:has(.sht__viewport:focus-visible:not([data-dragging=true])) .sht__slot[aria-current]{outline:2px solid var(--on-field);outline-offset:4px}.sht:has(.sht__viewport:focus-visible) .sht__card[data-active=true] .sht__title{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}}
+@supports selector(:has(a)){.sht__viewport:focus-visible{outline:none}.sht:has(.sht__viewport:focus-visible:not([data-dragging=true])) .sht__slot[aria-current]{outline:2px solid var(--on-field);outline-offset:4px}.sht:has(.sht__viewport:focus-visible:not([data-dragging=true])) .sht__card[data-active=true] .sht__text{box-shadow:inset 4px 0 0 var(--ink)}}
 @media (hover:hover){.sht__btn:not([disabled]):hover [data-dir=next]{transform:translateX(3px)}.sht__btn:not([disabled]):hover [data-dir=prev]{transform:translateX(-3px)}}
 .sht__rail{position:relative;margin:clamp(34px,5vw,58px) -10px 0;padding:4px 10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .sht__rail::-webkit-scrollbar{display:none}
@@ -307,7 +309,6 @@ const STYLES = `
 .sht__railin{position:relative;display:flex;justify-content:space-between;gap:28px;min-width:max-content;width:100%;padding:6px 0}
 .sht__axis{position:absolute;z-index:-1;left:0;right:0;top:50%;height:1px;background:var(--muted-on-field);opacity:.45;pointer-events:none}
 .sht__slot{all:unset;position:static;display:inline-flex;gap:2px;cursor:pointer;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) calc(70% * (1 - var(--cov,0))),transparent)}
-.sht__slot[aria-current]{box-shadow:none}
 .sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:transform .16s var(--ease)}
 .sht__slot:active .sht__chip{transform:scale(.96)}
 @media (hover:hover){.sht__slot:not([aria-current]):hover{box-shadow:inset 0 0 0 1.5px var(--on-field)}}
@@ -323,12 +324,13 @@ const STYLES = `
 .sht__card{position:relative;flex:0 0 var(--cw);display:flex;flex-direction:column;background:var(--card);color:var(--ink);--f:0}
 .sht__card[data-active=false]{cursor:pointer}
 .sht__photo{position:relative;height:var(--ph);overflow:hidden;background:color-mix(in oklab,var(--field) 80%,var(--card))}
-.sht__photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;-webkit-user-drag:none}
+.sht__photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;-webkit-user-drag:none;opacity:0;transition:opacity .24s ease}
+.sht__photo img[data-loaded=true]{opacity:1}
 .sht__plate{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 0 0 var(--padl);overflow:hidden;background:color-mix(in oklab,var(--field) 86%,var(--on-field))}
 .sht__plate span{display:block;font-family:var(--display-font);font-weight:700;font-size:min(calc(var(--ph) * .58),calc(var(--cw) * .2));line-height:1;margin-bottom:-.2em;letter-spacing:-.055em;color:color-mix(in oklab,var(--field) 62%,var(--on-field));white-space:nowrap}
 .sht__wash{position:absolute;inset:0;background:var(--wash);pointer-events:none}
 .sht__past{position:absolute;inset:0;background:var(--field);opacity:0;pointer-events:none}
-.sht__pills{position:absolute;top:22px;left:var(--pillx);display:inline-flex}
+.sht__pills{position:absolute;top:22px;left:var(--pillx);display:inline-flex;transform:translateX(calc(var(--hv,0) * 5px))}
 .sht__pgoo,.sht__ptext{display:inline-flex;gap:6px}
 .sht__pgoo{position:relative}
 .sht__pgoo i{display:block;height:34px;border-radius:999px;background:var(--pill)}
@@ -345,7 +347,7 @@ const STYLES = `
 @media (hover:hover){.sht__link:hover svg{transform:translateX(4px)}.sht__link:hover{text-decoration-thickness:2px}}
 .sht__sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @media (max-width:720px){.sht__head{grid-template-columns:1fr;align-items:start}.sht__side{gap:22px}.sht__intro{font-size:16px}.sht__body{font-size:15px}.sht__btn{width:48px;height:48px}.sht__railin,.sht__lit{justify-content:flex-start;gap:22px}.sht__text{min-height:0;padding-top:22px;padding-bottom:26px}}
-@media (prefers-reduced-motion:reduce){.sht__btn,.sht__btn svg,.sht__link svg{transition:none}}
+@media (prefers-reduced-motion:reduce){.sht__btn,.sht__btn svg,.sht__link svg,.sht__photo img,.sht__pills{transition:none}}
 `
 
 const PALETTE_KEYS = ["field", "onField", "mutedOnField", "card", "ink", "muted", "pill", "onPill", "wash"]
@@ -420,6 +422,7 @@ export default function SeamHistoryTimeline({
   index,
   onChange,
   minHeight,
+  labelFont = 'ui-serif, "Iowan Old Style", "Charter", "Bitstream Charter", Georgia, serif',
   displayFont = '"Inter Display", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
   textFont = '"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
   labels,
@@ -515,6 +518,7 @@ export default function SeamHistoryTimeline({
       const op = passedOpacity(i * s.step - shift, s.step)
       if (el) {
         el.style.opacity = op.toFixed(3)
+        el.style.setProperty("--hv", (hov * (1 - f)).toFixed(3))
         el.style.pointerEvents = op < 0.5 ? "none" : ""
         // The left seam only exists while there is a card to meet: as the one before fades,
         // this edge straightens, so pill, title and edge share the heading's line.
@@ -530,7 +534,7 @@ export default function SeamHistoryTimeline({
       }
       prevOp = op
       // Still to come: a pale haze. Already passed: it recedes toward the field.
-      const amount = wash * (1 - f) * (1 - 0.4 * hov)
+      const amount = wash * (1 - f) * (1 - 0.7 * hov)
       const ahead = i > s.pos.x
       const w = washRefs.current[i]
       if (w) w.style.opacity = (ahead ? amount : 0).toFixed(3)
@@ -589,7 +593,15 @@ export default function SeamHistoryTimeline({
       const s = sim.current
       const dt = Math.min(0.05, s.last ? (now - s.last) / 1000 : 1 / 60)
       s.last = now
-      const t = s.railTargets[clampIndex(s.dragging ? s.pos.x : s.target, n)]
+      let t = s.railTargets[clampIndex(s.target, n)]
+      if (s.dragging) {
+        // Mid-drag the pill stretches between the two years the strip is between.
+        const p = Math.max(0, Math.min(n - 1, s.pos.x))
+        const a = s.railTargets[Math.floor(p)]
+        const b = s.railTargets[Math.ceil(p)]
+        const k = p - Math.floor(p)
+        if (a && b) t = { l: a.l + (b.l - a.l) * k, lw: a.lw + (b.lw - a.lw) * k, r: a.r + (b.r - a.r) * k, rw: a.rw + (b.rw - a.rw) * k }
+      }
       if (s.reduced) {
         if (!s.dragging) s.pos = { x: s.target, v: 0 }
         if (t) {
@@ -755,15 +767,14 @@ export default function SeamHistoryTimeline({
   const gutter = geo.mobile ? 10 : 14
   const overlap = Math.max(0, geo.o - gutter)
   const step = Math.max(1, geo.cw - overlap)
-  const vpW = geo.vw
   useIsoLayoutEffect(() => {
     sim.current.step = step
-    // The strip stops when the last card is flush with the container, instead of leaving an empty field.
-    sim.current.maxShift = Math.max(0, (n - 1) * step + geo.cw - vpW)
+    // Every milestone, the last included, rests on the heading's left line; the field shows after the last.
+    sim.current.maxShift = Infinity
     sim.current.geo = { cw: geo.cw, h: geo.h, o: geo.o, r: geo.mobile ? 14 : 18, ph: geo.ph, padBase: geo.mobile ? 18 : 30, pillBase: geo.mobile ? 16 : 22 }
     sim.current.lean = []
     paint()
-  }, [step, paint, n, geo.cw, vpW, geo.o, geo.ph, geo.h])
+  }, [step, paint, n, geo.cw, geo.o, geo.ph, geo.h, geo.mobile])
 
   // Follow the active index.
   const first = React.useRef(true)
@@ -901,6 +912,7 @@ export default function SeamHistoryTimeline({
     vars["--d-" + CSS_NAMES[i]] = (dark as { [k: string]: string })[k]
   })
   vars["--display-font"] = displayFont
+  vars["--label-font"] = labelFont
   vars["--text-font"] = textFont
   if (minHeight) vars.minHeight = minHeight
 
@@ -1069,9 +1081,14 @@ export default function SeamHistoryTimeline({
                         alt={m.alt ?? ""}
                         width={geo.cw || 860}
                         height={geo.ph || 380}
-                        loading={Math.abs(i - (controlled ? (index as number) : startIndex)) <= 1 ? "eager" : "lazy"}
                         decoding="async"
                         draggable={false}
+                        ref={(el) => {
+                          if (el && el.complete && el.naturalWidth > 0) el.dataset.loaded = "true"
+                        }}
+                        onLoad={(e) => {
+                          e.currentTarget.dataset.loaded = "true"
+                        }}
                         onError={() => setFailed((f) => ({ ...f, [m.image as string]: true }))}
                         style={m.imagePosition ? { objectPosition: m.imagePosition } : undefined}
                       />

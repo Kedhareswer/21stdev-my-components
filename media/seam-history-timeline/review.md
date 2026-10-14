@@ -77,3 +77,35 @@ harbour light a powder steel close to the reference; (4) phone text measure too 
 (5) hide the focus ring during a drag; (6) the plate numeral's crop looked accidental;
 (7) hazed cards faded the title but not the body; (8) the second demo drifted to plain grey:
 show another preset.
+
+## Round 3 (new critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea | 7 |
+| (b) craft | 7 |
+| (c) originality | 7 |
+| (d) install-safety | 9 |
+
+Average 7.6. Round 2's fixes confirmed (straight left edge once the previous card has gone,
+coverage-faded rings, powder-steel default, phone measure, signal demo). Ranked changes:
+(1) the end state stopped early and stranded the passed card at the window edge: let the last
+card rest on the same left line; (2) the year being left lost its ring mid-drag; (3) the rail
+pill jumped between slots during a drag instead of following the hand; (4) all-Inter type had
+no second voice: a serif label, as in the reference; (5) lazy photos could pop in after a far
+jump; (6) the focus underline made a title read as a link; (7) hover on hazed cards too weak;
+(8) a possible 1 px step at the plate's right edge (software renderer, unconfirmed).
+
+## After round 3 (no further critic: the brief allows three rounds)
+
+Applied 1 to 7: the last milestone rests on the heading's left line with field after it; rings
+fade by coverage only; mid-drag the pill stretches between the two years the strip is between;
+a `labelFont` prop with a system-serif default for the label; photos load up front and fade in
+(instant under reduced motion); keyboard focus shows as a ring on the current year plus a bar
+down the focused card's text; hover lifts 70% of the haze and nudges the card's pills.
+Not done: 8 (could not reproduce outside the software renderer).
+
+**Status:** three rounds without a SHIP (best 7.6), so the piece lives on
+`claude/review-seam-history-timeline` for the owner to judge. Photos could not be checked in
+this sandbox; open both demos in a normal browser before publishing.
