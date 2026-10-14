@@ -1044,7 +1044,7 @@ const CR_CSS = `
 .cr-perr button{text-decoration:underline;text-underline-offset:3px}
 .cr-factions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
 
-.cr-rail{position:relative;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-left:1px solid var(--cr-line);padding:0 0 26px var(--cr-gut);scrollbar-width:thin;scrollbar-color:var(--cr-line) transparent}
+.cr-rail{position:relative;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-left:1px solid var(--cr-line);padding:0 0 26px var(--cr-gut);scrollbar-width:thin;scrollbar-color:var(--cr-line) transparent;-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 56px),transparent)}
 .cr-rail-h{position:sticky;top:0;z-index:2;display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:26px 0 14px;background:var(--cr-ground);transition:background-color .35s var(--cr-ease)}
 .cr-rail-h h2{font-size:15px;font-weight:700}
 .cr-rail-h h2 span{display:block;font-weight:400;font-size:13px;color:var(--cr-muted)}
@@ -1225,7 +1225,7 @@ const CR_CSS = `
 .cr-host-a,.cr-next{display:none}
 .cr-host-b{visibility:visible}
 .cr-feature{padding:24px 0 32px}
-.cr-rail{grid-column:2;border-left:0;border-top:1px solid var(--cr-line);padding:0 0 32px;overflow:visible}
+.cr-rail{-webkit-mask-image:none;mask-image:none;grid-column:2;border-left:0;border-top:1px solid var(--cr-line);padding:0 0 32px;overflow:visible}
 .cr-rail-h{position:static}
 .cr-ways{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cr-way:nth-child(3){border-left:0;padding-left:0}
@@ -1381,9 +1381,19 @@ export default function CallsignRadioLanding({
     if (!rail || !clock) return
     const rows = Array.from(rail.querySelectorAll(".cr-order > li")) as HTMLElement[]
     const head = rail.querySelector(".cr-rail-h") as HTMLElement | null
-    const row = rows[Math.max(0, cur - 1)]
-    if (row && head && rail.scrollHeight > rail.clientHeight + 4)
-      rail.scrollTop = Math.max(0, rail.scrollTop + row.getBoundingClientRect().top - rail.getBoundingClientRect().top - head.offsetHeight)
+    if (!head || rail.scrollHeight <= rail.clientHeight + 4) return
+    // start the list on the row before the one on air, or on the latest row that can sit whole under the header
+    const max = rail.scrollHeight - rail.clientHeight
+    const base = rail.scrollTop - rail.getBoundingClientRect().top - head.offsetHeight
+    let to = 0
+    for (let i = Math.max(0, cur - 1); i >= 0; i--) {
+      const want = base + rows[i].getBoundingClientRect().top
+      if (want <= max + 1) {
+        to = Math.max(0, want)
+        break
+      }
+    }
+    rail.scrollTop = to
     // only when the slot changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur, !!clock])
