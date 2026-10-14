@@ -231,14 +231,14 @@ const DEFAULT_FOOTER = {
 
 const PRESETS: { [k: string]: { light: CrTokens; dark: CrTokens; segment: number; gap: number } } = {
   night: {
-    light: { ground: "#fbfbfa", ink: "#0d0e0c", muted: "#55564f", line: "rgba(13,14,12,.14)", dim: "rgba(13,14,12,.11)", tally: "#d4361e", onTally: "#ffffff", panel: "#f0f0ed", paper: "#f1f2ee" },
-    dark: { ground: "#0d0e0c", ink: "#f2f1ec", muted: "#a5a59e", line: "rgba(242,241,236,.14)", dim: "rgba(242,241,236,.12)", tally: "#e5402a", onTally: "#ffffff", panel: "#171815", paper: "#eeefea" },
+    light: { ground: "#fbfbfa", ink: "#0d0e0c", muted: "#55564f", line: "rgba(13,14,12,.14)", dim: "rgba(13,14,12,.2)", tally: "#d4361e", onTally: "#ffffff", panel: "#f0f0ed", paper: "#f1f2ee" },
+    dark: { ground: "#0d0e0c", ink: "#f2f1ec", muted: "#a5a59e", line: "rgba(242,241,236,.14)", dim: "rgba(242,241,236,.22)", tally: "#e5402a", onTally: "#ffffff", panel: "#171815", paper: "#eeefea" },
     segment: 22,
     gap: 6,
   },
   daytime: {
-    light: { ground: "#ffd21f", ink: "#12120c", muted: "#3f3b14", line: "rgba(18,18,12,.2)", dim: "rgba(18,18,12,.13)", tally: "#0b6b3a", onTally: "#ffffff", panel: "#ffdf5c", paper: "#f6f5ef" },
-    dark: { ground: "#14140f", ink: "#f6f3e4", muted: "#b6b29b", line: "rgba(246,243,228,.15)", dim: "rgba(246,243,228,.12)", tally: "#ffd21f", onTally: "#14140f", panel: "#1e1e17", paper: "#f6f5ef" },
+    light: { ground: "#ffd21f", ink: "#12120c", muted: "#3f3b14", line: "rgba(18,18,12,.2)", dim: "rgba(18,18,12,.2)", tally: "#0b6b3a", onTally: "#ffffff", panel: "#ffdf5c", paper: "#f6f5ef" },
+    dark: { ground: "#14140f", ink: "#f6f3e4", muted: "#b6b29b", line: "rgba(246,243,228,.15)", dim: "rgba(246,243,228,.22)", tally: "#ffd21f", onTally: "#14140f", panel: "#1e1e17", paper: "#f6f5ef" },
     segment: 40,
     gap: 12,
   },
@@ -287,7 +287,7 @@ const GLYPHS: { [ch: string]: GDef } = {
   Y: { w: 104, l: [go([4, -14], [52, 96, 0], [100, -14]), go([52, 96], [52, 200])] },
   Z: { w: 100, l: [go([0, 15], [85, 15, 0], [15, 185, 0], [100, 185])] },
   "0": { w: 100, l: [G_O] },
-  "1": { w: 72, l: [go([8, 46], [42, 15, 0], [42, 200])] },
+  "1": { w: 72, l: [go([4, 15], [42, 15, 0], [42, 200])] },
   "2": { w: 100, l: [go([0, 15], [85, 15], [85, 100], [15, 100], [15, 185, 0], [100, 185])] },
   "3": { w: 100, l: [go([0, 15], [85, 15], [85, 185], [0, 185]), go([30, 100], [85, 100])] },
   "4": { w: 100, l: [go([15, 0], [15, 122, 0], [100, 122]), go([80, 56], [80, 200])] },
@@ -537,15 +537,23 @@ function seedOf(s: string) {
   return h >>> 0
 }
 
-/** Archive grid shape: the first card is the feature, the next four are small, the rest are wide; an odd wide one out spans the row. */
+/**
+ * Archive grid shape on four columns: the first card is the feature (2 x 2), the next four
+ * are small, then rows of four small; a last partial row is filled so there are no holes
+ * (one card spans the row, two split it, three go wide + small + small).
+ */
 function archiveShape(i: number, n: number) {
-  if (n >= 5) {
-    if (i === 0) return "big"
-    if (i < 5) return "small"
-    const wide = n - 5
-    return wide % 2 === 1 && i === n - 1 ? "full" : "wide"
-  }
-  return "small"
+  if (n < 5) return "small"
+  if (i === 0) return "big"
+  if (i < 5) return "small"
+  const rest = n - 5
+  const whole = Math.floor(rest / 4) * 4
+  const j = i - 5 - whole
+  if (j < 0) return "small"
+  const r = rest - whole
+  if (r === 1) return "full"
+  if (r === 2) return "wide"
+  return j === 0 ? "wide" : "small"
 }
 
 const fmtDuration = (m: number) => (m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min")
@@ -641,15 +649,17 @@ function Glyphs({ text, wrap, knock, fit, className }: GlyphsProps) {
     return () => ro.disconnect()
   }, [wrap, text])
   const rows = wrap && maxW > 0 ? wrapText(text, maxW) : [text]
-  const lead = 46
-  const pad = knock ? 16 : 0
+  const lead = knock ? 40 : 46
+  const pad = knock ? 26 : 0
   const laid = rows.map((r) => layoutText(r))
   const W = Math.max(1, ...laid.map((l) => l.width))
   const Hh = rows.length * GH + (rows.length - 1) * lead
   const vb = [-pad, -pad, W + pad * 2, Hh + pad * 2].map(fx).join(" ")
-  const style = fit ? undefined : ({ height: fx((Hh + pad * 2) / GH) + "em", width: fx((W + pad * 2) / GH) + "em" } as React.CSSProperties)
+  // a single word wider than the column scales down to fit rather than spilling out
+  const shrink = fit || (wrap && maxW > 0 && W > maxW)
+  const style = shrink ? undefined : ({ height: fx((Hh + pad * 2) / GH) + "em", width: fx((W + pad * 2) / GH) + "em" } as React.CSSProperties)
   return (
-    <svg ref={ref} className={"cr-glyphs " + (className || "")} viewBox={vb} style={style} aria-hidden="true" focusable="false" data-fit={fit ? "" : undefined}>
+    <svg ref={ref} className={"cr-glyphs " + (className || "")} viewBox={vb} style={style} aria-hidden="true" focusable="false" data-fit={shrink ? "" : undefined}>
       <defs>
         {laid.map((l, i) => (
           <clipPath id={id + "c" + i} key={"c" + i} clipPathUnits="userSpaceOnUse">
@@ -658,21 +668,12 @@ function Glyphs({ text, wrap, knock, fit, className }: GlyphsProps) {
             ))}
           </clipPath>
         ))}
-        {knock
-          ? laid.map((l, i) => (
-              <clipPath id={id + "k" + i} key={"k" + i} clipPathUnits="userSpaceOnUse">
-                {l.items.map((it, j) => (
-                  <rect key={j} x={it.x - pad} y={-pad} width={it.w + pad * 2} height={GH + pad * 2} />
-                ))}
-              </clipPath>
-            ))
-          : null}
       </defs>
       {laid.map((l, i) => {
         const d = l.items.map((it) => glyphPath(it.ch, it.x)).join("")
         return (
           <g key={i} transform={"translate(0 " + i * (GH + lead) + ")"}>
-            {knock ? <path className="cr-knock" d={d} clipPath={"url(#" + id + "k" + i + ")"} strokeWidth={GSW + pad * 2} /> : null}
+            {knock ? <rect className="cr-band" x={-pad} y={-pad} width={l.width + pad * 2} height={GH + pad * 2} /> : null}
             <path className="cr-stroke" d={d} clipPath={"url(#" + id + "c" + i + ")"} strokeWidth={GSW} />
           </g>
         )
@@ -770,10 +771,10 @@ function MeterWord({ word, redAt, vertical, seg, gap, register, className }: Met
 
 /* ---------- riso artwork ---------- */
 
-type CoverProps = { show: CrShow; seed: string; image?: string; label?: string; alt?: string; className?: string }
+type CoverProps = { show: CrShow; seed: string; image?: string; label?: string; alt?: string; className?: string; top?: boolean }
 
 /** A two-ink riso print for a show: ink A and ink B overprint (multiply), slightly out of register, with paper grain. */
-function Cover({ show, seed, image, label, alt, className }: CoverProps) {
+function Cover({ show, seed, image, label, alt, className, top }: CoverProps) {
   const id = "p" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   if (image) {
     return (
@@ -841,7 +842,7 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
   const labelPath = <path d={labelD} transform={labelAt} fill="none" stroke="currentColor" strokeWidth={GSW} clipPath={"url(#" + id + "c)"} />
   return (
     <span className={"cr-cover " + (className || "")}>
-      <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" role={alt ? "img" : undefined} aria-label={alt} aria-hidden={alt ? undefined : true} focusable="false">
+      <svg viewBox="0 0 400 400" preserveAspectRatio={top ? "xMidYMin slice" : "xMidYMid slice"} role={alt ? "img" : undefined} aria-label={alt} aria-hidden={alt ? undefined : true} focusable="false">
         <defs>
           <filter id={id + "g"} x="0" y="0" width="1" height="1">
             <feTurbulence type="fractalNoise" baseFrequency="1.15" numOctaves={2} seed={seedOf(seed) % 97} result="n" />
@@ -865,7 +866,7 @@ function Cover({ show, seed, image, label, alt, className }: CoverProps) {
           <g className="cr-knocklabel">{labelPath}</g>
         ) : (
           <>
-            <path className="cr-labelknock" d={labelD} transform={labelAt} fill="none" strokeWidth={GSW + 28} strokeLinejoin="round" />
+            <rect className="cr-paperfill" x={22} y={68} width={fx(lay.width * sc + 16)} height={fx(GH * sc + 16)} />
             <g className="cr-plate" style={{ color: ink[1] }}>
               {labelPath}
             </g>
@@ -936,7 +937,7 @@ const CR_CSS = `
 .cr-glyphs{display:block;overflow:visible;flex:none;max-width:none}
 .cr-glyphs[data-fit]{width:100%;height:auto}
 .cr-stroke{fill:none;stroke:currentColor;stroke-linejoin:miter;stroke-miterlimit:8}
-.cr-knock{fill:none;stroke:var(--cr-ground);stroke-linejoin:round;transition:stroke .35s var(--cr-ease)}
+.cr-band{fill:var(--cr-ground);transition:fill .35s var(--cr-ease)}
 .cr-meter{display:block;max-width:none}
 .cr-meter path{fill:none;stroke-linejoin:miter;stroke-miterlimit:8}
 .cr-m-dim{stroke:var(--cr-dim)}
@@ -1001,11 +1002,17 @@ const CR_CSS = `
 .cr-pb{transform:translate(2.5px,-2px);transition:transform .5s var(--cr-ease)}
 .cr-pa{transition:transform .5s var(--cr-ease)}
 .cr-knocklabel{color:var(--cr-paper)}
-.cr-labelknock{stroke:var(--cr-paper)}
 .cr-ftitle{position:relative;z-index:2;margin-top:-.62em;font-size:clamp(46px,6vw,98px);min-height:1em}
 .cr-ftitle .cr-glyphs{color:var(--cr-ink)}
 .cr-fmeta{display:grid;grid-template-columns:minmax(0,25fr) minmax(0,75fr);column-gap:var(--cr-gut);margin-top:16px}
 .cr-host{font-size:15px;font-weight:700}
+.cr-host-a{margin-top:10px}
+.cr-host-b{visibility:hidden}
+.cr-next{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:1px;margin-top:6px;padding:12px 0 0;border-top:1px solid var(--cr-line);width:100%;transition:transform .2s var(--cr-ease)}
+.cr-next-k{font-family:var(--cr-mono);font-size:12px;color:var(--cr-muted)}
+.cr-next-t{font-size:17px;font-weight:700;letter-spacing:-.01em;background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;transition:background-size .3s var(--cr-ease)}
+.cr-next-h{font-size:13px;color:var(--cr-muted)}
+@media (hover:hover){.cr-next:hover .cr-next-t{background-size:100% 1.5px}}
 .cr-host span{display:block;font-weight:400;color:var(--cr-muted);font-size:13px}
 .cr-blurb{font-size:17px;line-height:1.5;max-width:52ch;text-wrap:pretty}
 .cr-genres{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -1078,7 +1085,7 @@ const CR_CSS = `
 .cr-res{position:relative}
 .cr-res-list{border-top:1px solid var(--cr-ink)}
 .cr-res-row{position:relative;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr) 44px;align-items:center;gap:20px;padding:22px 0;border-bottom:1px solid var(--cr-line)}
-.cr-res-t{font-size:clamp(30px,3vw,46px);transition:transform .25s var(--cr-ease)}
+.cr-res-t{min-width:0;font-size:clamp(30px,3vw,46px);transition:transform .25s var(--cr-ease)}
 .cr-res-host{font-size:16px;font-weight:600}
 .cr-res-slot{font-size:13px;color:var(--cr-muted)}
 .cr-res-g{display:flex;flex-wrap:wrap;gap:6px}
@@ -1101,13 +1108,15 @@ const CR_CSS = `
 .cr-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(16px,2vw,28px)}
 .cr-ep{position:relative;display:flex;flex-direction:column;gap:12px;min-width:0}
 .cr-ep[data-shape="big"]{grid-column:span 2;grid-row:span 2}
-.cr-ep[data-shape="wide"]{grid-column:span 2;flex-direction:row;align-items:center}
+.cr-ep[data-shape="wide"]{grid-column:span 2}
 .cr-ep[data-shape="full"]{grid-column:span 4;flex-direction:row;align-items:center}
 .cr-ep-art{position:relative;aspect-ratio:1;border-radius:var(--cr-r);overflow:hidden;background:var(--cr-paper)}
-.cr-ep[data-shape="wide"] .cr-ep-art,.cr-ep[data-shape="full"] .cr-ep-art{width:min(46%,250px);flex:none}
-.cr-ep[data-shape="wide"],.cr-ep[data-shape="full"]{gap:20px}
+.cr-ep[data-shape="wide"] .cr-ep-art{aspect-ratio:2/1}
+.cr-ep[data-shape="full"] .cr-ep-art{width:calc(25% - 15px);flex:none}
+.cr-ep[data-shape="full"]{gap:clamp(16px,2vw,28px)}
+.cr-ep[data-shape="full"] .cr-ep-title{font-size:clamp(20px,1.8vw,26px)}
 .cr-ep-art .cr-cover{position:absolute;inset:0}
-.cr-ep-play{position:absolute;left:12px;bottom:12px;width:48px;height:48px;border-radius:var(--cr-r);background:var(--cr-ink);color:var(--cr-ground);display:grid;place-items:center;transition:transform .2s var(--cr-ease),background-color .2s var(--cr-ease),color .2s var(--cr-ease)}
+.cr-ep-play{position:absolute;left:12px;bottom:12px;width:48px;height:48px;border-radius:var(--cr-r);background:#0d0e0c;color:#ffffff;display:grid;place-items:center;transition:transform .2s var(--cr-ease),background-color .2s var(--cr-ease),color .2s var(--cr-ease)}
 .cr-ep[data-shape="big"] .cr-ep-play{width:60px;height:60px;left:16px;bottom:16px}
 .cr-ep-play[data-on]{background:var(--cr-tally);color:var(--cr-on-tally)}
 .cr-ep-play:active{transform:scale(.94)}
@@ -1139,17 +1148,17 @@ const CR_CSS = `
 .cr-perks{display:flex;flex-direction:column;gap:8px;min-height:92px}
 .cr-perks li{display:flex;gap:10px;align-items:flex-start;font-size:15px}
 .cr-perks .cr-ic{width:18px;height:18px;margin-top:2px;color:var(--cr-tally)}
-.cr-dial{grid-column:1/-1;position:relative;padding-top:34px;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none;border-radius:var(--cr-r)}
-.cr-dial-scale{position:relative;height:64px;border-top:1.5px solid var(--cr-ink)}
+.cr-dial{grid-column:1/-1;position:relative;padding-top:40px;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none;border-radius:var(--cr-r)}
+.cr-dial-scale{position:relative;height:60px;border-top:1.5px solid var(--cr-ink)}
 .cr-tick{position:absolute;top:0;width:1.5px;height:12px;background:var(--cr-muted);transform:translateX(-50%)}
 .cr-tick[data-major]{height:22px;background:var(--cr-ink)}
-.cr-tick-n{position:absolute;top:28px;font-size:12px;color:var(--cr-muted);transform:translateX(-50%)}
+.cr-tick-n{position:absolute;top:34px;font-size:12px;color:var(--cr-muted);transform:translateX(-50%)}
 .cr-mark{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:700;white-space:nowrap}
 .cr-mark i{width:9px;height:9px;border-radius:2px;background:var(--cr-ink);transform:rotate(45deg)}
 .cr-mark[data-on] i{background:var(--cr-tally)}
-.cr-needle{position:absolute;top:22px;bottom:0;width:0;transition:left .18s var(--cr-ease);pointer-events:none}
-.cr-needle::before{content:"";position:absolute;left:-1.5px;top:0;bottom:6px;width:3px;background:var(--cr-tally);border-radius:2px}
-.cr-needle::after{content:"";position:absolute;left:-7px;top:-4px;width:14px;height:14px;border-radius:3px;background:var(--cr-tally)}
+.cr-needle{position:absolute;top:-14px;height:42px;width:0;transition:left .18s var(--cr-ease);pointer-events:none}
+.cr-needle::before{content:"";position:absolute;left:-1.5px;top:0;bottom:0;width:3px;background:var(--cr-tally);border-radius:2px}
+.cr-needle::after{content:"";position:absolute;left:-7px;top:0;width:14px;height:26px;border-radius:4px;background:var(--cr-tally);box-shadow:0 0 0 3px var(--cr-panel)}
 .cr-dial[data-drag] .cr-needle{transition:none}
 .cr-sup-done{display:flex;flex-direction:column;gap:10px;font-size:17px}
 .cr-sup-done b{font-size:22px}
@@ -1213,6 +1222,8 @@ const CR_CSS = `
 .cr-aside{flex-direction:row;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:16px}
 .cr-tagline{max-width:46ch}
 .cr-kicker{flex:none}
+.cr-host-a,.cr-next{display:none}
+.cr-host-b{visibility:visible}
 .cr-feature{padding:24px 0 32px}
 .cr-rail{grid-column:2;border-left:0;border-top:1px solid var(--cr-line);padding:0 0 32px;overflow:visible}
 .cr-rail-h{position:static}
@@ -1224,6 +1235,7 @@ const CR_CSS = `
 .cr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cr-ep[data-shape="big"]{grid-row:auto}
 .cr-ep[data-shape="full"]{grid-column:span 2}
+.cr-ep[data-shape="full"] .cr-ep-art{width:calc(50% - 10px)}
 .cr-foot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cr-foot-grid .cr-news{grid-column:1/-1}
 }
@@ -1232,11 +1244,14 @@ const CR_CSS = `
 .cr-brand{font-size:19px}
 .cr-mode span{display:none}
 .cr-hero{display:block;padding:0 var(--cr-pad)}
-.cr-mast{padding-top:18px}
+.cr-mast{padding-top:12px}
 .cr-mast-in{position:static}
 .cr-mast .cr-meter[data-v]{display:none}
 .cr-mast .cr-meter[data-h]{display:block;width:100%;height:auto}
-.cr-feature{padding:20px 0 28px}
+.cr-feature{padding:16px 0 28px}
+.cr-ftitle{order:1}
+.cr-player{order:2}
+.cr-fmeta{order:3}
 .cr-stage{grid-template-columns:1fr}
 .cr-aside{order:2;margin-top:0}
 .cr-stage .cr-cover-wrap{order:1;margin-bottom:0}
@@ -1246,7 +1261,7 @@ const CR_CSS = `
 .cr-ftitle{font-size:clamp(40px,13vw,64px);margin-top:-.55em}
 .cr-fmeta{grid-template-columns:1fr;row-gap:10px;margin-top:12px}
 .cr-blurb{font-size:16px}
-.cr-player{margin-top:20px;gap:12px}
+.cr-player{margin-top:14px;padding-top:0;gap:12px}
 .cr-play{width:56px;height:56px}
 .cr-vol .cr-range{display:none}
 .cr-rail{padding-bottom:24px}
@@ -1266,11 +1281,13 @@ const CR_CSS = `
 .cr-grid{grid-template-columns:1fr}
 .cr-ep[data-shape]{grid-column:auto;flex-direction:column;align-items:stretch}
 .cr-ep[data-shape="wide"],.cr-ep[data-shape="full"],.cr-ep[data-shape="small"]{flex-direction:row;align-items:center;gap:14px}
-.cr-ep[data-shape="wide"] .cr-ep-art,.cr-ep[data-shape="full"] .cr-ep-art,.cr-ep[data-shape="small"] .cr-ep-art{width:112px;flex:none}
+.cr-ep[data-shape="wide"] .cr-ep-art,.cr-ep[data-shape="full"] .cr-ep-art,.cr-ep[data-shape="small"] .cr-ep-art{width:112px;flex:none;aspect-ratio:1}
+.cr-ep[data-shape="full"] .cr-ep-title{font-size:17px}
 .cr-ep[data-shape="small"] .cr-ep-play,.cr-ep[data-shape="wide"] .cr-ep-play,.cr-ep[data-shape="full"] .cr-ep-play{width:40px;height:40px;left:8px;bottom:8px}
 .cr-support{grid-template-columns:1fr}
-.cr-tick-n:nth-of-type(even){display:none}
+.cr-tick-n[data-minor]{display:none}
 .cr-mark span{display:none}
+.cr-mark[data-on] span{display:block}
 .cr-foot-grid{grid-template-columns:1fr}
 .cr-news-row{flex-direction:column}
 .cr-input{flex:none}
@@ -1355,14 +1372,18 @@ export default function CallsignRadioLanding({
   const nowShow = showOf(order[cur] ? order[cur].show : "")
   const prog = clock && order[cur] ? slotProgress(order[cur], clock.min, clock.sec) : 0
   const fstate = fi === cur ? "now" : fi < cur ? "past" : "next"
+  const next = fi + 1 < order.length ? order[fi + 1] : null
   const railRef = React.useRef(null as HTMLDivElement | null)
   const [railAll, setRailAll] = React.useState(false)
   // put the slot on air at the top of the rail's own scroll, without moving the page
   React.useEffect(() => {
     const rail = railRef.current
     if (!rail || !clock) return
-    const row = rail.querySelector('[data-state="now"]') as HTMLElement | null
-    if (row && rail.scrollHeight > rail.clientHeight + 4) rail.scrollTop = Math.max(0, row.offsetTop - 84)
+    const rows = Array.from(rail.querySelectorAll(".cr-order > li")) as HTMLElement[]
+    const head = rail.querySelector(".cr-rail-h") as HTMLElement | null
+    const row = rows[Math.max(0, cur - 1)]
+    if (row && head && rail.scrollHeight > rail.clientHeight + 4)
+      rail.scrollTop = Math.max(0, rail.scrollTop + row.getBoundingClientRect().top - rail.getBoundingClientRect().top - head.offsetHeight)
     // only when the slot changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur, !!clock])
@@ -1617,7 +1638,7 @@ export default function CallsignRadioLanding({
     const pk = peekRef.current
     if (!box || !pk) return
     const r = box.getBoundingClientRect()
-    const x = clamp(e.clientX - r.left + 28, 0, r.width - 270)
+    const x = clamp(r.width * 0.56 + ((e.clientX - r.left) / Math.max(1, r.width)) * 60, 0, r.width - 270)
     const y = e.clientY - r.top - 130
     pk.style.transform = "translate3d(" + fx(x) + "px," + fx(y) + "px,0)"
   }
@@ -1813,6 +1834,17 @@ export default function CallsignRadioLanding({
                 <span style={fstate === "now" ? { color: "var(--cr-tally)" } : undefined}>{featLabel}</span>
                 {feat ? <span className="cr-mono">{fmtMin(feat.from) + " to " + fmtMin(feat.to)}</span> : null}
               </p>
+              <p className="cr-host cr-host-a">
+                {fshow.host}
+                {fshow.genres.length ? <span>{fshow.genres.join(", ")}</span> : null}
+              </p>
+              {next ? (
+                <button type="button" className="cr-next" onClick={() => setSel(fi + 1)}>
+                  <span className="cr-next-k">Next at {fmtMin(next.from)}</span>
+                  <span className="cr-next-t">{showOf(next.show).title}</span>
+                  <span className="cr-next-h">{showOf(next.show).host}</span>
+                </button>
+              ) : null}
             </div>
             <div className="cr-cover-wrap">
               <Cover show={fshow} seed="hero" image={fshow.image} label="" alt={"Artwork for " + fshow.title} />
@@ -1823,7 +1855,7 @@ export default function CallsignRadioLanding({
             <Glyphs text={fshow.title} wrap knock />
           </h2>
           <div className="cr-fmeta">
-            <p className="cr-host">
+            <p className="cr-host cr-host-b">
               {fshow.host}
               {fshow.genres.length ? <span>{fshow.genres.join(", ")}</span> : null}
             </p>
@@ -2001,8 +2033,7 @@ export default function CallsignRadioLanding({
                   </span>
                   <span className="cr-res-mid">
                     <span className="cr-res-t">
-                      <span className="cr-sr">{s.title}</span>
-                      <Glyphs text={s.title} />
+                      <Glyphs text={s.title} wrap />
                     </span>
                     <span className="cr-res-host">{s.host}</span>
                   </span>
@@ -2053,7 +2084,7 @@ export default function CallsignRadioLanding({
                 return (
                   <li className="cr-ep" key={ep.id} data-shape={shape}>
                     <div className="cr-ep-art">
-                      <Cover show={sh} seed={ep.id} image={ep.image || sh.image} />
+                      <Cover show={sh} seed={ep.id} image={ep.image || sh.image} top={shape === "wide"} />
                       <button type="button" className="cr-ep-play" data-on={on ? "" : undefined} onClick={() => toggleEpisode(ep)} aria-label={(on ? "Pause " : "Play ") + sh.title + ": " + ep.title}>
                         <Icon name={on ? "pause" : "play"} />
                       </button>
@@ -2185,9 +2216,9 @@ export default function CallsignRadioLanding({
               <div className="cr-dial-scale" aria-hidden="true">
                 {Array.from({ length: smax - smin + 1 }, (_, k) => smin + k).map((v) => (
                   <React.Fragment key={v}>
-                    <span className="cr-tick" data-major={v % 5 === 0 || v === smin ? "" : undefined} style={{ left: pct(v) + "%" }} />
-                    {v % 5 === 0 || v === smin ? (
-                      <span className="cr-tick-n cr-mono" style={{ left: pct(v) + "%" }}>
+                    <span className="cr-tick" data-major={v % 5 === 0 || v === smin || v === smax ? "" : undefined} style={{ left: pct(v) + "%" }} />
+                    {v % 5 === 0 || v === smin || v === smax ? (
+                      <span className="cr-tick-n cr-mono" data-minor={v === smin || v === smax || v % 10 === 0 ? undefined : ""} style={{ left: pct(v) + "%" }}>
                         {cur$ + v}
                       </span>
                     ) : null}
