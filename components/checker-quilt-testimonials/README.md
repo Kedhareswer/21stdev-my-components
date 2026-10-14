@@ -12,10 +12,15 @@ The fields trade places, so the checkerboard inverts every step.
   on hover, on keyboard focus, in a hidden tab and with the pause button. It is off under
   `prefers-reduced-motion`, where steps swap instantly.
 - `←` / `→` on the focused quilt, and swipe on touch.
-- Narrow containers (under `stackBelow`, 720px by default) show one quote-over-photo pair
-  that sweeps vertically. The layout follows the component's own width, not the viewport.
-- A portrait that is missing, loading or blocked leaves a monogram plate in a mix of the
-  two field colours, so the quilt still looks designed.
+- Each quote's type is fitted to its tile (largest size that fits, refitted on resize), so
+  a long quote never clips at any height.
+- Narrow containers (under `stackBelow`, 720px by default) show one pair: the quote on top,
+  the photo below, and a field-coloured sweep that crosses the photo in the swipe direction.
+  The stacked layout is a CSS container query, so it follows the component's own width and
+  the first paint on a phone is already stacked.
+- Photos are optional. A testimonial without one (or whose photo fails) gets a plate in the
+  preset's third tone with the person's initials, so a text-only quilt still reads as four
+  tiles (see `demo-text-only.tsx`).
 
 No dependencies. Styles are scoped to `.cqt` in one inline `<style>`.
 
@@ -25,17 +30,24 @@ No dependencies. Styles are scoped to `.cqt` in one inline `<style>`.
 |---|---|---|
 | `testimonials` | 6 physio-clinic patients | `{ quote, name, context?, photo?, alt?, focus? }[]`. `focus` is a CSS `object-position`. Quotes up to about 240 characters; the type steps down for long ones. |
 | `heading` | "Back on their feet, in their own words." | Any node. Pass `null` to drop it (then `ariaLabel` names the section). |
-| `cta` | none | `{ label, href }`, shown in the heading band. |
+| `cta` | none | `{ label, href?, onClick? }`, shown in the heading band. |
 | `preset` | `"bottle"` | `bottle` (green / butter), `oxblood` (wine / blush), `marigold` (ink / marigold), `mint`, `cobalt`. |
-| `palette` | none | Override any of `fieldA inkA fieldB inkB band bandInk plate plateInk`. |
+| `palette` | none | Override any of `fieldA inkA fieldB inkB band bandInk plate plateInk`. `plate` is the third tone behind portraits. |
 | `rows` | `2` | Pairs per step on a wide container. `1` gives a single wide pair. |
 | `autoplay` | `8000` | ms per step. `0` turns it off. |
-| `height` | `clamp(560px, 84svh, 940px)` | Height of the quilt on a wide container. |
+| `defaultPage` | `0` | Page shown first. |
+| `height` | `clamp(560px, 80svh, 960px)` | Height of the quilt on a wide container. The heading band adds about 180px, so both fit a 900px-tall screen. |
 | `mobileHeight` | `760px` | Height of the stacked pair on a narrow container. |
 | `stackBelow` | `720` | Container width in px below which it stacks. |
 | `quoteFont` / `uiFont` | system serif / system sans | Pass your own stacks, e.g. `"var(--font-serif)"`. |
 | `onChange` | none | Called with the page index after each step. |
 | `className`, `style`, `ariaLabel` | | |
+
+## Demos
+
+- `demo.tsx`: a physio clinic, bottle preset, two rows, with photos.
+- `demo-wine-bar.tsx`: a wine bar's regulars, oxblood preset.
+- `demo-text-only.tsx`: a finance product with no photos, mint preset, autoplay off.
 
 ## Usage
 

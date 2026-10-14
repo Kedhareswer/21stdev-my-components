@@ -71,7 +71,7 @@ assert.equal(m.initials("Mary Anne de la Cruz"), "MC")
 // #endregion
 
 // A root that inherits its height renders here and collapses once installed.
-assert.ok(/height = "clamp\(620px, 94svh, 1040px\)"/.test(src), "quilt height must default to a definite length")
+assert.ok(/height = "clamp\(560px, 80svh, 960px\)"/.test(src), "quilt height must default to a definite length")
 assert.ok(/mobileHeight = "760px"/.test(src), "stacked height must default to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full anywhere")
 
@@ -85,6 +85,17 @@ for (const line of css.split("\n")) {
   if (!sel || sel.startsWith("@") || sel.startsWith("}") || /^(from|to|\d+%)$/.test(sel)) continue
   for (const part of sel.split(",")) assert.ok(part.trim().startsWith(".cqt"), "unscoped selector: " + part.trim())
 }
+
+// The stacked layout is a container query scoped to this instance, so the first
+// paint on a phone is already stacked and two instances never fight.
+const narrow = src.slice(src.indexOf("const narrowCss = `") + 19, src.indexOf("`", src.indexOf("const narrowCss = `") + 19))
+assert.ok(narrow.length > 300, "narrow css not found")
+assert.doesNotMatch(narrow, /\$\{|@import/, "no template expressions or imports in the narrow CSS")
+for (const line of narrow.split("\n").filter(Boolean)) {
+  for (const part of line.split("{")[0].split(",")) assert.ok(part.trim().startsWith("SCOPE "), "narrow rule not scoped: " + part.trim())
+}
+assert.ok(src.includes('"@container (max-width: "'), "stacked layout must be a container query")
+assert.ok(src.includes('data-cq={headingId}'), "each instance needs its own scope")
 
 // Tailwind Preflight's img { max-width: 100% } must not shrink the portraits.
 assert.ok(src.includes('maxWidth: "none"') && css.includes(".cqt img { max-width: none; }"), "portraits need a max-width escape")

@@ -61,3 +61,28 @@ Not changed: the portraits. Only images.unsplash.com is allowed, and this sandbo
 load it nor search Unsplash, so new photos could not be seen before choosing them. The six
 defaults are verified portraits (80px copies on GitHub); `photo-path-*.png` in the round 2
 screenshots shows them rendering, from those 80px copies.
+
+## Round 2: REDO (average 7.6)
+
+Scores: usability 8, idea 7, craft 7, originality 7, install-safety 9.
+
+Main findings: an empty frame mid-step (both rows without words or a face, about 1 s of
+unreadable copy per click); the fallback plate too close to the green field, so a text-only
+quilt merged into a slab; the server/first paint on a phone was a squeezed 2×2 quilt because
+the stacked layout waited for JS; the section was 1044px tall at 1440×900; README drift; no
+lazy loading; Graham's crop; no `defaultPage`, `cta` without `onClick`.
+
+Changes made:
+1. The old quote stays readable while the field covers the row and fades only in the last
+   130 ms; the new quote starts rising the moment it lands (no lead on a click). Text is gone
+   for about 130 to 250 ms instead of about 1 s.
+2. Per-preset third tones for the plate (sage, rose, slate, jade, periwinkle) that contrast
+   with both fields; the header comment now says what the code does.
+3. The stacked layout is a CSS container query scoped to each instance (`data-cq`), so the
+   first paint on a narrow container is already stacked; JS only counts rows per page.
+4. Default height `clamp(560px, 80svh, 960px)`, a slimmer band and a quote mark that hangs in
+   the margin on wide layouts: the whole section is 890px at 1440×900, and the fitted quotes are
+   32px at 1440, 21 to 28px at 1280×720.
+5. `demo-text-only.tsx` (mint preset, no photos, autoplay off) shows a different configuration.
+6. `loading="lazy"` and `sizes` on portraits; Graham's focus moved to 50% 45%.
+7. `defaultPage` prop; `cta` takes `onClick`; README synced.

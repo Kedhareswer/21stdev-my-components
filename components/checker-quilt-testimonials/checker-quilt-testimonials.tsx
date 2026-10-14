@@ -16,8 +16,9 @@ import * as React from "react"
  * Prev/next, a counter, autoplay with a progress line (pauses on hover,
  * focus, a hidden tab and the pause button), ←/→, and swipe. On a narrow
  * container it becomes one quote-over-photo pair that sweeps vertically.
- * Portraits that fail to load leave a monogram plate in the opposite colour,
- * so the quilt still reads as designed.
+ * A testimonial without a photo, or one whose photo fails, gets a plate with
+ * the person's initials in a third tone, so a text-only quilt still reads as
+ * four tiles.
  */
 
 export type QuiltPreset = "bottle" | "oxblood" | "marigold" | "mint" | "cobalt"
@@ -32,7 +33,7 @@ export type QuiltPalette = {
   /** Heading band and its text. */
   band: string
   bandInk: string
-  /** Solid plate shown while a portrait loads, with initials if it fails. */
+  /** Third tone behind portraits: shown while one loads, and with initials when there is no photo. */
   plate?: string
   plateInk?: string
 }
@@ -52,8 +53,8 @@ export type Testimonial = {
 export type CheckerQuiltTestimonialsProps = {
   testimonials?: Testimonial[]
   heading?: React.ReactNode
-  /** Optional link in the heading band. */
-  cta?: { label: string; href: string }
+  /** Optional link in the heading band. Give it an onClick to open a booking modal instead. */
+  cta?: { label: string; href?: string; onClick?: (e: React.MouseEvent) => void }
   preset?: QuiltPreset
   /** Override any colour of the preset. */
   palette?: Partial<QuiltPalette>
@@ -61,6 +62,8 @@ export type CheckerQuiltTestimonialsProps = {
   rows?: 1 | 2
   /** ms per step; 0 turns autoplay off. */
   autoplay?: number
+  /** Page shown first. */
+  defaultPage?: number
   /** Height of the quilt on a wide container. Any CSS length. */
   height?: number | string
   /** Height of the quote + photo pair on a narrow container. */
@@ -170,11 +173,11 @@ export function initials(name: string): string {
 // #endregion logic
 
 const PRESETS: Record<QuiltPreset, QuiltPalette> = {
-  bottle: { fieldA: "#1d4535", inkA: "#fbeea0", fieldB: "#fbeea0", inkB: "#1d4535", band: "#13301f", bandInk: "#fbeea0", plate: "#2e5a47", plateInk: "#fbeea0" },
-  oxblood: { fieldA: "#5b1622", inkA: "#f9d3cc", fieldB: "#f6c3bb", inkB: "#4a111b", band: "#3f0e17", bandInk: "#f9d3cc", plate: "#7a2b37", plateInk: "#f9d3cc" },
-  marigold: { fieldA: "#17181c", inkA: "#f4b23f", fieldB: "#f4b23f", inkB: "#17181c", band: "#0e0f12", bandInk: "#f4b23f", plate: "#2b2d33", plateInk: "#f4b23f" },
-  mint: { fieldA: "#0e3b2d", inkA: "#c4ecd2", fieldB: "#bfe8cd", inkB: "#0b3326", band: "#082a1f", bandInk: "#c4ecd2", plate: "#1f5643", plateInk: "#c4ecd2" },
-  cobalt: { fieldA: "#1c3a9e", inkA: "#dce8ff", fieldB: "#d3e3ff", inkB: "#152c7a", band: "#132a75", bandInk: "#dce8ff", plate: "#3150b8", plateInk: "#dce8ff" },
+  bottle: { fieldA: "#1d4535", inkA: "#fbeea0", fieldB: "#fbeea0", inkB: "#1d4535", band: "#13301f", bandInk: "#fbeea0", plate: "#7fa487", plateInk: "#13301f" },
+  oxblood: { fieldA: "#5b1622", inkA: "#f9d3cc", fieldB: "#f6c3bb", inkB: "#4a111b", band: "#3f0e17", bandInk: "#f9d3cc", plate: "#b4566a", plateInk: "#3f0e17" },
+  marigold: { fieldA: "#17181c", inkA: "#f4b23f", fieldB: "#f4b23f", inkB: "#17181c", band: "#0e0f12", bandInk: "#f4b23f", plate: "#5a5d68", plateInk: "#f4b23f" },
+  mint: { fieldA: "#0e3b2d", inkA: "#c4ecd2", fieldB: "#bfe8cd", inkB: "#0b3326", band: "#082a1f", bandInk: "#c4ecd2", plate: "#5e9b81", plateInk: "#082a1f" },
+  cobalt: { fieldA: "#1c3a9e", inkA: "#dce8ff", fieldB: "#d3e3ff", inkB: "#152c7a", band: "#132a75", bandInk: "#dce8ff", plate: "#7090e2", plateInk: "#132a75" },
 }
 
 const U = "https://images.unsplash.com/"
@@ -197,7 +200,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     context: "Frozen shoulder, after a fall",
     photo: U + "photo-1472099645785-5658abf4ff4e" + Q,
     alt: "Graham, a grey-haired man with glasses and a green polo shirt",
-    focus: "50% 25%",
+    focus: "50% 45%",
   },
   {
     quote:
@@ -240,8 +243,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
 const ROW_STAGGER_MS = 90
 // Autoplay steps take their time; a step the visitor asked for answers faster.
 const TIMING = {
-  auto: { cover: 420, reveal: 680, rise: 640, lead: 160 },
-  user: { cover: 300, reveal: 500, rise: 460, lead: 70 },
+  auto: { cover: 420, reveal: 680, rise: 560, lead: 30 },
+  user: { cover: 300, reveal: 500, rise: 420, lead: 0 },
 }
 
 const css = `
@@ -249,13 +252,9 @@ const css = `
 .cqt *, .cqt *::before, .cqt *::after { box-sizing: border-box; }
 .cqt img { max-width: none; }
 
-.cqt-band { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; padding: clamp(22px, 3.2cqi, 44px) clamp(20px, 3.4cqi, 56px) clamp(20px, 2.6cqi, 36px); position: relative; }
-.cqt-heading { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: clamp(30px, 4.2cqi, 64px); line-height: 0.98; letter-spacing: -0.025em; max-width: 19ch; text-wrap: balance; }
+.cqt-band { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; padding: clamp(22px, 2.6cqi, 40px) clamp(20px, 3.4cqi, 56px) clamp(20px, 2.2cqi, 32px); position: relative; }
+.cqt-heading { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: clamp(30px, 3.6cqi, 58px); line-height: 0.98; letter-spacing: -0.025em; max-width: 19ch; text-wrap: balance; }
 .cqt-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.cqt[data-narrow="1"] .cqt-band { flex-direction: column; align-items: stretch; gap: 20px; }
-.cqt[data-narrow="1"] .cqt-controls { width: 100%; }
-.cqt[data-narrow="1"] .cqt-cta { flex: 1 0 100%; justify-content: center; margin: 0 0 6px; }
-.cqt[data-narrow="1"] .cqt-count { margin: 0 auto 0 0; }
 .cqt-count { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; margin: 0 10px 0 4px; white-space: nowrap; }
 .cqt-count b { font-weight: 600; }
 .cqt-count span { opacity: 0.72; }
@@ -276,17 +275,14 @@ const css = `
 @keyframes cqt-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 .cqt-quilt { position: relative; display: grid; height: var(--cq-h); grid-template-rows: repeat(var(--cq-rows), minmax(0, 1fr)); touch-action: pan-y; outline: none; }
-.cqt[data-narrow="1"] .cqt-quilt { height: var(--cq-hm); }
 .cqt-quilt:focus-visible::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; box-shadow: inset 0 0 0 3px var(--cq-band), inset 0 0 0 5px var(--cq-band-ink), inset 0 0 0 8px var(--cq-band); }
 .cqt-row { position: relative; overflow: hidden; isolation: isolate; }
 
 .cqt-photo { position: absolute; top: 0; bottom: 0; width: 50%; overflow: hidden; }
 .cqt-photo[data-at="start"] { left: 0; }
 .cqt-photo[data-at="end"] { right: 0; }
-.cqt[data-narrow="1"] .cqt-photo { width: auto; left: 0; right: 0; top: 50%; bottom: 0; }
 .cqt-plate { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cq-plate-ink); background: var(--cq-plate); }
 .cqt-mono { font-family: var(--cq-qf); font-style: italic; font-size: clamp(72px, 12cqi, 190px); line-height: 1; letter-spacing: -0.04em; opacity: 0.9; user-select: none; }
-.cqt[data-narrow="1"] .cqt-mono { font-size: clamp(72px, 26cqi, 150px); }
 .cqt-img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; opacity: 0; transition: opacity 360ms ease; }
 .cqt-img[data-loaded="1"] { opacity: 1; }
 .cqt-img[data-cached="1"] { transition: none; }
@@ -298,26 +294,19 @@ const css = `
 .cqt-row[data-side="end"] .cqt-field { clip-path: inset(-1px -1px -1px 50%); }
 .cqt-row[data-phase="cover"] .cqt-field { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
 .cqt-row[data-phase="reveal"] .cqt-field { transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
-.cqt[data-narrow="1"] .cqt-row .cqt-field, .cqt[data-narrow="1"] .cqt-row[data-phase] .cqt-field { clip-path: inset(-1px -1px 50% -1px); transition: background-color 300ms ease; }
 
 .cqt-sweep { display: none; }
-.cqt[data-narrow="1"] .cqt-sweep { display: block; position: absolute; left: 0; right: 0; top: 50%; bottom: 0; z-index: 1; clip-path: inset(-1px -1px -1px 100%); }
-.cqt[data-narrow="1"] .cqt-row[data-dir="prev"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); }
-.cqt[data-narrow="1"] .cqt-row[data-phase="cover"] .cqt-sweep { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
-.cqt[data-narrow="1"] .cqt-row[data-phase="reveal"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
-.cqt[data-narrow="1"] .cqt-row[data-phase="reveal"][data-dir="prev"] .cqt-sweep { clip-path: inset(-1px -1px -1px 100%); }
 
 .cqt-quote { position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; display: flex; flex-direction: column; justify-content: center; padding: clamp(48px, 5cqi, 88px) clamp(28px, 5cqi, 96px); }
 .cqt-quote[data-at="start"] { left: 0; }
 .cqt-quote[data-at="end"] { right: 0; }
-.cqt[data-narrow="1"] .cqt-quote { width: auto; left: 0; right: 0; top: 0; bottom: 50%; padding: 28px 24px; }
 .cqt-words { --cq-fs: 30px; position: relative; transition: opacity 160ms ease, transform 160ms ease; }
-.cqt-row[data-phase="cover"] .cqt-words { opacity: 0; transform: translateY(-10px); }
-.cqt-mark { display: block; height: 0.4em; margin: 0 0 0.12em -0.05em; font-family: var(--cq-qf); font-size: calc(var(--cq-fs) * 2.5); line-height: 0.8; opacity: 0.3; pointer-events: none; user-select: none; }
+.cqt-row[data-phase="cover"] .cqt-words { opacity: 0; transform: translateY(-8px); transition-delay: calc(var(--cq-cover-ms) - 130ms + var(--cq-rd, 0ms)); }
+.cqt-quotebody { position: relative; }
+.cqt-mark { position: absolute; left: -0.6em; top: -0.06em; font-family: var(--cq-qf); font-size: calc(var(--cq-fs) * 2.4); line-height: 0.8; opacity: 0.3; pointer-events: none; user-select: none; }
 .cqt-text { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: var(--cq-fs); line-height: 1.13; letter-spacing: -0.018em; text-wrap: pretty; max-width: 27ch; hanging-punctuation: first; }
 .cqt-words[data-size="m"] .cqt-text { line-height: 1.15; max-width: 30ch; }
 .cqt-words[data-size="s"] .cqt-text { line-height: 1.18; max-width: 33ch; }
-.cqt[data-narrow="1"] .cqt-text { max-width: none; }
 .cqt-who { margin-top: clamp(16px, calc(var(--cq-fs) * 0.8), 32px); font-size: 15px; line-height: 1.4; }
 .cqt-name { display: block; font-weight: 650; letter-spacing: 0.01em; }
 .cqt-ctx { display: block; opacity: 0.8; }
@@ -332,6 +321,33 @@ const css = `
   .cqt-bar[data-run="1"] { animation: none; }
 }
 `
+
+// Stacked layout. Written as a container query so the first paint (and server HTML) is already
+// stacked on a narrow container; SCOPE is replaced with this instance's selector.
+const narrowCss = `
+SCOPE .cqt-band { flex-direction: column; align-items: stretch; gap: 20px; }
+SCOPE .cqt-controls { width: 100%; }
+SCOPE .cqt-cta { flex: 1 0 100%; justify-content: center; margin: 0 0 6px; }
+SCOPE .cqt-count { margin: 0 auto 0 0; }
+SCOPE .cqt-quilt { height: var(--cq-hm); }
+SCOPE .cqt-photo { width: auto; left: 0; right: 0; top: 50%; bottom: 0; }
+SCOPE .cqt-mono { font-size: clamp(72px, 26cqi, 150px); }
+SCOPE .cqt-row .cqt-field, SCOPE .cqt-row[data-phase] .cqt-field { clip-path: inset(-1px -1px 50% -1px); transition: background-color 300ms ease; }
+SCOPE .cqt-sweep { display: block; position: absolute; left: 0; right: 0; top: 50%; bottom: 0; z-index: 1; clip-path: inset(-1px -1px -1px 100%); }
+SCOPE .cqt-row[data-dir="prev"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); }
+SCOPE .cqt-row[data-phase="cover"] .cqt-sweep { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
+SCOPE .cqt-row[data-phase="reveal"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
+SCOPE .cqt-row[data-phase="reveal"][data-dir="prev"] .cqt-sweep { clip-path: inset(-1px -1px -1px 100%); }
+SCOPE .cqt-quote { width: auto; left: 0; right: 0; top: 0; bottom: 50%; padding: 28px 24px; }
+SCOPE .cqt-text { max-width: none; }
+SCOPE .cqt-mark { position: static; display: block; height: 0.4em; margin: 0 0 0.12em -0.05em; }
+SCOPE .cqt-quilt { grid-template-rows: minmax(0, 1fr); }
+SCOPE .cqt-row:nth-child(n+2) { display: none; }
+`
+
+function stackedCss(scope: string, below: number): string {
+  return "@container (max-width: " + (below - 0.02) + "px) {\n" + narrowCss.split("SCOPE").join(scope) + "\n}"
+}
 
 function toLen(v: number | string): string {
   return typeof v === "number" ? v + "px" : v
@@ -369,6 +385,8 @@ function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
           width={1200}
           height={1200}
           decoding="async"
+          loading="lazy"
+          sizes="(max-width: 720px) 100vw, 50vw"
           draggable={false}
           data-loaded={loaded ? "1" : "0"}
           data-cached={cached ? "1" : "0"}
@@ -453,9 +471,9 @@ function QuoteTile({
         }}
         className="cqt-words"
         data-size={size}
-        style={{ transitionDelay: delay + "ms" }}
+        style={{ ["--cq-rd" as string]: delay + "ms" } as React.CSSProperties}
       >
-        <div key={contentKey}>
+        <div key={contentKey} className="cqt-quotebody">
           <span className={"cqt-mark" + (animate ? " cqt-in" : "")} aria-hidden="true" style={{ ["--d" as string]: delay + lead + "ms" } as React.CSSProperties}>
             {"“"}
           </span>
@@ -482,7 +500,8 @@ export default function CheckerQuiltTestimonials({
   palette,
   rows = 2,
   autoplay = 8000,
-  height = "clamp(620px, 94svh, 1040px)",
+  defaultPage = 0,
+  height = "clamp(560px, 80svh, 960px)",
   mobileHeight = "760px",
   stackBelow = 720,
   quoteFont = '"Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif',
@@ -502,7 +521,8 @@ export default function CheckerQuiltTestimonials({
   const perPage = narrow ? 1 : rows
   const pages = pageCount(total, perPage)
 
-  const [page, setPage] = React.useState(0)
+  const startPage = wrap(Math.floor(defaultPage), pages)
+  const [page, setPage] = React.useState(startPage)
   const [phase, setPhase] = React.useState("idle" as "idle" | "arm" | "cover" | "reveal")
   const [dir, setDir] = React.useState("next" as "next" | "prev")
   const [fast, setFast] = React.useState(false)
@@ -512,8 +532,8 @@ export default function CheckerQuiltTestimonials({
   const [reduced, setReduced] = React.useState(false)
   const [announce, setAnnounce] = React.useState(false)
 
-  const pageRef = React.useRef(0)
-  const targetRef = React.useRef(0)
+  const pageRef = React.useRef(startPage)
+  const targetRef = React.useRef(startPage)
   const phaseRef = React.useRef("idle")
   const timers = React.useRef([] as number[])
   const perRef = React.useRef(perPage)
@@ -668,6 +688,7 @@ export default function CheckerQuiltTestimonials({
   } as React.CSSProperties
 
   const headingId = React.useId()
+  const scope = '.cqt[data-cq="' + headingId + '"]'
 
   return (
     <section
@@ -676,13 +697,13 @@ export default function CheckerQuiltTestimonials({
       }}
       className={"cqt" + (className ? " " + className : "")}
       style={{ ...vars, ...style }}
-      data-narrow={narrow ? "1" : "0"}
+      data-cq={headingId}
       data-paused={running ? "0" : "1"}
       aria-roledescription="carousel"
       aria-label={heading ? undefined : ariaLabel}
       aria-labelledby={heading ? headingId : undefined}
     >
-      <style>{css}</style>
+      <style>{css + stackedCss(scope, stackBelow)}</style>
 
       <div className="cqt-band">
         {heading ? (
@@ -694,7 +715,7 @@ export default function CheckerQuiltTestimonials({
         )}
         <div className="cqt-controls">
           {cta ? (
-            <a className="cqt-cta" href={cta.href}>
+            <a className="cqt-cta" href={cta.href || "#"} onClick={cta.onClick}>
               {cta.label}
               <Arrow dir="next" />
             </a>
