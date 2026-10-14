@@ -29,3 +29,35 @@ slider, throws away the checkerboard), #5 (filters plus FLIP is gallery behaviou
 for 4 to 8 quotes). Fold in: the portrait settling from a tight crop (#2), an optional CTA
 (#4). Risks named: sliding into the banned cream-and-serif look, duplicating
 shutter-blinds-carousel's wipe, timid type, a squished phone layout.
+
+## Round 1: REDO (average 6.8)
+
+Scores: usability 6, idea 7, craft 6, originality 6, install-safety 9.
+
+Main findings: quotes clipped by their tiles at 1280×720 and 1366×768 (type sized by character
+count only); muddy khaki fallback plate with initials showing through while a photo loads; an
+invisible focus ring on the butter tile; the second demo (`rows={1}`) was the stock split
+slider; the quote mark jumped sides during a step; 1px seams mid-sweep; about 1.4 s before a
+clicked step could be read; phone measure too narrow and its vertical sweep disagreeing with a
+horizontal swipe; posed stock portraits instead of documentary ones; no thumb.
+
+Changes made:
+1. Each quote tile now fits its type to its own height and width (binary search on the size,
+   refit on resize and on every new quote), with at least 48px of vertical padding. Measured on
+   every page at 1280×720, 1366×768, 1440×900, 1920×1080, 375×667 and 390×844: nothing leaves its
+   tile. Wider measures (27/30/33ch) so the fit can pick larger type. Default height raised to
+   `clamp(620px, 94svh, 1040px)`. Test asserts the fit.
+2. Solid per-preset plate colours; initials only when a portrait fails or is missing; portraits
+   already decoded skip the fade (module-level cache).
+3. Two-tone focus ring on buttons and an inset ring overlay on the quilt.
+4. Second demo replaced: `demo-wine-bar.tsx`, oxblood preset, two rows, a wine bar's regulars.
+5. The quote mark fades and rises with the words; clip-paths overscan 1px; steps the visitor
+   asks for run at 300 / 500 ms (autoplay keeps 420 / 680 ms).
+6. Phone: the quote stays on top and the photo below; a field-coloured sweep crosses the photo
+   sideways in the swipe direction. Measure is full width, type up to 30px.
+7. Copy no longer ties a quote to an age the photo may not show.
+
+Not changed: the portraits. Only images.unsplash.com is allowed, and this sandbox can neither
+load it nor search Unsplash, so new photos could not be seen before choosing them. The six
+defaults are verified portraits (80px copies on GitHub); `photo-path-*.png` in the round 2
+screenshots shows them rendering, from those 80px copies.
