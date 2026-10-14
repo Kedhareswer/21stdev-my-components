@@ -45,3 +45,25 @@ radio language (timecodes, tally lights, a tuner) runs through every section; pa
 `#0D0E0C`, chalk text, on-air red `#E5402A`, colour only from each show's riso ink pair, no
 glow, no neon, no purple-blue, no cream; light mode is a true white ground; a second preset
 "daytime" community FM on signal yellow that looks like a different station.
+
+## Critic round 1 (fresh subagent)
+
+Reading: a radio-station homepage on the Verge's layout (vertical masthead, feature slot,
+timestamped rail) where the call sign up the left edge is a two-channel level meter that drains
+and pumps with the stream; riso show art and an SVG stroke face carry the language through
+residents, archive, support dial and footer. Banned-looks gate passed.
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 6 | 7 | 5 | 7 | 9 | 7 | 6.83 |
+
+Verdict: **REDO**. Findings: display-face titles kept their em width and overflowed narrow
+columns with long names ("Market Day Breakfast" ran into the host and off the phone screen);
+the per-glyph clipped knockout left stepped halos and art slivers between letters and a bite in
+a cover's sun; the 7-episode archive left a half-empty last row; the dial needle ran through
+the tick labels and lost every tier name on phones; archive play chips vanished on cream covers
+in dark mode; a stray speck under the "1" of 107.2; a headless "From the archive" fragment under
+the rail's sticky header; a dead zone in the hero's left column; the play button below the fold
+at 375 x 812; dim meter segments at 11% made the frequency vanish while playing; the residents
+peek covered the hovered row's host; the night preset's light theme loses the reference's
+carbon punch.
