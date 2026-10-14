@@ -40,6 +40,13 @@ assert.equal(m.focusAt(2, 2), 1)
 assert.equal(m.focusAt(2.5, 2), 0.5)
 assert.equal(m.focusAt(0, 3), 0)
 
+// Travel: one step per milestone, stopping with the last card flush, rubber band past the end.
+assert.equal(m.trackShift(2, 700, 5000, 6), 1400)
+assert.equal(m.trackShift(5, 700, 3000, 6), 3000, "stops at maxShift")
+assert.equal(m.trackShift(5.2, 700, 3000, 6), 3140, "keeps following past the last milestone")
+assert.equal(m.trackShift(-0.1, 700, 3000, 6), -70, "rubber band before the first")
+assert.equal(m.trackShift(3, 700, 0, 6), 0, "a strip that fits never moves")
+
 // Rubber band: grows, but never past its limit.
 assert.equal(m.rubber(0, 0.35), 0)
 assert.ok(m.rubber(0.2, 0.35) < 0.2)

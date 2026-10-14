@@ -118,7 +118,7 @@ export function normalizeYears(y: number | string | number[]): string[] {
   if (Array.isArray(y)) return y.slice(0, 2).map((v) => String(v))
   if (typeof y === "number") return [String(y)]
   const s = String(y).trim()
-  const m = s.match(/^(\S+)\s*(?:-|–|—|to|\/)\s*(\S+)$/i)
+  const m = s.match(/^(\S+)\s*(?:-|\u2013|\u2014|to|\/)\s*(\S+)$/i)
   if (m && /\d/.test(m[1]) && /\d/.test(m[2])) return [m[1], m[2]]
   return [s]
 }
@@ -136,6 +136,16 @@ export function clampIndex(i: number, n: number): number {
 /** 1 for the milestone in focus, falling to 0 one milestone away. */
 export function focusAt(pos: number, i: number): number {
   return Math.max(0, 1 - Math.abs(pos - i))
+}
+
+/**
+ * How far the strip is moved for a focus position: one step per milestone,
+ * but never further than `maxShift` (the last card flush with the container).
+ * Past the last milestone it keeps following, so the rubber band still reads.
+ */
+export function trackShift(pos: number, step: number, maxShift: number, n: number): number {
+  if (pos > n - 1) return Math.min((n - 1) * step, maxShift) + (pos - (n - 1)) * step
+  return Math.min(pos * step, maxShift)
 }
 
 /** Past an end the strip follows the pointer with growing resistance. */
@@ -277,8 +287,8 @@ const STYLES = `
 .sht__intro{margin:0;font-size:17px;line-height:1.55;color:var(--muted-on-field);max-width:44ch;text-wrap:pretty}
 .sht__ctrls{display:flex;gap:10px}
 .sht__btn{all:unset;box-sizing:border-box;display:inline-grid;place-items:center;width:52px;height:52px;border-radius:999px;background:var(--pill);color:var(--on-pill);cursor:pointer;transition:transform .16s var(--ease),opacity .2s ease,background-color .2s ease}
-.sht__btn svg{width:20px;height:20px;transition:transform .3s var(--ease)}
-.sht__btn:active{transform:scale(.94)}
+.sht__btn svg{width:20px;height:20px;transition:transform .18s var(--ease)}
+.sht__btn:not([disabled]):active{transform:scale(.96)}
 .sht__btn[disabled]{cursor:default;background:transparent;color:var(--muted-on-field);box-shadow:inset 0 0 0 1.5px currentColor;opacity:.55}
 .sht__btn:focus-visible,.sht__slot:focus-visible,.sht__link:focus-visible,.sht__viewport:focus-visible{outline:2px solid var(--on-field);outline-offset:3px}
 .sht__viewport:focus-visible{outline-offset:8px;border-radius:20px}
@@ -289,7 +299,8 @@ const STYLES = `
 .sht__railin{position:relative;display:flex;justify-content:space-between;gap:28px;min-width:max-content;width:100%;padding:6px 0}
 .sht__axis{position:absolute;z-index:-1;left:0;right:0;top:50%;height:1px;background:var(--muted-on-field);opacity:.45;pointer-events:none}
 .sht__slot{all:unset;position:static;display:inline-flex;gap:6px;cursor:pointer;border-radius:999px}
-.sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) 70%,transparent);font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:box-shadow .2s ease}
+.sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) 70%,transparent);font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:box-shadow .16s ease,transform .16s var(--ease)}
+.sht__slot:active .sht__chip{transform:scale(.96)}
 @media (hover:hover){.sht__slot:hover .sht__chip{box-shadow:inset 0 0 0 1.5px var(--on-field)}}
 .sht__goo{position:absolute;inset:0;pointer-events:none}
 .sht__blob{position:absolute;top:6px;left:0;height:36px;border-radius:999px;background:var(--pill);will-change:transform,width}
@@ -319,7 +330,8 @@ const STYLES = `
 .sht__title{margin:0;font-family:var(--display-font);font-size:clamp(20px,1.7vw,24px);line-height:1.18;font-weight:600;letter-spacing:-.02em;color:color-mix(in oklab,var(--ink) calc(55% + var(--f) * 45%),var(--card))}
 .sht__body{margin:0;font-size:16px;line-height:1.55;color:var(--muted);max-width:52ch}
 .sht__link{align-self:flex-start;margin-top:auto;padding-top:8px;font-size:15px;font-weight:500;color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;display:inline-flex;align-items:center;gap:8px;border-radius:4px}
-.sht__link svg{width:16px;height:16px;transition:transform .3s var(--ease)}
+.sht__link svg{width:16px;height:16px;transition:transform .18s var(--ease)}
+.sht__card[data-active=false] .sht__link{pointer-events:none}
 @media (hover:hover){.sht__link:hover svg{transform:translateX(4px)}.sht__link:hover{text-decoration-thickness:2px}}
 .sht__sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @media (max-width:720px){.sht__head{grid-template-columns:1fr;align-items:start}.sht__side{gap:22px}.sht__intro{font-size:16px}.sht__btn{width:48px;height:48px}.sht__railin,.sht__lit{justify-content:flex-start;gap:22px}.sht__text{min-height:0;padding-top:22px;padding-bottom:26px}}
@@ -416,7 +428,7 @@ export default function SeamHistoryTimeline({
   const [failed, setFailed] = React.useState(() => ({}) as { [k: number]: boolean })
   const [announce, setAnnounce] = React.useState("")
   const [dragging, setDragging] = React.useState(false)
-  const [geo, setGeo] = React.useState({ cw: 0, ph: 0, h: 0, o: 0, mobile: false })
+  const [geo, setGeo] = React.useState({ cw: 0, ph: 0, h: 0, o: 0, vw: 0, mobile: false })
 
   const rootRef = React.useRef(null as HTMLElement | null)
   const viewportRef = React.useRef(null as HTMLDivElement | null)
@@ -436,6 +448,7 @@ export default function SeamHistoryTimeline({
     pos: { x: clampIndex(startIndex, n), v: 0 } as Spring,
     target: clampIndex(startIndex, n),
     step: 1,
+    maxShift: 0,
     L: { x: 0, v: 0 } as Spring,
     Lw: { x: 0, v: 0 } as Spring,
     R: { x: 0, v: 0 } as Spring,
@@ -477,7 +490,8 @@ export default function SeamHistoryTimeline({
   const paint = React.useCallback(() => {
     const s = sim.current
     const track = trackRef.current
-    if (track) track.style.transform = "translate3d(" + (-s.pos.x * s.step).toFixed(2) + "px,0,0)"
+    const shift = trackShift(s.pos.x, s.step, s.maxShift, n)
+    if (track) track.style.transform = "translate3d(" + (-shift).toFixed(2) + "px,0,0)"
     for (let i = 0; i < n; i++) {
       const f = focusAt(s.pos.x, i)
       const el = cardRefs.current[i]
@@ -486,7 +500,7 @@ export default function SeamHistoryTimeline({
       if (w) w.style.opacity = (wash * (1 - f) * (1 - 0.4 * (s.hov[i] || 0))).toFixed(3)
       // Milestones already passed recede into the field rather than hanging cut off in the margin.
       const v = veilRefs.current[i]
-      if (v) v.style.opacity = (0.93 * Math.max(0, Math.min(1, s.pos.x - i))).toFixed(3)
+      if (v) v.style.opacity = (0.93 * Math.max(0, Math.min(1, (shift - i * s.step - s.step * 0.3) / (s.step * 0.5)))).toFixed(3)
     }
     if (s.railReady) {
       const L = s.L.x
@@ -620,7 +634,7 @@ export default function SeamHistoryTimeline({
     const mobile = W < 640
     const cw = Math.round(Math.max(260, Math.min(mobile ? W * 0.88 : W * 0.6, 860)))
     const ph = Math.round(cw * (mobile ? 0.66 : 0.44))
-    setGeo((g) => (g.cw === cw && g.ph === ph && g.mobile === mobile ? g : { ...g, cw, ph, mobile }))
+    setGeo((g) => (g.cw === cw && g.ph === ph && g.vw === W && g.mobile === mobile ? g : { ...g, cw, ph, vw: W, mobile }))
   }, [])
 
   const measureHeight = React.useCallback(() => {
@@ -692,10 +706,13 @@ export default function SeamHistoryTimeline({
   const gutter = geo.mobile ? 10 : 14
   const overlap = Math.max(0, geo.o - gutter)
   const step = Math.max(1, geo.cw - overlap)
+  const vpW = geo.vw
   useIsoLayoutEffect(() => {
     sim.current.step = step
+    // The strip stops when the last card is flush with the container, instead of leaving an empty field.
+    sim.current.maxShift = Math.max(0, (n - 1) * step + geo.cw - vpW)
     paint()
-  }, [step, paint])
+  }, [step, paint, n, geo.cw, vpW])
 
   // Follow the active index.
   const first = React.useRef(true)
@@ -874,10 +891,10 @@ export default function SeamHistoryTimeline({
           <div className="sht__side">
             {intro ? <p className="sht__intro">{intro}</p> : null}
             <div className="sht__ctrls">
-              <button type="button" className="sht__btn" aria-label={labels?.previous || "Previous milestone"} disabled={active === 0} onClick={() => go(active - 1)}>
+              <button type="button" className="sht__btn" aria-label={labels?.previous || "Previous milestone"} disabled={active <= 0} onClick={() => go(active - 1)}>
                 <Arrow dir="prev" />
               </button>
-              <button type="button" className="sht__btn" aria-label={labels?.next || "Next milestone"} disabled={active === n - 1} onClick={() => go(active + 1)}>
+              <button type="button" className="sht__btn" aria-label={labels?.next || "Next milestone"} disabled={active >= n - 1} onClick={() => go(active + 1)}>
                 <Arrow dir="next" />
               </button>
             </div>
