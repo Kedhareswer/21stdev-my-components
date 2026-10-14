@@ -81,7 +81,15 @@ export type HitchBuild = {
 export type HitchLink = { label: string; href: string }
 export type HitchSpec = { label: string; value: string }
 export type HitchStep = { title: string; body: string; time: string }
-export type HitchRider = { name: string; place: string; build: string; distance: string; quote: string }
+export type HitchRider = {
+  name: string
+  place: string
+  build: string
+  distance: string
+  quote: string
+  /** Part ids of the rider's build: drawn beside the quote, with a button that loads it into the configurator. */
+  modules?: string[]
+}
 export type HitchFaq = { q: string; a: string }
 export type HitchColumn = { title: string; links: HitchLink[] }
 export type HitchPreset = "signal" | "fleet"
@@ -92,8 +100,19 @@ export type HitchReservation = {
   city: string
   optIn: boolean
   modules: string[]
+  /** Price of one bike. */
   total: number
+  /** Number of bikes, when `fleet` is set (otherwise 1). */
+  quantity: number
   code: string
+}
+export type HitchFleet = {
+  /** Smallest, largest and starting fleet size. */
+  min: number
+  max: number
+  start: number
+  /** Lease term used for the monthly figure. */
+  months: number
 }
 export type HitchBase = { price: number; weight: number; range: number; maxLoad: number }
 export type HitchDimensions = { length: string; wheelbase: string; height: string; deck: string }
@@ -164,6 +183,14 @@ export type HitchLabels = {
   failed: string
   edit: string
   backToTop: string
+  loadBuild: string
+  nextSteps: string
+  bikes: string
+  fewer: string
+  more: string
+  fleetTotal: string
+  perMonth: string
+  summary: string
 }
 
 export type HitchCargoLandingProps = {
@@ -202,6 +229,12 @@ export type HitchCargoLandingProps = {
   productArt?: React.ReactNode
   /** Prefix for reservation codes. Defaults to the first part code's prefix. */
   codePrefix?: string
+  /** Sell a fleet: a bike-count stepper, a fleet total and a monthly lease figure. */
+  fleet?: HitchFleet | false
+  /** Render the page as a <main> landmark (turn off when embedding in a page that has one). */
+  landmark?: boolean
+  /** Level of the hero heading; section headings sit one level below. */
+  headingLevel?: 1 | 2
   configurator?: { [K in keyof HitchSectionCopy]?: HitchSectionCopy[K] }
   specs?: { [K in keyof HitchSpecsCopy]?: HitchSpecsCopy[K] }
   ownership?: { [K in keyof HitchOwnershipCopy]?: HitchOwnershipCopy[K] }
@@ -324,6 +357,16 @@ function reservationCode(prefix: string, email: string, build: string[]) {
   return prefix + "-" + out
 }
 
+/** Fleet total and a monthly lease figure, rounded up to whole currency units. */
+function fleetCost(unit: number, quantity: number, months: number) {
+  const total = unit * quantity
+  return { total, monthly: Math.ceil(total / Math.max(1, months)) }
+}
+
+function clampInt(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(isFinite(v) ? v : min)))
+}
+
 function wrapIndex(i: number, n: number) {
   return n <= 0 ? 0 : ((i % n) + n) % n
 }
@@ -392,13 +435,13 @@ const BB = [520, 415]
 /** Built-in callouts: where each part's leader points, and where its tag sits. */
 const CALLOUTS = {
   seat: { a: [300, 172], t: [300, 104] },
-  footboards: { a: [285, 360], t: [285, 578] },
+  footboards: { a: [285, 360], t: [285, 562] },
   flatbed: { a: [470, 226], t: [470, 112] },
-  panniers: { a: [330, 384], t: [330, 578] },
+  panniers: { a: [330, 384], t: [330, 562] },
   toolbox: { a: [285, 164], t: [285, 104] },
   box: { a: [250, 96], t: [250, 40] },
   basket: { a: [800, 184], t: [800, 112] },
-  battery: { a: [430, 340], t: [455, 578] },
+  battery: { a: [430, 340], t: [455, 562] },
 } as { [id: string]: { a: number[]; t: number[] } }
 
 const DIM_LABELS = [
@@ -451,12 +494,15 @@ function BuiltinArt({ id }: { id: string }) {
     case "seat":
       return (
         <g>
+          <rect x={140} y={270} width={290} height={6} rx={3} className="hx-m-contact" />
           <rect x={146} y={192} width={26} height={84} rx={11} className="hx-m-pad" />
           <rect x={150} y={198} width={4} height={60} rx={2} className="hx-m-seam" />
           <rect x={146} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
           <rect x={288} y={200} width={26} height={76} rx={11} className="hx-m-pad" />
           <rect x={292} y={206} width={4} height={52} rx={2} className="hx-m-seam" />
           <rect x={288} y={252} width={124} height={22} rx={9} className="hx-m-pad2" />
+          <path d="M156 256H262M298 256H404" className="hx-m-lit" strokeWidth={2} strokeLinecap="round" />
+          <path d="M152 266H264M294 266H406" className="hx-m-stitch" strokeWidth={1.2} strokeDasharray="4 4" />
           <path d="M122 280L122 186Q122 172 136 172L432 172Q446 172 446 186L446 280" className="hx-m-rail" strokeWidth={8} fill="none" strokeLinecap="round" />
           <path d="M122 222L446 222" className="hx-m-rail" strokeWidth={5} fill="none" />
           <path d="M126 174L444 174" className="hx-m-glint" strokeWidth={2} fill="none" />
@@ -478,6 +524,8 @@ function BuiltinArt({ id }: { id: string }) {
           <rect x={120} y={258} width={330} height={6} rx={3} className="hx-m-contact" />
           <rect x={128} y={178} width={164} height={84} rx={4} className="hx-m-load" />
           <rect x={300} y={198} width={142} height={64} rx={4} className="hx-m-load2" />
+          <path d="M132 180H288M304 200H438" className="hx-m-lit" strokeWidth={2} />
+          <path d="M212 180V262M376 200V262" className="hx-m-strapshadow" strokeWidth={4} />
           <path d="M128 200L292 200M300 218L442 218" className="hx-m-tape" strokeWidth={3} fill="none" />
           <path d="M208 178L208 262M372 198L372 262" className="hx-m-strap" strokeWidth={4} fill="none" />
           <rect x={84} y={260} width={420} height={14} rx={4} className="hx-m-plate" />
@@ -488,7 +536,11 @@ function BuiltinArt({ id }: { id: string }) {
       return (
         <g>
           <path d="M150 292L400 292L400 410Q400 428 382 428L168 428Q150 428 150 410Z" className="hx-m-bag" />
+          <path d="M150 300V404Q150 420 166 422" className="hx-m-lit" strokeWidth={2} fill="none" />
+          <path d="M160 330H390M160 384H390" className="hx-m-stitch" strokeWidth={1.2} strokeDasharray="5 5" />
           <rect x={150} y={292} width={250} height={24} rx={4} className="hx-m-bagtop" />
+          <path d="M152 294H398" className="hx-m-lit" strokeWidth={2} />
+          <path d="M209 316L209 378M349 316L349 378" className="hx-m-strapshadow" strokeWidth={6} />
           <path d="M205 292L205 374M345 292L345 374" className="hx-m-strap" strokeWidth={6} fill="none" />
           <rect x={196} y={366} width={18} height={14} rx={2} className="hx-m-buckle" />
           <rect x={336} y={366} width={18} height={14} rx={2} className="hx-m-buckle" />
@@ -501,6 +553,7 @@ function BuiltinArt({ id }: { id: string }) {
           <rect x={110} y={270} width={356} height={6} rx={3} className="hx-m-contact" />
           <rect x={104} y={176} width={366} height={98} rx={8} className="hx-m-case" />
           <rect x={104} y={176} width={366} height={26} rx={8} className="hx-m-lid" />
+          <path d="M114 178H460" className="hx-m-lit" strokeWidth={2} strokeLinecap="round" />
           <path d="M104 202H470" className="hx-m-seamline" strokeWidth={2} />
           <path d="M172 212L172 262M240 212L240 262M334 212L334 262M402 212L402 262" className="hx-m-rib" strokeWidth={3} fill="none" />
           <Corners x0={104} y0={176} x1={470} y1={274} />
@@ -515,6 +568,7 @@ function BuiltinArt({ id }: { id: string }) {
         <g>
           <rect x={106} y={270} width={290} height={6} rx={3} className="hx-m-contact" />
           <rect x={100} y={96} width={300} height={178} rx={10} className="hx-m-box" />
+          <path d="M112 98H388" className="hx-m-lit" strokeWidth={2} strokeLinecap="round" />
           <rect x={118} y={114} width={264} height={142} rx={5} className="hx-m-door" strokeWidth={2} />
           <path d="M126 130V240" className="hx-m-hinge" strokeWidth={4} strokeLinecap="round" strokeDasharray="22 18" />
           <path d="M358 166L358 204" className="hx-m-handle" strokeWidth={7} fill="none" strokeLinecap="round" />
@@ -839,6 +893,14 @@ const DEFAULT_LABELS: HitchLabels = {
   failed: "That did not go through, and nothing was reserved. Check the connection and try again.",
   edit: "Edit the details",
   backToTop: "Back to top",
+  loadBuild: "Load this build",
+  nextSteps: "What happens next",
+  bikes: "Bikes",
+  fewer: "One bike fewer",
+  more: "One bike more",
+  fleetTotal: "Fleet total",
+  perMonth: "Per month, {months} months",
+  summary: "Live build",
 }
 
 const SIGNAL_PARTS: HitchPart[] = [
@@ -883,6 +945,7 @@ type Content = {
   faq: HitchFaqCopy
   footer: HitchFooterCopy
   labels: { [K in keyof HitchLabels]?: HitchLabels[K] }
+  fleet: HitchFleet | null
 }
 
 const PRESETS: { [K in HitchPreset]: Content } = {
@@ -947,9 +1010,9 @@ const PRESETS: { [K in HitchPreset]: Content } = {
     riders: {
       title: "In service",
       items: [
-        { name: "Noor", place: "Rotterdam", build: "The school run", distance: "6,200 km", quote: "The car went in March. Two kids, two bags and one bridge every morning, and with the second battery I charge on Sundays." },
-        { name: "Teo", place: "Lyon", build: "The trades rig", distance: "11,900 km", quote: "I carry a full plumbing kit through the old town faster than the van ever did, and I park at the door." },
-        { name: "Ines", place: "Portland", build: "The flatbed", distance: "3,400 km", quote: "We moved a whole studio flat with it. The bed came off and the kid seat went back on before dinner." },
+        { name: "Noor", place: "Rotterdam", build: "The school run", distance: "6,200 km", quote: "The car went in March. Two kids, two bags and one bridge every morning, and with the second battery I charge on Sundays.", modules: ["seat", "footboards", "battery"] },
+        { name: "Teo", place: "Lyon", build: "The trades rig", distance: "11,900 km", quote: "I carry a full plumbing kit through the old town faster than the van ever did, and I park at the door.", modules: ["toolbox", "battery"] },
+        { name: "Ines", place: "Portland", build: "The flatbed", distance: "3,400 km", quote: "We moved a whole studio flat with it. The bed came off and the kid seat went back on before dinner.", modules: ["flatbed", "basket"] },
       ],
     },
     reserve: {
@@ -984,6 +1047,7 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       legal: "Prices include sales tax. Range measured with a 75 kg rider on mixed city roads.",
     },
     labels: {},
+    fleet: null,
   },
   fleet: {
     brand: "Kerbside",
@@ -1042,9 +1106,9 @@ const PRESETS: { [K in HitchPreset]: Content } = {
     riders: {
       title: "Operators",
       items: [
-        { name: "Moss & Daughters", place: "Dublin", build: "Grocery drop", distance: "42 bikes", quote: "We retired nine vans in a year. The riders do more drops per hour because they park at the door." },
-        { name: "Pipewell", place: "Bristol", build: "Site service", distance: "18 bikes", quote: "Engineers reach a call-out in the city centre twenty minutes sooner, with the whole kit in the case." },
-        { name: "Halde", place: "Hamburg", build: "Parcel round", distance: "120 bikes", quote: "The battery swap at the depot means one bike covers two shifts without a charger in sight." },
+        { name: "Moss & Daughters", place: "Dublin", build: "Grocery drop", distance: "42 bikes", quote: "We retired nine vans in a year. The riders do more drops per hour because they park at the door.", modules: ["box", "basket"] },
+        { name: "Pipewell", place: "Bristol", build: "Site service", distance: "18 bikes", quote: "Engineers reach a call-out in the city centre twenty minutes sooner, with the whole kit in the case.", modules: ["toolbox", "panniers"] },
+        { name: "Halde", place: "Hamburg", build: "Parcel round", distance: "120 bikes", quote: "The battery swap at the depot means one bike covers two shifts without a charger in sight.", modules: ["box", "battery"] },
       ],
     },
     reserve: {
@@ -1080,20 +1144,22 @@ const PRESETS: { [K in HitchPreset]: Content } = {
       bare: "Bare frame, ready for any route",
       plateAlt: "{brand} fleet cargo bike, {build}",
       yourBuild: "Your fleet bike",
-      price: "Per bike",
       city: "Operating city",
       errorName: "Add a name for the quote.",
       errorCity: "Pick where the fleet operates.",
       pending: "Sending",
+      price: "Per bike",
       failed: "The request did not go through. Check the connection and try again.",
+      summary: "Fleet spec",
     },
+    fleet: { min: 5, max: 250, start: 12, months: 36 },
   },
 }
 
 /* ------------------------------------------------------------------ hooks */
 
 function useReducedMotion() {
-  const [reduced, setReduced] = React.useState(false)
+  const [reduced, setReduced] = React.useState(() => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches)
   React.useEffect(() => {
     if (typeof matchMedia !== "function") return
     const mq = matchMedia("(prefers-reduced-motion: reduce)")
@@ -1114,6 +1180,16 @@ type Ctx = {
   ids: (k: string) => string
   sections: string[]
   codePrefix: string
+  fleet: HitchFleet | null
+  quantity: number
+  setQuantity: (n: number) => void
+  level: number
+  loadBuild: (modules: string[]) => void
+}
+
+/** A heading at a level relative to the hero (0 = the hero's own). */
+function Hd({ x, depth, id, className, children }: { x: Ctx; depth: number; id?: string; className?: string; children: React.ReactNode }) {
+  return React.createElement("h" + Math.min(6, x.level + depth), { id, className }, children)
 }
 
 /* ------------------------------------------------------------------- hero */
@@ -1190,7 +1266,7 @@ function Hero({
       }}
     >
       <div className="hx-hero-card">
-        <h1 className="hx-h1">
+        <Hd x={x} depth={0} className="hx-h1">
           <span className="hx-h1-stack">
             {builds.map((b, i) => (
               <span key={b.id} className="hx-h1-v" data-on={i === cur ? "true" : "false"} aria-hidden={i === cur ? undefined : true}>
@@ -1207,7 +1283,7 @@ function Hero({
               </span>
             ))}
           </span>
-        </h1>
+        </Hd>
         <div className="hx-hero-side">
           <p className="hx-hero-body">{c.hero.body}</p>
           <div className="hx-hero-buy">
@@ -1285,7 +1361,9 @@ function Hero({
                 className="hx-tick-fill"
                 key={i === cur ? "on" + index : "off"}
                 style={i === cur && autoplay > 0 && !reduced ? { animationDuration: autoplay + "s", animationPlayState: running ? "running" : "paused" } : undefined}
-                onAnimationEnd={() => go(cur + 1)}
+                onAnimationEnd={() => {
+                  if (running) go(cur + 1)
+                }}
               />
             </button>
           ))}
@@ -1329,10 +1407,23 @@ function Configurator({
   note: string
   setNote: (s: string) => void
 }) {
-  const { c, L, catalog, mounts, look } = x
+  const { c, L, catalog, mounts, look, fleet } = x
   const [live, setLive] = React.useState(null as string | null)
   const sum = totals(build, catalog, c.base)
+  const lease = fleet ? fleetCost(sum.price, x.quantity, fleet.months) : null
   const hid = x.ids("configure-h")
+  const qid = x.ids("configure-q")
+  const artRef = React.useRef(null as HTMLDivElement | null)
+  const [artSeen, setArtSeen] = React.useState(true)
+
+  // the phone dock shows only once the drawing has scrolled away
+  React.useEffect(() => {
+    const el = artRef.current
+    if (!el || typeof IntersectionObserver !== "function") return
+    const io = new IntersectionObserver(([e]) => setArtSeen(e.isIntersecting), { threshold: 0.15 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
   const mountLabel = (id: string) => (mounts.find((m) => m.id === id) || { label: id }).label
 
   const flip = (id: string) => {
@@ -1347,12 +1438,12 @@ function Configurator({
   return (
     <section id={x.ids("configure")} data-sec="configure" className="hx-sheet hx-config hx-reveal" aria-labelledby={hid}>
       <div className="hx-config-head">
-        <h2 id={hid} className="hx-h2">
+        <Hd x={x} depth={1} id={hid} className="hx-h2">
           {c.configurator.title}
-        </h2>
+        </Hd>
         <p className="hx-lede">{c.configurator.intro}</p>
       </div>
-      <div className="hx-config-art">
+      <div className="hx-config-art" ref={artRef}>
         <Plate
           modules={build}
           catalog={catalog}
@@ -1381,8 +1472,46 @@ function Configurator({
             </dd>
           </div>
         </dl>
+        {fleet && lease ? (
+          <dl className="hx-totals hx-totals-fleet">
+            <div>
+              <dt>{L.fleetTotal}</dt>
+              <dd>{formatMoney(lease.total, c.currency, c.locale)}</dd>
+            </div>
+            <div>
+              <dt>{fill(L.perMonth, { months: String(fleet.months) })}</dt>
+              <dd>{formatMoney(lease.monthly, c.currency, c.locale)}</dd>
+            </div>
+          </dl>
+        ) : null}
       </div>
       <div className="hx-config-side">
+        {fleet ? (
+          <div className="hx-qty">
+            <label htmlFor={qid}>{L.bikes}</label>
+            <div className="hx-qty-ctl">
+              <button type="button" aria-label={L.fewer} disabled={x.quantity <= fleet.min} onClick={() => x.setQuantity(x.quantity - 1)}>
+                <svg viewBox="0 0 20 20" className="hx-ico" aria-hidden="true">
+                  <path d="M5 10H15" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                </svg>
+              </button>
+              <input
+                id={qid}
+                type="number"
+                inputMode="numeric"
+                min={fleet.min}
+                max={fleet.max}
+                value={x.quantity}
+                onChange={(e) => x.setQuantity(Number(e.target.value))}
+              />
+              <button type="button" aria-label={L.more} disabled={x.quantity >= fleet.max} onClick={() => x.setQuantity(x.quantity + 1)}>
+                <svg viewBox="0 0 20 20" className="hx-ico" aria-hidden="true">
+                  <path d="M5 10H15M10 5V15" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : null}
         {mounts.map((mount) => {
           const parts = catalog.list.filter((p) => p.mount === mount.id)
           if (!parts.length) return null
@@ -1435,6 +1564,18 @@ function Configurator({
           </button>
         </div>
       </div>
+      <div className="hx-dock" aria-hidden="true" data-show={artSeen ? "false" : "true"}>
+        <div className="hx-dock-plate">
+          <Plate modules={build} catalog={catalog} look={look} />
+        </div>
+        <p className="hx-dock-label">{L.summary}</p>
+        <p className="hx-dock-num">
+          {formatMoney(lease ? lease.total : sum.price, c.currency, c.locale)}
+          <small>
+            {formatNumber(sum.weight, c.locale, 1)} {L.kg} / {sum.range} {L.km}
+          </small>
+        </p>
+      </div>
     </section>
   )
 }
@@ -1447,9 +1588,9 @@ function Specs({ x }: { x: Ctx }) {
   return (
     <section id={x.ids("specs")} data-sec="specs" className="hx-sheet hx-paper hx-specs hx-reveal" aria-labelledby={hid}>
       <div className="hx-specs-head">
-        <h2 id={hid} className="hx-h2">
+        <Hd x={x} depth={1} id={hid} className="hx-h2">
           {c.specs.title}
-        </h2>
+        </Hd>
         <p className="hx-lede">{c.specs.intro}</p>
       </div>
       <Plate modules={[]} catalog={catalog} look={look} dims dimensions={c.specs.dimensions} label={fill(L.dimsAlt, c.specs.dimensions)} />
@@ -1471,9 +1612,9 @@ function Ownership({ x }: { x: Ctx }) {
   return (
     <section id={x.ids("ownership")} data-sec="ownership" className="hx-sheet hx-own hx-reveal" aria-labelledby={hid}>
       <div className="hx-own-head">
-        <h2 id={hid} className="hx-h2">
+        <Hd x={x} depth={1} id={hid} className="hx-h2">
           {c.ownership.title}
-        </h2>
+        </Hd>
         <p className="hx-lede">{c.ownership.intro}</p>
       </div>
       <ol className="hx-steps">
@@ -1482,7 +1623,9 @@ function Ownership({ x }: { x: Ctx }) {
             <span className="hx-step-n" aria-hidden="true">
               {String(i + 1).padStart(2, "0")}
             </span>
-            <h3 className="hx-h3">{s.title}</h3>
+            <Hd x={x} depth={2} className="hx-h3">
+              {s.title}
+            </Hd>
             <p>{s.body}</p>
             <span className="hx-step-time">{s.time}</span>
           </li>
@@ -1493,7 +1636,7 @@ function Ownership({ x }: { x: Ctx }) {
 }
 
 function Riders({ x }: { x: Ctx }) {
-  const { c } = x
+  const { c, L, catalog, mounts, look } = x
   const [i, setI] = React.useState(0)
   const items = c.riders.items
   const tabs = x.ids("rider")
@@ -1502,9 +1645,9 @@ function Riders({ x }: { x: Ctx }) {
   if (!r) return null
   return (
     <section id={x.ids("riders")} data-sec="riders" className="hx-sheet hx-riders hx-reveal" aria-labelledby={hid}>
-      <h2 id={hid} className="hx-h2">
+      <Hd x={x} depth={1} id={hid} className="hx-h2">
         {c.riders.title}
-      </h2>
+      </Hd>
       <div className="hx-riders-body">
         <div className="hx-rider-list" role="tablist" aria-label={c.riders.title}>
           {items.map((it, k) => (
@@ -1544,6 +1687,27 @@ function Riders({ x }: { x: Ctx }) {
           <figcaption>
             {r.name}, {r.place} <span>{r.build}</span>
           </figcaption>
+          {r.modules && r.modules.length ? (
+            <div className="hx-rider-build">
+              <div className="hx-rider-plate">
+                <Plate modules={normalizeBuild(r.modules, catalog, mounts)} catalog={catalog} look={look} />
+              </div>
+              <div className="hx-rider-parts">
+                <ul>
+                  {normalizeBuild(r.modules, catalog, mounts).map((m) => (
+                    <li key={m}>
+                      {catalog.byId[m].code ? <b>{catalog.byId[m].code}</b> : null} {catalog.byId[m].name}
+                    </li>
+                  ))}
+                </ul>
+                {x.sections.includes("configure") ? (
+                  <button type="button" className="hx-link" onClick={() => x.loadBuild(normalizeBuild(r.modules || [], catalog, mounts))}>
+                    {L.loadBuild} <Arrow />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </figure>
       </div>
     </section>
@@ -1551,7 +1715,7 @@ function Riders({ x }: { x: Ctx }) {
 }
 
 function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?: (r: HitchReservation) => unknown }) {
-  const { c, L, catalog } = x
+  const { c, L, catalog, mounts, look, fleet } = x
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [city, setCity] = React.useState("")
@@ -1582,7 +1746,7 @@ function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?:
     if (errs.name) return nameRef.current && nameRef.current.focus()
     if (errs.email) return emailRef.current && emailRef.current.focus()
     if (errs.city) return cityRef.current && cityRef.current.focus()
-    const r = { name: name.trim(), email: email.trim(), city, optIn, modules: build, total: sum.price, code: reservationCode(x.codePrefix, email, build) }
+    const r = { name: name.trim(), email: email.trim(), city, optIn, modules: build, total: sum.price, quantity: fleet ? x.quantity : 1, code: reservationCode(x.codePrefix, email, build) }
     setState("pending")
     try {
       if (onReserve) await Promise.resolve(onReserve(r))
@@ -1596,9 +1760,9 @@ function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?:
   return (
     <section id={x.ids("reserve")} data-sec="reserve" className="hx-sheet hx-reserve hx-reveal" aria-labelledby={hid}>
       <div className="hx-reserve-head">
-        <h2 id={hid} className="hx-h2 hx-h2-xl">
+        <Hd x={x} depth={1} id={hid} className="hx-h2 hx-h2-xl">
           {c.reserve.title}
-        </h2>
+        </Hd>
         <p className="hx-lede">{c.reserve.body}</p>
         <div className="hx-summary">
           <p className="hx-summary-h">{L.yourBuild}</p>
@@ -1619,6 +1783,14 @@ function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?:
               <span>{L.total}</span>
               <span>{formatMoney(sum.price, c.currency, c.locale)}</span>
             </li>
+            {fleet ? (
+              <li className="hx-summary-total">
+                <span>
+                  {L.fleetTotal}, {x.quantity} × {L.bikes.toLowerCase()}
+                </span>
+                <span>{formatMoney(sum.price * x.quantity, c.currency, c.locale)}</span>
+              </li>
+            ) : null}
           </ul>
           {x.sections.includes("configure") ? (
             <a className="hx-link" href="#configure">
@@ -1630,12 +1802,30 @@ function Reserve({ x, build, onReserve }: { x: Ctx; build: string[]; onReserve?:
 
       {done ? (
         <div className="hx-done" role="status" tabIndex={-1} ref={doneRef}>
-          <p className="hx-done-code">{done.code}</p>
-          <h3 className="hx-h3">{fill(c.reserve.doneTitle, { name: done.name.split(" ")[0] })}</h3>
+          <div className="hx-done-sheet">
+            <Plate modules={done.modules} catalog={catalog} look={look} />
+            <p className="hx-done-code">{done.code}</p>
+          </div>
+          <Hd x={x} depth={2} className="hx-h3">
+            {fill(c.reserve.doneTitle, { name: done.name.split(" ")[0] })}
+          </Hd>
           <p>
             {fill(c.reserve.doneBody, { email: done.email })}
             {done.optIn ? " " + c.reserve.checkboxNote : ""}
           </p>
+          {c.ownership.steps.length > 1 ? (
+            <div className="hx-done-next">
+              <p className="hx-summary-h">{L.nextSteps}</p>
+              <ol>
+                {c.ownership.steps.slice(1, 3).map((st) => (
+                  <li key={st.title}>
+                    <span>{st.title}</span>
+                    <span>{st.time}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
           <button type="button" className="hx-link" onClick={() => setDone(null)}>
             {L.edit}
           </button>
@@ -1722,15 +1912,15 @@ function Faq({ x }: { x: Ctx }) {
   const hid = x.ids("faq-h")
   return (
     <section id={id} data-sec="faq" className="hx-sheet hx-paper hx-faq hx-reveal" aria-labelledby={hid}>
-      <h2 id={hid} className="hx-h2">
+      <Hd x={x} depth={1} id={hid} className="hx-h2">
         {c.faq.title}
-      </h2>
+      </Hd>
       <div className="hx-faq-list">
         {c.faq.items.map((f, i) => {
           const on = open === i
           return (
             <div key={f.q} className="hx-qa" data-open={on ? "true" : "false"}>
-              <h3 className="hx-qa-h">
+              <Hd x={x} depth={2} className="hx-qa-h">
                 <button type="button" aria-expanded={on} aria-controls={id + "-a" + i} id={id + "-q" + i} onClick={() => setOpen(on ? -1 : i)}>
                   <span className="hx-qa-n" aria-hidden="true">
                     Q.{String(i + 1).padStart(2, "0")}
@@ -1738,7 +1928,7 @@ function Faq({ x }: { x: Ctx }) {
                   <span className="hx-qa-q">{f.q}</span>
                   <span className="hx-qa-x" aria-hidden="true" />
                 </button>
-              </h3>
+              </Hd>
               <div className="hx-qa-a" id={id + "-a" + i} role="region" aria-labelledby={id + "-q" + i} hidden={!on}>
                 <p>{f.a}</p>
               </div>
@@ -1815,6 +2005,9 @@ export default function HitchCargoLanding({
   productImage,
   productArt,
   codePrefix,
+  fleet,
+  landmark = true,
+  headingLevel = 1,
   configurator,
   specs,
   ownership,
@@ -1848,11 +2041,17 @@ export default function HitchCargoLanding({
     faq: { ...p.faq, ...(faq || {}) },
     footer: { ...p.footer, ...(footer || {}) },
     labels: p.labels,
+    fleet: p.fleet,
   }
   const L: HitchLabels = { ...DEFAULT_LABELS, ...p.labels, ...(labels || {}) }
   const catalog = mergeParts(p.parts, parts)
   const mountList = mounts && mounts.length ? mounts : DEFAULT_MOUNTS
   const prefix = idPrefix.replace(/[^a-zA-Z0-9_-]/g, "") || "hitch"
+  const fleetCfg = fleet === false ? null : fleet || p.fleet || null
+  const [quantity, setQ] = React.useState(() => (fleetCfg ? clampInt(fleetCfg.start, fleetCfg.min, fleetCfg.max) : 1))
+  const [build, setBuild] = React.useState(() => normalizeBuild((c.builds[0] && c.builds[0].modules) || [], catalog, mountList))
+  const [note, setNote] = React.useState("")
+  const scrollRef = React.useRef((href: string) => false as boolean)
   const x: Ctx = {
     c,
     L,
@@ -1862,14 +2061,21 @@ export default function HitchCargoLanding({
     ids: (k: string) => prefix + "-" + k,
     sections: order,
     codePrefix: codePrefix || codePrefixOf(catalog.list, c.brand),
+    fleet: fleetCfg,
+    quantity,
+    setQuantity: (n: number) => fleetCfg && setQ(clampInt(n, fleetCfg.min, fleetCfg.max)),
+    level: headingLevel === 2 ? 2 : 1,
+    loadBuild: (m: string[]) => {
+      setBuild(m)
+      setNote(L.loaded)
+      scrollRef.current("#configure")
+    },
   }
 
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const reduced = useReducedMotion()
   const [menu, setMenu] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
-  const [build, setBuild] = React.useState(() => normalizeBuild((c.builds[0] && c.builds[0].modules) || [], catalog, mountList))
-  const [note, setNote] = React.useState("")
   const menuBtn = React.useRef(null as HTMLButtonElement | null)
   const menuId = x.ids("menu")
   const mainId = x.ids("main")
@@ -1886,6 +2092,7 @@ export default function HitchCargoLanding({
     if (key === "main") target.focus({ preventScroll: true })
     return true
   }
+  scrollRef.current = scrollToHash
 
   const onLink = (e: React.MouseEvent) => {
     const a = (e.target as HTMLElement).closest("a")
@@ -2015,20 +2222,18 @@ export default function HitchCargoLanding({
         </header>
       ) : null}
 
-      <main className="hx-main" id={mainId} tabIndex={-1}>
+      {React.createElement(
+        landmark ? "main" : "div",
+        { className: "hx-main", id: mainId, tabIndex: -1 },
         <Hero
           x={x}
           height={height}
           autoplay={autoplay}
           reduced={reduced}
-          onBuild={(m) => {
-            setBuild(m)
-            setNote(L.loaded)
-            scrollToHash("#configure")
-          }}
-        />
-        {order.map((k) => sectionEls[k])}
-      </main>
+          onBuild={x.loadBuild}
+        />,
+        order.map((k) => sectionEls[k])
+      )}
       <Footer x={x} onTop={() => scrollToHash("#top")} />
     </div>
   )
@@ -2041,6 +2246,7 @@ const HX_CSS = `
   --hx-page:#d6d9dc;--hx-page-ink:#131416;--hx-page-muted:#4d5258;--hx-page-line:rgba(19,20,22,.16);
   --hx-panel:#1b1d20;--hx-card:#25282c;--hx-ink:#f1f2f3;--hx-muted:#a3a9b0;--hx-line:rgba(255,255,255,.1);
   --hx-paper:#eef0f1;--hx-paper-ink:#141517;--hx-paper-muted:#51575d;--hx-paper-line:rgba(20,21,23,.14);
+  --hx-comp:#474c53;
   --hx-ease:cubic-bezier(.23,1,.32,1);--hx-ease-io:cubic-bezier(.77,0,.175,1);
   --hx-display:"Arial Black","Helvetica Neue",Inter,"Segoe UI",Arial,system-ui,sans-serif;
   --hx-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -2126,7 +2332,8 @@ const HX_CSS = `
 .hx-main:focus{outline:none}
 .hx-main{display:flex;flex-direction:column;gap:var(--hx-gut);padding:0 var(--hx-gut)}
 .hx-sheet,.hx-hero{scroll-margin-top:84px;position:relative;background:var(--hx-panel);color:var(--hx-ink);border-radius:var(--hx-r);padding:clamp(22px,4vw,56px)}
-.hx-paper{background:var(--hx-paper);color:var(--hx-paper-ink);--hx-muted:var(--hx-paper-muted);--hx-line:var(--hx-paper-line)}
+.hx-root[data-theme="dark"] .hx-paper,.dark .hx-root[data-theme="auto"] .hx-paper{--hx-comp:#5d636a}
+.hx-paper{--hx-comp:#2a2d31;background:var(--hx-paper);color:var(--hx-paper-ink);--hx-muted:var(--hx-paper-muted);--hx-line:var(--hx-paper-line)}
 .hx-h1,.hx-h2{font-family:var(--hx-display);font-weight:900;text-transform:uppercase;letter-spacing:-.025em;line-height:.92;text-wrap:balance}
 .hx-h2{font-size:clamp(34px,5.2cqi,76px);margin-bottom:16px}
 .hx-h2-xl{font-size:clamp(40px,7cqi,108px)}
@@ -2136,7 +2343,7 @@ const HX_CSS = `
 .hx-reveal.hx-pre{opacity:0;transform:translateY(28px)}
 
 /* hero */
-.hx-hero{--hx-h:100svh;--hx-pw:125%;--hx-ovf:.34;display:flex;flex-direction:column;overflow:hidden;padding:clamp(12px,1.4vw,18px);gap:0}
+.hx-hero{--hx-h:100svh;--hx-pw:110%;--hx-ovf:.34;display:flex;flex-direction:column;overflow:hidden;padding:clamp(12px,1.4vw,18px);gap:0}
 .hx-hero-card{position:relative;z-index:1;display:grid;gap:18px;background:var(--hx-card);border-radius:calc(var(--hx-r) - 8px);padding:clamp(22px,3vw,44px) clamp(22px,3.4vw,52px) calc(var(--hx-pw) * .6 * var(--hx-ovf) + 18px)}
 .hx-h1{font-size:clamp(34px,10cqi,64px)}
 .hx-h1-stack{display:grid}
@@ -2155,9 +2362,9 @@ const HX_CSS = `
 .hx-price-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--hx-muted)}
 .hx-price-num{font-family:var(--hx-display);font-weight:900;font-size:26px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .hx-stage{position:relative;z-index:2;flex:1 0 auto;margin-top:calc(var(--hx-pw) * -.6 * var(--hx-ovf));touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.hx-stage-main{position:relative;width:var(--hx-pw);margin-left:-20%}
+.hx-stage-main{position:relative;width:var(--hx-pw);margin-left:-6%}
 .hx-plate{position:relative;width:100%;aspect-ratio:5/3}
-.hx-peek{display:none;position:absolute;top:0;width:var(--hx-pw);opacity:.22;filter:saturate(.4);pointer-events:none}
+.hx-peek{display:none;position:absolute;top:0;width:var(--hx-pw);opacity:.22;filter:saturate(.4);pointer-events:none;clip-path:inset(calc(var(--hx-ovf) * 100% + 8px) 0 0 0)}
 .hx-peek-l{right:calc(50% + var(--hx-pw) / 2 - 3%)}
 .hx-peek-r{left:calc(50% + var(--hx-pw) / 2 - 3%)}
 .hx-arrow{position:absolute;top:58%;z-index:3;display:none;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;color:var(--hx-ink);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3);background:rgba(26,28,31,.6);transition:transform .16s var(--hx-ease),box-shadow .2s ease,background-color .2s ease}
@@ -2175,10 +2382,10 @@ const HX_CSS = `
 .hx-bar{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px 16px;padding:16px 8px 6px}
 .hx-caption{grid-column:1/-1;font-family:var(--hx-display);font-weight:900;text-transform:uppercase;letter-spacing:-.01em;font-size:20px;line-height:1}
 .hx-ticks{display:flex;gap:4px}
-.hx-tick{position:relative;width:26px;height:24px}
-.hx-tick::before{content:"";position:absolute;left:0;right:0;top:9px;height:6px;border-radius:2px;background:#6b7179;transition:background-color .2s ease}
+.hx-tick{position:relative;width:32px;height:44px}
+.hx-tick::before{content:"";position:absolute;left:0;right:0;top:19px;height:6px;border-radius:2px;background:#6b7179;transition:background-color .2s ease}
 .hx-tick:hover::before{background:#9aa0a7}
-.hx-tick-fill{position:absolute;left:0;right:0;top:9px;height:6px;border-radius:2px;background:var(--hx-accent);transform:scaleX(0);transform-origin:left}
+.hx-tick-fill{position:absolute;left:0;right:0;top:19px;height:6px;border-radius:2px;background:var(--hx-accent);transform:scaleX(0);transform-origin:left}
 .hx-tick[aria-current="true"] .hx-tick-fill{transform:scaleX(1)}
 .hx-tick[aria-current="true"] .hx-tick-fill[style]{animation:hx-fill linear both}
 .hx-tick[aria-current="true"]::before{background:color-mix(in srgb,var(--hx-accent) 35%,#2a2d31)}
@@ -2224,18 +2431,18 @@ const HX_CSS = `
 .hx-b-saddle{fill:#121315}
 .hx-b-battery{stroke:#1e2023}
 .hx-b-gauge{stroke:var(--hx-accent)}
-.hx-b-fork{stroke:#2a2d31}
-.hx-b-stem{stroke:#2a2d31}
-.hx-b-bar{stroke:#2a2d31}
+.hx-b-fork{stroke:var(--hx-comp)}
+.hx-b-stem{stroke:var(--hx-comp)}
+.hx-b-bar{stroke:var(--hx-comp)}
 .hx-b-grip{stroke:#0e0f10}
-.hx-b-rack{stroke:#2a2d31}
-.hx-b-rack-fill{fill:#2a2d31}
-.hx-b-lamp{fill:#2a2d31}
+.hx-b-rack{stroke:var(--hx-comp)}
+.hx-b-rack-fill{fill:var(--hx-comp)}
+.hx-b-lamp{fill:var(--hx-comp)}
 .hx-b-lens{fill:#f4f1e8}
 .hx-b-taillight{fill:#c8312b}
 .hx-b-holes{stroke:#1a1c1f}
 .hx-b-stand{stroke:#3a3e43}
-.hx-b-crank{stroke:#2a2d31}
+.hx-b-crank{stroke:var(--hx-comp)}
 .hx-b-far{opacity:.55}
 .hx-b-ring{stroke:#7b8188}
 .hx-b-pedal{fill:#1a1c1f}
@@ -2253,12 +2460,15 @@ const HX_CSS = `
 .hx-m-lock{fill:#9aa0a6;stroke:#2a2d31;stroke-width:3}
 .hx-m-hinge{stroke:#2e3236}
 .hx-m-vent{stroke:#2e3236}
-.hx-m-stay{stroke:#2a2d31}
-.hx-m-bracket-fill{fill:#2a2d31}
-.hx-m-clamp{fill:#2a2d31;stroke:#6b7178;stroke-width:2}
+.hx-m-stay{stroke:var(--hx-comp)}
+.hx-m-bracket-fill{fill:var(--hx-comp)}
+.hx-m-clamp{fill:var(--hx-comp);stroke:#6b7178;stroke-width:2}
 .hx-m-rail{stroke:#b3b9bf}
 .hx-m-glint{stroke:#ffffff;opacity:.35}
-.hx-m-bracket{stroke:#2a2d31}
+.hx-m-lit{stroke:#ffffff;opacity:.26;fill:none}
+.hx-m-stitch{stroke:#ffffff;opacity:.16}
+.hx-m-strapshadow{stroke:#000;opacity:.28}
+.hx-m-bracket{stroke:var(--hx-comp)}
 .hx-m-plate{fill:#3d4248}
 .hx-m-load{fill:#6d737a}
 .hx-m-load2{fill:#585e65}
@@ -2283,14 +2493,13 @@ const HX_CSS = `
 .hx-m-led-off{fill:#4a4f56}
 .hx-mod{opacity:0;transform:translateY(-36px);transition:opacity .14s ease,transform 0s linear .15s}
 .hx-mod[data-on="true"]{opacity:1;transform:none;transition:opacity .22s ease,transform .38s cubic-bezier(.3,1.25,.5,1)}
-.hx-paper .hx-svg .hx-b-fork,.hx-paper .hx-svg .hx-b-stem,.hx-paper .hx-svg .hx-b-bar{stroke:#2a2d31}
 .hx-dim-ext{stroke:var(--hx-muted);stroke-dasharray:3 4;opacity:.7}
 .hx-dim-line{stroke:var(--hx-paper-ink)}
 .hx-dim-head{fill:var(--hx-paper-ink)}
 .hx-dimtag{position:absolute;transform:translate(-50%,-50%);font-family:var(--hx-mono);font-size:12px;font-weight:600;line-height:1;padding:5px 8px;border-radius:6px;background:var(--hx-paper);color:var(--hx-paper-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* configurator */
-.hx-config{display:grid;grid-template-areas:"head" "art" "side";gap:clamp(20px,3vw,40px) clamp(20px,3vw,48px)}
+.hx-config{display:grid;grid-template-areas:"head" "art" "side" "dock";gap:clamp(20px,3vw,40px) clamp(20px,3vw,48px)}
 .hx-config-head{grid-area:head}
 .hx-config-head .hx-lede{margin-top:-4px}
 .hx-config-art{grid-area:art;display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -2320,6 +2529,22 @@ const HX_CSS = `
 .hx-part-price{font-family:var(--hx-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--hx-muted);padding-top:2px}
 .hx-part[aria-pressed="true"] .hx-part-price{color:var(--hx-ink)}
 .hx-note{min-height:1.5em;font-size:14px;color:var(--hx-muted)}
+.hx-totals-fleet{grid-template-columns:repeat(2,1fr);border-top:0;margin-top:-6px}
+.hx-qty{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 10px 10px 14px;border-radius:14px;background:var(--hx-card)}
+.hx-qty label{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.hx-qty-ctl{display:flex;align-items:center;gap:4px}
+.hx-qty-ctl button{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3);transition:box-shadow .2s ease,transform .16s var(--hx-ease)}
+.hx-qty-ctl button:hover:not(:disabled){box-shadow:inset 0 0 0 1.5px var(--hx-accent)}
+.hx-qty-ctl button:active:not(:disabled){transform:scale(.94)}
+.hx-qty-ctl button:disabled{opacity:.35;cursor:not-allowed}
+.hx-qty-ctl input{width:72px;height:44px;border:0;border-radius:12px;background:var(--hx-panel);text-align:center;font-family:var(--hx-display);font-weight:900;font-size:22px;font-variant-numeric:tabular-nums;appearance:textfield;-moz-appearance:textfield}
+.hx-qty-ctl input::-webkit-inner-spin-button,.hx-qty-ctl input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.hx-dock{grid-area:dock;position:sticky;bottom:12px;z-index:5;display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:14px;padding:6px 16px 6px 6px;border-radius:16px;background:var(--hx-card);box-shadow:0 18px 40px -14px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.1);transition:opacity .2s ease,transform .3s var(--hx-ease),visibility 0s}
+.hx-dock[data-show="false"]{opacity:0;transform:translateY(16px);visibility:hidden;transition:opacity .15s ease,transform .15s ease,visibility 0s linear .15s}
+.hx-dock-plate{grid-row:1/3;background:var(--hx-panel);border-radius:11px}
+.hx-dock-label{align-self:end;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--hx-muted)}
+.hx-dock-num{align-self:start;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-family:var(--hx-display);font-weight:900;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.hx-dock-num small{font-family:var(--hx-mono);font-weight:600;font-size:12px;color:var(--hx-muted)}
 .hx-config-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 
 /* specs */
@@ -2354,6 +2579,14 @@ const HX_CSS = `
 .hx-quote{display:flex;flex-direction:column;gap:20px;animation:hx-in .45s var(--hx-ease) both}
 .hx-quote p{font-family:var(--hx-display);font-weight:900;font-size:clamp(24px,3.4cqi,50px);line-height:1.04;letter-spacing:-.02em;text-transform:uppercase;text-indent:-.4em}
 .hx-quote figcaption{font-size:14px;color:var(--hx-muted);font-weight:600}
+.hx-rider-build{display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);gap:16px;align-items:center;padding-top:20px;border-top:1px solid var(--hx-line)}
+.hx-rider-plate{background:var(--hx-card);border-radius:14px}
+.hx-rider-parts{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.hx-rider-parts ul{display:flex;flex-wrap:wrap;gap:6px}
+.hx-rider-parts li{font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--hx-card);color:var(--hx-ink)}
+.hx-rider-parts li b{font-family:var(--hx-mono);font-weight:600;margin-right:6px;color:var(--hx-muted)}
+.hx-rider-parts .hx-link .hx-ico{transition:transform .25s var(--hx-ease)}
+.hx-rider-parts .hx-link:hover .hx-ico{transform:translateX(3px)}
 .hx-quote figcaption span{margin-left:10px;padding:4px 10px;border-radius:999px;background:var(--hx-card);color:var(--hx-ink);font-size:12px}
 
 /* reserve */
@@ -2385,7 +2618,12 @@ const HX_CSS = `
 .hx-check input:focus-visible + .hx-part-box{outline:2px solid var(--hx-accent);outline-offset:3px}
 .hx-fine{font-size:13px;color:var(--hx-muted)}
 .hx-done{gap:10px;animation:hx-in .45s var(--hx-ease) both}
-.hx-done-code{font-family:var(--hx-mono);font-size:clamp(28px,3cqi,40px);letter-spacing:.04em;color:var(--hx-accent);font-weight:700;line-height:1.1}
+.hx-done-sheet{position:relative;background:var(--hx-panel);border-radius:14px;margin-bottom:6px}
+.hx-done-code{position:absolute;left:14px;top:12px;font-family:var(--hx-mono);font-size:clamp(16px,1.8cqi,22px);letter-spacing:.06em;color:var(--hx-accent);font-weight:700;line-height:1;padding:6px 10px;border-radius:8px;box-shadow:inset 0 0 0 2px var(--hx-accent)}
+.hx-done-next{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.hx-done-next ol{border-top:1px solid var(--hx-line)}
+.hx-done-next li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--hx-line);font-size:14px;font-weight:700}
+.hx-done-next li span:last-child{font-family:var(--hx-mono);font-size:13px;font-weight:600;color:var(--hx-muted)}
 .hx-done p{color:var(--hx-muted)}
 .hx-done .hx-link{align-self:flex-start;margin-top:6px;color:var(--hx-ink)}
 
@@ -2459,6 +2697,13 @@ const HX_CSS = `
   .hx-foot-top{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
 }
 @container (min-width:1080px){
+  .hx-steps{position:relative;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:32px;border-top:0;padding-top:52px}
+  .hx-steps::before{content:"";position:absolute;left:0;right:10px;top:18px;height:1.5px;background:var(--hx-ink)}
+  .hx-steps::after{content:"";position:absolute;right:0;top:13px;border-left:12px solid var(--hx-ink);border-top:6px solid transparent;border-bottom:6px solid transparent}
+  .hx-step{position:relative;grid-template-columns:1fr;grid-template-areas:"n" "h" "p";gap:10px;align-items:start;padding:20px 0 0;border-bottom:0}
+  .hx-step::before{content:"";position:absolute;left:0;top:-41px;width:1.5px;height:30px;background:var(--hx-ink)}
+  .hx-step-time{position:absolute;left:12px;top:-50px;margin:0;padding:3px 8px;border-radius:6px;background:var(--hx-panel);text-align:left;font-size:12px}
+  .hx-step-n{font-size:64px}
   .hx-hero{--hx-pw:min(84%,1080px,max(560px,calc((var(--hx-h) - 380px) * 1.6667)));min-height:calc(var(--hx-h) - 72px)}
   .hx-hero-card{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);align-items:start;gap:40px}
   .hx-hero-side{flex-direction:column;align-items:stretch;justify-content:flex-start;padding-top:10px}
@@ -2466,6 +2711,7 @@ const HX_CSS = `
   .hx-spec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .hx-faq{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:start}
   .hx-config{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);grid-template-areas:"art head" "art side";grid-template-rows:auto 1fr;align-items:start}
+  .hx-dock{display:none}
   .hx-config-art{position:sticky;top:90px}
 }
 @container (max-width:719px){
@@ -2475,6 +2721,7 @@ const HX_CSS = `
 }
 
 @media (prefers-reduced-motion:reduce){
+  .hx-root .hx-tick-fill{animation:none !important}
   .hx-root *,.hx-root *::before,.hx-root *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;transition-delay:0ms !important;scroll-behavior:auto !important}
 }
 `
