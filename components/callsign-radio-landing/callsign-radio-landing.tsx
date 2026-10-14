@@ -1065,8 +1065,8 @@ const CR_CSS = `
 .cr-sec-h{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 40px;margin-bottom:clamp(28px,3.4vw,52px)}
 .cr-h2{font-size:clamp(36px,4.6vw,72px);line-height:1}
 .cr-sec-t{font-size:17px;line-height:1.5;color:var(--cr-muted);max-width:44ch}
-.cr-rv[data-armed]{opacity:0;transform:translateY(18px);transition:opacity .7s var(--cr-ease),transform .7s var(--cr-ease)}
-.cr-rv[data-armed][data-in]{opacity:1;transform:none}
+.cr-rv[data-armed]{opacity:0;transform:translateY(12px);filter:blur(3px);transition:opacity .5s var(--cr-ease),transform .5s var(--cr-ease),filter .5s var(--cr-ease)}
+.cr-rv[data-armed][data-in]{opacity:1;transform:none;filter:none}
 
 .cr-ways{border-top:1px solid var(--cr-line);border-bottom:1px solid var(--cr-line);padding:0 var(--cr-pad);display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 .cr-way{display:flex;flex-direction:column;gap:12px;padding:clamp(24px,3vw,40px) clamp(16px,2vw,28px) clamp(24px,3vw,40px) 0}
@@ -1078,7 +1078,7 @@ const CR_CSS = `
 .cr-res{position:relative}
 .cr-res-list{border-top:1px solid var(--cr-ink)}
 .cr-res-row{position:relative;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr) 44px;align-items:center;gap:20px;padding:22px 0;border-bottom:1px solid var(--cr-line)}
-.cr-res-t{font-size:clamp(30px,3vw,46px);transition:transform .35s var(--cr-ease),color .25s var(--cr-ease)}
+.cr-res-t{font-size:clamp(30px,3vw,46px);transition:transform .25s var(--cr-ease)}
 .cr-res-host{font-size:16px;font-weight:600}
 .cr-res-slot{font-size:13px;color:var(--cr-muted)}
 .cr-res-g{display:flex;flex-wrap:wrap;gap:6px}
@@ -1920,6 +1920,7 @@ export default function CallsignRadioLanding({
                     data-far={far ? "" : undefined}
                     aria-pressed={i === fi && sel >= 0}
                     aria-current={state === "now" ? "time" : undefined}
+                    aria-label={fmtMin(o.from) + ", " + sh.title + ", " + sh.host + (state === "now" ? ", on air now" : "")}
                     onClick={() => setSel(i === cur ? -1 : i)}
                   >
                     <span className="cr-slot-t cr-mono">{fmtMin(o.from)}</span>
@@ -1994,7 +1995,7 @@ export default function CallsignRadioLanding({
           <ul className="cr-res-list" onPointerMove={movePeek} onPointerLeave={() => setPeek(-1)}>
             {residentShows.map((s, i) => (
               <li key={s.id}>
-                <a className="cr-res-row" href={s.href || "#archive"} onClick={s.href ? undefined : go("#archive")} onPointerEnter={(e) => e.pointerType === "mouse" && setPeek(i)} onFocus={() => setPeek(-1)}>
+                <a className="cr-res-row" aria-label={s.title + ", " + s.host + (s.slot ? ", " + s.slot : "")} href={s.href || "#archive"} onClick={s.href ? undefined : go("#archive")} onPointerEnter={(e) => e.pointerType === "mouse" && setPeek(i)} onFocus={() => setPeek(-1)}>
                   <span className="cr-res-thumb" aria-hidden="true">
                     <Cover show={s} seed="thumb" image={s.image} label="" />
                   </span>
