@@ -8,8 +8,8 @@ show on air now. The right rail is today's schedule, ticking in the station's ow
 and clicking any row previews that show in the feature slot.
 
 Below the fold it keeps the same language: the ways to tune in set in the call sign's face, the
-residents as an index with their artwork following the pointer, an archive whose play buttons
-drive the same player, a support tuner you drag like a dial, and a footer whose wordmark is the
+residents as an index of riso thumbnails that slip out of register on hover, an archive whose art
+drives the same player, a support tuner you drag like a dial, and a footer whose wordmark is the
 meter again. A mini player docks to the bottom of the page while something is playing.
 
 - One file, React only. No fonts, images or network requests unless you pass them.

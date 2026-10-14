@@ -87,3 +87,32 @@ the phone dial's active label sat on a neighbour's diamond; hard-coded copy ("Ev
 SSR, and the overnight slot showed as on air before the clock resolved; one stats unit wrapped
 differently; the "bars" print was the weakest art and filled the hero; archive-card hover barely
 answered; the dock had no progress and no close.
+
+## Critic round 3 (new subagent, final round)
+
+Reading: the homepage of an independent radio station on the Verge's layout (vertical masthead,
+slash nav, timestamped rail with coloured dots, headline over the image), where the call sign
+is a hand-drawn stencil face that works as a two-channel level meter with the frequency as its
+red zone. Banned-looks gate passed (the mid-page order is close to the stock skeleton, saved by
+the face, the riso art and the meter carrying through).
+
+| u usability | a idea | b craft | c originality | d install-safety | e template | avg |
+|---|---|---|---|---|---|---|
+| 8 | 8 | 7 | 7 | 9 | 8 | 7.83 |
+
+Verdict: **REDO**. Nothing below 7; three rounds are spent, so the piece goes to
+`claude/review-callsign-radio-landing` for the owner.
+
+Fixed after round 3 (not re-scored): the frequency stays red (dimmed) while the meter runs,
+so a still frame never reads as broken; cover titles sit on a full-width paper band (no
+box-shaped notches in the art) and print in the darker of the two inks; the floating residents
+peek is gone, replaced by fixed riso thumbnails that tilt and slip out of register on hover,
+which also closes the table's empty columns; the nav's on-air pill hides while the hero player
+is in view; only the active tier is named on the dial at tablet and phone widths; the
+ways-to-listen strip is a 2 x 2 grid on phones; the mini player's progress is its own
+component and follows the audio's real position (or listening time, paused time excluded).
+
+Left for the owner: the mid-page sequence (stats strip, index, card grid, support) is still a
+familiar order; the ways-to-listen strip could become stations on a tuning scale; the
+generated prints share a circle-and-stripes vocabulary, so a station with photos should pass
+`image` for its shows; the audience is radio stations, podcast networks and broadcasters.
