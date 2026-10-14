@@ -48,6 +48,9 @@ export type Testimonial = {
   alt?: string
   /** CSS object-position for the portrait, e.g. "50% 30%". */
   focus?: string
+  /** Without a photo: a company logo URL for the plate, or a figure such as { value: "9 → 4", label: "days to close the month" }. */
+  logo?: string
+  stat?: { value: string; label: string }
 }
 
 export type CheckerQuiltTestimonialsProps = {
@@ -161,6 +164,14 @@ export function fitSize(lo: number, hi: number, fits: (n: number) => boolean): n
     else b = mid
   }
   return a
+}
+
+/** A width-based srcset for an images.unsplash.com URL; empty for any other host. */
+export function unsplashSrcSet(url: string): string {
+  if (!/^https:\/\/images\.unsplash\.com\//.test(url)) return ""
+  const base = url.replace(/([?&])w=\d+&?/, "$1").replace(/[?&]$/, "")
+  const sep = base.includes("?") ? "&" : "?"
+  return [600, 1200, 1800].map((w) => base + sep + "w=" + w + " " + w + "w").join(", ")
 }
 
 export function initials(name: string): string {
@@ -282,6 +293,10 @@ const css = `
 .cqt-photo[data-at="start"] { left: 0; }
 .cqt-photo[data-at="end"] { right: 0; }
 .cqt-plate { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cq-plate-ink); background: var(--cq-plate); }
+.cqt-stat { display: grid; justify-items: center; gap: 10px; padding: 24px; text-align: center; }
+.cqt-stat b { font-family: var(--cq-qf); font-weight: 400; font-size: clamp(48px, 7cqi, 112px); line-height: 1; letter-spacing: -0.03em; }
+.cqt-stat span { font-size: 15px; line-height: 1.35; max-width: 22ch; opacity: 0.85; }
+.cqt-logo { width: 46%; height: 34%; object-fit: contain; max-width: none; }
 .cqt-mono { font-family: var(--cq-qf); font-style: italic; font-size: clamp(72px, 12cqi, 190px); line-height: 1; letter-spacing: -0.04em; opacity: 0.9; user-select: none; }
 .cqt-img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; opacity: 0; transition: opacity 360ms ease; }
 .cqt-img[data-loaded="1"] { opacity: 1; }
@@ -297,13 +312,13 @@ const css = `
 
 .cqt-sweep { display: none; }
 
-.cqt-quote { position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; display: flex; flex-direction: column; justify-content: center; padding: clamp(48px, 5cqi, 88px) clamp(28px, 5cqi, 96px); }
+.cqt-quote { --cq-fs: 30px; position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: clamp(48px, 5cqi, 88px) clamp(28px, 5cqi, 96px); padding-left: max(clamp(28px, 5cqi, 96px), calc(var(--cq-fs) * 1.45 + 16px)); }
 .cqt-quote[data-at="start"] { left: 0; }
 .cqt-quote[data-at="end"] { right: 0; }
-.cqt-words { --cq-fs: 30px; position: relative; transition: opacity 160ms ease, transform 160ms ease; }
+.cqt-words { position: relative; max-width: 100%; transition: opacity 160ms ease, transform 160ms ease; }
 .cqt-row[data-phase="cover"] .cqt-words { opacity: 0; transform: translateY(-8px); transition-delay: calc(var(--cq-cover-ms) - 130ms + var(--cq-rd, 0ms)); }
 .cqt-quotebody { position: relative; }
-.cqt-mark { position: absolute; left: -0.6em; top: -0.06em; font-family: var(--cq-qf); font-size: calc(var(--cq-fs) * 2.4); line-height: 0.8; opacity: 0.3; pointer-events: none; user-select: none; }
+.cqt-mark { position: absolute; left: -0.6em; top: -0.06em; font-family: var(--cq-qf); font-size: calc(var(--cq-fs) * 2.4); line-height: 0.8; color: color-mix(in srgb, currentColor 32%, transparent); pointer-events: none; user-select: none; }
 .cqt-text { margin: 0; font-family: var(--cq-qf); font-weight: 400; font-size: var(--cq-fs); line-height: 1.13; letter-spacing: -0.018em; text-wrap: pretty; max-width: 27ch; hanging-punctuation: first; }
 .cqt-words[data-size="m"] .cqt-text { line-height: 1.15; max-width: 30ch; }
 .cqt-words[data-size="s"] .cqt-text { line-height: 1.18; max-width: 33ch; }
@@ -329,20 +344,22 @@ SCOPE .cqt-band { flex-direction: column; align-items: stretch; gap: 20px; }
 SCOPE .cqt-controls { width: 100%; }
 SCOPE .cqt-cta { flex: 1 0 100%; justify-content: center; margin: 0 0 6px; }
 SCOPE .cqt-count { margin: 0 auto 0 0; }
-SCOPE .cqt-quilt { height: var(--cq-hm); }
-SCOPE .cqt-photo { width: auto; left: 0; right: 0; top: 50%; bottom: 0; }
+SCOPE .cqt-quilt { height: var(--cq-hm); grid-template-rows: minmax(0, 1fr); }
+SCOPE .cqt-row:nth-child(n+2) { display: none; }
+SCOPE .cqt-photo, SCOPE .cqt-quote { width: auto; left: 0; right: 0; height: 50%; }
+SCOPE .cqt-photo[data-at="start"], SCOPE .cqt-quote[data-at="start"] { top: 0; bottom: auto; }
+SCOPE .cqt-photo[data-at="end"], SCOPE .cqt-quote[data-at="end"] { top: auto; bottom: 0; }
+SCOPE .cqt-quote { padding: 24px; align-items: stretch; }
 SCOPE .cqt-mono { font-size: clamp(72px, 26cqi, 150px); }
-SCOPE .cqt-row .cqt-field, SCOPE .cqt-row[data-phase] .cqt-field { clip-path: inset(-1px -1px 50% -1px); transition: background-color 300ms ease; }
-SCOPE .cqt-sweep { display: block; position: absolute; left: 0; right: 0; top: 50%; bottom: 0; z-index: 1; clip-path: inset(-1px -1px -1px 100%); }
+SCOPE .cqt-row[data-side="start"] .cqt-field, SCOPE .cqt-row[data-side="start"][data-phase] .cqt-field { clip-path: inset(-1px -1px 50% -1px); transition: background-color 300ms ease; }
+SCOPE .cqt-row[data-side="end"] .cqt-field, SCOPE .cqt-row[data-side="end"][data-phase] .cqt-field { clip-path: inset(50% -1px -1px -1px); transition: background-color 300ms ease; }
+SCOPE .cqt-sweep { display: block; position: absolute; inset: 0; z-index: 1; clip-path: inset(-1px -1px -1px 100%); }
 SCOPE .cqt-row[data-dir="prev"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); }
 SCOPE .cqt-row[data-phase="cover"] .cqt-sweep { clip-path: inset(-1px); transition: clip-path var(--cq-cover-ms) var(--cq-sweep), background-color 300ms ease; }
 SCOPE .cqt-row[data-phase="reveal"] .cqt-sweep { clip-path: inset(-1px 100% -1px -1px); transition: clip-path var(--cq-reveal-ms) var(--cq-ease), background-color 300ms ease; }
 SCOPE .cqt-row[data-phase="reveal"][data-dir="prev"] .cqt-sweep { clip-path: inset(-1px -1px -1px 100%); }
-SCOPE .cqt-quote { width: auto; left: 0; right: 0; top: 0; bottom: 50%; padding: 28px 24px; }
 SCOPE .cqt-text { max-width: none; }
 SCOPE .cqt-mark { position: static; display: block; height: 0.4em; margin: 0 0 0.12em -0.05em; }
-SCOPE .cqt-quilt { grid-template-rows: minmax(0, 1fr); }
-SCOPE .cqt-row:nth-child(n+2) { display: none; }
 `
 
 function stackedCss(scope: string, below: number): string {
@@ -358,7 +375,7 @@ const LOADED = new Set() as Set<string>
 
 const useIsoLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect
 
-function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
+function Portrait({ t, settle, eager }: { t: Testimonial; settle: boolean; eager: boolean }) {
   const cached = !!t.photo && LOADED.has(t.photo)
   const [loaded, setLoaded] = React.useState(cached)
   const [failed, setFailed] = React.useState(false)
@@ -373,8 +390,19 @@ function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
   const showInitials = !t.photo || failed
   return (
     <div className={settle ? "cqt-settle" : undefined} style={settle ? undefined : { position: "absolute", inset: 0 }}>
-      <div className="cqt-plate" aria-hidden="true">
-        {showInitials ? <span className="cqt-mono">{initials(t.name)}</span> : null}
+      <div className="cqt-plate" aria-hidden={t.stat ? undefined : true}>
+        {showInitials ? (
+          t.logo ? (
+            <img className="cqt-logo" src={t.logo} alt="" width={320} height={160} draggable={false} style={{ maxWidth: "none" }} />
+          ) : t.stat ? (
+            <p className="cqt-stat" style={{ margin: 0 }}>
+              <b>{t.stat.value}</b>
+              <span>{t.stat.label}</span>
+            </p>
+          ) : (
+            <span className="cqt-mono">{initials(t.name)}</span>
+          )
+        ) : null}
       </div>
       {t.photo && !failed ? (
         <img
@@ -385,7 +413,8 @@ function Portrait({ t, settle }: { t: Testimonial; settle: boolean }) {
           width={1200}
           height={1200}
           decoding="async"
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
+          srcSet={unsplashSrcSet(t.photo) || undefined}
           sizes="(max-width: 720px) 100vw, 50vw"
           draggable={false}
           data-loaded={loaded ? "1" : "0"}
@@ -412,6 +441,7 @@ function QuoteTile({
   delay,
   lead,
   contentKey,
+  onFitted,
 }: {
   t: Testimonial
   side: "start" | "end"
@@ -421,6 +451,7 @@ function QuoteTile({
   delay: number
   lead: number
   contentKey: string
+  onFitted: () => void
 }) {
   const figRef = React.useRef(null as HTMLElement | null)
   const wordsRef = React.useRef(null as HTMLDivElement | null)
@@ -436,13 +467,15 @@ function QuoteTile({
     if (availH <= 0 || availW <= 0) return
     const cap = narrow ? { l: 30, m: 27, s: 24 }[size] : { l: 50, m: 42, s: 35 }[size]
     const hi = Math.min(cap, availW / (narrow ? 11 : 12))
-    const set = (n: number) => words.style.setProperty("--cq-fs", n + "px")
+    const set = (n: number) => fig.style.setProperty("--cq-fs", n + "px")
     const best = fitSize(15, hi, (n) => {
       set(n)
       return words.offsetHeight <= availH
     })
     set(best)
-  }, [narrow, size])
+    fig.dataset.fit = String(best)
+    onFitted()
+  }, [narrow, size, onFitted])
 
   useIsoLayoutEffect(() => {
     fit()
@@ -501,8 +534,8 @@ export default function CheckerQuiltTestimonials({
   rows = 2,
   autoplay = 8000,
   defaultPage = 0,
-  height = "clamp(560px, 80svh, 960px)",
-  mobileHeight = "760px",
+  height = "clamp(560px, 76cqi, 1180px)",
+  mobileHeight = "min(700px, calc(100svh - 120px))",
   stackBelow = 720,
   quoteFont = '"Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif',
   uiFont = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif',
@@ -687,6 +720,21 @@ export default function CheckerQuiltTestimonials({
     "--cq-uf": uiFont,
   } as React.CSSProperties
 
+  // Every quote on a page shares one size: the smallest any visible tile can take.
+  const quiltRef = React.useRef(null as HTMLDivElement | null)
+  const syncSizes = React.useCallback(() => {
+    const q = quiltRef.current
+    if (!q) return
+    const figs = Array.from(q.querySelectorAll(".cqt-quote")) as HTMLElement[]
+    const shown = figs.filter((f) => f.offsetParent !== null && f.dataset.fit)
+    if (!shown.length) return
+    const min = Math.min(...shown.map((f) => Number(f.dataset.fit)))
+    shown.forEach((f) => f.style.setProperty("--cq-fs", min + "px"))
+  }, [])
+  useIsoLayoutEffect(() => {
+    syncSizes()
+  })
+
   const headingId = React.useId()
   const scope = '.cqt[data-cq="' + headingId + '"]'
 
@@ -754,6 +802,9 @@ export default function CheckerQuiltTestimonials({
       </div>
 
       <div
+        ref={(el) => {
+          quiltRef.current = el
+        }}
         className="cqt-quilt"
         role="group"
         tabIndex={0}
@@ -764,8 +815,8 @@ export default function CheckerQuiltTestimonials({
         onPointerCancel={() => (swipe.current = null)}
       >
         {current.map((t, row) => {
-          // On a narrow container the quote stays on top and the photo below; the sweep runs sideways.
-          const side = narrow ? "start" : fieldSide(page, row)
+          // On a narrow container the pair stacks; quote and photo still trade places each step, under a sideways sweep.
+          const side = fieldSide(page, row)
           const photoAt = side === "start" ? "end" : "start"
           const tone = fieldTone(page, row, perPage)
           const fill = tone === "a" ? "var(--cq-a)" : "var(--cq-b)"
@@ -784,7 +835,7 @@ export default function CheckerQuiltTestimonials({
               style={{ background: fill }}
             >
               <div className="cqt-photo" data-at={photoAt}>
-                <Portrait key={key} t={t} settle={step > 0 && !reduced} />
+                <Portrait key={key} t={t} settle={step > 0 && !reduced} eager={step === 0} />
               </div>
               <div className="cqt-field" aria-hidden="true" style={{ background: fill, transitionDelay: delay + "ms" }} />
               <div className="cqt-sweep" aria-hidden="true" style={{ background: fill }} />
@@ -797,6 +848,7 @@ export default function CheckerQuiltTestimonials({
                 delay={delay}
                 lead={tm.lead}
                 contentKey={key}
+                onFitted={syncSizes}
               />
             </div>
           )
