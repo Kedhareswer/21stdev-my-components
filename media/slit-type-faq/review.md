@@ -37,3 +37,34 @@ the wordmark footers, #5 is a niche job. Must-haves named by the gate: a readabl
 headline on frame one; a crisp clip-path flood with a duplicated inverted layer, not a colour
 fade; a real accessible accordion with deep links and search; presets with designed dark
 versions; a designed phone layout; and restraint (no help-centre dashboard, ticker optional).
+
+## Round 1 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea / reference feel | 6 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.0 |
+
+Findings and what changed:
+
+1. The headline lost the reference's sliced type at rest (the cut only existed mid-entrance).
+   Now the capitals rise into a hard slit and rest there, cut through (`slit`, 0.42 by default,
+   0 sets it whole); hovering the headline lifts them clear. Reduced motion keeps the cut.
+2. A real artifact: on desktop the hover pre-clip moved the ink ahead of the inverted text,
+   so letters vanished at the flood edge. The ink and the inverted copy now share every clip
+   state, and a test asserts it.
+3. The hover cue was a tab in the far margin and the text roll swapped identical text. Now the
+   square behind the + floods with ink (the flood in miniature) and the question nudges along.
+4. Focus ring hugged the glyphs: now drawn in the gutter, clear of the text and the +.
+5. Motion shortened: flood 400 ms in / 280 ms out, panel 360 / 240 ms.
+6. Ticker ends fade out with a mask; uppercase tracked +0.02em.
+7. Rules are 1px so they render crisp at 1x; the + and x are SVG strokes.
+8. Search shows an excerpt around a match found only in an answer; the mark no longer crowds
+   the next letter.
+9. `Arial Black` added before Arial so Windows keeps the headline's weight.
+10. Controlled `open`, `idPrefix` for two FAQs on one page, and `minHeight` now defaults to 0
+    (the section sizes to its questions).
