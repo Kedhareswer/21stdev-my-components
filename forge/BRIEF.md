@@ -236,7 +236,11 @@ the craft rules below.
      `git ls-remote --heads origin` that only one of the two is left; every recent run
      left both, which doubles the owner's review list).
    Every round's scores and verdict go in `media/<slug>/review.md`, committed with it.
-7. **Finish:** `npm run check` and `node tests/<slug>.test.mjs` must pass. Add the
+7. **Finish:** `npm run check` and `node tests/<slug>.test.mjs` must pass. Then run
+   `node -e "const s=require('fs').readFileSync(process.argv[1],'utf8');const h=s.slice(0,s.indexOf('</'));const m=h.match(/use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<|Map<|React\.[A-Za-z]+<|\[K in /g);if(m){console.error(m);process.exit(1)}" components/<slug>/<slug>.tsx`:
+   it must print nothing. Every recent piece failed it (`Partial<…>`, `Record<…>`, mapped types in
+   the props), and the 21st CLI hangs forever on them. Use `{ [k: string]: V }`, and declare any
+   `Partial<…>` / mapped alias at the END of the file, after the JSX. Add the
    tsconfig path line, the README and `media/<slug>/thumb.webp` (640×400 from a
    screenshot). Commit (end the message with `Co-Authored-By: Claude <noreply@anthropic.com>`)
    and push.

@@ -60,7 +60,7 @@ export type CheckerQuiltTestimonialsProps = {
   cta?: { label: string; href?: string; onClick?: (e: React.MouseEvent) => void }
   preset?: QuiltPreset
   /** Override any colour of the preset. */
-  palette?: Partial<QuiltPalette>
+  palette?: QuiltPaletteInput
   /** Rows of pairs on a wide container. Narrow containers always show one. */
   rows?: 1 | 2
   /** ms per step; 0 turns autoplay off. */
@@ -861,3 +861,6 @@ export default function CheckerQuiltTestimonials({
     </section>
   )
 }
+
+// Declared after the JSX: the 21st CLI tokenizer hangs on generics before it.
+export type QuiltPaletteInput = Partial<QuiltPalette>

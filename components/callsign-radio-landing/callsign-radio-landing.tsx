@@ -145,7 +145,7 @@ export type CallsignRadioLandingProps = {
   onSupport?: (amount: number, cadence: "monthly" | "once", tier: CrTier | null) => unknown
   onSubscribe?: (email: string) => unknown
   /** Interface strings ("On air now", "Listen back", "Give"...). Pass any subset. */
-  labels?: { [K in keyof CrLabels]?: string }
+  labels?: CrLabelsInput
   /** Hero height. A definite length, never a percentage. */
   height?: string
   className?: string
@@ -2522,3 +2522,6 @@ export default function CallsignRadioLanding({
     </div>
   )
 }
+
+// Declared after the JSX: the 21st CLI tokenizer hangs on generics before it.
+export type CrLabelsInput = { [K in keyof CrLabels]?: string }
