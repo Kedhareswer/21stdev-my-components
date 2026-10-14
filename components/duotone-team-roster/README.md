@@ -6,9 +6,10 @@ A "meet the people" section for an about page, a studio site or a careers page. 
 
 - One file. Its only dependency is React; no other packages, fonts or CSS files.
 - Below about 700px of container width the columns become one drifting strip above the headline. Tablets get two columns.
-- A **Pause** button stops the drift (WCAG 2.2.2). The drift also pauses on hover, on focus, while a card is open and while the section is off screen.
+- A **Pause** button (top-left corner, first in the tab order) stops the drift (WCAG 2.2.2). Or pass `drift={false}` for a still wall. The drift also pauses on hover, on focus, while a card is open and while the section is off screen.
 - Under reduced motion, the columns stay still in their staggered positions and the entrances are skipped.
-- Keyboard: Tab moves through the portraits, each one unfolds and slides fully into view, Enter jumps to its link and Escape folds it.
+- Each portrait is a disclosure button (`aria-expanded`). Keyboard: Tab moves through the portraits, each one unfolds and slides fully into view, Enter moves to its link and Escape folds it. Folded cards are hidden from screen readers.
+- The headline's widest line runs on into the first column, like a poster. While a first-column card is open, the headline eases back into its own column.
 - If a photo fails to load, a monogram plate in the palette takes its place.
 
 ## Usage
@@ -38,7 +39,7 @@ export default function About() {
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
-| `members` | `TeamMember[]` | ten demo people | `{ name, role, craft?, bio?, photo?, focus?, href?, linkLabel? }`. `craft` is the chip label (falls back to `role`). `focus` is the `object-position` of the portrait. |
+| `members` | `TeamMember[]` | ten demo people | `{ name, role, craft?, bio?, photo?, focus?, href?, linkLabel?, exposure? }`. `craft` is the chip label (falls back to `role`). `focus` is the `object-position` of the portrait. `exposure` (e.g. `1.2`) brightens one photo before the tritone. |
 | `openRoles` | `OpenRole[]` | `[]` | `{ title, href, craft?, note?, mark? }`. Each one becomes an empty frame among the portraits ("You?" plus the role title) that unfolds into a link to the job. |
 | `eyebrow` | `string` | `"Meet"` | Small display word above the headline. |
 | `title` | `string` | `"The\ncrew"` | `\n` breaks lines. The widest line is fitted to the column width. |
@@ -46,16 +47,18 @@ export default function About() {
 | `cta` | `{ label, href } \| null` | `Start a project` | Primary button. |
 | `secondaryCta` | `{ label, href } \| null` | `null` | Underlined text link, e.g. "See open roles". |
 | `preset` | `"ember" \| "cobalt" \| "moss" \| "mono"` | `"ember"` | Field, chips and tritone together. |
-| `palette` | `Partial<RosterPalette>` | | Override any of `ground, deep, hot, glow, ink, shadow, highlight`. `shadow → hot → highlight` is the tritone. |
+| `palette` | `Partial<RosterPalette>` | | Override any of `ground, deep, hot, glow, ink, shadow, highlight`, plus `mid`, the tritone midtone (defaults to a paler mix of `hot` and `highlight` so the prints lift off the field). |
 | `columns` | `number` | `3` | Columns on wide screens (2 to 4). |
-| `driftSeconds` | `number` | `9` | Seconds a column takes to drift past one portrait. |
+| `driftSeconds` | `number` | `9` | Seconds a column takes to drift past one portrait. `0` turns the drift off. |
+| `drift` | `boolean` | `true` | `false` gives a still, scannable wall: every person once, columns staggered, the section grows with the team and the headline stays pinned beside it (sticky). The cobalt demo uses it. |
 | `height` | `string` | `"100svh"` | Tablet and desktop height; min 600px. A definite length, never a percentage. Phones size to content. |
 | `fontFamily` | `string` | `"Arial Black", "Archivo Black", "Helvetica Neue", Inter, …` | The display face. Pass your brand's heavy grotesk if the page already loads one. |
 | `stretch` | `number` | `1.16` | Horizontal stretch of the display face, for the wide poster look. `1` turns it off. |
 | `uppercase` | `boolean` | `true` | |
 | `grain` | `boolean` | `true` | Static film grain over the field. |
+| `labels` | `Partial<RosterLabels>` | English | `pause, play, team, openRole, hiring, roleLink, memberLink`, for translation. |
 | `className` | `string` | | |
-| `onMemberSelect` | `(member) => void` | | Called when a portrait is clicked or opened with Enter. |
+| `onMemberSelect` | `(member) => void` | | Called when a portrait is clicked or opened with Enter. Without it, a mouse click follows the person's `href`. |
 
 ## Notes
 
