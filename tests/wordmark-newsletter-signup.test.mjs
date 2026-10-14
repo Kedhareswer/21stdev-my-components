@@ -38,33 +38,50 @@ assert.equal(m.partitions(["A", "B", "C", "D"], 3).length, 3)
 
 // Layout with a fake monospace face: 60 units per character at 100px, caps 72 units tall.
 const measure = (s) => s.length * 60
-const opts = { maxLines: 4, fill: 1.06, minRatio: 1.05, maxRatio: 1.75, gap: 0.16, padX: 20, padY: 20, mode: "fill", bandRatio: 1.6 }
-const wide = m.layoutWordmark("Big Sunday Sauce Co.", { w: 1440, h: 900 }, measure, 72, opts)
-assert.ok(wide.lines.length >= 2, "a wide box splits the name to fill the height")
+const opts = { maxLines: 2, mode: "fill", minRatio: 1, maxRatio: 1.35, gap: 0.16, padX: 20, padY: 20, crop: 0.14, balance: 0.15 }
+const wide = m.layoutWordmark("Big Sunday Sauce Co.", { w: 1440, h: 880 }, measure, 72, opts)
+assert.deepEqual(wide.lines.map((l) => l.text), ["BIG SUNDAY", "SAUCE CO."], "the name frames the card in two even lines")
 for (const l of wide.lines) {
   const w = measure(l.text) * l.sx
   assert.ok(w <= 1440 - 40 + 0.5, "every line fits inside the padding: " + l.text)
   assert.ok(Math.abs(l.x0 + w / 2 - 720) < 0.5, "every line is centred: " + l.text)
-  assert.ok(l.sy / l.sx >= 1.05 - 1e-9 && l.sy / l.sx <= 1.75 + 1e-9, "the stretch stays inside the condensed range")
+  assert.ok(l.sy / l.sx >= 1 - 1e-9 && l.sy / l.sx <= 1.35 + 1e-9, "the stretch stays where the type still looks drawn, not distorted")
 }
 const longest = Math.max(...wide.lines.map((l) => measure(l.text)))
 assert.ok(Math.abs(longest * wide.lines[0].sx - 1400) < 0.5, "the longest line spans the full width")
-const stackH = wide.lines.length * wide.cap + (wide.lines.length - 1) * wide.cap * 0.16
-assert.ok(stackH >= 900 * 0.9, "the stack fills the field like a sign, got " + stackH.toFixed(0))
-assert.equal(wide.height, 900)
-const ys = wide.lines.map((l) => l.y0)
-assert.ok(ys.every((y, i) => i === 0 || y > ys[i - 1]), "lines run top to bottom")
+assert.equal(wide.lines[0].y0, 20, "the first line sits on top")
+const lastBottom = wide.lines[1].y0 + wide.cap
+assert.ok(lastBottom > 880 - 20 && lastBottom < 880 + wide.cap * 0.2, "the last line drops just past the bottom edge, like a sign")
+assert.equal(wide.height, 880)
 assert.deepEqual(wide.lines[0].xs.slice(0, 3), [0, 60, 120], "glyphs sit at their kerned prefix")
+
+const welcome = m.layoutWordmark("Welcome in", { w: 1440, h: 900 }, measure, 72, opts)
+assert.deepEqual(welcome.lines.map((l) => l.text), ["WELCOME", "IN"], "a short last word takes the bottom line instead of leaving it empty")
+const uneven = m.layoutWordmark("Welcome in", { w: 1440, h: 900 }, measure, 72, { ...opts, balance: 0.45 })
+assert.equal(uneven.lines.length, 1, "splits less even than the balance are skipped")
 
 const fixed = m.layoutWordmark("Brine\nHouse", { w: 1440, h: 900 }, measure, 72, opts)
 assert.deepEqual(fixed.lines.map((l) => l.text), ["BRINE", "HOUSE"], "fixed lines are kept")
+const short = m.layoutWordmark("Hi", { w: 1440, h: 300 }, measure, 72, opts)
+assert.ok(short.cap <= 300 - 40 + 1e-6, "a word too tall for its box gives up stretch and size, never overflows")
 
-const band = m.layoutWordmark("Mustard Club", { w: 1440, h: 0 }, measure, 72, { ...opts, mode: "band", maxHeight: 340, padX: 0 })
+const bandOpts = { ...opts, mode: "band", maxLines: 4, balance: 0.45, padX: 10 }
+const band = m.layoutWordmark("Mustard Club", { w: 1440, h: 0 }, measure, 72, { ...bandOpts, maxHeight: 345 })
 assert.equal(band.lines.length, 1, "a band stays on one line while two would be too tall")
 assert.ok(Math.abs(band.height - (band.cap + 40)) < 0.5, "a band reports its own height")
-const phone = m.layoutWordmark("Big Sunday Sauce Co.", { w: 375, h: 0 }, measure, 72, { ...opts, mode: "band", bandRatio: 1.75, maxHeight: 406, padX: 12 })
+const bandPhone = m.layoutWordmark("Mustard Club", { w: 375, h: 0 }, measure, 72, { ...bandOpts, maxHeight: 220 })
+assert.equal(bandPhone.lines.length, 2, "a narrow band breaks the name for bigger capitals")
+const phone = m.layoutWordmark("Big Sunday Sauce Co.", { w: 375, h: 0 }, measure, 72, { ...bandOpts, balance: 0.25, padX: 12, maxHeight: 341 })
 assert.ok(phone.lines.length >= 3, "a phone stacks the name into short lines")
-assert.ok(phone.height - 40 <= 406 + 0.5, "the phone stack respects its height limit")
+assert.ok(phone.height - 40 <= 341 + 0.5, "the phone stack respects its height limit")
+const capped = m.layoutWordmark("Thank you", { w: 1440, h: 0 }, measure, 72, { ...bandOpts, maxHeight: 345, maxCap: band.cap })
+assert.ok(capped.cap <= band.cap + 1e-6, "a shorter swapped word never grows taller than the name")
+
+// The clip window leaves room for accents and Q tails, and letters travel clear of it.
+assert.ok(m.CLIP_TOP >= 0.3, "accents (CAFÉ, MÜNCHEN) are not clipped")
+assert.ok(m.CLIP_BOTTOM > 1 && m.CLIP_BOTTOM < 1 + 0.16, "below the baseline, but short of the next line")
+assert.ok(m.DROP >= 1 + m.CLIP_TOP && m.DROP >= m.CLIP_BOTTOM, "a moving letter clears the window both ways")
+assert.deepEqual(m.toLines(["Café"]), ["CAFÉ"])
 
 assert.deepEqual(m.letterOrder(["AB C", "DE"]), [[0, 1, -1, 2], [3, 4]], "letters stagger left to right, line by line, skipping spaces")
 
@@ -98,7 +115,7 @@ for (const rule of css.split("}")) {
 assert.ok(/prefers-reduced-motion: reduce/.test(css), "reduced motion is honoured")
 assert.ok(/max-width: none/.test(css), "images are guarded against Preflight max-width")
 assert.ok(!/\bh-full\b/.test(src), "no h-full anywhere")
-assert.ok(/height = "100svh"/.test(src), "the section defaults to a definite height")
+assert.ok(/height = "min\(100svh, 880px\)"/.test(src), "the section defaults to a definite height")
 assert.ok(!/from "\.\.?\//.test(src), "no local imports")
 const firstJsxClose = src.indexOf("</")
 assert.ok(!/(useState|useRef|useMemo|useCallback|createContext)</.test(src.slice(0, firstJsxClose)), "no generic calls before the first JSX close tag")
@@ -109,6 +126,9 @@ assert.ok(/type="email"/.test(src) && /autoComplete="email"/.test(src), "a real 
 assert.ok(/<label className="wns-field"/.test(src), "the email field has a real label")
 assert.ok(/aria-live="polite"/.test(src) && /aria-describedby/.test(src), "errors are announced and tied to the field")
 assert.ok(/aria-pressed=/.test(src), "topic chips are toggle buttons")
+assert.ok(/readOnly=\{status === "pending"\}/.test(src) && !/[^-]disabled=\{status/.test(src), "pending keeps focus: readOnly and aria-disabled, never disabled")
+assert.ok(/overflow-wrap: anywhere/.test(css) && !/break-all/.test(css), "addresses wrap whole")
+assert.ok(/pointer: coarse/.test(src), "touch screens are not handed a keyboard on open")
 assert.ok(/role="dialog"/.test(src) && /aria-modal="true"/.test(src), "the modal is a dialog")
 assert.ok(/e\.key === "Escape"/.test(src) && /e\.key !== "Tab"/.test(src), "Escape closes, Tab is trapped")
 assert.ok(/root\.style\.overflow = "hidden"/.test(src) && /prev\?\.focus/.test(src), "scroll lock and focus return")
