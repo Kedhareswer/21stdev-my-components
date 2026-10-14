@@ -29,6 +29,7 @@ export default function DuotoneTeamRosterCobaltDemo() {
           { title: "Solutions engineer", note: "Help fintechs go live, based in Lisbon", href: "#careers/solutions", craft: "Hiring" },
         ]}
         columns={3}
+        drift={false}
         stretch={1.08}
       />
     </div>

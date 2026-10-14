@@ -121,6 +121,9 @@ for (const k of ["pause", "play", "team", "openRole", "hiring", "roleLink", "mem
 assert.match(src, /className="dtr-hit"[\s\S]{0,200}aria-expanded=/, "portrait opens through a button with aria-expanded")
 assert.doesNotMatch(src, /<article/, "no focusable article")
 assert.doesNotMatch(src, /visibility: titleSize/, "first paint is never hidden")
+assert.match(src, /aria-hidden=\{on \? undefined : true\}/, "folded panels are hidden from assistive tech")
+assert.match(src, /const still = !drift \|\| !\(driftSeconds > 0\)/, "drift can be switched off, and 0 means still, not fast")
+assert.match(css, /\.dtr\[data-static\] \.dtr-track\{animation:none\}/, "the still wall does not move")
 
 // Only Unsplash is used as an image host; no web fonts.
 const hosts = new Set([...src.matchAll(/https:\/\/([a-z0-9.-]+)\//g)].map((x) => x[1]))

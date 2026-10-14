@@ -100,3 +100,40 @@ A hard-edged dark arc was added to the field. The keyboard nudge eases back on b
 moved into `labels`, a mouse click follows the person's link, the title has a CSS fallback size
 instead of `visibility: hidden`, the layout effect is isomorphic, and the phone strip has a 20px
 inset.
+
+### Round 2 (fresh critic): REDO, average 7.4
+
+Scores: usability 7, idea 8, craft 6, originality 7, install-safety 9 (templates N/A). Banned
+looks: passes.
+
+Changes asked for, most important first:
+
+1. The overhanging headline covers chips in the first column. Lift the wall above the type while
+   a card is open, and anchor first-column chips on the right.
+2. A mouse-hover panel can unfold out of sight at the frame edges.
+3. The open card still buries the face. Drop the repeated craft line, scale the photo less, and
+   do not clip or hide the bio.
+4. The tritone midtone is too saturated, so the portraits melt into the field. Use a paler mid
+   and give installers control of it.
+5. The drift cannot be turned off, and `driftSeconds={0}` makes it faster.
+6. Pause placement: it sits on a face on desktop and is an orphan row on phones.
+7. Accessibility: folded panels are still read aloud, and the strip has no group label.
+8. Safari risk: the SVG filter runs on many images inside animated tracks.
+
+All eight changes were made:
+
+- The first-column chips and panels are anchored on the right. While a first-column card is
+  open, the headline eases back into its own column (scaled to 0.84), so nothing slices the type.
+- On hover, a card near the bottom edge unfolds its panel from the top.
+- The repeated craft line is gone. The photo zooms to only 1.05, and the full bio shows (smaller
+  on narrow cards).
+- The tritone midtone is a paler mix of `hot` and `highlight`, and the highlight is pushed toward
+  `ink`. `palette.mid` is a new prop.
+- `drift={false}` (or `driftSeconds <= 0`) gives a still, scannable wall with a sticky headline.
+  The cobalt demo uses it.
+- Pause is a chip in the top-left corner and first in the tab order. On phones it sits at the
+  strip's top-right.
+- Folded panels are `aria-hidden` and `visibility: hidden`, and the strip is a labelled group.
+- Safari: the SVG filter was kept. The tracks are composited layers (`will-change: transform`), so
+  the filtered images rasterise once rather than every frame. The drift also pauses off screen and
+  on hover. Teams that want no motion cost at all can use `drift={false}`.

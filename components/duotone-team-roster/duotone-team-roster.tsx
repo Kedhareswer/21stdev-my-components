@@ -36,6 +36,8 @@ export type RosterPalette = {
   /** Tritone shadow and highlight applied to every portrait. */
   shadow: string
   highlight: string
+  /** Tritone midtone. Defaults to a paler mix of hot and highlight so prints lift off the field. */
+  mid?: string
 }
 
 export type TeamMember = {
@@ -113,6 +115,8 @@ export type DuotoneTeamRosterProps = {
   columns?: number
   /** Seconds a column takes to drift past one portrait. Lower is faster. */
   driftSeconds?: number
+  /** false (or driftSeconds <= 0) gives a still, scannable wall that grows with the team, headline pinned beside it. */
+  drift?: boolean
   /** Section height on tablet and desktop. A definite length, never a percentage. */
   height?: string
   /** Display face for the headline, eyebrow and monograms. */
@@ -293,8 +297,8 @@ const css = `
 .dtr-card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;box-shadow:0 2px 6px color-mix(in srgb,var(--dtr-ground) 40%,transparent),0 18px 44px -12px color-mix(in srgb,var(--dtr-ground) 85%,transparent);opacity:0;transition:opacity 260ms ease;pointer-events:none}
 .dtr-photo{position:absolute;inset:0;overflow:hidden;border-radius:3px;background:var(--dtr-deep);transition:opacity 260ms ease,filter 260ms ease}
 .dtr-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover;transition:transform 300ms var(--dtr-ease)}
-.dtr-photo img{transform-origin:50% 0}
-.dtr-card[data-on] .dtr-photo img{transform:translateY(-10%) scale(1.12)}
+.dtr-photo img{transform-origin:50% 22%}
+.dtr-card[data-on] .dtr-photo img{transform:scale(1.05)}
 .dtr-hit{position:absolute;inset:0;z-index:1;margin:0;padding:0;border:0;border-radius:3px;background:transparent;cursor:default;outline:none;-webkit-tap-highlight-color:transparent}
 .dtr-card[data-click] .dtr-hit{cursor:pointer}
 .dtr-hit:focus-visible{box-shadow:0 0 0 2px var(--dtr-ground),0 0 0 4px var(--dtr-ink)}
@@ -305,23 +309,29 @@ const css = `
 .dtr-plate{grid-template-rows:1fr auto 1fr}.dtr-plate span{grid-row:2}
 .dtr-plate em{transition:opacity 160ms ease;grid-row:3;align-self:start;margin-top:.9em;max-width:80%;font:700 12px/1.35 ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;font-style:normal;text-align:center;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
 .dtr-role .dtr-plate{background:repeating-linear-gradient(135deg,transparent 0 10px,color-mix(in srgb,var(--dtr-ink) 9%,transparent) 10px 11px),radial-gradient(90% 70% at 50% 30%,color-mix(in srgb,var(--dtr-hot) 70%,var(--dtr-deep)),var(--dtr-ground) 85%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 28%,transparent);font-size:clamp(34px,5.2cqw,76px)}
+.dtr-card{--dtr-ct:calc(100% - 26px);--dtr-cr:calc(100% - var(--dtr-cw));--dtr-cb:0px;--dtr-cl:0px}
 .dtr-chip,.dtr-panel{position:absolute;left:12px;bottom:12px;background:color-mix(in srgb,var(--dtr-ground) 95%,transparent);color:var(--dtr-ink);border-radius:3px}
 .dtr-chip{padding:8px 10px 7px;font-size:11px;font-weight:700;line-height:1;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;transition:opacity 160ms ease}
-.dtr-panel{z-index:2;right:12px;max-height:calc(100% - 24px);overflow:hidden;padding:11px 13px 12px;clip-path:inset(calc(100% - 26px) calc(100% - var(--dtr-cw)) 0 0 round 3px);opacity:0;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms;pointer-events:none}
-.dtr-panel-craft{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--dtr-ink) 70%,transparent);margin-bottom:6px}
+.dtr-panel{z-index:2;right:12px;max-height:calc(100% - 24px);overflow:hidden;padding:10px 12px 11px;clip-path:inset(var(--dtr-ct) var(--dtr-cr) var(--dtr-cb) var(--dtr-cl) round 3px);opacity:0;visibility:hidden;transition:clip-path 200ms var(--dtr-ease),opacity 100ms ease 120ms,visibility 0s linear 220ms;pointer-events:none}
+.dtr-col:first-child .dtr-chip{left:auto;right:12px}
+.dtr-col:first-child .dtr-card{--dtr-cr:0px;--dtr-cl:calc(100% - var(--dtr-cw))}
+.dtr-card[data-flip] .dtr-panel{bottom:auto;top:12px}
+.dtr-card[data-flip]{--dtr-ct:0px;--dtr-cb:calc(100% - 26px)}
 .dtr-name{margin:0;font-size:clamp(16px,1.25cqw,19px);font-weight:800;line-height:1.15;letter-spacing:-.01em}
 .dtr-roleline{margin:3px 0 0;font-size:13px;line-height:1.35;color:color-mix(in srgb,var(--dtr-ink) 78%,transparent)}
-.dtr-bio{margin:6px 0 0;font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
+.dtr-bio{margin:6px 0 0;font-size:13px;line-height:1.4;color:color-mix(in srgb,var(--dtr-ink) 90%,transparent)}
 .dtr-panel a{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--dtr-ink);font-size:13px;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;outline:none}
 .dtr-panel a span{display:inline-block;transition:transform 260ms var(--dtr-ease)}
 .dtr-card[data-on]{z-index:3;transform:translateY(-6px) scale(1.02)}
 .dtr-card[data-on]::after{opacity:1}
 .dtr-card[data-on] .dtr-true{opacity:1}
 .dtr-card[data-on] .dtr-chip,.dtr-card[data-on] .dtr-plate em{opacity:0;transition-duration:90ms}
-.dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;pointer-events:auto;transition:clip-path 300ms var(--dtr-ease),opacity 60ms ease}
+.dtr-card[data-on] .dtr-panel{clip-path:inset(0 0 0 0 round 3px);opacity:1;visibility:visible;pointer-events:auto;transition:clip-path 300ms var(--dtr-ease),opacity 60ms ease,visibility 0s}
+.dtr-title{transform-origin:0 100%;transition:transform 300ms var(--dtr-ease)}
+.dtr[data-active-col="0"] .dtr-title{transform:scale(.84)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-photo{opacity:.42;filter:saturate(.7)}
 .dtr[data-active] .dtr-card:not([data-on]) .dtr-chip{opacity:.5}
-.dtr-pause{position:absolute;right:var(--dtr-pad);bottom:16px;z-index:4;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
+.dtr-pause{position:absolute;left:var(--dtr-pad);top:var(--dtr-pad);z-index:4;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dtr-ink) 32%,transparent);display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:0;border-radius:3px;background:color-mix(in srgb,var(--dtr-ground) 88%,transparent);color:var(--dtr-ink);font:700 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform 160ms var(--dtr-ease),background-color 200ms ease;outline:none}
 .dtr-pause:active{transform:scale(.96)}
 .dtr-pause i{display:inline-block;width:8px;height:9px;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .dtr[data-paused] .dtr-pause i{border-right:0;border-left:8px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;width:0;height:0}
@@ -332,8 +342,19 @@ const css = `
 .dtr-strip-track{display:flex;width:max-content;padding-left:20px;will-change:transform;transition:translate 280ms var(--dtr-ease);animation:dtr-left var(--dtr-sdur) linear infinite}
 .dtr-strip .dtr-card{width:clamp(170px,56cqw,250px);margin:0 10px 0 0;flex:none}
 .dtr[data-mode="strip"] .dtr-copy{padding:18px 20px 28px}
-.dtr[data-mode="strip"] .dtr-pause{position:relative;right:auto;bottom:auto;display:flex;width:max-content;margin:12px 20px 0 auto}
-@container dtrcard (max-width:229px){.dtr-bio{display:none}}
+.dtr[data-mode="strip"] .dtr-pause{left:auto;right:28px;top:30px}
+.dtr[data-static] .dtr-track{animation:none}
+.dtr[data-static] .dtr-wall{height:auto;padding-top:var(--dtr-pad);padding-bottom:var(--dtr-pad);-webkit-mask-image:none;mask-image:none}
+.dtr[data-static] .dtr-col:nth-child(2){padding-top:clamp(32px,6cqw,96px)}
+.dtr[data-static] .dtr-col:nth-child(3){padding-top:clamp(16px,3cqw,48px)}
+.dtr[data-static] .dtr-col:nth-child(4){padding-top:clamp(48px,8cqw,128px)}
+.dtr[data-static] .dtr-in{height:auto;align-items:start}
+.dtr[data-static] .dtr-copy{position:sticky;top:0;height:var(--dtr-h);min-height:600px}
+.dtr[data-static][data-mode="strip"] .dtr-copy{position:relative;height:auto;min-height:0}
+.dtr[data-static] .dtr-strip{overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.dtr[data-static] .dtr-strip-track{animation:none;padding-right:20px}
+.dtr[data-static] .dtr-strip .dtr-card{scroll-snap-align:start}
+@container dtrcard (max-width:229px){.dtr-bio{font-size:12px;line-height:1.35}.dtr-panel{padding:9px 10px 10px}.dtr-name{font-size:15px}}
 @keyframes dtr-up{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-50%,0)}}
 @keyframes dtr-down{from{transform:translate3d(0,-50%,0)}to{transform:translate3d(0,0,0)}}
 @keyframes dtr-left{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(-50% + 10px),0,0)}}
@@ -353,6 +374,7 @@ const css = `
 .dtr-col,.dtr-line>span>span{animation:none}
 .dtr-card,.dtr-panel,.dtr-cta-label>span,.dtr-cta-arrow{transition-duration:1ms}
 .dtr-card[data-on],.dtr-card[data-on] .dtr-photo img{transform:none}
+.dtr-title{transition-duration:1ms}
 .dtr-pause{display:none}
 }
 `
@@ -403,6 +425,7 @@ function Portrait(props: {
 }) {
   const { slot, on, filterId, labels, onEnter, onLeave, onToggle, onSelect } = props
   const [failed, setFailed] = React.useState(false)
+  const [flip, setFlip] = React.useState(false)
   const pointer = React.useRef("mouse")
   const panelId = "p" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const hidden = slot.dup
@@ -428,13 +451,23 @@ function Portrait(props: {
       className={"dtr-card" + (isRole ? " dtr-role" : "")}
       data-on={on ? "" : undefined}
       data-click={clickable ? "" : undefined}
+      data-flip={flip ? "" : undefined}
       aria-hidden={hidden ? true : undefined}
       style={{ ["--dtr-cw" as any]: Math.min(26, craft.length) * 0.74 + 2.2 + "em" }}
       onPointerDown={(e) => {
         pointer.current = e.pointerType
       }}
       onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") onEnter(slot.key)
+        if (e.pointerType !== "mouse") return
+        // Near the bottom edge of the frame the card unfolds from its top instead.
+        const card = e.currentTarget
+        const frame = card.closest(".dtr-wall, .dtr-strip") as HTMLElement | null
+        if (frame) {
+          const r = card.getBoundingClientRect()
+          const f = frame.getBoundingClientRect()
+          setFlip(r.bottom > f.bottom - 48 && r.top > f.top + 24)
+        }
+        onEnter(slot.key)
       }}
       onPointerLeave={(e) => {
         if (e.pointerType === "mouse") onLeave(slot.key)
@@ -526,6 +559,7 @@ function Portrait(props: {
       <div
         className="dtr-panel"
         id={panelId}
+        aria-hidden={on ? undefined : true}
         onKeyDown={(e) => {
           if (e.key !== "Escape") return
           const btn = e.currentTarget.parentElement?.querySelector(".dtr-hit") as HTMLElement | null
@@ -533,9 +567,6 @@ function Portrait(props: {
           onLeave(slot.key)
         }}
       >
-        <span className="dtr-panel-craft" aria-hidden="true">
-          {craft}
-        </span>
         <p className="dtr-name">{member ? member.name : role ? role.title : ""}</p>
         {member || (role && role.note) ? <p className="dtr-roleline">{member ? member.role : role ? role.note : ""}</p> : null}
         {member && member.bio ? <p className="dtr-bio">{member.bio}</p> : null}
@@ -561,6 +592,7 @@ export default function DuotoneTeamRoster({
   palette,
   columns = 3,
   driftSeconds = 9,
+  drift = true,
   height = "100svh",
   fontFamily = DISPLAY_STACK,
   stretch = 1.16,
@@ -587,11 +619,14 @@ export default function DuotoneTeamRoster({
 
   const lines = splitLines(title)
   // The shadow end is lifted toward the field so dark skin and dark clothes keep their detail.
-  const tables = tritoneTables(mixHex(pal.shadow, pal.deep, 0.4), pal.hot, pal.highlight)
+  const mid = (palette && palette.mid) || mixHex(pal.hot, pal.highlight, 0.35)
+  const tables = tritoneTables(mixHex(pal.shadow, pal.deep, 0.4), mid, mixHex(pal.highlight, pal.ink, 0.5))
+  const still = !drift || !(driftSeconds > 0)
+  const copies = still ? [0] : [0, 1]
   const [minPer, setMinPer] = React.useState(4)
   const plan = React.useMemo(
-    () => dealColumns(members.length, openRoles.length, cols || 1, cols ? minPer : 0),
-    [members.length, openRoles.length, cols, minPer],
+    () => dealColumns(members.length, openRoles.length, cols || 1, cols && !still ? minPer : 0),
+    [members.length, openRoles.length, cols, minPer, still],
   )
 
   const slotFor = (e: { kind: string; index: number; dup: boolean }, prefix: string): Slot =>
@@ -679,9 +714,10 @@ export default function DuotoneTeamRoster({
     ["--dtr-case" as any]: uppercase ? "uppercase" : "none",
     ["--dtr-cols" as any]: String(cols || 1),
     ["--dtr-ts" as any]: titleSize ? titleSize + "px" : undefined,
-    ["--dtr-sdur" as any]: Math.max(8, (members.length + openRoles.length) * driftSeconds * 0.55) + "s",
-    height: cols === 0 ? "auto" : height,
-    minHeight: cols === 0 ? undefined : "600px",
+    ["--dtr-sdur" as any]: Math.max(8, (members.length + openRoles.length) * Math.max(1, driftSeconds) * 0.55) + "s",
+    ["--dtr-h" as any]: height,
+    height: cols === 0 || still ? "auto" : height,
+    minHeight: cols === 0 ? undefined : still ? height : "600px",
   } as React.CSSProperties
 
   const pauseButton = (
@@ -706,7 +742,9 @@ export default function DuotoneTeamRoster({
       aria-labelledby={titleId}
       data-mode={cols === 0 ? "strip" : "columns"}
       data-active={active ? "" : undefined}
+      data-active-col={active && cols !== 0 ? active.split("-")[0] : undefined}
       data-paused={paused ? "" : undefined}
+      data-static={still ? "" : undefined}
       data-offscreen={offscreen ? "" : undefined}
     >
       <style>{css}</style>
@@ -727,6 +765,7 @@ export default function DuotoneTeamRoster({
       </svg>
       <div className="dtr-field" aria-hidden="true" />
       {grain ? <div className="dtr-grain" aria-hidden="true" /> : null}
+      {cols !== 0 && !still ? pauseButton : null}
 
       <div className="dtr-in">
         <div className="dtr-copy" ref={copyRef}>
@@ -765,9 +804,9 @@ export default function DuotoneTeamRoster({
         </div>
 
         {cols === 0 ? (
-          <div className="dtr-strip">
+          <div className="dtr-strip" role="group" aria-label={text.team}>
             <div className="dtr-strip-track">
-              {[0, 1].map((copy) =>
+              {copies.map((copy) =>
                 plan[0].map((e, i) => {
                   const slot = slotFor({ ...e, dup: e.dup || copy === 1 }, "s" + copy + "-" + i)
                   return (
@@ -786,12 +825,12 @@ export default function DuotoneTeamRoster({
                 }),
               )}
             </div>
-            {pauseButton}
+            {still ? null : pauseButton}
           </div>
         ) : (
           <div className="dtr-wall" role="group" aria-label={text.team}>
             {plan.map((col, c) => {
-              const dur = Math.max(6, col.length * driftSeconds)
+              const dur = Math.max(6, col.length * Math.max(1, driftSeconds))
               const phase = phases[c % phases.length]
               return (
                 <div
@@ -806,7 +845,7 @@ export default function DuotoneTeamRoster({
                   }}
                 >
                   <div className="dtr-track">
-                    {[0, 1].map((copy) =>
+                    {copies.map((copy) =>
                       col.map((e, i) => {
                         const slot = slotFor({ ...e, dup: e.dup || copy === 1 }, c + "-" + copy + "-" + i)
                         return (
@@ -829,7 +868,6 @@ export default function DuotoneTeamRoster({
                 </div>
               )
             })}
-            {pauseButton}
           </div>
         )}
       </div>
