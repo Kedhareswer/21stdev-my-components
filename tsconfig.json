@@ -15,6 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/slit-type-faq": ["./components/slit-type-faq/slit-type-faq.tsx"],
+      "@/components/ui/seam-history-timeline": ["./components/seam-history-timeline/seam-history-timeline.tsx"],
       "@/components/ui/plumb-payroll-template": ["./components/plumb-payroll-template/plumb-payroll-template.tsx"],
       "@/components/ui/long-exposure-agency-template": ["./components/long-exposure-agency-template/long-exposure-agency-template.tsx"],
       "@/components/ui/maroon-fintech-landing": ["./components/maroon-fintech-landing/maroon-fintech-landing.tsx"],
