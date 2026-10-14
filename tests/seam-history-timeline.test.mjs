@@ -47,6 +47,16 @@ assert.equal(m.trackShift(5.2, 700, 3000, 6), 3140, "keeps following past the la
 assert.equal(m.trackShift(-0.1, 700, 3000, 6), -70, "rubber band before the first")
 assert.equal(m.trackShift(3, 700, 0, 6), 0, "a strip that fits never moves")
 
+assert.equal(m.trackShift(0, 700, 5000, 6, 40), 0, "index 0 is not inset")
+assert.equal(m.trackShift(2, 700, 5000, 6, 40), 1440, "later indices also move by the seam inset")
+assert.equal(m.trackShift(0.5, 700, 5000, 6, 40), 370, "the inset eases in over the first step")
+
+// Passed cards: fully there at the edge, gone once well past it.
+assert.equal(m.passedOpacity(0, 700), 1)
+assert.equal(m.passedOpacity(-100, 700), 1)
+assert.equal(m.passedOpacity(-700, 700), 0)
+assert.ok(m.passedOpacity(-300, 700) > 0 && m.passedOpacity(-300, 700) < 1)
+
 // Rubber band: grows, but never past its limit.
 assert.equal(m.rubber(0, 0.35), 0)
 assert.ok(m.rubber(0.2, 0.35) < 0.2)
@@ -110,6 +120,8 @@ for (const rule of css.split("}")) {
   }
 }
 assert.ok(/\.sht__photo img\{[^}]*max-width:none/.test(css), "Preflight img max-width guard")
+assert.ok(/objectPosition: m\.imagePosition/.test(src), "imagePosition reaches the photo")
+assert.ok(/failed\[m\.image\]/.test(src), "image failures are keyed by URL")
 assert.ok(/width=\{geo\.cw/.test(src) && /height=\{geo\.ph/.test(src), "images carry explicit width and height")
 assert.ok(/draggable=\{false\}/.test(src), "images are not native-draggable")
 

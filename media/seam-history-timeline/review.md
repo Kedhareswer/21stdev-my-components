@@ -38,3 +38,23 @@ clean neck), haze that reads as "not yet" (wash toward the field, no blur, no sc
 clip-path seams that survive 375 px, a confident field colour rather than pale blue-white,
 and full usability (drag with momentum, horizontal-only wheel, keys, buttons, live region,
 onChange / startIndex, a second demo with another company in graphite).
+
+## Round 1 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 8 |
+| (a) idea | 7 |
+| (b) craft | 6 |
+| (c) originality | 7 |
+| (d) install-safety | 9 |
+
+Average 7.4, craft under 7. Ranked changes: (1) passed cards left text fragments at the left
+edge (a 93% veil still let 7% through): fade passed cards out completely; (2) the focused
+card's text column moved between index 0 and later indices: shift by the seam inset so it
+always lines up with the heading; (3) graphite had no real light version; (4) two-year
+milestones read as two separate chips on the rail at rest; (5) chip outlines showed from under
+the moving pill; (6) the strip's focus ring was a big rectangle cutting through cards; (7) at
+the end of the strip the passed card carried the "not yet" haze; (8) the fallback numeral
+clipped on phones; (9) add `imagePosition`, key image failures by URL, document keys; (10)
+optional: a clearer hover answer on hazed cards.

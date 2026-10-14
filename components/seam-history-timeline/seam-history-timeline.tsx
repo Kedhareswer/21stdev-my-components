@@ -56,6 +56,8 @@ export type Milestone = {
   image?: string
   /** Describe the photo. Empty string marks it decorative. */
   alt?: string
+  /** CSS object-position for the photo, e.g. "50% 30%", to keep its subject in the crop. */
+  imagePosition?: string
   /** Optional link under the text, e.g. a case study. */
   href?: string
   linkLabel?: string
@@ -104,7 +106,7 @@ export const PRESETS = {
     dark: { field: "#131910", onField: "#ecf0e4", mutedOnField: "#a5af96", card: "#1d2519", ink: "#eef2e6", muted: "#abb59d", pill: "#ecf0e4", onPill: "#131910", wash: "#131910" },
   },
   graphite: {
-    light: { field: "#1f2226", onField: "#f2f3f4", mutedOnField: "#a8aeb5", card: "#2b2f34", ink: "#f0f2f4", muted: "#b3b9c0", pill: "#f0f2f4", onPill: "#16181b", wash: "#1f2226" },
+    light: { field: "#e4e5e7", onField: "#141619", mutedOnField: "#4c5259", card: "#ffffff", ink: "#141619", muted: "#50565d", pill: "#141619", onPill: "#f4f5f6", wash: "#eceef0" },
     dark: { field: "#111315", onField: "#eceef0", mutedOnField: "#9aa1a8", card: "#1c1f23", ink: "#eceef0", muted: "#a7adb4", pill: "#eceef0", onPill: "#111315", wash: "#111315" },
   },
   signal: {
@@ -143,9 +145,15 @@ export function focusAt(pos: number, i: number): number {
  * but never further than `maxShift` (the last card flush with the container).
  * Past the last milestone it keeps following, so the rubber band still reads.
  */
-export function trackShift(pos: number, step: number, maxShift: number, n: number): number {
-  if (pos > n - 1) return Math.min((n - 1) * step, maxShift) + (pos - (n - 1)) * step
-  return Math.min(pos * step, maxShift)
+export function trackShift(pos: number, step: number, maxShift: number, n: number, inset = 0): number {
+  const lean = inset * Math.max(0, Math.min(1, pos))
+  if (pos > n - 1) return Math.min((n - 1) * step + lean, maxShift) + (pos - (n - 1)) * step
+  return Math.min(pos * step + lean, maxShift)
+}
+
+/** Opacity of a card whose left edge is `x` px from the container's left: gone once well past it. */
+export function passedOpacity(x: number, step: number): number {
+  return 1 - Math.max(0, Math.min(1, (-x - step * 0.25) / (step * 0.35)))
 }
 
 /** Past an end the strip follows the pointer with growing resistance. */
@@ -291,22 +299,24 @@ const STYLES = `
 .sht__btn:not([disabled]):active{transform:scale(.96)}
 .sht__btn[disabled]{cursor:default;background:transparent;color:var(--muted-on-field);box-shadow:inset 0 0 0 1.5px currentColor;opacity:.55}
 .sht__btn:focus-visible,.sht__slot:focus-visible,.sht__link:focus-visible,.sht__viewport:focus-visible{outline:2px solid var(--on-field);outline-offset:3px}
-.sht__viewport:focus-visible{outline-offset:8px;border-radius:20px}
+@supports selector(:has(a)){.sht__viewport:focus-visible{outline:none}.sht:has(.sht__viewport:focus-visible) .sht__slot[aria-current]{outline:2px solid var(--on-field);outline-offset:4px}.sht:has(.sht__viewport:focus-visible) .sht__card[data-active=true] .sht__title{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}}
 @media (hover:hover){.sht__btn:not([disabled]):hover [data-dir=next]{transform:translateX(3px)}.sht__btn:not([disabled]):hover [data-dir=prev]{transform:translateX(-3px)}}
-.sht__rail{position:relative;margin-top:clamp(40px,5vw,64px);overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.sht__rail{position:relative;margin:clamp(34px,5vw,58px) -10px 0;padding:4px 10px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .sht__rail::-webkit-scrollbar{display:none}
 .sht__rail[data-scroll=true]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent)}
 .sht__railin{position:relative;display:flex;justify-content:space-between;gap:28px;min-width:max-content;width:100%;padding:6px 0}
 .sht__axis{position:absolute;z-index:-1;left:0;right:0;top:50%;height:1px;background:var(--muted-on-field);opacity:.45;pointer-events:none}
-.sht__slot{all:unset;position:static;display:inline-flex;gap:6px;cursor:pointer;border-radius:999px}
-.sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) 70%,transparent);font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:box-shadow .16s ease,transform .16s var(--ease)}
+.sht__slot{all:unset;position:static;display:inline-flex;gap:2px;cursor:pointer;border-radius:999px;background:var(--field);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--muted-on-field) 70%,transparent);transition:box-shadow .16s ease}
+.sht__slot[aria-current],.sht__slot[data-covered=true]{box-shadow:none}
+.sht__chip{display:inline-grid;place-items:center;height:36px;padding:0 16px;border-radius:999px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-field);white-space:nowrap;transition:transform .16s var(--ease)}
 .sht__slot:active .sht__chip{transform:scale(.96)}
-@media (hover:hover){.sht__slot:hover .sht__chip{box-shadow:inset 0 0 0 1.5px var(--on-field)}}
+@media (hover:hover){.sht__slot:not([aria-current]):hover{box-shadow:inset 0 0 0 1.5px var(--on-field)}}
 .sht__goo{position:absolute;inset:0;pointer-events:none}
 .sht__blob{position:absolute;top:6px;left:0;height:36px;border-radius:999px;background:var(--pill);will-change:transform,width}
 .sht__neck{position:absolute;left:0;top:24px;height:0;background:var(--pill);will-change:transform,width}
 .sht__lit{position:absolute;inset:0;display:flex;justify-content:space-between;gap:28px;padding:6px 0;pointer-events:none;will-change:clip-path}
-.sht__lit .sht__chip{background:transparent;box-shadow:none;color:var(--on-pill)}
+.sht__lit .sht__slot{background:transparent;box-shadow:none}
+.sht__lit .sht__chip{color:var(--on-pill)}
 .sht__viewport{position:relative;margin-top:clamp(20px,2.4vw,32px);touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
 .sht__viewport[data-dragging=true]{cursor:grabbing}
 .sht__track{display:flex;align-items:stretch;will-change:transform}
@@ -315,9 +325,9 @@ const STYLES = `
 .sht__photo{position:relative;height:var(--ph);overflow:hidden;background:color-mix(in oklab,var(--field) 80%,var(--card))}
 .sht__photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;-webkit-user-drag:none}
 .sht__plate{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 0 0 var(--padl);overflow:hidden;background:color-mix(in oklab,var(--field) 86%,var(--on-field))}
-.sht__plate span{font-family:var(--display-font);font-weight:700;font-size:calc(var(--ph) * .62);line-height:.74;letter-spacing:-.06em;color:color-mix(in oklab,var(--field) 62%,var(--on-field));white-space:nowrap;transform:translateY(.02em)}
+.sht__plate span{font-family:var(--display-font);font-weight:700;font-size:min(calc(var(--ph) * .62),calc(var(--cw) * .22));line-height:.74;letter-spacing:-.06em;color:color-mix(in oklab,var(--field) 62%,var(--on-field));white-space:nowrap;transform:translateY(.02em)}
 .sht__wash{position:absolute;inset:0;background:var(--wash);pointer-events:none}
-.sht__veil{position:absolute;inset:0;z-index:2;background:var(--field);opacity:0;pointer-events:none}
+.sht__past{position:absolute;inset:0;background:var(--field);opacity:0;pointer-events:none}
 .sht__pills{position:absolute;top:22px;left:var(--pillx);display:inline-flex}
 .sht__pgoo,.sht__ptext{display:inline-flex;gap:6px}
 .sht__pgoo{position:relative}
@@ -327,7 +337,7 @@ const STYLES = `
 .sht__ptext span{display:inline-grid;place-items:center;height:34px;padding:0 15px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--on-pill);white-space:nowrap}
 .sht__pgoo i.sht__sizer{padding:0 15px;font-size:15px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:transparent;line-height:34px;white-space:nowrap}
 .sht__text{flex:1;display:flex;flex-direction:column;gap:10px;padding:26px var(--padr) 30px var(--padl);min-height:170px}
-.sht__title{margin:0;font-family:var(--display-font);font-size:clamp(20px,1.7vw,24px);line-height:1.18;font-weight:600;letter-spacing:-.02em;color:color-mix(in oklab,var(--ink) calc(55% + var(--f) * 45%),var(--card))}
+.sht__title{margin:0;font-family:var(--display-font);font-size:clamp(20px,1.7vw,24px);line-height:1.18;font-weight:600;letter-spacing:-.02em;color:color-mix(in oklab,var(--ink) calc(var(--t,1) * 100%),var(--card))}
 .sht__body{margin:0;font-size:16px;line-height:1.55;color:var(--muted);max-width:52ch}
 .sht__link{align-self:flex-start;margin-top:auto;padding-top:8px;font-size:15px;font-weight:500;color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;display:inline-flex;align-items:center;gap:8px;border-radius:4px}
 .sht__link svg{width:16px;height:16px;transition:transform .18s var(--ease)}
@@ -425,7 +435,7 @@ export default function SeamHistoryTimeline({
   const controlled = typeof index === "number"
   const [inner, setInner] = React.useState(() => clampIndex(startIndex, n))
   const active = controlled ? clampIndex(index as number, n) : inner
-  const [failed, setFailed] = React.useState(() => ({}) as { [k: number]: boolean })
+  const [failed, setFailed] = React.useState(() => ({}) as { [url: string]: boolean })
   const [announce, setAnnounce] = React.useState("")
   const [dragging, setDragging] = React.useState(false)
   const [geo, setGeo] = React.useState({ cw: 0, ph: 0, h: 0, o: 0, vw: 0, mobile: false })
@@ -449,6 +459,7 @@ export default function SeamHistoryTimeline({
     target: clampIndex(startIndex, n),
     step: 1,
     maxShift: 0,
+    inset: 0,
     L: { x: 0, v: 0 } as Spring,
     Lw: { x: 0, v: 0 } as Spring,
     R: { x: 0, v: 0 } as Spring,
@@ -490,17 +501,26 @@ export default function SeamHistoryTimeline({
   const paint = React.useCallback(() => {
     const s = sim.current
     const track = trackRef.current
-    const shift = trackShift(s.pos.x, s.step, s.maxShift, n)
+    const shift = trackShift(s.pos.x, s.step, s.maxShift, n, s.inset)
     if (track) track.style.transform = "translate3d(" + (-shift).toFixed(2) + "px,0,0)"
     for (let i = 0; i < n; i++) {
       const f = focusAt(s.pos.x, i)
+      const hov = s.hov[i] || 0
       const el = cardRefs.current[i]
-      if (el) el.style.setProperty("--f", f.toFixed(3))
+      if (el) {
+        el.style.setProperty("--t", Math.min(1, 0.55 + 0.45 * f + 0.2 * hov * (1 - f)).toFixed(3))
+        // A milestone that has slid past the left edge leaves the frame completely.
+        const op = passedOpacity(i * s.step - shift, s.step)
+        el.style.opacity = op.toFixed(3)
+        el.style.pointerEvents = op < 0.5 ? "none" : ""
+      }
+      // Still to come: a pale haze. Already passed: it recedes toward the field.
+      const amount = wash * (1 - f) * (1 - 0.4 * hov)
+      const ahead = i > s.pos.x
       const w = washRefs.current[i]
-      if (w) w.style.opacity = (wash * (1 - f) * (1 - 0.4 * (s.hov[i] || 0))).toFixed(3)
-      // Milestones already passed recede into the field rather than hanging cut off in the margin.
+      if (w) w.style.opacity = (ahead ? amount : 0).toFixed(3)
       const v = veilRefs.current[i]
-      if (v) v.style.opacity = (0.93 * Math.max(0, Math.min(1, (shift - i * s.step - s.step * 0.3) / (s.step * 0.5)))).toFixed(3)
+      if (v) v.style.opacity = (ahead ? 0 : amount).toFixed(3)
     }
     if (s.railReady) {
       const L = s.L.x
@@ -526,11 +546,17 @@ export default function SeamHistoryTimeline({
         nk.style.width = (b - a).toFixed(2) + "px"
         nk.style.height = t.toFixed(2) + "px"
       }
+      const left = Math.min(L, R)
+      const right = Math.max(L + lw, R + rw)
       const lit = litRef.current
-      if (lit) {
-        const left = Math.min(L, R)
-        const right = Math.max(L + lw, R + rw)
-        lit.style.clipPath = "inset(0 " + Math.max(0, s.railW - right).toFixed(1) + "px 0 " + Math.max(0, left).toFixed(1) + "px)"
+      if (lit) lit.style.clipPath = "inset(0 " + Math.max(0, s.railW - right).toFixed(1) + "px 0 " + Math.max(0, left).toFixed(1) + "px)"
+      // Hide the outline of any year the liquid is passing over, so no ring shows from under it.
+      for (let i = 0; i < n; i++) {
+        const slot = slotRefs.current[i]
+        const t = s.railTargets[i]
+        if (!slot || !t) continue
+        const covered = Math.min(right, t.r + t.rw) - Math.max(left, t.l) > 2 ? "true" : "false"
+        if (slot.dataset.covered !== covered) slot.dataset.covered = covered
       }
     }
   }, [n, wash])
@@ -711,8 +737,11 @@ export default function SeamHistoryTimeline({
     sim.current.step = step
     // The strip stops when the last card is flush with the container, instead of leaving an empty field.
     sim.current.maxShift = Math.max(0, (n - 1) * step + geo.cw - vpW)
+    // Past the first milestone the strip also moves by the seam's lean at the text line, so the
+    // focused card's text always lines up with the heading.
+    sim.current.inset = geo.h ? Math.round(geo.o * (1 - geo.ph / geo.h)) : 0
     paint()
-  }, [step, paint, n, geo.cw, vpW])
+  }, [step, paint, n, geo.cw, vpW, geo.o, geo.ph, geo.h])
 
   // Follow the active index.
   const first = React.useRef(true)
@@ -977,7 +1006,7 @@ export default function SeamHistoryTimeline({
               const padl = (slantL ? Math.round(o * (1 - geo.ph / H)) : 0) + padBase
               const padr = (slantR ? o : 0) + padBase
               const pillx = (slantL ? Math.round(o * (1 - 22 / H)) : 0) + (geo.mobile ? 16 : 22)
-              const showImg = m.image && !failed[i]
+              const showImg = !!m.image && !failed[m.image]
               return (
                 <div
                   key={i}
@@ -1025,7 +1054,8 @@ export default function SeamHistoryTimeline({
                         loading={Math.abs(i - (controlled ? (index as number) : startIndex)) <= 1 ? "eager" : "lazy"}
                         decoding="async"
                         draggable={false}
-                        onError={() => setFailed((f) => ({ ...f, [i]: true }))}
+                        onError={() => setFailed((f) => ({ ...f, [m.image as string]: true }))}
+                        style={m.imagePosition ? { objectPosition: m.imagePosition } : undefined}
                       />
                     ) : (
                       <div className="sht__plate" aria-hidden="true">
@@ -1038,15 +1068,14 @@ export default function SeamHistoryTimeline({
                         washRefs.current[i] = el
                       }}
                     />
+                    <div
+                      className="sht__past"
+                      ref={(el) => {
+                        veilRefs.current[i] = el
+                      }}
+                    />
                     <CardPills years={years[i]} filter={filterId} />
                   </div>
-                  <div
-                    className="sht__veil"
-                    aria-hidden="true"
-                    ref={(el) => {
-                      veilRefs.current[i] = el
-                    }}
-                  />
                   <div className="sht__text">
                     <h3 className="sht__title">{m.title}</h3>
                     {m.body ? <p className="sht__body">{m.body}</p> : null}
