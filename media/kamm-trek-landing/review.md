@@ -87,3 +87,29 @@ trail, fewer labels on phones; a stronger dark relief and a soft horizon; spacin
 figure; stamp ring text with a separator and a date inside the ring; winter guide copy; a
 solid signpost tip; phone day tabs that read as scrollable; draped contours fading with
 distance; trail casing drawn with the line; guide badges in the map language.
+
+## Critic round 3 (new subagent, the last round)
+
+Banned-looks gate: passes (a committed cartographic world), with the caution that from the
+departures down the page drifts toward the stock order.
+
+| | Score | Evidence |
+|---|---|---|
+| (u) usability | 7 | everything real and a prop (labels, stages, departures, `onHold`, presets, seed, accent, photo hero); photo-hero pins ignored the cover crop; guides default to initials |
+| (a) idea | 7 | keeps the reference layout; the live "Group 14 sleeps here tonight" pin stops the scroll; the second half loses the voice |
+| (b) craft | 6 | broken signpost outline; winter hero has a loose trail spur, a flat haze patch and streaks on steep faces; a trail stub under the lede; phone tabs and one collar caption cut |
+| (c) originality | 7 | relief hero with pins and a profile that drives the map are trek-specific; departures, guides and FAQ are known patterns |
+| (d) install-safety | 9 | one file, scoped CSS, gates and tests pass |
+| (e) template | 8 | real copy, working form, dark mode everywhere |
+
+Average 7.33. **REDO.** Three rounds used, so the piece moves to `claude/review-kamm-trek-landing`.
+
+Fixed after the round (not re-scored): the signpost is one continuous shape with a painted
+waymark; the trail fades out above the hero copy at every width; photo-hero pins and trail go
+through the cover crop (`coverPoint`, tested); a held departure says "2 held for you" instead of
+greying out; compact day tabs on phones; collar captions wrap; full-width menu button.
+
+Still open for the owner: the winter preset's hero (a loose trail spur and a flat haze patch);
+foreground detail of the relief in software rendering; the departures, guides and FAQ could
+carry more of the map language (a legend-style included list, departures grouped by month
+with "show all", portrait treatment for guides).

@@ -53,7 +53,7 @@ export type KammStage = {
   sleep?: string
   /** Your duffel is waiting at this hut. */
   duffel?: boolean
-  /** Where the hut sits over a hero photo, [x, y] as fractions of the hero. Only used with `hero.image`. */
+  /** Where the hut sits in the hero photo, [x, y] as fractions of the photo itself (crop-safe). Only used with `hero.image`. */
   heroAt?: [number, number]
   /** A photo of the hut. Without it the hut is shown on its own map excerpt. */
   image?: string
@@ -127,6 +127,8 @@ export type KammLabels = {
   /** "{n} places left" */
   placesLeft?: string
   full?: string
+  /** "{n} held for you" on a departure you just held */
+  heldRow?: string
   holdTitle?: string
   waitTitle?: string
   /** What the party is called: walkers, skiers, riders. */
@@ -186,7 +188,7 @@ export type KammTrekLandingProps = {
     /** A photo for the hero instead of the generated relief. Place the pins with each stage's `heroAt`. */
     image?: string
     imageAlt?: string
-    /** Over a photo: the trail as points, each [x, y] as fractions of the hero (0..1). */
+    /** Over a photo: the trail as points, each [x, y] as fractions of the photo (0..1). */
     trail?: [number, number][]
     /** A live note pinned to the trail, e.g. where a group is tonight. Set to null to hide. */
     live?: { stage: number; label: string } | null
@@ -461,6 +463,7 @@ const DEFAULT_LABELS = {
   placeLeft: "1 place left",
   placesLeft: "{n} places left",
   full: "Full, waitlist open",
+  heldRow: "{n} held for you",
   holdTitle: "Hold places",
   waitTitle: "Join the waitlist",
   people: "Walkers",
@@ -1412,6 +1415,12 @@ function placeLabels(labels: { x: number; y: number; w: number; h: number; gap: 
   })
 }
 
+/** Where a point given as fractions of a photo lands once the photo is drawn with object-fit: cover, centred. */
+function coverPoint(fx: number, fy: number, W: number, H: number, iw: number, ih: number) {
+  const s = Math.max(W / iw, H / ih)
+  return { x: (W - iw * s) / 2 + fx * iw * s, y: (H - ih * s) / 2 + fy * ih * s }
+}
+
 /** Fills "{name}" tokens in interface copy. */
 function fill(text: string, vars: { [k: string]: string | number }) {
   return text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
@@ -1751,6 +1760,7 @@ function HeroScene({
   const [pins, setPins] = React.useState([] as KmmPin[])
   const [livePt, setLivePt] = React.useState(null as null | KmmPin)
   const mid = React.useId().replace(/:/g, "")
+  const [natural, setNatural] = React.useState(null as null | { w: number; h: number })
 
   React.useEffect(() => {
     const el = cv.current
@@ -1764,11 +1774,13 @@ function HeroScene({
       const runs: { d: string; hidden: boolean }[] = []
       if (image) {
         vis = () => null
+        if (!natural) return
+        const cp = (q: [number, number]) => coverPoint(q[0], q[1], size.w, size.h, natural.w, natural.h)
         stageAt = (i) => {
           const h = stages[i] && stages[i].heroAt
-          return h ? { x: h[0] * size.w, y: h[1] * size.h, seen: true } : null
+          return h ? { ...cp(h), seen: true } : null
         }
-        if (photoTrail && photoTrail.length > 1) runs.push({ d: photoTrail.map((q, i) => (i ? "L" : "M") + (q[0] * size.w).toFixed(1) + " " + (q[1] * size.h).toFixed(1)).join(""), hidden: false })
+        if (photoTrail && photoTrail.length > 1) runs.push({ d: photoTrail.map((q, i) => (i ? "L" : "M") + cp(q).x.toFixed(1) + " " + cp(q).y.toFixed(1)).join(""), hidden: false })
       } else {
         const data = await heroData(seed, sceneKey, () => !dead)
         if (!data || dead || !el) return
@@ -1866,7 +1878,7 @@ function HeroScene({
       })
       if (dead) return
       setTrail(runs)
-      setHoles(copy)
+      setHoles(copy.length ? [{ x0: Math.min(...copy.map((b) => b.x0)) - 24, y0: Math.min(...copy.map((b) => b.y0)) - 10, x1: Math.max(...copy.map((b) => b.x1)) + 24, y1: size.h + 40 }] : [])
       setPins(kept)
       setLivePt(lp)
       setReady(sceneKey + seed + size.w + "x" + size.h + (image || ""))
@@ -1875,13 +1887,20 @@ function HeroScene({
       dead = true
       clearTimeout(t)
     }
-  }, [seed, sceneKey, size.w, size.h, path, stages, live, image, photoTrail])
+  }, [seed, sceneKey, size.w, size.h, path, stages, live, image, photoTrail, natural])
 
   const liveStage = live ? stages[live.stage] : null
   return (
     <div ref={wrap} className="kmm-scene" data-ready={ready ? "1" : "0"}>
       {image ? (
-        <img className="kmm-photo kmm-hero-photo" src={image} alt={imageAlt || ""} width={2400} height={1500} />
+        <img
+          className="kmm-photo kmm-hero-photo"
+          src={image}
+          alt={imageAlt || ""}
+          width={2400}
+          height={1500}
+          onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 2400, h: e.currentTarget.naturalHeight || 1500 })}
+        />
       ) : (
         <canvas ref={cv} className="kmm-canvas" aria-hidden="true" style={{ width: size.w + "px", height: size.h + "px" }} />
       )}
@@ -2747,7 +2766,7 @@ export default function KammTrekLanding({
   const hutAlts = hutList.map((h) => h.s.alt)
   // the rule above each section: a map-sheet edge whose note is a real fact about that section
   const collar = {
-    route: trekName + ", " + fmtKm(totals.km) + " km, 1:50 000",
+    route: trekName + ", " + fmtKm(totals.km) + " km, 1:50\u00a0000",
     huts: hutList.length + " " + (hutList.length === 1 ? "hut" : "huts") + (hutAlts.length ? ", " + fmtNum(Math.min(...hutAlts), sep) + " to " + fmtNum(Math.max(...hutAlts), sep) + " m" : ""),
     included: stages.length + " " + t.days.toLowerCase() + ", one price",
     departures: deps.length + " departures" + (months.length ? ", " + months[0] + " to " + months[months.length - 1] : ""),
@@ -2898,17 +2917,12 @@ export default function KammTrekLanding({
               </p>
               <h3>{st.title}</h3>
               <div className="kmm-sign">
+                <Waymark />
                 <span className="kmm-sign-plate">
                   <b>{st.to}</b>
                   <span>{fmtNum(st.alt, sep)} m</span>
                 </span>
                 <span className="kmm-sign-time">{st.hours}</span>
-                <svg className="kmm-sign-tip" width="26" height="57" viewBox="0 0 26 57" aria-hidden="true">
-                  <path d="M0 0 26 28.5 0 57z" className="kmm-tip-ink" />
-                  <path d="M0 3.5h14.6L0 19.5z" className="kmm-tip-w" />
-                  <path d="M0 19.5h14.6l7 9-7 9H0z" className="kmm-tip-r" />
-                  <path d="M0 37.5h14.6L0 53.5z" className="kmm-tip-w" />
-                </svg>
               </div>
               <dl className="kmm-daystats">
                 <div>
@@ -3045,7 +3059,7 @@ export default function KammTrekLanding({
                   const l = spotsLeft(d, held[d.id] || 0)
                   const on = d.id === sel
                   return (
-                    <li key={d.id} className={(on ? "kmm-row-on " : "") + (l === 0 ? "kmm-row-full" : "")}>
+                    <li key={d.id} className={(on ? "kmm-row-on " : "") + (l === 0 && !held[d.id] ? "kmm-row-full" : "")}>
                       <button type="button" className="kmm-row" aria-pressed={on} onClick={() => choose(d)}>
                         <span className="kmm-row-date">
                           <b>{dateRange(d.start, stages.length)}</b>
@@ -3056,7 +3070,8 @@ export default function KammTrekLanding({
                         </span>
                         <span className="kmm-row-spots">
                           <SpotsMeter d={d} held={held[d.id] || 0} />
-                          <span>{l === 0 ? t.full : l === 1 ? t.placeLeft : fill(t.placesLeft, { n: l })}</span>
+                          <span>{held[d.id] ? <b className="kmm-held">{fill(t.heldRow, { n: held[d.id] })}</b> : null}
+                            {held[d.id] && l === 0 ? null : l === 0 ? t.full : l === 1 ? t.placeLeft : fill(t.placesLeft, { n: l })}</span>
                         </span>
                         <span className="kmm-row-price">{formatPrice(d.price, currency)}</span>
                         <span className="kmm-row-go" aria-hidden="true">
@@ -3361,7 +3376,7 @@ const KMM_CSS = `
 .kmm-collar-rule{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-bottom:clamp(28px,3.5vw,44px);font-size:12px;color:var(--kmm-muted);font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .kmm-collar-rule b{flex:none;min-width:30px;text-align:center;padding:2px 6px;border:1px solid var(--kmm-ink);color:var(--kmm-ink);font-weight:700;border-radius:2px}
 .kmm-collar-rule i{flex:1;height:7px;border-top:1px solid color-mix(in srgb,var(--kmm-ink) 45%,transparent);background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--kmm-ink) 30%,transparent) 0 1px,transparent 1px 56px)}
-.kmm-collar-rule span{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.kmm-collar-rule span{flex:0 1 auto;text-align:right;max-width:60%;line-height:1.3}
 .kmm-head{display:grid;gap:14px;max-width:760px;margin-bottom:clamp(32px,4vw,52px)}
 .kmm-head h2,.kmm-incl-lead h2{font-size:clamp(32px,3.7vw,56px);line-height:1.02;letter-spacing:-.03em;font-weight:700;text-wrap:balance}
 .kmm-head p{color:var(--kmm-muted);max-width:56ch}
@@ -3408,15 +3423,14 @@ const KMM_CSS = `
 .kmm-day{position:relative;background:var(--kmm-sheet);border:1px solid var(--kmm-rule);border-radius:6px;padding:26px 24px 24px;display:grid;gap:18px}
 .kmm-dayno{font-size:14px;font-weight:600;color:var(--kmm-accent-text);font-variant-numeric:tabular-nums}
 .kmm-day h3{font-size:clamp(24px,2.2vw,30px);line-height:1.08;letter-spacing:-.025em;font-weight:700;margin-top:-8px}
-.kmm-sign{display:grid;grid-template-columns:minmax(0,1fr) auto 26px;align-items:center;height:54px;border:1.5px solid var(--kmm-ink);border-right:0;border-radius:3px 0 0 3px;background:var(--kmm-bg)}
-.kmm-sign-plate{display:flex;flex-direction:column;padding:0 12px;line-height:1.15;min-width:0}
+.kmm-sign{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;height:56px;padding:0 36px 0 14px;background:var(--kmm-ink);clip-path:polygon(0 0,calc(100% - 26px) 0,100% 50%,calc(100% - 26px) 100%,0 100%)}
+.kmm-sign::before{content:"";position:absolute;inset:1.5px 2px 1.5px 1.5px;background:var(--kmm-bg);clip-path:polygon(0 0,calc(100% - 25px) 0,100% 50%,calc(100% - 25px) 100%,0 100%)}
+.kmm-sign>*{position:relative}
+.kmm-sign .kmm-waymark{box-shadow:0 0 0 1px var(--kmm-ink)}
+.kmm-sign-plate{display:flex;flex-direction:column;line-height:1.15;min-width:0}
 .kmm-sign-plate b{font-size:16.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kmm-sign-plate span{font-size:12.5px;color:var(--kmm-muted);font-variant-numeric:tabular-nums}
-.kmm-sign-time{font-weight:700;font-size:15px;padding-right:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.kmm-sign-tip{display:block;margin:-1.5px 0;overflow:visible}
-.kmm-tip-ink{fill:var(--kmm-ink)}
-.kmm-tip-w{fill:var(--kmm-sheet)}
-.kmm-tip-r{fill:var(--kmm-accent)}
+.kmm-sign-time{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .kmm-daystats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--kmm-rule);border-bottom:1px solid var(--kmm-rule);padding:12px 0}
 .kmm-daystats dt{font-size:13px;color:var(--kmm-muted)}
 .kmm-daystats dd{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -3510,6 +3524,7 @@ const KMM_CSS = `
 .kmm-meter i.kmm-mine{background:var(--kmm-accent);border-color:var(--kmm-accent);opacity:1}
 .kmm-row-price{font-weight:700;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
 .kmm-row-go{color:var(--kmm-muted)}
+.kmm-held{color:var(--kmm-accent-text);font-weight:700;margin-right:6px}
 .kmm-row-full .kmm-row-date b{color:var(--kmm-muted)}
 .kmm-form{position:sticky;top:92px;background:var(--kmm-sheet);border:1px solid var(--kmm-rule);border-radius:6px;padding:28px 26px;display:grid;gap:18px;scroll-margin-top:84px}
 .kmm-form h3{font-size:26px;font-weight:700;letter-spacing:-.025em;line-height:1.1}
@@ -3601,7 +3616,7 @@ const KMM_CSS = `
 .kmm-sheet .kmm-menuclose{display:inline-flex;align-items:center}
 .kmm-sheet nav{display:grid;margin:24px 0 32px;border-top:1px solid var(--kmm-rule)}
 .kmm-sheet nav a{font-size:34px;font-weight:700;letter-spacing:-.03em;padding:12px 0;border-bottom:1px solid var(--kmm-rule);animation:kmm-slide .45s var(--kmm-ease) both}
-.kmm-sheet>.kmm-btn{align-self:flex-start}
+.kmm-sheet>.kmm-btn{align-self:stretch;height:54px}
 
 .kmm-in{animation:kmm-rise .9s var(--kmm-ease) both}
 @keyframes kmm-rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
@@ -3645,8 +3660,8 @@ const KMM_CSS = `
 .kmm-totals{grid-template-columns:repeat(2,minmax(0,1fr))}
 .kmm-totals div:nth-child(n+3){border-top:1px solid var(--kmm-rule);margin-top:12px}
 .kmm-map{height:auto;aspect-ratio:1/1.08}
-.kmm-tabs{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);padding-right:36px}
-.kmm-tabs button{flex:0 0 auto;min-width:0;max-width:150px;padding-right:18px;scroll-snap-align:start}
+.kmm-tabs button{padding-right:4px}
+.kmm-tabs button span{display:none}
 .kmm-legend{grid-template-columns:minmax(0,1fr)}
 .kmm-legend li{padding-right:0}
 .kmm-excl{grid-template-columns:minmax(0,1fr)}

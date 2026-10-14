@@ -77,7 +77,7 @@ A **stage** is one day:
   sleep: "Dorm of 12, no shower", // leave out for the final village
   duffel: true,                // your bag is waiting here
   image: "/huts/grathuette.jpg", // optional photo; otherwise a map excerpt
-  heroAt: [0.41, 0.35],        // where the hut sits over a hero photo, as fractions of the hero
+  heroAt: [0.41, 0.35],        // where the hut sits in a hero photo, as fractions of the photo
 }
 ```
 

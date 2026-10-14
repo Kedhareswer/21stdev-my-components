@@ -85,7 +85,7 @@ assert.match(read("demo-winter.tsx"), /preset="winter"/, "the second demo is the
 /* ---------- logic, executed ---------- */
 
 const code = region("content") + region("logic") +
-  "\nexport { DEFAULT_START, DEFAULT_STAGES, DEFAULT_DEPARTURES, SCENES, PRINTS, MAP_KM, clamp, noise2, terrain, makeGrid, sampleH, cubicAt, printSheet, shadeGrid, renderVista, project, stageProfile, stageStats, routeTotals, stageStarts, locate, altAt, trailPath, trailAt, mapView, findPeaks, fmtNum, fmtKm, dateRange, dayMonth, weekday, monthKey, spotsLeft, formatPrice, isEmail, nextIndex, canvasRatio, heroCam, placeLabels, initials }\n"
+  "\nexport { DEFAULT_START, DEFAULT_STAGES, DEFAULT_DEPARTURES, SCENES, PRINTS, MAP_KM, clamp, noise2, terrain, makeGrid, sampleH, cubicAt, printSheet, shadeGrid, renderVista, project, stageProfile, stageStats, routeTotals, stageStarts, locate, altAt, trailPath, trailAt, mapView, findPeaks, fmtNum, fmtKm, dateRange, dayMonth, weekday, monthKey, spotsLeft, formatPrice, isEmail, nextIndex, canvasRatio, heroCam, placeLabels, initials, coverPoint }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 // noise and terrain: smooth, bounded, deterministic, alpine
@@ -229,5 +229,13 @@ for (const d of L.DEFAULT_DEPARTURES) {
   assert.equal(L.weekday(d.start), "Sun", "groups leave on Sundays")
 }
 assert.ok(L.DEFAULT_DEPARTURES.some((d) => d.booked === d.capacity), "the default season shows a full group")
+
+// photo pins follow the cover crop, so they stay on the huts at every width
+const wide = L.coverPoint(0.5, 0.5, 1440, 900, 3000, 2000)
+assert.deepEqual([Math.round(wide.x), Math.round(wide.y)], [720, 450], "the centre stays the centre")
+const tall = L.coverPoint(0.25, 0.4, 375, 812, 3000, 2000)
+assert.ok(Math.abs(tall.y - 0.4 * 812) < 1e-6, "a tall frame keeps the height")
+assert.ok(tall.x < 0, "and crops the sides, so a hut at a quarter across falls off a phone")
+assert.match(src, /coverPoint\(q\[0\], q\[1\], size\.w, size\.h, natural\.w, natural\.h\)/, "hero pins over a photo go through the crop")
 
 console.log("kamm-trek-landing: ok")
