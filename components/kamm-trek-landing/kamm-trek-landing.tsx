@@ -1615,7 +1615,7 @@ function HeroScene({
             key={p.i + ready}
             type="button"
             className={"kmm-pin kmm-pin-" + p.side}
-            style={{ left: p.x + "px", top: p.y + "px", animationDelay: 1100 + n * 70 + "ms" }}
+            style={{ left: p.x + "px", top: p.y + "px", animationDelay: 1100 + n * 40 + "ms" }}
             onClick={() => onPick(p.i)}
             aria-label={"Day " + (p.i + 1) + ": " + p.name + ", " + fmtNum(p.alt, sep) + " m. Show on the route map"}
           >
@@ -2205,6 +2205,9 @@ export default function KammTrekLanding({
   }, [])
   React.useEffect(() => {
     if (!menu) return
+    const html = document.documentElement
+    const was = html.style.overflow
+    html.style.overflow = "hidden"
     const first = sheet.current ? (sheet.current.querySelector("a,button") as HTMLElement | null) : null
     if (first) first.focus()
     const onKey = (e: KeyboardEvent) => {
@@ -2227,7 +2230,10 @@ export default function KammTrekLanding({
       }
     }
     document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      html.style.overflow = was
+    }
   }, [menu])
 
   const go = (key: string) => {
@@ -2266,7 +2272,7 @@ export default function KammTrekLanding({
     if (reduced || typeof requestAnimationFrame === "undefined") return setKm(to)
     const from = kmRef.current
     const t0 = performance.now()
-    const dur = Math.min(900, 380 + Math.abs(to - from) * 14)
+    const dur = Math.min(700, 320 + Math.abs(to - from) * 10)
     const step = (now: number) => {
       const t = Math.min(1, (now - t0) / dur)
       setKm(from + (to - from) * easeInOut(t))
@@ -2281,13 +2287,13 @@ export default function KammTrekLanding({
   const fromAlt = active === 0 ? start.alt : stages[active - 1].alt
   const stats = stageStats(fromAlt, st)
   const walker = trailAt(path, active, at.f)
-  const pickDay = (i: number) => glide(starts[i] + stages[i].km * 0.999)
+  const pickDay = (i: number, instant = false) => (instant ? scrub : glide)(starts[i] + stages[i].km * 0.999)
   const tabs = React.useRef(null as HTMLDivElement | null)
   const onTabKey = (e: React.KeyboardEvent, i: number) => {
     const n = nextIndex(i, e.key, stages.length)
     if (n === i) return
     e.preventDefault()
-    pickDay(n)
+    pickDay(n, true)
     const b = tabs.current ? (tabs.current.querySelectorAll("button")[n] as HTMLElement | undefined) : undefined
     if (b) b.focus()
   }
@@ -2674,12 +2680,12 @@ export default function KammTrekLanding({
               <form className="kmm-form" ref={formRef} onSubmit={submit} noValidate aria-labelledby={sid("form-h")}>
                 {status === "done" && done ? (
                   <div className="kmm-done" role="status">
-                    <Stamp hut={done.wait ? "Waitlist" : "Held"} date={dateRange(done.d.start, stages.length)} sep={sep} />
+                    <Stamp hut={done.wait ? "Waitlist " + trekName : trekName} date={dayMonth(done.d.start)} sep={sep} />
                     <h3 id={sid("form-h")}>{done.wait ? "You are on the waitlist." : "Held for 48 hours."}</h3>
                     <p>
                       {done.wait
                         ? "We will email " + done.email + " the moment " + (done.people === 1 ? "a place" : done.people + " places") + " open up on " + dateRange(done.d.start, stages.length) + "."
-                        : (done.people === 1 ? "One place" : done.people + " places") + " on " + dateRange(done.d.start, stages.length) + " with " + done.d.guide + " are yours. The deposit link is on its way to " + done.email + "."}
+                        : (done.people === 1 ? "One place" : done.people + " places") + " on " + dateRange(done.d.start, stages.length) + " with " + done.d.guide + (done.people === 1 ? " is" : " are") + " yours. The deposit link is on its way to " + done.email + "."}
                     </p>
                     <button type="button" className="kmm-btn kmm-btn-ghost" onClick={() => { setStatus("idle"); setDone(null) }}>
                       Hold another departure
@@ -2861,8 +2867,8 @@ export default function KammTrekLanding({
 /* ---------- styles: scoped to .kmm-root, map-sheet tokens, no globals ---------- */
 
 const KMM_CSS = `
-.kmm-root{--kmm-bg:#f6f7f4;--kmm-sheet:#ffffff;--kmm-ink:#14211f;--kmm-soft:#2b3936;--kmm-muted:#55625e;--kmm-rule:rgba(20,33,31,.14);--kmm-faint:rgba(20,33,31,.05);--kmm-accent:#cf2a2f;--kmm-accent-ink:#ffffff;--kmm-contour:#9a6a3c;--kmm-ice:#3d7fb5;--kmm-pad:clamp(72px,9vw,128px);--kmm-gut:clamp(16px,4vw,48px);--kmm-ease:cubic-bezier(.23,1,.32,1);--kmm-sans:"Frutiger","Frutiger LT Std","Avenir Next","Avenir","Helvetica Neue",Helvetica,Arial,sans-serif;position:relative;min-height:var(--kmm-h);background:var(--kmm-bg);color:var(--kmm-ink);font-family:var(--kmm-sans);font-size:17px;line-height:1.55;overflow-x:clip;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;color-scheme:light}
-.kmm-root[data-theme="dark"]{--kmm-bg:#0d1517;--kmm-sheet:#131d20;--kmm-ink:#e8eeec;--kmm-soft:#c9d3d0;--kmm-muted:#9eada9;--kmm-rule:rgba(232,238,236,.15);--kmm-faint:rgba(232,238,236,.05);--kmm-accent:#d8343a;--kmm-contour:#c39a6b;--kmm-ice:#8cbfe8;color-scheme:dark}
+.kmm-root{--kmm-bg:#f6f7f4;--kmm-sheet:#ffffff;--kmm-ink:#14211f;--kmm-soft:#2b3936;--kmm-muted:#55625e;--kmm-rule:rgba(20,33,31,.14);--kmm-faint:rgba(20,33,31,.05);--kmm-accent:#cf2a2f;--kmm-accent-ink:#ffffff;--kmm-accent-text:#c0262b;--kmm-contour:#9a6a3c;--kmm-ice:#3d7fb5;--kmm-pad:clamp(72px,9vw,128px);--kmm-gut:clamp(16px,4vw,48px);--kmm-ease:cubic-bezier(.23,1,.32,1);--kmm-sans:"Frutiger","Frutiger LT Std","Avenir Next","Avenir","Helvetica Neue",Helvetica,Arial,sans-serif;position:relative;min-height:var(--kmm-h);background:var(--kmm-bg);color:var(--kmm-ink);font-family:var(--kmm-sans);font-size:17px;line-height:1.55;overflow-x:clip;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;color-scheme:light}
+.kmm-root[data-theme="dark"]{--kmm-bg:#0d1517;--kmm-sheet:#131d20;--kmm-ink:#e8eeec;--kmm-soft:#c9d3d0;--kmm-muted:#9eada9;--kmm-rule:rgba(232,238,236,.15);--kmm-faint:rgba(232,238,236,.05);--kmm-accent:#d8343a;--kmm-accent-text:#ff7a7d;--kmm-contour:#c39a6b;--kmm-ice:#8cbfe8;color-scheme:dark}
 .kmm-root[data-preset="winter"]{--kmm-bg:#f3f6f9;--kmm-contour:#4f7cae;--kmm-ink:#121c2a;--kmm-soft:#2a3646;--kmm-muted:#526073;--kmm-rule:rgba(18,28,42,.14);--kmm-faint:rgba(18,28,42,.05)}
 .kmm-root[data-preset="winter"][data-theme="dark"]{--kmm-bg:#0b111b;--kmm-sheet:#111a27;--kmm-ink:#e6edf6;--kmm-soft:#c7d2e0;--kmm-muted:#98a7ba;--kmm-rule:rgba(230,237,246,.15);--kmm-faint:rgba(230,237,246,.05);--kmm-contour:#8fb3dd}
 .kmm-root :where(h1,h2,h3,p,ul,ol,dl,dd,dt,blockquote,address){margin:0;padding:0;font:inherit}
@@ -2966,7 +2972,7 @@ const KMM_CSS = `
 .kmm-head h2,.kmm-incl-lead h2{font-size:clamp(32px,3.7vw,56px);line-height:1.02;letter-spacing:-.03em;font-weight:700;text-wrap:balance}
 .kmm-head p{color:var(--kmm-muted);max-width:56ch}
 .kmm-head a{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;color:var(--kmm-ink)}
-.kmm-head a:hover{color:var(--kmm-accent)}
+.kmm-head a:hover{color:var(--kmm-accent-text)}
 .kmm-rv.kmm-armed{opacity:0;transform:translateY(18px)}
 .kmm-rv.kmm-armed.kmm-shown{opacity:1;transform:none;transition:opacity .6s ease,transform .8s var(--kmm-ease)}
 
@@ -2986,7 +2992,7 @@ const KMM_CSS = `
 .kmm-peak{fill:var(--kmm-ink)}
 .kmm-lettering text{fill:var(--kmm-ink);paint-order:stroke;stroke:var(--kmm-bg);stroke-linejoin:round;font-weight:600}
 .kmm-lettering .kmm-lt-peak{font-weight:500}
-.kmm-lettering .kmm-lt-on{fill:var(--kmm-accent);font-weight:700}
+.kmm-lettering .kmm-lt-on{fill:var(--kmm-accent-text);font-weight:700}
 .kmm-peak-h{font-style:italic;font-weight:400}
 .kmm-route-case{fill:none;stroke:var(--kmm-bg);stroke-opacity:.85;stroke-linecap:round;stroke-linejoin:round}
 .kmm-route{fill:none;stroke:var(--kmm-accent);stroke-linecap:butt;stroke-linejoin:round}
@@ -3006,7 +3012,7 @@ const KMM_CSS = `
 .kmm-north path{fill:var(--kmm-ink)}
 
 .kmm-day{position:relative;background:var(--kmm-sheet);border:1px solid var(--kmm-rule);border-radius:6px;padding:26px 24px 24px;display:grid;gap:18px}
-.kmm-dayno{font-size:14px;font-weight:600;color:var(--kmm-accent);font-variant-numeric:tabular-nums}
+.kmm-dayno{font-size:14px;font-weight:600;color:var(--kmm-accent-text);font-variant-numeric:tabular-nums}
 .kmm-day h3{font-size:clamp(24px,2.2vw,30px);line-height:1.08;letter-spacing:-.025em;font-weight:700;margin-top:-8px}
 .kmm-sign{display:grid;grid-template-columns:minmax(0,1fr) auto 26px;align-items:center;height:54px;border:1.5px solid var(--kmm-ink);border-right:0;border-radius:3px 0 0 3px;background:var(--kmm-bg)}
 .kmm-sign-plate{display:flex;flex-direction:column;padding:0 12px;line-height:1.15;min-width:0}
@@ -3070,7 +3076,7 @@ const KMM_CSS = `
 .kmm-hutsleep{grid-column:2/4;font-size:14.5px;color:var(--kmm-muted);display:flex;flex-wrap:wrap;gap:4px 10px}
 .kmm-hutsleep em{font-style:normal;font-weight:600;color:var(--kmm-ink);font-size:13px;border:1px solid var(--kmm-rule);border-radius:3px;padding:0 6px}
 .kmm-hutlist button[aria-pressed="true"] .kmm-hutname{transform:translateX(6px)}
-.kmm-hutlist button:hover .kmm-hutname{color:var(--kmm-accent)}
+.kmm-hutlist button:hover .kmm-hutname{color:var(--kmm-accent-text)}
 
 .kmm-incl{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(32px,5vw,88px);align-items:start}
 .kmm-incl-lead{position:sticky;top:96px;display:grid;gap:14px}
@@ -3102,7 +3108,7 @@ const KMM_CSS = `
 .kmm-row-date{display:flex;flex-direction:column;min-width:0}
 .kmm-row-date b{font-size:18px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .kmm-row-date span{font-size:14px;color:var(--kmm-muted);display:flex;flex-wrap:wrap;gap:2px 10px}
-.kmm-row-date em{font-style:normal;color:var(--kmm-accent);font-weight:600}
+.kmm-row-date em{font-style:normal;color:var(--kmm-accent-text);font-weight:600}
 .kmm-row-spots{display:flex;flex-direction:column;gap:6px;font-size:13.5px;color:var(--kmm-soft)}
 .kmm-meter{display:flex;gap:3px}
 .kmm-meter i{width:10px;height:10px;border:1px solid var(--kmm-ink);border-radius:1.5px;opacity:.45}
@@ -3121,10 +3127,9 @@ const KMM_CSS = `
 .kmm-field input{height:48px;padding:0 14px;border:1px solid color-mix(in srgb,var(--kmm-ink) 38%,transparent);border-radius:4px;background:var(--kmm-bg);font-size:16px;transition:border-color .2s ease,box-shadow .2s ease}
 .kmm-field input:focus{outline:none;border-color:var(--kmm-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--kmm-accent) 22%,transparent)}
 .kmm-field input[aria-invalid="true"]{border-color:var(--kmm-accent)}
-.kmm-err{font-size:13.5px;color:var(--kmm-accent);font-weight:600}
-.kmm-root[data-theme="dark"] .kmm-err{color:#ff8a8d}
+.kmm-err{font-size:13.5px;color:var(--kmm-accent-text);font-weight:600}
 .kmm-stepper{display:inline-grid;grid-template-columns:44px 52px 44px;align-items:center;height:46px;border:1px solid color-mix(in srgb,var(--kmm-ink) 38%,transparent);border-radius:4px;width:max-content}
-.kmm-stepper button{height:100%;display:grid;place-items:center;transition:background-color .2s ease}
+.kmm-stepper button{align-self:stretch;display:grid;place-items:center;transition:background-color .2s ease}
 .kmm-stepper button:hover:not(:disabled){background:var(--kmm-faint)}
 .kmm-stepper button:disabled{opacity:.35;cursor:not-allowed}
 .kmm-stepper output{text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums;border-left:1px solid var(--kmm-rule);border-right:1px solid var(--kmm-rule);line-height:44px}
@@ -3152,7 +3157,7 @@ const KMM_CSS = `
 .kmm-guides ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(20px,3vw,40px)}
 .kmm-guides li{display:grid;grid-template-columns:88px minmax(0,1fr);gap:18px;align-items:start}
 .kmm-guides b{display:block;font-size:18px;letter-spacing:-.01em}
-.kmm-role{display:block;font-size:14px;color:var(--kmm-accent);font-weight:600;margin-top:2px}
+.kmm-role{display:block;font-size:14px;color:var(--kmm-accent-text);font-weight:600;margin-top:2px}
 .kmm-guides p{font-size:15px;color:var(--kmm-muted);margin-top:8px}
 .kmm-avatar{position:relative;display:grid;place-items:center;width:88px;height:88px;color:var(--kmm-contour);border-radius:50%;overflow:hidden}
 .kmm-avatar svg{position:absolute;inset:0}
@@ -3165,13 +3170,13 @@ const KMM_CSS = `
 .kmm-q{border-bottom:1px solid var(--kmm-rule)}
 .kmm-q h3{font-size:inherit}
 .kmm-q button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 0;font-size:clamp(17px,1.4vw,19px);font-weight:700;letter-spacing:-.01em;transition:color .2s ease}
-.kmm-q button:hover{color:var(--kmm-accent)}
+.kmm-q button:hover{color:var(--kmm-accent-text)}
 .kmm-q i{position:relative;flex:none;width:16px;height:16px}
 .kmm-q i::before,.kmm-q i::after{content:"";position:absolute;left:0;right:0;top:7px;height:2px;background:currentColor;transition:transform .3s var(--kmm-ease)}
 .kmm-q i::after{transform:rotate(90deg)}
 .kmm-q-on i::after{transform:rotate(0deg)}
 .kmm-a p{padding:0 0 22px;color:var(--kmm-soft);max-width:62ch;font-size:16px}
-.kmm-q-on .kmm-a{animation:kmm-open .35s var(--kmm-ease) both}
+.kmm-q-on .kmm-a{animation:kmm-open .25s var(--kmm-ease) both}
 
 .kmm-foot{border-top:2px solid var(--kmm-ink);background:var(--kmm-sheet)}
 .kmm-foot-cta{max-width:1440px;margin:0 auto;padding:clamp(56px,7vw,96px) var(--kmm-gut);display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap}
@@ -3180,7 +3185,7 @@ const KMM_CSS = `
 .kmm-collar-brand p{margin-top:12px;color:var(--kmm-muted);font-size:15px;max-width:40ch}
 .kmm-collar-links{display:grid;gap:6px;align-content:start;font-size:15px}
 .kmm-collar-links a,.kmm-collar-contact a{width:max-content;transition:color .2s ease}
-.kmm-collar-links a:hover,.kmm-collar-contact a:hover{color:var(--kmm-accent)}
+.kmm-collar-links a:hover,.kmm-collar-contact a:hover{color:var(--kmm-accent-text)}
 .kmm-collar-contact{display:grid;gap:2px;align-content:start;font-size:15px;color:var(--kmm-soft)}
 .kmm-collar-contact a{margin-top:6px;color:var(--kmm-ink);font-weight:600}
 .kmm-collar-contact a+a{margin-top:0}
