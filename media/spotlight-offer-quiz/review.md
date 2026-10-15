@@ -90,3 +90,37 @@ Changes made:
 - A submit label longer than the row stacks the form deliberately (`data-stack`).
 - `media/spotlight-offer-quiz/thumb.webp` added (640×400, cut from the 1440 render; photos
   cannot load in this sandbox, so it shows the lettered stage).
+
+## Round 2: REDO (average 7.2)
+
+Scores: usability 8, idea 7, craft 6, originality 6, install-safety 9.
+
+Findings, most important first: a previous `contain` packshot stayed visible under the next one
+forever; the popup rendered its whole stage twice (a second blurred beam and grain layer); the
+headline jumped between steps; the answered question stayed on screen on desktop; the claim
+block mixed centred and left-aligned text and repeated the tag in the chip; the submit button
+changed width while pending; an orphan floor pool and a beam too faint to read as a spotlight;
+the idle stage photo was the same as the first answer's; the photo path was never shown;
+"UNDERSTORY" near-invisible on a dark phone; a dead middle band on desktop; originality: the
+swap was only a wipe.
+
+Changes made:
+- **New signature, the line-up.** With no hero `image` (the new default) the stage shows every
+  answer's product side by side in tall columns under the beam; pointing at an answer pulls its
+  product out of its column to the full stage (a clip-path that opens from the column's own
+  rectangle) while the beam turns toward it; picking one widens and brightens the beam. With no
+  photos the columns carry the product names set upright, which is what these screenshots show.
+- The previous shot always leaves after the wipe (160 ms after 420 ms), and at once under
+  lettering, the line-up or a packshot. Non-lit shots are `aria-hidden`.
+- The stage renders once per layout.
+- The question moved into the answers step; all three steps share one measured height, so the
+  offer never moves (kicker at the same y in every step).
+- Claim block centred; the chip is just "Change answer" (its accessible name keeps the answer).
+- The submit button stacks its two labels in one grid cell, so "Sending" never resizes it.
+- The floor pool only shows under a `contain` packshot; the beam is brighter (30/48 % stops,
+  0.62 at rest, 1.0 and 1.35× wider once picked).
+- Lettering gradient widened so names stay legible on any preset and band.
+- Columns 50/50 with the copy column set toward the stage.
+- The photo path is now shot: `p-*` and `pm-*` screenshots route the Unsplash URLs to locally
+  generated stand-in images (simple shapes, not the real photos) to prove layout, grade, the pull
+  and the claim step with photos.

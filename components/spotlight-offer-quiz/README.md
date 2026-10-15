@@ -1,8 +1,10 @@
 # Spotlight Offer Quiz
 
-The discount popup that asks one good question first. A spotlit studio stage with your product
-photo bleeding off the right, a huge offer, one personal question and a stack of answer pills.
-Pointing at an answer brings its product up under the light. Picking one locks the light on it:
+The discount popup that asks one good question first. A spotlit studio stage on the right, a
+huge offer, one personal question and a stack of answer pills. At rest the stage shows the
+line-up: every answer's product side by side in tall columns under one beam. Pointing at an
+answer pulls its product out of the line-up and opens it to the full stage while the beam turns
+toward it. Picking one locks the light on it (the beam widens and brightens):
 the pills give way to your pick for that answer (a name and one line about it), an email field,
 and then the code itself with a copy button.
 
@@ -32,14 +34,17 @@ demos add a plant shop (inline, daylight) and a coffee subscription (no email st
   `onAccent`, `beam`.
 - **Photo grade:** `grade="mono"` (default) turns any product shot into studio monochrome so
   mixed stock photos sit together; `"natural"` and `"warm"` too.
+- **Line-up or one hero:** leave `image` out (default) for the line-up; pass `image` to stand one
+  product on the stage instead, and answers then wipe their photo up from the floor.
 - **Photos or packshots:** `imageFit="cover"` (default) fills the stage with a photo;
   `"contain"` stands a transparent cut-out packshot on the stage floor with a soft shadow, like a
   studio shot. Per option too (`fit`).
 - **Never a broken image:** an answer with no photo, or a photo that fails to load, sets the
   pick's name in big lit capitals under the beam instead, measured in the display face and fitted
   to the stage (the default "Impossible to buy for" answer does this on purpose).
-- **Motion:** the beam sways slowly at rest; pointing at an answer wipes its photo up from the
-  floor in 420 ms while the beam dips; picking one brightens the beam and the floor pool; steps
+- **Motion:** the beam sways slowly at rest; pointing at an answer pulls its product out of the
+  line-up in 460 ms (or wipes it up from the floor in 420 ms when there is a hero `image`) while
+  the beam dips and turns toward it; picking one brightens the beam and the floor pool; steps
   cross-fade with a 40 ms stagger. Under `prefers-reduced-motion` the beam is still and every
   change is a plain fade.
 
@@ -96,7 +101,7 @@ Inline section in daylight:
 | `trigger`, `delayMs`, `rememberDismissDays`, `storageKey` | `"manual"`, `6000`, 7 days when self-opening | self-opening |
 | `kicker`, `offer`, `question` | gift-finder copy | the offer; `offer` is fitted to the column, `"\n"` for two lines |
 | `options` | five kinds of giftee | `{ label, tag?, pick?, note?, image?, imageAlt?, focus?, fit?, href?, code? }[]` |
-| `image`, `imageAlt`, `imageFocus`, `imageFit`, `brand` | headphones, `"Halden & Co."` | the product on stage before a pick; `brand` is what the empty stage spells |
+| `image`, `imageAlt`, `imageFocus`, `imageFit`, `brand` | none (the line-up), `"Halden & Co."` | the product on stage before a pick; `brand` is what the stage spells if that photo fails |
 | `grade` | `"mono"` | `"mono"`, `"natural"`, `"warm"` |
 | `collectEmail`, `emailLabel`, `placeholder`, `submitLabel`, `pendingLabel`, `finePrint` | | the claim form |
 | `code`, `onClaim`, `onPick`, `doneCopy`, `shopLabel`, `continueLabel`, `copyLabel`, `copiedLabel` | | the code step |

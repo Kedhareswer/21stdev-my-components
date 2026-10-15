@@ -126,6 +126,12 @@ assert.ok(!/inert: ""/.test(src), "no inert attribute string (React 19 reads it 
 assert.ok(/closest\("\[inert\], \[data-hidden\]"\)/.test(src), "the focus trap skips hidden steps")
 assert.ok(/\.soq-modal:focus \{ outline: none; \}/.test(css), "the programmatically focused dialog draws no frame")
 assert.ok(/defaultOpen = false/.test(src), "a bare popup does not take over the page")
+assert.equal((src.match(/\{plate\}/g) || []).length, 2, "the stage renders once per layout (modal frame, section root), never twice in one")
+assert.ok(/\.soq-shot\[data-prev\] \{ animation: soq-out 160ms linear 420ms both; \}/.test(css), "the previous shot always leaves after the wipe, so packshots never ghost")
+assert.ok(/\.soq:not\(\[data-lit="photo"\]\) \.soq-shot\[data-prev\] \{ animation: soq-out/.test(css), "under lettering, line-up or a packshot the previous shot leaves at once")
+assert.ok(/aria-hidden=\{!on \|\| undefined\}/.test(src), "shots that are not lit are hidden from assistive tech")
+assert.ok(/minHeight: panelsMin/.test(src), "steps share one height, so the offer never moves")
+assert.ok(/@keyframes soq-pull/.test(css) && /data-pull=/.test(src), "with no stage photo, an answer's product is pulled out of the line-up")
 assert.ok(/try \{\s*window\.localStorage/.test(src), "storage access is guarded")
 
 // the 21st CLI hangs on generics before the first JSX close tag

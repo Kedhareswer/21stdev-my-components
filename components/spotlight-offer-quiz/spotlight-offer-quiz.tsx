@@ -93,7 +93,7 @@ export type SpotlightOfferQuizProps = {
   pickIntro?: React.ReactNode | ((option: OfferOption) => React.ReactNode)
   changeLabel?: string
 
-  /** The product on stage before anything is picked. */
+  /** The product on stage before anything is picked. Without it, the stage shows the line-up: every answer's product side by side. */
   image?: string
   imageAlt?: string
   imageFocus?: string
@@ -341,6 +341,7 @@ const CSS = `
 .soq-grain { position: absolute; inset: -50%; z-index: 3; pointer-events: none; opacity: 0.13; mix-blend-mode: overlay; background-size: 180px 180px; }
 
 .soq-plate {
+  --soq-l0: 20%;
   position: absolute; z-index: -2; top: 0; right: 0; bottom: 0; width: 56%;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24%);
   mask-image: linear-gradient(to right, transparent 0%, #000 24%);
@@ -349,7 +350,25 @@ const CSS = `
 .soq-shot[data-on] { visibility: visible; z-index: 2; animation: soq-wipe 420ms var(--soq-swing) both; }
 .soq-shot[data-on][data-kind="still"] { animation: soq-in 240ms var(--soq-ease) both; }
 .soq-shot[data-prev] { visibility: visible; z-index: 1; }
-.soq[data-lit="still"] .soq-shot[data-prev] { animation: soq-out 180ms var(--soq-ease) both; }
+.soq-shot[data-prev] { animation: soq-out 160ms linear 420ms both; }
+.soq:not([data-lit="photo"]) .soq-shot[data-prev] { animation: soq-out 180ms var(--soq-ease) both; }
+.soq-shot[data-on][data-pull] { animation: soq-pull 460ms var(--soq-swing) both; }
+@keyframes soq-pull {
+  from { clip-path: inset(0 calc(100% - var(--soq-l0) - (100% - var(--soq-l0)) * (var(--i) + 1) / var(--n)) 0 calc(var(--soq-l0) + (100% - var(--soq-l0)) * var(--i) / var(--n))); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.soq-lineup { position: absolute; inset: 0; display: flex; gap: 4px; padding-left: var(--soq-l0); }
+.soq-tile { position: relative; flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.soq-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: var(--soq-grade); }
+.soq-tile[data-fit="contain"] img { object-fit: contain; inset: 12% 6% 18%; width: 88%; height: 70%; }
+.soq-tile[data-fit]::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, color-mix(in oklab, var(--soq-deep) 72%, transparent), transparent 45%); }
+.soq-vert {
+  position: relative; z-index: 1; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;
+  font-family: var(--soq-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.03em; line-height: 1;
+  font-size: var(--soq-tile, 40px); color: transparent;
+  background: linear-gradient(180deg, var(--soq-ink) 0%, var(--soq-ink) 35%, color-mix(in oklab, var(--soq-ink) 52%, var(--soq-deep)) 100%);
+  -webkit-background-clip: text; background-clip: text;
+}
 @keyframes soq-wipe { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes soq-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes soq-out { from { opacity: 1; } to { opacity: 0; } }
@@ -375,7 +394,7 @@ const CSS = `
   font-size: var(--soq-still, 120px);
   line-height: 0.86; letter-spacing: -0.045em; text-align: right; white-space: nowrap;
   color: transparent;
-  background: radial-gradient(70% 62% at 58% 24%, var(--soq-ink) 0%, color-mix(in oklab, var(--soq-ink) 62%, var(--soq-deep)) 46%, color-mix(in oklab, var(--soq-ink) 10%, var(--soq-deep)) 100%);
+  background: radial-gradient(130% 110% at 62% 0%, var(--soq-ink) 0%, color-mix(in oklab, var(--soq-ink) 74%, var(--soq-deep)) 52%, color-mix(in oklab, var(--soq-ink) 30%, var(--soq-deep)) 100%);
   -webkit-background-clip: text; background-clip: text;
 }
 .soq-still span { display: block; }
@@ -383,30 +402,32 @@ const CSS = `
 .soq-beam {
   position: absolute; z-index: -1; pointer-events: none; top: -14%; left: 72%; width: 62%; height: 132%;
   margin-left: -31%; transform-origin: 50% 0%;
-  background: conic-gradient(from 180deg at 50% 0%, transparent 0deg, transparent 163deg, color-mix(in oklab, var(--soq-beam) 22%, transparent) 172deg, color-mix(in oklab, var(--soq-beam) 34%, transparent) 180deg, color-mix(in oklab, var(--soq-beam) 22%, transparent) 188deg, transparent 197deg, transparent 360deg);
-  filter: blur(22px); mix-blend-mode: screen; opacity: 0.55;
-  transition: opacity 600ms var(--soq-ease), transform 700ms var(--soq-swing);
+  background: conic-gradient(from 180deg at 50% 0%, transparent 0deg, transparent 162deg, color-mix(in oklab, var(--soq-beam) 30%, transparent) 171deg, color-mix(in oklab, var(--soq-beam) 48%, transparent) 180deg, color-mix(in oklab, var(--soq-beam) 30%, transparent) 189deg, transparent 198deg, transparent 360deg);
+  filter: blur(20px); mix-blend-mode: screen; opacity: 0.62;
+  rotate: var(--soq-aim, 0deg); scale: 1 1;
+  transition: opacity 600ms var(--soq-ease), rotate 520ms var(--soq-swing), scale 700ms var(--soq-ease);
   animation: soq-sway 11s ease-in-out infinite alternate;
 }
 .soq-pool {
   position: absolute; z-index: -1; pointer-events: none; left: 44%; right: -6%; bottom: -10%; height: 34%;
   background: radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--soq-beam) 26%, transparent), transparent 70%);
-  mix-blend-mode: screen; opacity: 0.5; transition: opacity 600ms var(--soq-ease);
+  mix-blend-mode: screen; opacity: 0; transition: opacity 600ms var(--soq-ease);
 }
-.soq[data-step="claim"] .soq-beam, .soq[data-step="done"] .soq-beam { opacity: 0.95; }
-.soq[data-step="claim"] .soq-pool, .soq[data-step="done"] .soq-pool { opacity: 0.85; }
+.soq[data-lit="packshot"] .soq-pool { opacity: 0.55; }
+.soq[data-step="claim"] .soq-beam, .soq[data-step="done"] .soq-beam { opacity: 1; scale: 1.35 1.04; }
+.soq[data-step="claim"][data-lit="packshot"] .soq-pool, .soq[data-step="done"][data-lit="packshot"] .soq-pool { opacity: 0.9; }
 .soq[data-swap] .soq-beam { opacity: 0.25; }
 .soq-modal:not([data-shown]) .soq-beam, .soq-modal:not([data-shown]) .soq-pool { opacity: 0; }
 @keyframes soq-sway { from { transform: rotate(-2.2deg); } to { transform: rotate(2.2deg); } }
 
 .soq-in {
-  position: relative; display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+  position: relative; display: grid; grid-template-columns: minmax(0, 50fr) minmax(0, 50fr);
   min-height: var(--soq-h);
 }
 .soq-modal .soq-in { min-height: 100vh; min-height: 100dvh; }
 .soq-copy {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  padding: clamp(72px, 9vh, 112px) clamp(24px, 4vw, 64px) clamp(48px, 7vh, 88px);
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: center;
+  padding: clamp(72px, 9vh, 112px) clamp(24px, 5vw, 88px) clamp(48px, 7vh, 88px);
 }
 .soq-col { width: 100%; max-width: 440px; }
 .soq-h { margin: 0; font-family: var(--soq-display); font-weight: 800; }
@@ -418,9 +439,10 @@ const CSS = `
 .soq-offer span { display: block; }
 .soq-measure { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; font-size: 100px; white-space: nowrap; }
 .soq-measure span { display: inline-block; }
-.soq-q { margin: 16px auto 0; max-width: 30ch; font-size: 18px; line-height: 1.4; color: var(--soq-muted); text-wrap: balance; }
+.soq-q { margin: 0 auto 26px; max-width: 30ch; font-size: 18px; line-height: 1.4; color: var(--soq-muted); text-wrap: balance; }
 
-.soq-panels { position: relative; display: grid; margin-top: 28px; }
+.soq-panels { position: relative; display: grid; margin-top: 18px; }
+.soq-panel > .soq-for:first-child { margin-top: 8px; }
 .soq-panel {
   grid-area: 1 / 1; min-width: 0;
   transition: opacity 250ms var(--soq-ease) 70ms, transform 300ms var(--soq-ease) 70ms, visibility 0s linear 0s;
@@ -482,8 +504,8 @@ const CSS = `
 .soq-change:active { transform: scale(0.97); }
 .soq-change b { font-weight: 600; }
 
-.soq-form { margin-top: 24px; text-align: left; }
-.soq-label { display: block; margin: 0 0 8px 18px; font-size: 14px; font-weight: 600; color: var(--soq-ink); }
+.soq-form { margin-top: 24px; text-align: center; }
+.soq-label { display: block; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--soq-ink); }
 .soq-row {
   position: relative; display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 5px; border-radius: 30px;
   border: 1.5px solid color-mix(in oklab, var(--soq-ink) 62%, transparent);
@@ -514,6 +536,9 @@ const CSS = `
 @media (hover: hover) and (pointer: fine) { .soq-btn:hover::after { transform: translateX(110%); } }
 .soq-btn:active { transform: scale(0.97); }
 .soq-btn[aria-busy="true"] { cursor: progress; }
+.soq-btn-l { display: grid; }
+.soq-btn-l > span { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.soq-btn-l > span:not([data-on]) { visibility: hidden; }
 .soq-btn[aria-busy="true"] .soq-dots i { animation: soq-dot 900ms ease-in-out infinite; }
 .soq-dots { display: inline-flex; gap: 3px; }
 .soq-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0.35; }
@@ -522,8 +547,8 @@ const CSS = `
 @keyframes soq-dot { 50% { opacity: 1; transform: translateY(-2px); } }
 .soq-wait { display: inline-flex; align-items: center; gap: 8px; margin: 18px 0 0; font-size: 15px; color: var(--soq-muted); }
 .soq-wait .soq-dots i { animation: soq-dot 900ms ease-in-out infinite; }
-.soq-msg { min-height: 22px; margin: 8px 0 0 18px; font-size: 14px; line-height: 1.4; color: var(--soq-err); }
-.soq-fine { margin: 6px 0 0 18px; font-size: 13px; line-height: 1.45; color: var(--soq-muted); }
+.soq-msg { min-height: 22px; margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: var(--soq-err); }
+.soq-fine { margin: 4px auto 0; max-width: 40ch; font-size: 13px; line-height: 1.45; color: var(--soq-muted); }
 
 .soq-code {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px;
@@ -558,26 +583,29 @@ const CSS = `
 
 @container soq (max-width: 760px) {
   .soq-in { grid-template-columns: minmax(0, 1fr); }
-  .soq-plate { left: 0; width: 100%; bottom: auto; height: 330px;
+  .soq-plate { --soq-l0: 0%; left: 0; width: 100%; bottom: auto; height: 330px;
     -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); }
   .soq-beam { left: 50%; width: 120%; margin-left: -60%; height: 380px; top: -40px; }
   .soq-pool { display: none; }
   .soq-stage { background: radial-gradient(90% 300px at 50% 120px, var(--soq-stage) 0%, color-mix(in oklab, var(--soq-stage) 45%, var(--soq-deep)) 55%, var(--soq-deep) 100%); }
   .soq-still { bottom: auto; height: 236px; padding: 44px 16px 0 0; justify-content: center; }
   .soq-shot[data-fit="contain"] img { inset: 6% 18% 26% 18%; width: 64%; height: 68%; }
-  .soq-copy { justify-content: flex-start; padding: 250px 16px 40px; }
+  .soq-copy { align-items: center; justify-content: flex-start; padding: 250px 16px 40px; }
+  .soq-lineup { bottom: auto; height: 232px; }
+  .soq-tile { align-items: flex-start; padding-top: 64px; }
+  .soq-vert { white-space: normal; max-height: 160px; line-height: 0.95; }
   .soq-kicker { font-size: 17px; }
-  .soq-q { font-size: 17px; margin-top: 12px; }
+  .soq-q { font-size: 17px; margin-bottom: 20px; }
   .soq-panels { margin-top: 22px; }
   .soq-pill { min-height: 52px; font-size: 17px; }
   .soq-row { flex-direction: column; border-radius: 26px; padding: 6px; }
   .soq-input { flex: 0 0 auto; height: 46px; }
-  .soq[data-step="claim"] .soq-q, .soq[data-step="done"] .soq-q { display: none; }
   .soq-close { top: 12px; right: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .soq-beam { animation: none; }
+  .soq-beam { animation: none; transition: opacity 200ms linear; }
+  .soq-shot[data-on][data-pull] { animation: soq-in 160ms linear both; }
   .soq-shot[data-on], .soq-shot[data-on][data-kind="still"] { animation: soq-in 160ms linear both; }
   .soq-shot[data-prev] { visibility: hidden; }
   .soq-shot img, .soq-shot[data-on] img { transform: none; transition: none; }
@@ -699,8 +727,8 @@ export default function SpotlightOfferQuiz({
   optionsLabel = "Who are you shopping for?",
   pickIntro,
   changeLabel = "Change answer",
-  image = U + "1505740420928-5e560c06d30e" + Q,
-  imageAlt = "Over-ear headphones",
+  image,
+  imageAlt = "",
   imageFocus = "50% 50%",
   imageFit = "cover",
   brand = "Halden & Co.",
@@ -744,6 +772,7 @@ export default function SpotlightOfferQuiz({
   const [closing, setClosing] = React.useState(false)
   const [fit, setFit] = React.useState(0)
   const [box, setBox] = React.useState({ w: 0, h: 0, narrow: false })
+  const [panelsMin, setPanelsMin] = React.useState(0)
 
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const colRef = React.useRef(null as HTMLDivElement | null)
@@ -904,6 +933,17 @@ export default function SpotlightOfferQuiz({
     })
   }, [state.step, mounted, isOpen])
 
+  // ---- the steps share one height, so the offer above them never moves
+  useIsoLayoutEffect(() => {
+    const els = panelRefs.current.filter(Boolean) as HTMLDivElement[]
+    if (!els.length) return
+    const run = () => setPanelsMin(els.reduce((m, el) => Math.max(m, el.offsetHeight), 0))
+    run()
+    const ro = new ResizeObserver(run)
+    els.forEach((el) => ro.observe(el))
+    return () => ro.disconnect()
+  }, [mounted, isOpen, options, state.picked])
+
   // ---- a new step starts at the top of the popup
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
@@ -922,7 +962,7 @@ export default function SpotlightOfferQuiz({
   }, [slot, reduced])
 
   const shots = React.useMemo(() => {
-    const list = [{ key: -1, src: image, alt: imageAlt, focus: imageFocus, fit: imageFit, word: brand || offerLines.join(" ") }]
+    const list = [{ key: -1, src: image || "", alt: imageAlt, focus: imageFocus, fit: imageFit, word: brand || offerLines.join(" ") }]
     // An answer without its own photo spells its pick rather than repeating the stage's photo.
     options.forEach((o, i) => list.push({ key: i, src: o.image || "", alt: o.imageAlt || o.pick || o.label, focus: o.focus || imageFocus, fit: o.fit || imageFit, word: o.pick || o.label }))
     return list
@@ -941,8 +981,19 @@ export default function SpotlightOfferQuiz({
       const w = lines.reduce((m, l) => Math.max(m, ctx.measureText(l).width - 4.5 * Math.max(0, l.length - 1)), 0)
       out[s.word] = stillSize(w * 1.04, lines.length, area, box.narrow ? 0.9 : 0.7)
     })
+    // The line-up's upright names: one size for every column, held by the column width and the stage height.
+    const colW = (box.w * (box.narrow ? 1 : 0.8) - 4 * (options.length - 1)) / Math.max(1, options.length)
+    // Phones wrap each name onto two upright lines, so the longest word sets the size there.
+    const longest = options.reduce((m, o) => {
+      const name = (o.pick || o.label).toUpperCase()
+      const parts = box.narrow ? name.split(/\s+/) : [name]
+      return parts.reduce((mm, w) => Math.max(mm, ctx.measureText(w).width), m)
+    }, 0)
+    out["\u0000tile"] = box.narrow
+      ? Math.min(colW / 2.3, fitSize(longest * 1.06, 156, 12, 60))
+      : Math.min(colW * 0.5, fitSize(longest * 1.04, box.h * 0.78, 12, 200))
     return out
-  }, [shots, box, displayFont])
+  }, [shots, box, displayFont, options])
 
   // Preload every answer's photo so a hover never waits on the network.
   React.useEffect(() => {
@@ -1090,7 +1141,10 @@ export default function SpotlightOfferQuiz({
   const showDecline = decline !== null && decline !== undefined && (isModal || !!onDecline)
   const hide = (h: boolean) => (h ? ({ "data-hidden": "", "aria-hidden": true } as { [k: string]: unknown }) : {})
   const litShot = shots.find((x) => x.key === slot)
-  const litKind = litShot && litShot.src && !failed[litShot.src] ? "photo" : "still"
+  const lineup = !image
+  const litKind =
+    slot < 0 && lineup ? "lineup" : litShot && litShot.src && !failed[litShot.src] ? (litShot.fit === "contain" ? "packshot" : "photo") : "still"
+  const aim = slot >= 0 && lineup && !reduced ? ((slot - (options.length - 1) / 2) * 2.4).toFixed(2) + "deg" : "0deg"
   const panelRef = (i: number) => (el: HTMLDivElement | null) => {
     panelRefs.current[i] = el
   }
@@ -1103,8 +1157,37 @@ export default function SpotlightOfferQuiz({
           const on = s.key === slot
           const was = s.key === prev && !on
           const ok = !!s.src && !failed[s.src]
+          if (s.key < 0 && lineup)
+            return (
+              <div key={s.key} className="soq-shot" data-on={on || undefined} data-prev={was || undefined} data-kind="still" aria-hidden={!on || undefined}>
+                <div className="soq-lineup" style={{ "--soq-tile": (stillSizes["\u0000tile"] || 40) + "px" } as React.CSSProperties}>
+                  {options.map((o, i) => {
+                    const src = o.image && !failed[o.image] ? o.image : ""
+                    return (
+                      <div key={i} className="soq-tile" data-fit={src ? o.fit || imageFit : undefined}>
+                        {src ? (
+                          <img src={src} alt="" width={800} height={1200} decoding="async" style={{ objectPosition: o.focus || imageFocus }} />
+                        ) : (
+                          <span className="soq-vert">{(o.pick || o.label).replace(/-/g, "\u2011")}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
           return (
-            <div key={s.key} className="soq-shot" data-on={on || undefined} data-prev={was || undefined} data-kind={ok ? "photo" : "still"} data-fit={ok ? s.fit : undefined}>
+            <div
+              key={s.key}
+              className="soq-shot"
+              data-on={on || undefined}
+              data-prev={was || undefined}
+              data-pull={(lineup && s.key >= 0) || undefined}
+              data-kind={ok ? "photo" : "still"}
+              data-fit={ok ? s.fit : undefined}
+              aria-hidden={!on || undefined}
+              style={{ "--i": s.key, "--n": options.length } as React.CSSProperties}
+            >
               {ok ? (
                 <img
                   src={s.src}
@@ -1146,10 +1229,9 @@ export default function SpotlightOfferQuiz({
               </span>
             </span>
           </h2>
-          {question ? <p className="soq-q">{question}</p> : null}
-
-          <div className="soq-panels">
+          <div className="soq-panels" style={panelsMin ? { minHeight: panelsMin } : undefined}>
             <div className="soq-panel" ref={panelRef(0)} {...hide(step !== "ask")}>
+              {question ? <p className="soq-q">{question}</p> : null}
               <fieldset className="soq-pills" style={{ "--i": 0 } as React.CSSProperties} onPointerLeave={() => preview(-1)}>
                 <legend className="soq-sr">{optionsLabel}</legend>
                 {options.map((o, i) => (
@@ -1192,15 +1274,11 @@ export default function SpotlightOfferQuiz({
                     </p>
                   ) : null}
                   <div style={{ "--i": 3 } as React.CSSProperties}>
-                    <button ref={changeRef} type="button" className="soq-change" onClick={change}>
+                    <button ref={changeRef} type="button" className="soq-change" onClick={change} aria-label={changeLabel + " (" + option.label + ")"}>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                         <path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 2.5v3h-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      <span>
-                        <b>{option.tag ? option.tag.charAt(0).toUpperCase() + option.tag.slice(1) : option.label}</b>
-                        <span aria-hidden="true">{"  ·  "}</span>
-                        {changeLabel}
-                      </span>
+                      <span>{changeLabel}</span>
                     </button>
                   </div>
                   {collectEmail ? (
@@ -1223,18 +1301,17 @@ export default function SpotlightOfferQuiz({
                           onChange={(e) => setEmail(e.target.value)}
                         />
                         <button className="soq-btn" type="submit" aria-busy={state.status === "pending"}>
-                          {state.status === "pending" ? (
-                            <>
+                          <span className="soq-btn-l">
+                            <span data-on={state.status !== "pending" || undefined}>{submitText}</span>
+                            <span data-on={state.status === "pending" || undefined}>
                               {pendingLabel}
                               <span className="soq-dots" aria-hidden="true">
                                 <i />
                                 <i />
                                 <i />
                               </span>
-                            </>
-                          ) : (
-                            submitText
-                          )}
+                            </span>
+                          </span>
                         </button>
                       </div>
                       <p className="soq-msg" id={uid + "-m"} role="alert" aria-live="assertive">
@@ -1322,8 +1399,9 @@ export default function SpotlightOfferQuiz({
     "data-step": step,
     "data-swap": swap || undefined,
     "data-lit": litKind,
+    "data-lineup": lineup || undefined,
     "data-paired": darkPreset ? "" : undefined,
-    style: vars,
+    style: { ...vars, "--soq-aim": aim } as React.CSSProperties,
   }
 
   if (isModal) {
@@ -1340,7 +1418,6 @@ export default function SpotlightOfferQuiz({
         data-closing={closing || undefined}
       >
         <style>{CSS}</style>
-        {plate}
         <div className="soq-scroll" ref={scrollRef}>
           <div className="soq-frame">
             {plate}

@@ -10,7 +10,6 @@ export default function SpotlightOfferQuizMidnightDemo() {
       offer="Free shipping"
       question="What are you after this month? We'll start you on the right bag."
       optionsLabel="What are you after?"
-      brand="Night Shift"
       code="SHIPFREE"
       decline="Just browsing for now"
       onDecline={() => {}}
