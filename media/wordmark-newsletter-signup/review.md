@@ -100,3 +100,95 @@ Changes made for round 2:
 - Popup: `backdrop="dim"` option; touch screens focus the dialog rather than the field.
 - Default sauce preset now sits on a tomato-pink ground of our own, not the reference's grey.
 - Section default height `min(100svh, 880px)`.
+
+## Round 2 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 7 |
+| (a) idea / reference feel | 7 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.0 |
+
+Found: the submit hover label (accent on ink) failed contrast in six of eight palettes; mustard light
+lost its band borders and checkbox (ink on a near-black ground) and its focus ring (yellow on white);
+the card re-centred when an error line appeared; the phone success state floated in empty ground;
+on tablet the card never touched the letters; a single-line word left the field lopsided; the band's
+strip did not line up with the wordmark and grew on success; the type read as stretched rather than
+condensed; the success state was a dead end.
+
+Changes made for round 3:
+
+- Submit hover label is paper on the ink flood (tested at 4.5:1 or better for all eight palettes).
+- Focus rings use the accent only when it reads at 3:1 on the card, otherwise ink (mustard light).
+  A checkbox on the band's ground is drawn in the readable ground colour, with a transparent fill.
+  The band submit's focus ring sits inside the button.
+- The error slot under the field is reserved, so the card never re-centres when an error appears.
+  Consent errors use the same slot ("Tick the box below...") and focus the checkbox.
+- Phones and tablets (below 1024px) stack the wordmark above the card. The section's height applies
+  only on wide screens. A swapped word bottom-aligns against the card or strip.
+- A single line in a tall field is set twice, top and bottom, so the field never sits lopsided.
+  The popup demo's success word is "In the brine" (an even split).
+- The band's strip runs full width, so its edges line up with the wordmark's ink. The success strip
+  holds the form strip's height, so the page below does not move.
+- Wordmark stack: "Helvetica Neue" (its Condensed Black on Apple systems via `font-stretch:
+  condensed`), "Arial Narrow" and "Roboto Condensed" go first. The canvas measures with
+  `fontStretch` where supported; elsewhere the SVG draws at normal width too, so measuring and
+  drawing always agree. The sandbox has none of these faces, so the screenshots still show
+  Inter Black.
+- New `successAction` prop: a hard-bordered button so the success state leads somewhere
+  (demos: "Read last week's recipe", "See this month's jars").
+- Smaller fixes: no font-size transition on the field; the size floor is 14px; the invalid ring is
+  2px.
+
+Decision: on wide screens the card shrinks to its content on success. The section height is fixed
+there, so nothing outside moves, and a tall empty card read worse than a compact one.
+
+## Round 3 (fresh critic): REDO
+
+| | Score |
+|---|---|
+| (u) usability | 7 |
+| (a) idea / reference feel | 7 |
+| (b) craft | 6 |
+| (c) originality | 6 |
+| (d) install-safety | 9 |
+| average | 7.0 |
+
+Found: below 1024px the section shrank on success and moved the host page; the signature only
+played after a signup; the reserved error slot left a 45px hole under the field; the success word
+sat at the bottom of an empty block on narrow screens; hard-coded English strings; "Arial Narrow"
+(no heavy weight) matched before "Arial Black" on Windows with Office; the phone band headline sat
+on its divider; the popup's close button crowded the headline on a phone; scroll lock shifted the
+page by the scrollbar width; a selected chip showed "×".
+
+Applied after round 3 (no fourth critic; the brief allows three rounds):
+
+- `intro` prop, default `"view"`: the letter drop plays once when the section or band first
+  scrolls a third into view (the popup plays it on open). Off under reduced motion.
+- Below 1024px the section holds its height through success and centres its content, so the host
+  page does not jump. On wide screens the section height is fixed and the card shrinks to its
+  content, which keeps the success word readable. Holding the card's height was tried and dropped:
+  the tall card hid "SEE YOU / SUNDAY" and read as an empty box.
+- The error sits under the field, absolutely positioned, and takes no space at rest.
+- `messages` prop for every built-in string (required, invalid, consent, failed, close).
+- Font order: Arial Black now comes before Arial Narrow.
+- Phone band headline padding; popup headline clears the close button; scroll lock pads by the
+  scrollbar width; selected chips show a check mark; the README says `height` applies at 1024px
+  and wider.
+- A swapped word in the stacked layout spreads over the name's space when the gaps stay tight,
+  otherwise it sits as a centred block.
+
+Not done: reserving the stacked wordmark's height for server rendering before the client measures
+it (critic fix 5). A client-rendered page paints it measured on the first frame; under SSR a phone
+sees the card drop once the wordmark measures.
+
+## Final
+
+Verdict after three rounds: **REDO (7.0)**, so the piece lives on `claude/review-wordmark-newsletter-signup`
+for the owner to judge. Strongest frames: `cover.png` (the name framing the card), `done.png`
+(SEE YOU / SUNDAY around the confirmation), `demo-modal.png`, `demo-band.png`, `mobile.png`.
+Where it goes on a real site: the newsletter block of a food, drink or consumer brand's home page or
+blog (section), an exit or timed popup (modal), or a strip just above the footer (band).

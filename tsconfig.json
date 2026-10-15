@@ -151,7 +151,15 @@
       "@/components/ui/loyly-sauna-landing": ["./components/loyly-sauna-landing/loyly-sauna-landing.tsx"],
       "@/components/ui/callsign-radio-landing": ["./components/callsign-radio-landing/callsign-radio-landing.tsx"],
       "@/components/ui/galaxy-starfield": ["./components/galaxy-starfield/galaxy-starfield.tsx"],
-      "@/components/ui/wordmark-newsletter-signup": ["./components/wordmark-newsletter-signup/wordmark-newsletter-signup.tsx"]
+      "@/components/ui/wordmark-newsletter-signup": ["./components/wordmark-newsletter-signup/wordmark-newsletter-signup.tsx"],
+      "@/components/ui/spotlight-offer-quiz": ["./components/spotlight-offer-quiz/spotlight-offer-quiz.tsx"],
+      "@/components/ui/postmark-cta": ["./components/postmark-cta/postmark-cta.tsx"],
+      "@/components/ui/seam-history-timeline": ["./components/seam-history-timeline/seam-history-timeline.tsx"],
+      "@/components/ui/odometer-stage-stats": ["./components/odometer-stage-stats/odometer-stage-stats.tsx"],
+      "@/components/ui/wirebound-inquiry": ["./components/wirebound-inquiry/wirebound-inquiry.tsx"],
+      "@/components/ui/glass-fan-testimonials": ["./components/glass-fan-testimonials/glass-fan-testimonials.tsx"],
+      "@/components/ui/kamm-trek-landing": ["./components/kamm-trek-landing/kamm-trek-landing.tsx"],
+      "@/components/ui/earth-limb-landing": ["./components/earth-limb-landing/earth-limb-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]

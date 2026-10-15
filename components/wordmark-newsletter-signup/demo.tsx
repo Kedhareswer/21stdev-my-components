@@ -10,6 +10,7 @@ export default function WordmarkNewsletterSignupDemo() {
       topics={["Recipes", "New sauces", "Pop-ups"]}
       defaultTopics={["Recipes"]}
       proof="Read by 18,240 home cooks"
+      successAction={{ label: "Read last week's recipe", href: "#latest" }}
     />
   )
 }

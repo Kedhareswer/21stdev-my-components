@@ -62,6 +62,9 @@ const [open, setOpen] = React.useState(false)
 | `requireConsent` | `true` when there is a checkbox | Refuse to send until it is ticked. |
 | `proof` | none | Small social proof under the button. |
 | `successTitle`, `successCopy`, `resetLabel` | | Success state. `successCopy` may be a function of the email. |
+| `successAction` | none | `{ label, href }`: a button in the success state, e.g. the latest issue. |
+| `messages` | English | `{ required, invalid, consent, failed, close }`: every built-in message, for other languages. |
+| `intro` | `"view"` | Play the letter drop when the section first scrolls a third into view, on `"mount"`, or never (`false`). Off under reduced motion. |
 | `onSubscribe` | waits 900 ms | `({ email, topics, consent }) => void \| Promise`. Throw an `Error` to show its message. |
 | `variant` | `"section"` | `"section" \| "modal" \| "band"`. |
 | `backdrop` | `"wordmark"` | Modal: `"wordmark"` fills the screen with the brand, `"dim"` darkens the page behind the card. |
@@ -69,7 +72,7 @@ const [open, setOpen] = React.useState(false)
 | `preset` | `"sauce"` | `"sauce" \| "pickle" \| "mustard" \| "blueberry"`. |
 | `palette`, `darkPalette` | | Override `ground`, `mark`, `paper`, `ink`, `accent`, `onAccent`, `headline`. |
 | `theme` | `"auto"` | `"auto" \| "light" \| "dark"`. |
-| `height` | `"min(100svh, 880px)"` | Section minimum height. Any definite length. |
+| `height` | `"min(100svh, 880px)"` | Section minimum height on screens 1024px and wider. Any definite length. Below that the wordmark stacks above the card and the section sizes to its content. |
 | `maxLines` | `4` | Most lines the wordmark may break into (wide screens frame the card with two). |
 | `crop` | `0.14` | How far the last line drops past the bottom edge, as a fraction of its height. |
 | `image` | none | `{ src, alt }`: an optional photo tile beside the card on wide screens. It hides itself if it fails to load. |

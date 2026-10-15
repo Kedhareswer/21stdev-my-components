@@ -26,8 +26,8 @@ for (const bad of ["", "maria@", "maria@fastmail", "@fastmail.com", "maria fastm
 
 // The field shrinks with a long address, never below the floor.
 assert.equal(m.emailFontSize(10), 26)
-assert.ok(m.emailFontSize(30) < 26 && m.emailFontSize(30) >= 15)
-assert.equal(m.emailFontSize(200), 15)
+assert.ok(m.emailFontSize(30) < 26 && m.emailFontSize(30) >= 14)
+assert.equal(m.emailFontSize(200), 14)
 
 // Lines: fixed by "\n" or an array, uppercased; otherwise left to the layout.
 assert.deepEqual(m.toLines("Big\nSunday "), ["BIG", "SUNDAY"])
@@ -57,8 +57,12 @@ assert.deepEqual(wide.lines[0].xs.slice(0, 3), [0, 60, 120], "glyphs sit at thei
 
 const welcome = m.layoutWordmark("Welcome in", { w: 1440, h: 900 }, measure, 72, opts)
 assert.deepEqual(welcome.lines.map((l) => l.text), ["WELCOME", "IN"], "a short last word takes the bottom line instead of leaving it empty")
+const single = m.layoutWordmark("Thanks", { w: 1440, h: 1600 }, measure, 72, opts)
+assert.deepEqual(single.lines.map((l) => l.text), ["THANKS", "THANKS"], "a lone word in a tall field is set twice, top and bottom, never leaving it lopsided")
+assert.equal(m.layoutWordmark("Thanks", { w: 1440, h: 900 }, measure, 72, opts).lines.length, 1, "unless one line already fills the field")
+assert.ok(single.lines[1].y0 > single.lines[0].y0 + single.cap, "the repeat sits at the bottom")
 const uneven = m.layoutWordmark("Welcome in", { w: 1440, h: 900 }, measure, 72, { ...opts, balance: 0.45 })
-assert.equal(uneven.lines.length, 1, "splits less even than the balance are skipped")
+assert.ok(uneven.lines.every((l) => l.text === "WELCOME IN"), "splits less even than the balance are skipped")
 
 const fixed = m.layoutWordmark("Brine\nHouse", { w: 1440, h: 900 }, measure, 72, opts)
 assert.deepEqual(fixed.lines.map((l) => l.text), ["BRINE", "HOUSE"], "fixed lines are kept")
@@ -95,6 +99,8 @@ for (const [, mode, ground, mark, paper, ink, accent, onAccent, headline] of pre
   assert.ok(m.contrast(onAccent, accent) >= 4.5, mode + " " + accent + " button label is " + m.contrast(onAccent, accent).toFixed(2))
   assert.ok(m.contrast(mark, ground) >= 1.6, mode + " " + mark + " wordmark must read against the ground")
   assert.ok(m.contrast(m.pickReadable(ground, [mark, ink, paper]), ground) >= 4.5, mode + " band text on the ground")
+  assert.ok(m.contrast(m.pickReadable(paper, [accent, ink], 3), paper) >= 3, mode + " " + accent + " focus ring reads on the card")
+  assert.ok(m.contrast(paper, ink) >= 4.5, mode + " the hover label (paper on the ink flood)")
 }
 assert.equal(m.pickReadable("#bdbcb7", ["#b30d17", "#0e0e0e", "#ffffff"]), "#0e0e0e", "a wordmark colour too weak for small text falls back")
 assert.equal(m.pickReadable("#141414", ["#f2b705", "#111111"]), "#f2b705")
@@ -127,7 +133,13 @@ assert.ok(/<label className="wns-field"/.test(src), "the email field has a real 
 assert.ok(/aria-live="polite"/.test(src) && /aria-describedby/.test(src), "errors are announced and tied to the field")
 assert.ok(/aria-pressed=/.test(src), "topic chips are toggle buttons")
 assert.ok(/readOnly=\{status === "pending"\}/.test(src) && !/[^-]disabled=\{status/.test(src), "pending keeps focus: readOnly and aria-disabled, never disabled")
+assert.ok(/\.wns-roll \{ color: var\(--p\); \}/.test(css), "the hover label is paper on the ink flood, not accent on ink")
+assert.ok(/\.wns-under \.wns-box \{ background: transparent; border-color: var\(--u\); \}/.test(css), "a checkbox on the ground is drawn in the readable ground colour")
+assert.ok(/\.wns-fieldwrap \.wns-status \{ position: absolute/.test(css) && !/wns-status:empty/.test(css), "the error sits under the field and takes no space at rest")
 assert.ok(/overflow-wrap: anywhere/.test(css) && !/break-all/.test(css), "addresses wrap whole")
+assert.ok(/messages\?: WnsMessagesInput/.test(src) && /type WnsMessagesInput = Partial<typeof MESSAGES>/.test(src) &&/setError\(msg\.required\)/.test(src), "every built-in message can be replaced")
+assert.ok(/IntersectionObserver/.test(src) && /intro = "view"/.test(src), "the signature drop plays when the section scrolls into view")
+assert.ok(/--wns-held/.test(src), "below 1024px the section holds its height through success, so the host page does not jump")
 assert.ok(/pointer: coarse/.test(src), "touch screens are not handed a keyboard on open")
 assert.ok(/role="dialog"/.test(src) && /aria-modal="true"/.test(src), "the modal is a dialog")
 assert.ok(/e\.key === "Escape"/.test(src) && /e\.key !== "Tab"/.test(src), "Escape closes, Tab is trapped")
