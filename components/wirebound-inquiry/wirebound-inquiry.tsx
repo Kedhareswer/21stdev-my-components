@@ -124,6 +124,8 @@ export type WireboundCopy = {
   pages: string
   pagesLeft: string
   lastQuestion: string
+  reference: string
+  receiptLine: string
 }
 
 const DEFAULT_COPY: WireboundCopy = {
@@ -158,6 +160,8 @@ const DEFAULT_COPY: WireboundCopy = {
   pages: "{total} pages, about two minutes. {reader} reads every brief and replies within {time}.",
   pagesLeft: "{left} pages to go",
   lastQuestion: "Then just your details",
+  reference: "Ref. {ref}",
+  receiptLine: "{reader} will reply to {email} within {time}.",
 }
 
 const fill = (t: string, v: { [k: string]: string | number }) => t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m))
@@ -171,7 +175,7 @@ export type WireboundInquiryProps = {
   kicker?: React.ReactNode | null
   headline?: React.ReactNode
   intro?: React.ReactNode
-  /** Direct address, shown beside the notebook and on the cover. */
+  /** Direct address, written on the cover and on the summary pages. */
   email?: string
   socials?: WireboundLink[]
   /** A short availability line, e.g. "Booking projects from January 2027". null hides it. */
@@ -361,7 +365,7 @@ const DEFAULT_NOTES: WireboundNote[] = [
   },
 ]
 
-const DEFAULT_NEXT = ["We read it together.", "A plan and a price.", "A short call if it fits."]
+const DEFAULT_NEXT = ["We read it together.", "A plan and a price.", "A call, if it fits."]
 
 // #region logic
 export type WireboundLayout = {
@@ -376,7 +380,7 @@ export type WireboundLayout = {
 }
 
 /** How far the coil loops stand out past the binding edge on a single page. */
-export const COIL_OVERHANG = 14
+export const COIL_OVERHANG = 22
 
 /**
  * Page size and arrangement for a section this wide. `vh` (the viewport height) lets the
@@ -626,15 +630,6 @@ const CSS = `
   color: var(--muted);
 }
 .wbi-direct { margin-top: 34px; display: grid; gap: 18px; }
-.wbi-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 .wbi-mark {
   text-decoration: none;
   padding: 0 0.12em;
@@ -647,13 +642,6 @@ const CSS = `
 }
 .wbi-mark:hover { background-size: 100% 100%; color: var(--onHighlight); }
 .wbi-mark:focus-visible { outline: 2px solid var(--highlight); outline-offset: 4px; border-radius: 2px; }
-.wbi-email {
-  font-family: var(--wbi-mono);
-  font-weight: 700;
-  font-size: clamp(17px, 1.7cqi, 22px);
-  overflow-wrap: anywhere;
-}
-.wbi-socials { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; list-style: none; font-size: 16px; font-weight: 600; }
 .wbi-avail { display: flex; align-items: baseline; gap: 10px; font-size: 15px; color: var(--muted); }
 .wbi-avail::before { content: ""; flex: none; width: 18px; height: 2px; background: var(--highlight); transform: translateY(-4px); }
 
@@ -717,6 +705,7 @@ const CSS = `
 .wbi-sheet[data-peek] .wbi-shade { transition: opacity 380ms ease; }
 .wbi-sheet[data-peek]:hover .wbi-shade { opacity: 0.32; }
 .wbi[data-mode="single"] .wbi-sheet[data-turned]:not([data-turning]) { visibility: hidden; }
+.wbi[data-mode="single"] .wbi-tab[data-side="l"] { visibility: hidden; }
 .wbi-face {
   position: absolute;
   inset: 0;
@@ -1516,7 +1505,7 @@ export default function WireboundInquiry({
     "--wbi-fibre": grain ? grain.fibre : "none",
     "--wbi-grain": grain ? grain.grain : "none",
     "--text-w": L.textW + "px",
-    "--persp": Math.round(pageW * 5.2) + "px",
+    "--persp": Math.round(pageW * 9) + "px",
     "--u": u.toFixed(3),
     "--rule": rule + "px",
     "--head": head + "px",
@@ -1783,9 +1772,13 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
             ) : null}
           </p>
           <div className="wbi-nav wbi-nav-inline">
-            <button type="button" className="wbi-backbtn" onClick={() => goTo(sheetIndex - 1)}>
-              &larr; {backLabel}
-            </button>
+            {spread && sheetIndex === 1 ? (
+              <span />
+            ) : (
+              <button type="button" className="wbi-backbtn" onClick={() => goTo(sheetIndex - 1)}>
+                &larr; {backLabel}
+              </button>
+            )}
             <button type="submit" className="wbi-next">
               {q.optional && !picked.length ? C.skip : nextLabel}
               <span className="wbi-arrow" aria-hidden>
@@ -1964,7 +1957,7 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
       {holes("f")}
       <span className="wbi-marginline" style={{ left: marginX }} />
       <div className="wbi-meta" style={pageBox("f")}>
-        <span>{reference ? "Ref. " + reference : studio}</span>
+        <span>{reference ? fill(C.reference, { ref: reference }) : studio}</span>
         <span>{C.filed}</span>
       </div>
       <div className="wbi-page" style={pageBox("f")}>
@@ -1980,7 +1973,12 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
             ? receipt(b)
             : receipt ?? (
                 <>
-                  {reader} will reply to <span style={{ color: "var(--pen)", fontWeight: 700, overflowWrap: "anywhere" }}>{b.email}</span> within {replyTime}.
+                  {C.receiptLine.split("{email}").map((part, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 ? <span style={{ color: "var(--pen)", fontWeight: 700, overflowWrap: "anywhere" }}>{b.email}</span> : null}
+                      {fill(part, { reader, time: replyTime, studio })}
+                    </React.Fragment>
+                  ))}
                 </>
               )}
         </p>

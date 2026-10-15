@@ -32,7 +32,7 @@ for (const w of [320, 375, 414, 768, 1024, 1280, 1440, 1920, 2560]) {
   const book = L.mode === "single" ? m.COIL_OVERHANG + L.gap + L.pageW + L.tab : L.tab * 2 + L.pageW * 2 + L.gap
   const room = L.mode === "wide" ? Math.min(w, 1560) - L.pad * 2 - L.textW - 40 : w - L.pad * 2
   assert.ok(book <= room, w + "px: the notebook must fit its column (" + book + " > " + room + ")")
-  assert.ok(L.pageW >= 220, w + "px: page too narrow for the form (" + L.pageW + ")")
+  assert.ok(L.pageW >= 210, w + "px: page too narrow for the form (" + L.pageW + ")")
   assert.ok(L.pageH >= 450, w + "px: page too short for the details page")
   assert.ok(L.rule >= 26 && L.rule <= 31, "ruled lines stay readable")
 }

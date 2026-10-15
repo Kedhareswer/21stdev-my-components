@@ -82,3 +82,19 @@ Changes asked and what was done:
    one line.
 7. Empty space on question pages: Back / Next now follow the options, and a pen note at the foot
    says how many pages are left ("3 pages to go", "Then just your details").
+
+## Round 3 (fresh critic, 2026-10-15): SHIP
+
+Scores: usability 8, idea 8, craft 7, originality 8, install-safety 9 (average 8.0, nothing below 7).
+Banned looks: passed.
+
+Optional polish it listed, and what was done after the verdict:
+1. Page-turn overshoot at 90°: perspective raised from 5.2× to 9× the page width. Done.
+2. Coil loops reached x≈10 on phones: the coil overhang is now 22px. Done.
+3. `email` / `socials` documented as shown beside the notebook: doc corrected, the unused intro
+   styles removed (the cover and summary pages carry the contact details). Done.
+4. Receipt line and "Ref." were hard-coded: `copy.receiptLine` and `copy.reference`. Done.
+5. Left-side tab painting over the next page mid-turn on phones: hidden in single-page mode. Done.
+6. Empty lower half of the left pages: left as is (a notebook's facing page is allowed to breathe).
+7. A free-text question type: not added; the details page carries the free text. Noted for later.
+Extra: "Back" is hidden on page 1 of the spread, where "Close the notebook" sits opposite. Done.
