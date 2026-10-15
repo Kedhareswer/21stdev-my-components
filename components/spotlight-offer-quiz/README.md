@@ -2,7 +2,7 @@
 
 The discount popup that asks one good question first. A spotlit studio stage on the right, a
 huge offer, one personal question and a stack of answer pills. At rest the stage shows the
-line-up: every answer's product side by side in tall columns under one beam. Pointing at an
+line-up: every answer that has a photo stands side by side in a tall column under one beam. Pointing at an
 answer pulls its product out of the line-up and opens it to the full stage while the beam turns
 toward it. Picking one locks the light on it (the beam widens and brightens):
 the pills give way to your pick for that answer (a name and one line about it), an email field,
@@ -101,7 +101,7 @@ Inline section in daylight:
 | `trigger`, `delayMs`, `rememberDismissDays`, `storageKey` | `"manual"`, `6000`, 7 days when self-opening | self-opening |
 | `kicker`, `offer`, `question` | gift-finder copy | the offer; `offer` is fitted to the column, `"\n"` for two lines |
 | `options` | five kinds of giftee | `{ label, tag?, pick?, note?, image?, imageAlt?, focus?, fit?, href?, code? }[]` |
-| `image`, `imageAlt`, `imageFocus`, `imageFit`, `brand` | none (the line-up), `"Halden & Co."` | the product on stage before a pick; `brand` is what the stage spells if that photo fails |
+| `image`, `imageAlt`, `imageFocus`, `imageFit`, `brand` | none (the line-up) | the product on stage before a pick; `brand` is the word the stage spells if that photo fails, or when no answer has a photo (defaults to the offer) |
 | `grade` | `"mono"` | `"mono"`, `"natural"`, `"warm"` |
 | `collectEmail`, `emailLabel`, `placeholder`, `submitLabel`, `pendingLabel`, `finePrint` | | the claim form |
 | `code`, `onClaim`, `onPick`, `doneCopy`, `shopLabel`, `continueLabel`, `copyLabel`, `copiedLabel` | | the code step |
@@ -110,6 +110,10 @@ Inline section in daylight:
 | `height` | `"100svh"` | section height, a definite length |
 
 ## Photos
+
+Line-up columns are tall and narrow, so photos with the product centred read best; set each
+option's `focus` (CSS object-position) to keep the product in its column. Answers without a photo
+stay out of the line-up and spell their pick when pointed at.
 
 The defaults and demos use Unsplash photos (Unsplash License) as stand-ins for your product
 shots; replace them with your own. Gift finder (studio product shots on plain backdrops, graded

@@ -124,3 +124,42 @@ Changes made:
 - The photo path is now shot: `p-*` and `pm-*` screenshots route the Unsplash URLs to locally
   generated stand-in images (simple shapes, not the real photos) to prove layout, grade, the pull
   and the claim step with photos.
+
+## Round 3 (final): REDO (average 7.4)
+
+Scores: usability 8, idea 7, craft 6, originality 7, install-safety 9. Craft below 7, so REDO;
+this was the last allowed round, so the piece is parked on `claude/review-spotlight-offer-quiz`
+for the owner.
+
+The critic credited: a store could ship it this week (dialog behaviour, the `onClaim` contract,
+triggers, per-answer props, presets); the line-up pull as a signature interaction specific to the
+job; the offer holding still across steps; the pill ink wipe; complete reduced motion; clean
+install safety.
+
+Findings, most important first: a stray clipped glyph mid fast-sweep (lettered stand-ins were
+getting the column pull); the resting photo line-up read as window blinds (edge-to-edge strips,
+a hard left edge); landscape product shots become slivers in narrow columns; the beam did not
+read as a beam in stills; a double-click on an answer landed on "Change answer"; fine-print
+widows; graphite question text at about 4.2:1; ragged, fading upright names; the pick's name set
+twice on phones in the lettered state; the midnight demo's decline did nothing and its copy
+promised a subscription; `brand` was confusing; the thumb shows the no-photo state.
+
+Changes made after round 3 (verified by screenshots and the test, not re-scored, since the
+brief allows three rounds):
+- The column pull is limited to photos; lettered picks cross-fade in sequence (out 110 ms, in
+  200 ms after 110 ms), so no partial glyphs appear in a fast sweep (`d-02b`).
+- The line-up stands inset under the light (9 % top, 13 % bottom) with its ends fading into the
+  stage, a wider 34 % feather on the left, a floor pool under it, and only answers that have a
+  photo (four wider columns by default; "Gift card" spells itself when pointed at).
+- Upright names are solid to their last 14 % and share a bottom baseline.
+- Beam: sharper cone (12 px blur, 52 % core) at 0.78 rest opacity; aim 4° per column.
+- "Change answer" ignores clicks for 450 ms after a pick.
+- `text-wrap: pretty` on the fine print and done copy; graphite `muted` is now #d6d8db.
+- On phones, the pick's heading hides while the stage spells it.
+- Midnight demo: no dead decline, kicker "Your first bag gets / Free shipping", a brand on the
+  stage. `brand` now defaults to the offer and is documented as the stage's fallback word; an
+  empty line-up falls back to it.
+- Not fixed, needs a normal browser: verifying the real Unsplash photos in the line-up and
+  re-cutting `thumb.webp` from a render with photos (this sandbox blocks the image host; the
+  thumb is cut from the lettered line-up). The README advises centred products and per-option
+  `focus`.
