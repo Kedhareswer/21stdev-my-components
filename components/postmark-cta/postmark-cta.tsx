@@ -48,6 +48,8 @@ export type StampArt =
 
 export type StampShape = "portrait" | "landscape" | "round"
 
+export type StampFrame = "classic" | "oval" | "bare"
+
 export type PostmarkStamp = {
   /** Built-in engraved subject. Also the fallback when `image` fails to load. */
   art?: StampArt
@@ -60,6 +62,12 @@ export type PostmarkStamp = {
   /** Bottom strip, e.g. "Cabo da Roca". On a round stamp it runs round the bottom. */
   caption?: string
   shape?: StampShape
+  /**
+   * The stamp's layout. "classic": label and value over the art, caption strip under it
+   * (a landscape classic carries the value down the side). "oval": the art in an oval
+   * vignette on a sunburst. "bare": the art full bleed, the value in a corner.
+   */
+  frame?: StampFrame
   /** Line ink. Defaults to the preset's. */
   ink?: string
   /** Second ink, under the engraving and on the caption strip. */
@@ -71,7 +79,7 @@ export type PostmarkStamp = {
   y?: number
   /** Size relative to the others (0.7 to 1.3). */
   scale?: number
-  /** Printed with an old postmark on it. */
+  /** Printed already cancelled, with the slogan cancel (`postmark.slogan`). */
   cancelled?: boolean
 }
 
@@ -119,8 +127,8 @@ export type PostmarkCtaProps = {
   stamps?: PostmarkStamp[]
   /** Which stamp the button's postmark lands on. */
   postOn?: number
-  /** The postmark's ring text and date. The date defaults to today. */
-  postmark?: { top?: string; bottom?: string; date?: string }
+  /** The postmark's ring text and date (defaults to today), and the slogan cancel on pre-cancelled stamps ("\n" splits its two lines). */
+  postmark?: { top?: string; bottom?: string; date?: string; slogan?: string }
   preset?: PostmarkPreset
   /** Override the preset's light colours. */
   palette?: PostmarkPaletteInput
@@ -299,26 +307,30 @@ const waves = (u: number, v: number, k: number) => 0.0045 * Math.sin(u * 23 + v 
 const PEAK_BACK = [0, 0.5, 0.13, 0.33, 0.25, 0.42, 0.42, 0.17, 0.55, 0.32, 0.66, 0.26, 0.8, 0.4, 0.91, 0.31, 1, 0.42]
 const PEAK_FRONT = [0, 0.66, 0.17, 0.5, 0.33, 0.62, 0.5, 0.52, 0.67, 0.66, 0.83, 0.54, 1, 0.64]
 /**
- * Mountain faces: each point belongs to the nearest summit above it and is lit
- * on the near side of a crease that runs down from that summit, so the range
- * reads as faceted rock rather than vertical bands.
+ * Mountain faces: each summit owns the strip between the valley lines either
+ * side of it, and is lit on the near side of a crease that runs down from the
+ * summit. Creases and valley lines lean the same way, so the range reads as
+ * faceted rock with gullies, never as vertical bands.
  */
+const LEAN = 0.3
 function facet(u: number, v: number, pts: number[], lit: number, shade: number) {
-  let best = -1
-  let bd = 1e9
+  const valleyX = (i: number) => pts[i] + (v - pts[i + 1]) * LEAN
   for (let i = 2; i + 3 < pts.length; i += 2) {
     const y = pts[i + 1]
-    if (y < pts[i - 1] && y < pts[i + 3] && y < v) {
-      const d = Math.abs(u - pts[i])
-      if (d < bd) {
-        bd = d
-        best = i
-      }
+    if (!(y < pts[i - 1] && y < pts[i + 3])) continue
+    // the valleys either side of this summit (or the ends of the range)
+    let l = i - 2
+    while (l > 0 && !(pts[l + 1] > pts[l - 1] && pts[l + 1] > pts[l + 3])) l -= 2
+    let r = i + 2
+    while (r + 3 < pts.length && !(pts[r + 1] > pts[r - 1] && pts[r + 1] > pts[r + 3])) r += 2
+    const lx = l <= 0 ? -1 : valleyX(l)
+    const rx = r + 3 >= pts.length ? 2 : valleyX(r)
+    if (u >= lx && u < rx) {
+      const crease = pts[i] + (v - y) * LEAN + 0.006 * Math.sin(v * 48)
+      return [u < crease ? lit : shade, v - y]
     }
   }
-  if (best < 0) return [shade, 1]
-  const crease = pts[best] + (v - pts[best + 1]) * 0.3 + 0.006 * Math.sin(v * 48)
-  return [u < crease ? lit : shade, v - pts[best + 1]]
+  return [shade, 1]
 }
 const CHERRY_A = quad(0.37, 0.55, 0.42, 0.3, 0.6, 0.15)
 const CHERRY_B = quad(0.63, 0.59, 0.66, 0.36, 0.6, 0.15)
@@ -353,29 +365,60 @@ export const SCENES: { [k: string]: Scene } = {
   },
   lighthouse(u, v) {
     let l = sky(v)
-    let t = 0
-    if (t === 0) t = 0.18 + 0.3 * v
-    if (v >= 0.62) return [0.58 + 0.1 * Math.sin(u * 30), 0.85, waves(u, v, 1)]
-    const edge = 0.58 + 0.16 * (v - 0.47) + 0.025 * Math.sin(v * 38)
-    if (v > 0.47 && u > edge) {
-      t = 0
-      l = v < 0.5 ? 0.62 : 0.6 - 0.3 * smooth(0, 0.16, u - edge) + 0.08 * Math.sin((v * 2 - u) * 48)
-      if (u - edge < 0.008 || (v - 0.47 < 0.008 && v > 0.47)) l = 0.15
+    let t = 0.18 + 0.3 * v
+    let b = 0
+    // a far headland on the horizon, then the sea
+    if (v > 0.6 - 0.05 * Math.exp(-(((u - 0.16) / 0.13) ** 2)) && v < 0.62) {
+      l = 0.42
+      t = 0.2
     }
-    // tower
-    const hw = 0.04 + 0.022 * ((v - 0.2) / 0.27)
-    if (v > 0.2 && v <= 0.47 && Math.abs(u - 0.78) < hw) {
-      const stripe = Math.floor((v - 0.2) / 0.054) % 2 === 1
-      l = u < 0.78 ? (stripe ? 0.72 : 0.94) : stripe ? 0.32 : 0.52
+    if (v >= 0.62) {
+      l = 0.6 + 0.08 * Math.sin(u * 30)
+      t = 0.85
+      b = waves(u, v, 1)
+    }
+    // the cliff: a mass on the right that widens as it falls into the sea
+    const edge = 0.56 - 0.12 * (v - 0.44) + 0.02 * Math.sin(v * 40)
+    if (v > 0.44 && u > edge) {
+      t = 0
+      b = 0
+      l = 0.64 - 0.34 * smooth(0, 0.2, u - edge) + 0.08 * Math.sin((v * 2 - u) * 48)
+      if (v < 0.48) l = 0.74
+      if (u - edge < 0.008 || v - 0.44 < 0.007) l = 0.14
+    } else if (v > 0.62 && u > edge - 0.05) {
+      // surf at the foot of the cliff
+      l = 0.96
+      t = 0.2
+    }
+    // keeper's house
+    if (u > 0.82 && u < 0.95 && v > 0.37 && v <= 0.44) {
+      l = u < 0.88 ? 0.9 : 0.55
+      t = 0
+    }
+    if (v > 0.32 && v <= 0.37 && Math.abs(u - 0.885) < 0.075 - (0.37 - v) * 1.2) {
+      l = 0.22
+      t = 0
+    }
+    // tower, gallery, lantern, roof
+    const hw = 0.034 + 0.02 * ((v - 0.2) / 0.24)
+    if (v > 0.2 && v <= 0.44 && Math.abs(u - 0.74) < hw) {
+      const stripe = Math.floor((v - 0.2) / 0.06) % 2 === 1
+      l = u < 0.74 ? (stripe ? 0.72 : 0.95) : stripe ? 0.34 : 0.55
       t = stripe ? 1 : 0
     }
-    if (v > 0.19 && v <= 0.21 && Math.abs(u - 0.78) < 0.06) l = 0.16
-    if (v > 0.145 && v <= 0.19 && Math.abs(u - 0.78) < 0.032) {
+    if (v > 0.19 && v <= 0.21 && Math.abs(u - 0.74) < 0.056) {
+      l = 0.16
+      t = 0
+    }
+    if (v > 0.145 && v <= 0.19 && Math.abs(u - 0.74) < 0.03) {
       l = 1
       t = 1
     }
-    if (v > 0.1 && v <= 0.145 && Math.abs(u - 0.78) < (v - 0.1) * 1.1) l = 0.12
-    return [l, t, 0]
+    if (v > 0.1 && v <= 0.145 && Math.abs(u - 0.74) < (v - 0.1) * 1.1) {
+      l = 0.12
+      t = 0
+    }
+    return [l, t, b]
   },
   dunes(u, v) {
     let l = sky(v)
@@ -385,25 +428,29 @@ export const SCENES: { [k: string]: Scene } = {
       l = 1
       t = 1
     }
-    // each layer is a row of dunes; behind each crest a slip face in shadow widens as it falls
+    // rows of dunes, each lit along its crest and darkening into the trough behind the next
     const layers: [number, number, number, number, number][] = [
-      [0.44, 0.06, 5.2, 0.4, 0.66],
-      [0.58, 0.08, 4.1, 2.1, 0.56],
-      [0.74, 0.07, 6.3, 1.0, 0.46],
+      [0.48, 0.045, 5.2, 0.4, 0.9],
+      [0.6, 0.06, 4.1, 2.1, 0.82],
+      [0.75, 0.055, 6.3, 1.0, 0.74],
+      [0.88, 0.04, 3.3, 2.8, 0.66],
     ]
-    for (const [base, amp, fr, ph, lit] of layers) {
-      const phi = u * fr + ph
-      const d = base + amp * Math.sin(phi)
-      if (v > d) {
-        const q = (((phi + Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI)
-        const depth = clamp01((v - (base - amp)) / (2 * amp + 0.12))
-        const slip = q < 0.46 * Math.sqrt(depth) + 0.02
-        l = slip ? 0.3 + 0.12 * depth : lit + 0.26 - (v - d) * 0.4 + 0.05 * Math.sin(u * 90 + v * 30)
-        t = slip ? 0.15 : 0.6
-        if (v - d < 0.007) l = 0.16
-        b = amp * Math.sin(phi) * 0.7
-      }
+    // one continuous bend field, so the lines flow from dune to dune without breaking
+    let bw = 0
+    let bs = 0
+    for (const [base, amp, fr, ph] of layers) {
+      const w = Math.exp(-(((v - base - 0.05) / 0.07) ** 2))
+      bs += amp * Math.sin(u * fr + ph) * 0.75 * w
+      bw += w
     }
+    if (v > 0.38) b = (bs / (bw || 1)) * smooth(0.38, 0.46, v)
+    layers.forEach(([base, amp, fr, ph, lit], i) => {
+      const d = base + amp * Math.sin(u * fr + ph)
+      if (v <= d) return
+      l = clamp01(lit - (v - d) * 2.2 + 0.04 * Math.sin(u * 70 + v * 30))
+      t = i % 2 ? 0.35 : 0.7
+      if (v - d < 0.006) l = 0.15
+    })
     return [l, t, b]
   },
   sail(u, v) {
@@ -701,7 +748,6 @@ export const SCENES: { [k: string]: Scene } = {
     let l = 0.96
     let t = 0
     let b = 0
-    if (v > 0.8) l = 0.82
     const inPoly = (pts: number[]) => {
       let inside = false
       for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
@@ -713,7 +759,7 @@ export const SCENES: { [k: string]: Scene } = {
       }
       return inside
     }
-    if (inPoly([0.5, 0.8, 0.73, 0.67, 0.95, 0.75, 0.72, 0.88])) l = 0.38
+    if (inPoly([0.5, 0.8, 0.75, 0.665, 0.97, 0.79, 0.72, 0.925])) l = 0.4
     if (inPoly([0.5, 0.2, 0.75, 0.335, 0.5, 0.47, 0.25, 0.335])) {
       l = 0.94
       t = 1
@@ -741,8 +787,7 @@ export const SCENES: { [k: string]: Scene } = {
         l = 0.68
         t = 0.35
       }
-      if (u < 0.335 && v > 0.36) l = 0.82
-      if (u > 0.665 && v > 0.36) l = 0.28
+      if (u < 0.33 && v > 0.36) l = 0.84
     }
     if (v > 0.84) l = Math.floor((v - 0.84) / 0.04) % 2 ? 0.66 : 0.3
     return [l, t, 0]
@@ -785,7 +830,9 @@ export function engraveLines(scene: Scene, w: number, h: number, pitch: number) 
       const u = x / w
       const bend = scene(u, y0 / h)[2] * h
       const y = y0 + bend
-      const lw = width(scene(u, clamp01(y / h))[0])
+      const at = scene(u, clamp01(y / h))
+      // a line bent out of its own region would draw a stray: drop that stretch
+      const lw = Math.abs(at[2] * h - bend) > pitch * 0.7 ? 0 : width(at[0])
       top.push(x, y - lw / 2)
       bot.push(x, y + lw / 2)
     }
@@ -865,10 +912,11 @@ export function postmarkDate(d: Date) {
 
 type Box = { left: number; top: number; right: number; bottom: number }
 /**
- * The smallest move that takes box b clear of every box in avoid (by margin m),
- * preferring moves that keep it inside the frame. Returns [dx, dy].
+ * The smallest move that takes box b clear of every box in avoid (by margin m)
+ * while staying inside the frame (give or take `slack`, a fraction of its own
+ * size). Returns [dx, dy, 1 if it ended clear else 0].
  */
-export function clearOf(b: Box, avoid: Box[], frame: Box, m: number) {
+export function clearOf(b: Box, avoid: Box[], frame: Box, m: number, slack = 0) {
   let dx = 0
   let dy = 0
   for (let pass = 0; pass < 3; pass++) {
@@ -881,7 +929,6 @@ export function clearOf(b: Box, avoid: Box[], frame: Box, m: number) {
       if (R <= r.left - m || L >= r.right + m || B <= r.top - m || T >= r.bottom + m) continue
       const w = R - L
       const h = B - T
-      const slack = 0.28
       const options = [
         [0, r.bottom + m - T],
         [0, r.top - m - B],
@@ -899,14 +946,17 @@ export function clearOf(b: Box, avoid: Box[], frame: Box, m: number) {
     }
     if (!moved) break
   }
-  return [dx, dy]
+  const L = b.left + dx
+  const T = b.top + dy
+  const clear = avoid.every((r) => b.right + dx <= r.left - m + 0.5 || L >= r.right + m - 0.5 || b.bottom + dy <= r.top - m + 0.5 || T >= r.bottom + m - 0.5)
+  return [dx, dy, clear ? 1 : 0]
 }
 
 /** Wide-screen centres (% of the section) and phone placements for up to seven stamps. */
 export const SLOTS = [
   { x: 17, y: 27, r: -8, d: 1.2, c: { x: "23%", y: "92px" } },
   { x: 40, y: 16, r: 5, d: 0.7, c: { x: "73%", y: "84px" } },
-  { x: 70, y: 86, r: -6, d: 1.3, c: { x: "71%", y: "calc(100% - 96px)" } },
+  { x: 70, y: 80, r: -6, d: 1.3, c: { x: "71%", y: "calc(100% - 96px)" } },
   { x: 14, y: 69, r: -9, d: 0.9, c: { x: "27%", y: "calc(100% - 92px)" } },
   { x: 83, y: 25, r: 7, d: 1.0, c: null },
   { x: 86, y: 64, r: 4, d: 1.1, c: null },
@@ -924,7 +974,7 @@ type PresetDef = {
     ctaLabel: string
     secondaryLabel: string
     note: string
-    postmark: { top: string; bottom: string }
+    postmark: { top: string; bottom: string; slogan: string }
   }
   stamps: PostmarkStamp[]
   postOn: number
@@ -942,15 +992,15 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Plan a trip",
       secondaryLabel: "Browse 1,200 places",
       note: "Free to plan. You only pay when you book.",
-      postmark: { top: "BON VOYAGE", bottom: "POSTED TODAY" },
+      postmark: { top: "BON VOYAGE", bottom: "POSTED TODAY", slogan: "PAR AVION\nBY AIR MAIL" },
     },
     stamps: [
       { art: "balloon", shape: "round", label: "CAPPADOCIA", caption: "TÜRKIYE", ink: "#1d3a62", tint: "#ef7d3b", scale: 0.92 },
       { art: "peaks", label: "DOLOMITI", value: "3.20", caption: "Alto Adige", ink: "#1d3a62", tint: "#f2a541", cancelled: true },
       { art: "sail", label: "HELLAS", value: "from €49", caption: "Aegean ferries", ink: "#1d3a62", tint: "#ef7d3b", scale: 1.06 },
-      { art: "dunes", label: "MAROC", value: "12", caption: "Erg Chebbi", ink: "#b2402a", tint: "#f2a541", cancelled: true },
-      { art: "lighthouse", label: "PORTUGAL", value: "0.85", caption: "Cabo da Roca", ink: "#b2402a", tint: "#7fa6d8" },
-      { art: "bridge", label: "LISBOA", value: "1.50", caption: "Ponte 25 de Abril", ink: "#1d3a62", tint: "#d9522e" },
+      { art: "dunes", label: "MAROC", value: "12", caption: "Erg Chebbi", ink: "#b2402a", tint: "#f2a541", shape: "landscape" },
+      { art: "lighthouse", label: "PORTUGAL", value: "0.85", caption: "Cabo da Roca", ink: "#b2402a", tint: "#7fa6d8", frame: "oval" },
+      { art: "bridge", label: "LISBOA", value: "1.50", caption: "Ponte 25 de Abril", ink: "#1d3a62", tint: "#d9522e", frame: "bare" },
     ],
     postOn: 2,
   },
@@ -963,14 +1013,14 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Build my first box",
       secondaryLabel: "See this week’s menu",
       note: "Skip a week or cancel any time, in two taps.",
-      postmark: { top: "FARM TO DOOR", bottom: "PACKED TODAY" },
+      postmark: { top: "FARM TO DOOR", bottom: "PACKED TODAY", slogan: "KEEP COOL\nFRESH PRODUCE" },
     },
     stamps: [
       { art: "olives", shape: "round", label: "OLIO NUOVO", caption: "PUGLIA", ink: "#24472f", tint: "#9bb04a", scale: 0.92 },
-      { art: "lemon", label: "AMALFI", value: "2.40", caption: "Sfusato lemons", ink: "#24472f", tint: "#f2c230", cancelled: true },
+      { art: "lemon", label: "AMALFI", value: "2.40", caption: "Sfusato lemons", ink: "#24472f", tint: "#f2c230", shape: "landscape", cancelled: true },
       { art: "tomato", label: "WEEK ONE", value: "half price", caption: "Heirloom tomato", ink: "#24472f", tint: "#e2553f", scale: 1.06 },
-      { art: "pear", label: "ANJOU", value: "1.10", caption: "Winter pears", ink: "#7e2a1d", tint: "#d8b13c", cancelled: true },
-      { art: "cherries", label: "KENT", value: "0.90", caption: "Early cherries", ink: "#7e2a1d", tint: "#e2553f" },
+      { art: "pear", label: "ANJOU", value: "1.10", caption: "Winter pears", ink: "#7e2a1d", tint: "#d8b13c", frame: "oval" },
+      { art: "cherries", label: "KENT", value: "0.90", caption: "Early cherries", ink: "#7e2a1d", tint: "#e2553f", frame: "bare" },
     ],
     postOn: 2,
   },
@@ -983,14 +1033,14 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Start a project",
       secondaryLabel: "See the work",
       note: "We reply within two working days.",
-      postmark: { top: "STUDIO MAIL", bottom: "RECEIVED" },
+      postmark: { top: "STUDIO MAIL", bottom: "RECEIVED", slogan: "PRINTED MATTER\nDO NOT BEND" },
     },
     stamps: [
       { art: "ring", shape: "round", label: "FORM STUDY", caption: "NO. 04", ink: "#21254f", tint: "#ff6b3d", scale: 0.9 },
-      { art: "sphere", label: "SPHERE", value: "I", caption: "Light study", ink: "#21254f", tint: "#ff6b3d", cancelled: true },
+      { art: "sphere", label: "SPHERE", value: "I", caption: "Light study", ink: "#21254f", tint: "#ff6b3d", shape: "landscape", cancelled: true },
       { art: "cube", label: "INTAKE", value: "Q1 2027", caption: "Two slots open", ink: "#21254f", tint: "#f6c445", scale: 1.06 },
-      { art: "arch", label: "ARCH", value: "IV", caption: "Light study", ink: "#5c1f3c", tint: "#ff8a5c", cancelled: true },
-      { art: "cone", label: "CONE", value: "II", caption: "Light study", ink: "#5c1f3c", tint: "#9fb3ff" },
+      { art: "arch", label: "ARCH", value: "IV", caption: "Light study", ink: "#5c1f3c", tint: "#ff8a5c", frame: "bare" },
+      { art: "cone", label: "CONE", value: "II", caption: "Light study", ink: "#5c1f3c", tint: "#9fb3ff", frame: "oval" },
     ],
     postOn: 2,
   },
@@ -1101,6 +1151,24 @@ const CSS = `
 .pm-duo-lines { background: repeating-linear-gradient(0deg, transparent 0 1.5px, rgba(251, 247, 238, 0.55) 1.5px 2.4px); }
 .pm-cap { background: var(--st); color: var(--si); font: 800 6.6cqw/1 var(--pm-text); letter-spacing: 0.06em; text-transform: uppercase; text-align: center; padding: 2.6cqw 2cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm-cap[data-long="true"] { font-size: 5.4cqw; padding: 3.2cqw 2cqw; }
+.pm-top[data-center="true"] { justify-content: center; }
+.pm-art[data-frame="oval"] { background: repeating-conic-gradient(from 0deg at 50% 50%, var(--st) 0deg 2.6deg, var(--pm-paper) 2.6deg 9deg); }
+.pm-oval { position: absolute; inset: 5% 9%; border-radius: 50%; overflow: hidden; background: var(--pm-paper); border: max(1px, 0.7cqw) solid var(--si); isolation: isolate; }
+.pm-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 3cqw; line-height: 1; }
+.pm-strip { display: flex; flex-direction: column; gap: 1.6cqw; line-height: 1; min-width: 0; }
+.pm-strip .pm-foot-cap { text-align: left; font-weight: 600; letter-spacing: 0.02em; text-transform: none; font-size: 6.2cqw; }
+.pm-foot-cap { font: 700 5.8cqw/1.1 var(--pm-text); letter-spacing: 0.04em; text-transform: uppercase; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pm-face[data-frame="bare"] { border: 0; padding: 0; gap: 2.6cqw; }
+.pm-chip { position: absolute; left: 0; top: 0; background: var(--pm-paper); color: var(--si); font: 900 11cqw/0.9 var(--pm-display); letter-spacing: -0.03em; padding: 0 2.4cqw 2.4cqw 0; }
+.pm-face[data-frame="classic"][data-shape="landscape"] { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; }
+.pm-face[data-shape="landscape"] .pm-art { grid-column: 1; grid-row: 1; }
+.pm-face[data-shape="landscape"] .pm-cap { grid-column: 1; grid-row: 2; font-size: 4.4cqw; padding: 1.8cqw; }
+.pm-face[data-shape="landscape"] ~ .pm-old { top: 22%; left: 2%; width: 84%; }
+.pm-side { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding-left: 0.5cqw; }
+.pm-side .pm-value { font-size: 9cqw; }
+.pm-vert { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 5.4cqw; }
+.pm-slogan { font: 900 19px/1 var(--pm-text); letter-spacing: 0.14em; fill: currentColor; }
+.pm-slogan-2 { font-size: 13px; font-weight: 800; letter-spacing: 0.2em; }
 .pm-round .pm-face { inset: 0; border: 0; padding: 0; }
 .pm-round .pm-art { position: absolute; inset: 17%; border-radius: 50%; border: max(1px, 0.7cqw) solid var(--si); }
 .pm-ring-text { font: 800 7.4px/1 var(--pm-text); letter-spacing: 0.16em; fill: var(--si); text-transform: uppercase; }
@@ -1110,8 +1178,8 @@ const CSS = `
 .pm-mark svg { display: block; width: 100%; height: auto; max-width: none; overflow: visible; }
 .pm-mark text { font: 800 9px/1 var(--pm-text); letter-spacing: 0.12em; fill: currentColor; }
 .pm-mark .pm-date { font-size: 11px; letter-spacing: 0.04em; }
-.pm-old { left: 50%; top: 40%; width: 92%; rotate: -14deg; opacity: 0.72; }
-.pm-live { left: 30%; top: 44%; width: 108%; rotate: -9deg; }
+.pm-old { left: 4%; top: 46%; width: 92%; rotate: -12deg; opacity: 0.78; color: #a63521; }
+.pm-live { left: 24%; top: 42%; width: 86%; rotate: -9deg; opacity: 1; }
 .pm-ghost { opacity: 0; transform: translateY(-14px) scale(1.12); transition: opacity 200ms var(--pm-out), transform 260ms var(--pm-out); }
 .pm[data-armed="true"] .pm-ghost { opacity: 0.5; transform: translateY(-8px) scale(1.06); }
 .pm-slam { animation: pm-slam 260ms cubic-bezier(0.3, 0, 0.2, 1) both; }
@@ -1124,7 +1192,7 @@ const CSS = `
 @keyframes pm-slam {
   0% { opacity: 0; transform: translateY(-16px) scale(1.3); }
   55% { opacity: 0.95; transform: scale(0.96); }
-  100% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes pm-bars { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
 
@@ -1142,7 +1210,7 @@ const CSS = `
   .pm-par { transform: none; transition: none; }
   .pm-stamp, .pm-paper, .pm-arrow svg, .pm-link::after, .pm-ghost { transition-duration: 1ms; }
   .pm-slam, .pm-slam .pm-bar { animation: pm-fade 1ms both; }
-  @keyframes pm-fade { from { opacity: 0; } to { opacity: 0.9; } }
+  @keyframes pm-fade { from { opacity: 0; } to { opacity: 1; } }
 }
 `
 
@@ -1191,12 +1259,12 @@ function Postmark(props: { top: string; bottom: string; date: string; bars?: num
     const y = 50 + (i - (bars - 1) / 2) * 12.5
     let d = "M98 " + y
     for (let x = 98; x < 238; x += 12) d += " q6 " + (i % 2 ? -4.5 : 4.5) + " 12 0"
-    lines.push(<path key={i} className="pm-bar" d={d} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />)
+    lines.push(<path key={i} className="pm-bar" d={d} fill="none" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />)
   }
   return (
     <svg viewBox="0 0 240 100" aria-hidden="true">
       <g filter={"url(#" + filter + ")"}>
-        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="3.4" />
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="4.4" />
         <circle cx="50" cy="50" r="27" fill="none" stroke="currentColor" strokeWidth="2.2" />
         <path id={id + "t"} d="M14.5 50 a35.5 35.5 0 0 1 71 0" fill="none" />
         <path id={id + "b"} d="M14.5 50 a35.5 35.5 0 0 0 71 0" fill="none" />
@@ -1218,6 +1286,27 @@ function Postmark(props: { top: string; bottom: string; date: string; bars?: num
           {date.split(" ").slice(2).join(" ")}
         </text>
         {lines}
+      </g>
+    </svg>
+  )
+}
+
+/** A straight-line slogan cancel, the kind a sorting office runs over a stamp: a ruled box and two lines. */
+function Slogan(props: { text: string; filter: string }) {
+  const [a, b = ""] = props.text.split("\n")
+  return (
+    <svg viewBox="0 0 200 66" aria-hidden="true">
+      <g filter={"url(#" + props.filter + ")"}>
+        <rect x="3" y="3" width="194" height="60" rx="3" fill="none" stroke="currentColor" strokeWidth="3.4" />
+        <rect x="10" y="10" width="180" height="46" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <text className="pm-slogan" x="100" y={b ? 30 : 39} textAnchor="middle">
+          {a}
+        </text>
+        {b ? (
+          <text className="pm-slogan pm-slogan-2" x="100" y="48" textAnchor="middle">
+            {b}
+          </text>
+        ) : null}
       </g>
     </svg>
   )
@@ -1343,7 +1432,7 @@ const Stamp = React.memo(function Stamp(props: {
   inks: Ink
   uid: string
   filter: string
-  postmark: { top: string; bottom: string; date: string }
+  postmark: { top: string; bottom: string; date: string; slogan: string }
   live: number
   isTarget: boolean
 }) {
@@ -1355,6 +1444,9 @@ const Stamp = React.memo(function Stamp(props: {
   const perf = round ? null : perforatedPath(vw, vh, 6.4)
   const ringId = uid + "-r" + index
   const longValue = (stamp.value ?? "").length > 4
+  const frame = round ? "classic" : stamp.frame ?? "classic"
+  const side = frame === "classic" && shape === "landscape"
+  const art = <StampArtBox stamp={stamp} ink={inks.ink} tint={inks.tint} fallback={FALLBACK_ART[index % FALLBACK_ART.length]} />
   return (
     <div className={"pm-stamp" + (round ? " pm-round" : "")}>
       <svg className="pm-paper" viewBox={"0 0 " + vw + " " + vh} aria-hidden="true">
@@ -1379,39 +1471,63 @@ const Stamp = React.memo(function Stamp(props: {
           <path d={perf!.d} style={{ fill: "var(--pm-paper)" }} />
         )}
       </svg>
-      <div className="pm-face">
-        {!round && (stamp.label || stamp.value) ? (
+      <div className="pm-face" data-frame={frame} data-shape={shape}>
+        {frame === "classic" && !round && !side && (stamp.label || stamp.value) ? (
           <div className="pm-top" data-long={longValue ? "true" : undefined}>
             <span className="pm-label">{stamp.label}</span>
-            {stamp.value ? (
-              <span className="pm-value">
-                {stamp.value}
-              </span>
-            ) : null}
+            {stamp.value ? <span className="pm-value">{stamp.value}</span> : null}
           </div>
         ) : null}
-        <div className="pm-art">
-          <StampArtBox stamp={stamp} ink={inks.ink} tint={inks.tint} fallback={FALLBACK_ART[index % FALLBACK_ART.length]} />
+        {frame === "oval" && stamp.label ? (
+          <div className="pm-top" data-center="true">
+            <span className="pm-label">{stamp.label}</span>
+          </div>
+        ) : null}
+        <div className="pm-art" data-frame={frame}>
+          {frame === "oval" ? (
+            <div className="pm-oval">{art}</div>
+          ) : (
+            art
+          )}
+          {frame === "bare" && stamp.value ? <span className="pm-chip">{stamp.value}</span> : null}
         </div>
-        {!round && stamp.caption ? (
+        {side ? (
+          <div className="pm-side">
+            {stamp.value ? <span className="pm-value">{stamp.value}</span> : null}
+            <span className="pm-label pm-vert">{stamp.label}</span>
+          </div>
+        ) : null}
+        {frame === "classic" && !round && stamp.caption ? (
           <div className="pm-cap" data-long={stamp.caption.length > 14 ? "true" : undefined}>
             {stamp.caption}
           </div>
         ) : null}
+        {frame === "oval" ? (
+          <div className="pm-foot">
+            {stamp.value ? <span className="pm-value">{stamp.value}</span> : <span />}
+            {stamp.caption ? <span className="pm-foot-cap">{stamp.caption}</span> : null}
+          </div>
+        ) : null}
+        {frame === "bare" ? (
+          <div className="pm-strip">
+            {stamp.label ? <span className="pm-label">{stamp.label}</span> : <span />}
+            {stamp.caption ? <span className="pm-foot-cap">{stamp.caption}</span> : null}
+          </div>
+        ) : null}
       </div>
-      {stamp.cancelled ? (
+      {stamp.cancelled && postmark.slogan ? (
         <div className="pm-mark pm-old">
-          <Postmark top={postmark.top} bottom={postmark.bottom} date={postmark.date} bars={3} filter={filter} uid={ringId + "o"} />
+          <Slogan text={postmark.slogan} filter={filter} />
         </div>
       ) : null}
       {isTarget ? (
         <div className="pm-mark pm-live pm-ghost">
-          <Postmark {...postmark} filter={filter} uid={ringId + "g"} />
+          <Postmark top={postmark.top} bottom={postmark.bottom} date={postmark.date} filter={filter} uid={ringId + "g"} />
         </div>
       ) : null}
       {isTarget && live > 0 ? (
         <div key={live} className="pm-mark pm-live pm-slam">
-          <Postmark {...postmark} filter={filter} uid={ringId + "l" + live} />
+          <Postmark top={postmark.top} bottom={postmark.bottom} date={postmark.date} filter={filter} uid={ringId + "l" + live} />
         </div>
       ) : null}
     </div>
@@ -1458,8 +1574,9 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
     top: props.postmark?.top ?? def.copy.postmark.top,
     bottom: props.postmark?.bottom ?? def.copy.postmark.bottom,
     date: props.postmark?.date ?? (today || postmarkDate(new Date(2026, 9, 15))),
+    slogan: props.postmark?.slogan ?? def.copy.postmark.slogan,
   }
-  const pmKey = pm.top + "|" + pm.bottom + "|" + pm.date
+  const pmKey = pm.top + "|" + pm.bottom + "|" + pm.date + "|" + pm.slogan
   const postmark = React.useMemo(() => pm, [pmKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [live, setLive] = React.useState(0)
@@ -1551,7 +1668,11 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
           // the rotated paper, not the upright slot
           const r = (slot.querySelector(".pm-paper") ?? slot).getBoundingClientRect()
           const base = { left: r.left - nx, right: r.right - nx, top: r.top - ny, bottom: r.bottom - ny }
-          const [dx, dy] = clearOf(base, avoid, frame, 24)
+          let [dx, dy, ok] = clearOf(base, avoid, frame, 24)
+          // a cramped section: hanging a little off the edge beats sitting on the copy or a long jump across it
+          const [lx, ly, lok] = clearOf(base, avoid, frame, 24, 0.3)
+          if (lok && (!ok || Math.hypot(lx, ly) < Math.hypot(dx, dy) * 0.6)) [dx, dy] = [lx, ly]
+          else if (!ok) [dx, dy] = [lx, ly]
           slot.style.setProperty("--nx", dx.toFixed(1) + "px")
           slot.style.setProperty("--ny", dy.toFixed(1) + "px")
         })
@@ -1710,9 +1831,17 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
         const ox = b.tx - b.x
         const oy = b.ty - b.y
         const box = { left: sr.left + ox, right: sr.right + ox, top: sr.top + oy, bottom: sr.bottom + oy }
-        const [cx, cy] = clearOf(box, copyBoxes(copy), root.getBoundingClientRect(), 24)
-        b.tx = clamp(b.tx + cx, b.lo[0], b.lo[1])
-        b.ty = clamp(b.ty + cy, b.lo[2], b.lo[3])
+        const rr = root.getBoundingClientRect()
+        const frame = { left: rr.left + 6, top: rr.top + 6, right: rr.right - 6, bottom: rr.bottom - 6 }
+        const [cx, cy, ok] = clearOf(box, copyBoxes(copy), frame, 24)
+        if (ok) {
+          b.tx += cx
+          b.ty += cy
+        } else {
+          // nowhere clear to land: go home
+          b.tx = 0
+          b.ty = 0
+        }
       }
       if (reduce.matches) {
         b.vx = 0
@@ -1773,7 +1902,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
     window.setTimeout(() => onPosted?.(), 260)
     const st = slotRefs.current[postOn]?.querySelector(".pm-stamp")
     if (st && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-      st.animate([{ transform: "scale(1)" }, { transform: "scale(0.955)", offset: 0.3 }, { transform: "scale(1)" }], {
+      st.animate([{ transform: "none" }, { transform: "translateY(2px) scale(0.96)", offset: 0.3 }, { transform: "none" }], {
         duration: 320,
         easing: "cubic-bezier(0.22, 1, 0.36, 1)",
       })
@@ -1843,7 +1972,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
             "--y": (s.y ?? slot.y) + "%",
             "--cx": slot.c ? slot.c.x : "50%",
             "--cy": slot.c ? slot.c.y : "50%",
-            "--w": s.shape === "landscape" ? "clamp(150px, 15.5cqw, 248px)" : "clamp(118px, 12.4cqw, 196px)",
+            "--w": s.shape === "landscape" ? "clamp(140px, min(15.5cqw, 27vh), 248px)" : "clamp(112px, min(12.4cqw, 21vh), 196px)",
             "--s": String(clamp(s.scale ?? 1, 0.7, 1.3)),
             "--r": (s.rotate ?? slot.r) + "deg",
             "--d": String(slot.d),

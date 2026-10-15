@@ -116,12 +116,23 @@ for (const a of arts) {
 {
   const frame = { left: 0, top: 0, right: 1440, bottom: 900 }
   const copy = [{ left: 500, top: 600, right: 900, bottom: 640 }]
-  assert.deepEqual(m.clearOf({ left: 100, top: 100, right: 260, bottom: 300 }, copy, frame, 20), [0, 0], "a clear stamp stays put")
+  assert.deepEqual(m.clearOf({ left: 100, top: 100, right: 260, bottom: 300 }, copy, frame, 20), [0, 0, 1], "a clear stamp stays put")
   const b = { left: 820, top: 580, right: 990, bottom: 790 }
   const [dx, dy] = m.clearOf(b, copy, frame, 20)
   const moved = { left: b.left + dx, right: b.right + dx, top: b.top + dy, bottom: b.bottom + dy }
   assert.ok(moved.left >= 920 || moved.top >= 660 || moved.bottom <= 580, "an overlapping stamp is moved clear")
   assert.ok(Math.hypot(dx, dy) <= 100 + 1e-6, "by the shortest way out")
+  // a stamp thrown onto the note line, near the bottom edge: it may not leave the frame to get clear
+  const note = [{ left: 560, top: 820, right: 880, bottom: 840 }]
+  const dropped = { left: 700, top: 760, right: 860, bottom: 895 }
+  const [ex, ey, ok] = m.clearOf(dropped, note, frame, 24)
+  assert.equal(ok, 1, "there is room beside the note")
+  assert.ok(dropped.bottom + ey <= 900 && dropped.top + ey >= 0 && dropped.right + ex <= 1440 && dropped.left + ex >= 0, "and it stays fully inside")
+  assert.ok(dropped.left + ex >= 880 + 24 || dropped.right + ex <= 560 - 24 || dropped.bottom + ey <= 820 - 24, "clear of the note")
+  // nowhere to go: the caller sends it home
+  const tight = { left: 0, top: 0, right: 200, bottom: 200 }
+  const [, , none] = m.clearOf({ left: 20, top: 20, right: 180, bottom: 180 }, [{ left: 0, top: 0, right: 200, bottom: 200 }], tight, 24)
+  assert.equal(none, 0, "reports when no clear spot exists")
 }
 
 // ---- layout: seven slots, the first four are the phone's
@@ -174,6 +185,12 @@ assert.ok(/postDelay = 0,/.test(src) && /postDelay <= 0/.test(src), "navigation 
 assert.ok(/e\.metaKey \|\| e\.ctrlKey/.test(src), "a delayed link still opens in a new tab when asked")
 assert.ok(/touch-action: pan-y/.test(css), "a phone can still scroll past the stamps")
 assert.ok(/onError=\{\(\) => setFailed\(true\)\}/.test(src), "a broken photo falls back to the engraving")
+assert.ok(/nowhere clear to land: go home/.test(src), "a throw that cannot land clear of the copy goes home")
+for (const p of ["voyage", "pantry", "atelier"]) {
+  const block = src.slice(src.indexOf("  " + p + ": {"), src.indexOf("postOn: 2", src.indexOf("  " + p + ": {")))
+  assert.ok((block.match(/cancelled: true/g) ?? []).length <= 1, p + " pre-cancels at most one stamp, so the live postmark stays the event")
+  assert.ok(/frame: "oval"/.test(block) && /frame: "bare"/.test(block) && /shape: "landscape"/.test(block) && /shape: "round"/.test(block), p + " mixes stamp layouts")
+}
 
 for (const d of ["demo.tsx", "demo-pantry.tsx", "demo-atelier.tsx"]) {
   const demo = readFileSync(new URL("../components/postmark-cta/" + d, import.meta.url), "utf8")

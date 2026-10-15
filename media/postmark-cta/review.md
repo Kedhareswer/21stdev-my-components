@@ -73,3 +73,41 @@ Critic's changes, most important first, and what was done:
    alone) and an `onPosted` callback.
 6. Small art fixes. **Done:** the lemon's leaf has a stalk, the pear's notch is gone (a shading
    floor), and the second-ink plate's misregistration is halved so the sun has no white halo.
+
+## Round 2: REDO (average 7.2)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 7 |
+| Install-safety | 9 |
+
+Critic's changes, most important first, and what was done:
+
+1. A thrown stamp could still rest on the note (the edge clamp undid the clearance). **Done:**
+   the landing spot is searched inside the section with no slack; if nowhere clear exists the
+   stamp springs home. Tested (a stamp dropped on the note), and checked in the browser with three
+   throws onto the note, the headline and the button: no stamp rests on any copy box.
+2. Stamps could hang 28% outside the section, cropping the offer stamp. **Done:** the layout
+   pass keeps stamps fully inside and only lets one hang a little off an edge when the section is
+   too short to place it otherwise, and only when that beats a long jump across the copy. The offer
+   slot moved up (y 86% → 80%). Stamps now also scale with viewport height, so 1280×720 holds the
+   set; shot at 1440×900 and 1280×720 for all three presets.
+3. Engraving artifacts. **Done:** the line renderer drops any stretch of line that a bend has
+   carried out of its own region (this removed the ghost lines round the cube); peaks use leaning
+   valley lines instead of vertical seams; the lighthouse is rebuilt on a cliff mass with surf, a
+   far headland and a keeper's house; dunes are layered bands with one continuous bend field; the
+   cube's shadow lies on the floor along the iso axis; the arch's stray jamb bar is gone. Each was
+   checked at 2× in a scene preview.
+4. One stamp layout everywhere. **Done:** new `frame` prop: `classic`, `oval` (an oval vignette
+   on a sunburst in the second ink, value and caption at the foot), `bare` (art full bleed, value
+   knocked out of a corner, label and caption under it); a landscape classic carries its value
+   and a vertical label down the side. Every preset mixes round, landscape, oval, bare and classic.
+5. The pre-cancelled stamps pre-empted the live postmark. **Done:** at most one pre-cancelled stamp
+   per preset, now a straight-line slogan cancel (a ruled box, "PAR AVION / BY AIR MAIL") in faded
+   red, set by `postmark.slogan`. The live postmark is heavier (thicker die and bars, full
+   opacity) and the offer stamp dips 2 px as it lands.
+6. Dark mode lost the bars past the stamp. **Done:** the live postmark is now sized so the bars
+   end at the stamp's edge.
