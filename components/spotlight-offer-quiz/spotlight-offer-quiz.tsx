@@ -300,9 +300,9 @@ const CSS = `
 .soq :focus-visible { outline: 2px solid var(--soq-accent); outline-offset: 3px; }
 
 .soq-modal { position: fixed; inset: 0; z-index: 1000; height: 100vh; height: 100dvh; }
-.soq-modal { opacity: 0; transform: scale(0.985); transition: opacity 320ms var(--soq-ease), transform 420ms var(--soq-ease); }
+.soq-modal { opacity: 0; transform: scale(0.97); transition: opacity 250ms var(--soq-ease), transform 250ms var(--soq-ease); }
 .soq-modal[data-shown] { opacity: 1; transform: none; }
-.soq-modal[data-closing] { opacity: 0; transform: scale(0.992); transition-duration: 170ms, 170ms; }
+.soq-modal[data-closing] { opacity: 0; transform: scale(0.99); transition-duration: 150ms, 150ms; }
 .soq-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 .soq-stage {
@@ -379,7 +379,7 @@ const CSS = `
 .soq-kicker { display: block; font-size: clamp(17px, 1.9cqi, 26px); line-height: 1.1; text-transform: uppercase; letter-spacing: -0.01em; }
 .soq-offer {
   display: block; position: relative; margin-top: 6px; text-transform: uppercase; white-space: nowrap;
-  font-size: var(--soq-fit, 96px); line-height: 0.9; letter-spacing: -0.045em;
+  font-size: var(--soq-fit, 96px); line-height: 0.9; letter-spacing: -0.045em; font-variant-numeric: tabular-nums;
 }
 .soq-offer span { display: block; }
 .soq-measure { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; font-size: 100px; white-space: nowrap; }
@@ -409,7 +409,7 @@ const CSS = `
 }
 .soq-pill::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--soq-ink);
-  transform: scaleX(0); transform-origin: 0 50%; transition: transform 340ms var(--soq-ease); z-index: 0;
+  transform: scaleX(0); transform-origin: 0 50%; transition: transform 250ms var(--soq-ease); z-index: 0;
 }
 .soq-pill span { position: relative; z-index: 1; transition: color 220ms ease; }
 @media (hover: hover) and (pointer: fine) {
@@ -431,6 +431,9 @@ const CSS = `
 }
 .soq-decline:hover { text-decoration-color: var(--soq-ink); }
 
+.soq-check { display: inline-block; vertical-align: -3px; margin-right: 8px; }
+.soq-check path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.soq-panel:not([data-hidden]) .soq-check path { stroke-dashoffset: 0; transition: stroke-dashoffset 500ms var(--soq-ease) 260ms; }
 .soq-for { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--soq-muted); }
 .soq-pick { margin: 8px 0 0; font-family: var(--soq-display); font-size: clamp(28px, 3cqi, 38px); line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; }
 .soq-note { margin: 10px auto 0; max-width: 34ch; font-size: 16px; line-height: 1.45; color: var(--soq-muted); text-wrap: balance; }
@@ -489,6 +492,7 @@ const CSS = `
   padding: 8px 8px 8px 24px; border-radius: 999px; border: 1.5px dashed var(--soq-ink);
   background: color-mix(in oklab, var(--soq-deep) 38%, transparent);
 }
+.soq-code .soq-btn { flex: 0 0 auto; min-width: 96px; }
 .soq-code-v {
   font-family: var(--soq-display); font-weight: 800; font-size: clamp(22px, 2.6cqi, 32px); letter-spacing: 0.04em;
   user-select: all; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -542,6 +546,7 @@ const CSS = `
   .soq-row[data-invalid] { animation: none; }
   .soq-close:hover { transform: none; }
   .soq-change:hover svg, .soq-shop:hover svg { transform: none; }
+  .soq-check path { stroke-dashoffset: 0; transition: none !important; }
 }
 `
 
@@ -767,7 +772,7 @@ export default function SpotlightOfferQuiz({
     window.setTimeout(() => {
       setClosing(false)
       setOpen(false)
-    }, 180)
+    }, 150)
   }, [reduced, setOpen, rememberDismissDays, storageKey])
 
   // ---- dialog behaviour: scroll lock, Escape, focus trap, focus return
@@ -862,7 +867,7 @@ export default function SpotlightOfferQuiz({
   // ---- actions
   const preview = (i: number) => {
     window.clearTimeout(previewTimer.current)
-    previewTimer.current = window.setTimeout(() => dispatch({ type: "preview", index: i }), i < 0 ? 140 : 70)
+    previewTimer.current = window.setTimeout(() => dispatch({ type: "preview", index: i }), i < 0 ? 140 : 80)
   }
   const option = state.picked >= 0 ? options[state.picked] : undefined
 
@@ -1155,6 +1160,9 @@ export default function SpotlightOfferQuiz({
               {option ? (
                 <>
                   <p className="soq-for" style={{ "--i": 0 } as React.CSSProperties}>
+                    <svg className="soq-check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                     Your code for {offerLines.join(" ").toLowerCase()}
                   </p>
                   <div className="soq-code" style={{ "--i": 1 } as React.CSSProperties}>
