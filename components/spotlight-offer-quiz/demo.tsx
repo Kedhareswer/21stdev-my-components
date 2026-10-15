@@ -5,13 +5,13 @@ export default function SpotlightOfferQuizDemo() {
   const [open, setOpen] = React.useState(true)
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center gap-4 bg-background p-6 text-center text-foreground">
-      <p className="text-sm text-muted-foreground">Kettle &amp; Crow Roasters</p>
+      <p className="text-sm text-muted-foreground">Halden &amp; Co.</p>
       <button
         type="button"
         onClick={() => setOpen(true)}
         className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition-transform active:scale-[0.97]"
       >
-        Show the first-order offer
+        Show the gift-finder offer
       </button>
       <SpotlightOfferQuiz
         open={open}

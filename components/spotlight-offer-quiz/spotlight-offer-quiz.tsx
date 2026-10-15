@@ -35,6 +35,8 @@ export type OfferOption = {
   imageAlt?: string
   /** CSS object-position for the photo, e.g. "50% 30%". */
   focus?: string
+  /** "cover" fills the stage; "contain" stands a cut-out packshot on the floor with a shadow. Falls back to `imageFit`. */
+  fit?: "cover" | "contain"
   /** Where "Shop the pick" goes after the code is shown. */
   href?: string
   /** A code just for this answer. Falls back to `code`. */
@@ -73,7 +75,7 @@ export type SpotlightOfferQuizProps = {
   /** How the modal opens by itself when uncontrolled: never, after `delayMs`, or when the pointer leaves the top of the page. */
   trigger?: "manual" | "delay" | "exit-intent"
   delayMs?: number
-  /** After a close, decline or claim, stay quiet for this many days (0 = always show). */
+  /** After a close, decline or claim, stay quiet for this many days (0 = always show). Defaults to 7 with a self-opening trigger, 0 otherwise. */
   rememberDismissDays?: number
   storageKey?: string
 
@@ -95,6 +97,8 @@ export type SpotlightOfferQuizProps = {
   image?: string
   imageAlt?: string
   imageFocus?: string
+  /** "cover" for photos, "contain" for transparent packshots (they stand on the stage floor). */
+  imageFit?: "cover" | "contain"
   /** What the empty stage spells when there is no photo. Defaults to the offer. */
   brand?: string
   grade?: OfferGrade
@@ -119,6 +123,8 @@ export type SpotlightOfferQuizProps = {
   copiedLabel?: string
   /** Label of the link to the pick (when it has an `href`). A function gets the option. */
   shopLabel?: string | ((option: OfferOption) => string)
+  /** Label of the button that closes the popup after the code, when the pick has no `href`. */
+  continueLabel?: string
   /** Small print under the form. */
   finePrint?: React.ReactNode
 
@@ -141,8 +147,8 @@ export type SpotlightOfferQuizProps = {
 
 const PRESETS: { graphite: OfferPalette; chalk: OfferPalette; midnight: OfferPalette } = {
   graphite: {
-    stage: "#7a7e84",
-    deep: "#0c0d0f",
+    stage: "#8b8f95",
+    deep: "#141517",
     ink: "#f4f4f2",
     muted: "#c8cacd",
     accent: "#f4f4f2",
@@ -256,11 +262,30 @@ export function fitSize(width100: number, avail: number, min: number, max: numbe
 
 /** The words the empty stage spells, in capitals, longest line first for sizing. */
 export function stillWords(text: string): { lines: string[]; longest: number } {
-  const lines = text
+  const words = text
     .split(/\s+/)
     .map((w) => w.trim().toUpperCase())
     .filter(Boolean)
+  // Short tokens ("&", "OF", "A") never stand alone on a line: they join the next word, or the last one.
+  const lines: string[] = []
+  let carry = ""
+  for (const w of words) {
+    if (w.replace(/[^A-Z0-9]/g, "").length <= 2 && w.length <= 2) carry = carry ? carry + " " + w : w
+    else {
+      lines.push(carry ? carry + " " + w : w)
+      carry = ""
+    }
+  }
+  if (carry) lines.length ? (lines[lines.length - 1] += " " + carry) : lines.push(carry)
   return { lines, longest: lines.reduce((m, w) => Math.max(m, w.length), 0) }
+}
+
+/** Size of the empty stage's lettering: the widest line fills `share` of the box, all lines fit its height. */
+export function stillSize(width100: number, lines: number, box: { w: number; h: number }, share: number): number {
+  if (!(lines > 0) || !(box.w > 0) || !(box.h > 0)) return 0
+  const byWidth = fitSize(width100, box.w * share, 20, 600)
+  const byHeight = Math.floor((box.h * 0.8) / (lines * 0.86))
+  return Math.max(20, Math.min(byWidth, byHeight))
 }
 
 /** True while a dismissal stamped at `stamp` (ms) is still inside its quiet period. */
@@ -303,43 +328,52 @@ const CSS = `
 .soq-modal { opacity: 0; transform: scale(0.97); transition: opacity 250ms var(--soq-ease), transform 250ms var(--soq-ease); }
 .soq-modal[data-shown] { opacity: 1; transform: none; }
 .soq-modal[data-closing] { opacity: 0; transform: scale(0.99); transition-duration: 150ms, 150ms; }
+.soq-modal:focus { outline: none; }
 .soq-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; }
+.soq-frame { position: relative; isolation: isolate; overflow: hidden; min-height: 100%; }
 
 .soq-stage {
   position: absolute; inset: 0; z-index: -3; pointer-events: none;
   background:
-    radial-gradient(60% 75% at 72% 26%, var(--soq-stage) 0%, color-mix(in oklab, var(--soq-stage) 55%, var(--soq-deep)) 38%, var(--soq-deep) 92%);
+    radial-gradient(40% 55% at 22% 24%, color-mix(in oklab, var(--soq-stage) 38%, transparent), transparent 72%),
+    radial-gradient(70% 85% at 68% 26%, var(--soq-stage) 0%, color-mix(in oklab, var(--soq-stage) 52%, var(--soq-deep)) 42%, var(--soq-deep) 96%);
 }
 .soq-grain { position: absolute; inset: -50%; z-index: 3; pointer-events: none; opacity: 0.13; mix-blend-mode: overlay; background-size: 180px 180px; }
 
 .soq-plate {
   position: absolute; z-index: -2; top: 0; right: 0; bottom: 0; width: 56%;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 26%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 26%);
-  container-type: size;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 24%);
 }
-.soq-shot {
-  position: absolute; inset: 0; opacity: 0; clip-path: inset(100% 0 0 0);
-  transition: clip-path 700ms var(--soq-swing), opacity 0ms linear 700ms;
-}
-.soq-shot[data-on] { opacity: 1; clip-path: inset(0 0 0 0); z-index: 2; transition: clip-path 700ms var(--soq-swing), opacity 0ms; }
-.soq-shot[data-prev] { opacity: 0; clip-path: inset(0 0 0 0); z-index: 1; transition: opacity 520ms var(--soq-ease); }
+.soq-shot { position: absolute; inset: 0; visibility: hidden; }
+.soq-shot[data-on] { visibility: visible; z-index: 2; animation: soq-wipe 420ms var(--soq-swing) both; }
+.soq-shot[data-on][data-kind="still"] { animation: soq-in 240ms var(--soq-ease) both; }
+.soq-shot[data-prev] { visibility: visible; z-index: 1; }
+.soq[data-lit="still"] .soq-shot[data-prev] { animation: soq-out 180ms var(--soq-ease) both; }
+@keyframes soq-wipe { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes soq-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes soq-out { from { opacity: 1; } to { opacity: 0; } }
 .soq-shot img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  filter: var(--soq-grade); transform: scale(1.06); transition: transform 1200ms var(--soq-ease);
+  filter: var(--soq-grade); transform: scale(1.05); transition: transform 1100ms var(--soq-ease);
 }
 .soq-shot[data-on] img { transform: scale(1); }
-.soq-shot::after {
+.soq-shot[data-fit="contain"] img { inset: 10% 8% 16% 12%; width: 80%; height: 74%; object-fit: contain; }
+.soq-shot[data-fit="contain"]::before {
+  content: ""; position: absolute; left: 22%; right: 12%; bottom: 11%; height: 7%; border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--soq-deep) 80%, transparent), transparent 72%);
+}
+.soq-shot[data-kind="photo"]::after {
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(to top, color-mix(in oklab, var(--soq-deep) 70%, transparent), transparent 40%);
 }
 
 .soq-still {
   position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
-  padding-right: 0; transform: translateX(4%);
+  padding: 0 6% 4% 0;
   font-family: var(--soq-display); font-weight: 800; text-transform: uppercase;
-  font-size: min(calc(76cqh / var(--soq-n)), calc(96cqw / (var(--soq-c) * 0.66)));
-  line-height: 0.84; letter-spacing: -0.045em; text-align: right; white-space: nowrap;
+  font-size: var(--soq-still, 120px);
+  line-height: 0.86; letter-spacing: -0.045em; text-align: right; white-space: nowrap;
   color: transparent;
   background: radial-gradient(70% 62% at 58% 24%, var(--soq-ink) 0%, color-mix(in oklab, var(--soq-ink) 62%, var(--soq-deep)) 46%, color-mix(in oklab, var(--soq-ink) 10%, var(--soq-deep)) 100%);
   -webkit-background-clip: text; background-clip: text;
@@ -369,7 +403,7 @@ const CSS = `
   position: relative; display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
   min-height: var(--soq-h);
 }
-.soq-modal .soq-in { min-height: 100%; }
+.soq-modal .soq-in { min-height: 100vh; min-height: 100dvh; }
 .soq-copy {
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
   padding: clamp(72px, 9vh, 112px) clamp(24px, 4vw, 64px) clamp(48px, 7vh, 88px);
@@ -386,13 +420,13 @@ const CSS = `
 .soq-measure span { display: inline-block; }
 .soq-q { margin: 16px auto 0; max-width: 30ch; font-size: 18px; line-height: 1.4; color: var(--soq-muted); text-wrap: balance; }
 
-.soq-panels { display: grid; margin-top: 28px; }
+.soq-panels { position: relative; display: grid; margin-top: 28px; }
 .soq-panel {
   grid-area: 1 / 1; min-width: 0;
   transition: opacity 250ms var(--soq-ease) 70ms, transform 300ms var(--soq-ease) 70ms, visibility 0s linear 0s;
 }
 .soq-panel[data-hidden] {
-  opacity: 0; transform: translateY(10px); visibility: hidden; pointer-events: none;
+  position: absolute; top: 0; left: 0; right: 0; opacity: 0; transform: translateY(10px); visibility: hidden; pointer-events: none;
   transition: opacity 150ms var(--soq-ease), transform 150ms var(--soq-ease), visibility 0s linear 150ms;
 }
 .soq-panel > * { transition: opacity 260ms var(--soq-ease), transform 320ms var(--soq-ease); transition-delay: calc(70ms + var(--i, 0) * 40ms); }
@@ -456,6 +490,8 @@ const CSS = `
   background: color-mix(in oklab, var(--soq-deep) 38%, transparent);
   transition: border-color 200ms ease;
 }
+.soq-row[data-stack] { flex-direction: column; border-radius: 26px; padding: 6px; }
+.soq-row[data-stack] .soq-input { flex: 0 0 auto; height: 46px; }
 .soq-row:focus-within { border-color: var(--soq-ink); }
 .soq-row[data-invalid] { border-color: var(--soq-err); animation: soq-shake 360ms var(--soq-ease); }
 @keyframes soq-shake { 20% { transform: translateX(-6px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } 100% { transform: none; } }
@@ -484,6 +520,8 @@ const CSS = `
 .soq-dots i:nth-child(2) { animation-delay: 150ms !important; }
 .soq-dots i:nth-child(3) { animation-delay: 300ms !important; }
 @keyframes soq-dot { 50% { opacity: 1; transform: translateY(-2px); } }
+.soq-wait { display: inline-flex; align-items: center; gap: 8px; margin: 18px 0 0; font-size: 15px; color: var(--soq-muted); }
+.soq-wait .soq-dots i { animation: soq-dot 900ms ease-in-out infinite; }
 .soq-msg { min-height: 22px; margin: 8px 0 0 18px; font-size: 14px; line-height: 1.4; color: var(--soq-err); }
 .soq-fine { margin: 6px 0 0 18px; font-size: 13px; line-height: 1.45; color: var(--soq-muted); }
 
@@ -520,25 +558,28 @@ const CSS = `
 
 @container soq (max-width: 760px) {
   .soq-in { grid-template-columns: minmax(0, 1fr); }
-  .soq-plate { left: 0; width: 100%; bottom: auto; height: 340px;
+  .soq-plate { left: 0; width: 100%; bottom: auto; height: 330px;
     -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); mask-image: linear-gradient(to bottom, #000 45%, transparent 100%); }
   .soq-beam { left: 50%; width: 120%; margin-left: -60%; height: 380px; top: -40px; }
   .soq-pool { display: none; }
   .soq-stage { background: radial-gradient(90% 300px at 50% 120px, var(--soq-stage) 0%, color-mix(in oklab, var(--soq-stage) 45%, var(--soq-deep)) 55%, var(--soq-deep) 100%); }
-  .soq-still { transform: translateX(3%); font-size: min(calc(66cqh / var(--soq-n)), calc(104cqw / (var(--soq-c) * 0.66))); }
+  .soq-still { bottom: auto; height: 236px; padding: 44px 16px 0 0; justify-content: center; }
+  .soq-shot[data-fit="contain"] img { inset: 6% 18% 26% 18%; width: 64%; height: 68%; }
   .soq-copy { justify-content: flex-start; padding: 250px 16px 40px; }
   .soq-kicker { font-size: 17px; }
   .soq-q { font-size: 17px; margin-top: 12px; }
   .soq-panels { margin-top: 22px; }
   .soq-pill { min-height: 52px; font-size: 17px; }
   .soq-row { flex-direction: column; border-radius: 26px; padding: 6px; }
-  .soq-input { height: 46px; }
+  .soq-input { flex: 0 0 auto; height: 46px; }
+  .soq[data-step="claim"] .soq-q, .soq[data-step="done"] .soq-q { display: none; }
   .soq-close { top: 12px; right: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .soq-beam { animation: none; }
-  .soq-shot, .soq-shot[data-on] { transition: opacity 200ms ease; clip-path: none; }
+  .soq-shot[data-on], .soq-shot[data-on][data-kind="still"] { animation: soq-in 160ms linear both; }
+  .soq-shot[data-prev] { visibility: hidden; }
   .soq-shot img, .soq-shot[data-on] img { transform: none; transition: none; }
   .soq-panel, .soq-panel[data-hidden], .soq-panel > *, .soq-panel[data-hidden] > * { transform: none; transition-property: opacity, visibility; }
   .soq-modal, .soq-modal[data-shown], .soq-modal[data-closing] { transform: none; }
@@ -550,46 +591,47 @@ const CSS = `
 }
 `
 
+const U = "https://images.unsplash.com/photo-"
+const Q = "?q=80&w=1600&auto=format&fit=crop"
+
 const DEFAULT_OPTIONS: OfferOption[] = [
   {
-    label: "Espresso, most mornings",
-    tag: "espresso",
-    pick: "Night Shift",
-    note: "Brazil and Ethiopia. Dark chocolate, cherry, a thick crema.",
-    image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=1600&auto=format&fit=crop",
-    imageAlt: "A cup of coffee on a dark table",
+    label: "Always on a call",
+    tag: "someone always on a call",
+    pick: "Studio over-ears",
+    note: "Closed-back, thirty hours a charge, and they fold flat into a coat pocket.",
+    image: U + "1505740420928-5e560c06d30e" + Q,
+    imageAlt: "Over-ear headphones",
   },
   {
-    label: "Pour-over, slow and fussy",
-    tag: "pour-over",
-    pick: "Kiboko Highlands",
-    note: "Washed Kenyan. Blackcurrant, cane sugar, a bright clean finish.",
-    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1600&auto=format&fit=crop",
-    imageAlt: "A cup of black coffee",
+    label: "Never on time",
+    tag: "someone never on time",
+    pick: "Field Watch 38",
+    note: "A 38 mm steel case, sapphire glass and a strap that softens with wear.",
+    image: U + "1523275335684-37898b6baf30" + Q,
+    imageAlt: "A wristwatch",
   },
   {
-    label: "French press",
-    tag: "the French press",
-    pick: "Slow Sunday",
-    note: "Colombian, natural process. Toffee, red apple, a heavy body.",
-    image: "https://images.unsplash.com/photo-1447933601403-0c6688de566e?q=80&w=1600&auto=format&fit=crop",
-    imageAlt: "Coffee and roasted beans",
+    label: "Still shoots on film",
+    tag: "the film photographer",
+    pick: "Instant 600",
+    note: "Prints in ninety seconds. Comes with two packs of film in the box.",
+    image: U + "1526170375885-4d8ecf77b99f" + Q,
+    imageAlt: "An instant camera",
   },
   {
-    label: "Moka pot on the stove",
-    tag: "the moka pot",
-    pick: "Stovetop Red",
-    note: "Sumatra and Brazil. Molasses and cedar, made for milk.",
-    image: "https://images.unsplash.com/photo-1511920170033-f8396924c348?q=80&w=1600&auto=format&fit=crop",
-    imageAlt: "A cup of coffee on a saucer",
+    label: "Lives outdoors",
+    tag: "someone who lives outdoors",
+    pick: "Ridge sunglasses",
+    note: "Polarised lenses in a light acetate frame that survives a rucksack.",
+    image: U + "1572635196237-14b3f281503f" + Q,
+    imageAlt: "A pair of sunglasses",
   },
   {
-    label: "Honestly, whatever's quick",
-    tag: "whatever's quick",
-    pick: "House Standard",
-    note: "Our everyday medium roast. Cocoa, almond, never bitter.",
-    image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1600&auto=format&fit=crop",
-    imageAlt: "A coffee cup on a table",
+    label: "Impossible to buy for",
+    tag: "the impossible one",
+    pick: "Gift card",
+    note: "Any amount from £20, sent by email on the day you choose.",
   },
 ]
 
@@ -629,11 +671,11 @@ function writeStamp(key: string) {
   }
 }
 
-function Still({ text }: { text: string }) {
-  const { lines, longest } = stillWords(text)
-  const style = { "--soq-n": String(Math.max(1, lines.length)), "--soq-c": String(Math.max(3, longest)) } as React.CSSProperties
+function Still({ text, size }: { text: string; size: number }) {
+  const { lines } = stillWords(text)
+  const style = (size ? { "--soq-still": size + "px" } : {}) as React.CSSProperties
   return (
-    <div className="soq-still" style={style}>
+    <div className="soq-still" style={style} aria-hidden="true">
       {lines.map((l, i) => (
         <span key={i}>{l}</span>
       ))}
@@ -644,38 +686,40 @@ function Still({ text }: { text: string }) {
 export default function SpotlightOfferQuiz({
   variant = "modal",
   open: openProp,
-  defaultOpen = true,
+  defaultOpen = false,
   onOpenChange,
   trigger = "manual",
   delayMs = 6000,
-  rememberDismissDays = 0,
+  rememberDismissDays,
   storageKey = "spotlight-offer-quiz",
-  kicker = "Your first bag, up to",
-  offer = "30% off",
-  question = "Tell us how you brew at home and we'll pick the roast to start with.",
+  kicker = "Your first gift,",
+  offer = "15% off",
+  question = "Who are you shopping for? We'll find the thing they'll actually use.",
   options = DEFAULT_OPTIONS,
-  optionsLabel = "How do you brew at home?",
+  optionsLabel = "Who are you shopping for?",
   pickIntro,
   changeLabel = "Change answer",
-  image = "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=1600&auto=format&fit=crop",
-  imageAlt = "A cup of coffee under a single light",
-  imageFocus = "50% 45%",
-  brand = "Kettle & Crow",
+  image = U + "1505740420928-5e560c06d30e" + Q,
+  imageAlt = "Over-ear headphones",
+  imageFocus = "50% 50%",
+  imageFit = "cover",
+  brand = "Halden & Co.",
   grade = "mono",
   collectEmail = true,
   emailLabel = "Where should we send your code?",
   placeholder = "you@example.com",
   submitLabel = "Send my code",
   pendingLabel = "Sending",
-  code = "FIRSTCUP30",
+  code = "FIRSTGIFT15",
   onClaim,
   onPick,
   doneCopy,
   copyLabel = "Copy",
   copiedLabel = "Copied",
   shopLabel = (o: OfferOption) => "Shop " + (o.pick || "now"),
+  continueLabel = "Start shopping",
   finePrint = "One code per order. No spam, unsubscribe in one click.",
-  decline = "No thanks, I'll keep drinking the instant",
+  decline = "No thanks, I'll wrap socks again",
   onDecline,
   closeLabel = "Close offer",
   preset = "graphite",
@@ -699,6 +743,7 @@ export default function SpotlightOfferQuiz({
   const [shown, setShown] = React.useState(false)
   const [closing, setClosing] = React.useState(false)
   const [fit, setFit] = React.useState(0)
+  const [box, setBox] = React.useState({ w: 0, h: 0, narrow: false })
 
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const colRef = React.useRef(null as HTMLDivElement | null)
@@ -708,6 +753,9 @@ export default function SpotlightOfferQuiz({
   const codeRef = React.useRef(null as HTMLSpanElement | null)
   const pillRefs = React.useRef([] as (HTMLButtonElement | null)[])
   const changeRef = React.useRef(null as HTMLButtonElement | null)
+  const plateRef = React.useRef(null as HTMLDivElement | null)
+  const scrollRef = React.useRef(null as HTMLDivElement | null)
+  const panelRefs = React.useRef([] as (HTMLDivElement | null)[])
   const previewTimer = React.useRef(0)
   const alive = React.useRef(true)
   const prevSlot = React.useRef(-2)
@@ -721,6 +769,7 @@ export default function SpotlightOfferQuiz({
   }, [])
 
   const isModal = variant === "modal"
+  const quietDays = rememberDismissDays ?? (trigger === "manual" ? 0 : 7)
   const controlled = openProp !== undefined
   const isOpen = isModal ? (controlled ? !!openProp : openState) : true
 
@@ -735,7 +784,7 @@ export default function SpotlightOfferQuiz({
   // ---- self-opening triggers (uncontrolled modal only)
   React.useEffect(() => {
     if (!isModal || controlled || trigger === "manual") return
-    if (dismissedRecently(readStamp(storageKey), Date.now(), rememberDismissDays)) return
+    if (dismissedRecently(readStamp(storageKey), Date.now(), quietDays)) return
     if (trigger === "delay") {
       const t = window.setTimeout(() => setOpen(true), Math.max(0, delayMs))
       return () => window.clearTimeout(t)
@@ -753,7 +802,7 @@ export default function SpotlightOfferQuiz({
     }
     document.addEventListener("mouseout", onOut)
     return () => document.removeEventListener("mouseout", onOut)
-  }, [isModal, controlled, trigger, delayMs, rememberDismissDays, storageKey, setOpen])
+  }, [isModal, controlled, trigger, delayMs, quietDays, storageKey, setOpen])
 
   // ---- entrance: lights come up a frame after mount
   React.useEffect(() => {
@@ -766,14 +815,14 @@ export default function SpotlightOfferQuiz({
   }, [isModal, isOpen, mounted])
 
   const requestClose = React.useCallback(() => {
-    if (rememberDismissDays > 0) writeStamp(storageKey)
+    if (quietDays > 0) writeStamp(storageKey)
     if (reduced) return setOpen(false)
     setClosing(true)
     window.setTimeout(() => {
       setClosing(false)
       setOpen(false)
     }, 150)
-  }, [reduced, setOpen, rememberDismissDays, storageKey])
+  }, [reduced, setOpen, quietDays, storageKey])
 
   // ---- dialog behaviour: scroll lock, Escape, focus trap, focus return
   React.useEffect(() => {
@@ -793,7 +842,7 @@ export default function SpotlightOfferQuiz({
       if (e.key !== "Tab" || !rootRef.current) return
       const items = Array.from(
         rootRef.current.querySelectorAll("button, input, a[href], [tabindex]:not([tabindex='-1'])"),
-      ).filter((n) => !(n as HTMLButtonElement).disabled && !n.closest("[inert]")) as HTMLElement[]
+      ).filter((n) => !(n as HTMLButtonElement).disabled && !n.closest("[inert], [data-hidden]")) as HTMLElement[]
       if (!items.length) return
       const first = items[0]
       const last = items[items.length - 1]
@@ -832,6 +881,34 @@ export default function SpotlightOfferQuiz({
     return () => ro.disconnect()
   }, [offerLines, displayFont, mounted, isOpen])
 
+  // ---- the stage box, for sizing the lettering that stands in for a missing photo
+  useIsoLayoutEffect(() => {
+    const el = plateRef.current
+    if (!el) return
+    const run = () => {
+      const r = el.getBoundingClientRect()
+      const narrow = (rootRef.current?.getBoundingClientRect().width || 1000) <= 760
+      setBox((b) => (b.w === r.width && b.h === r.height && b.narrow === narrow ? b : { w: r.width, h: r.height, narrow }))
+    }
+    run()
+    const ro = new ResizeObserver(run)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [mounted, isOpen])
+
+  // ---- hidden steps are inert (set as a property: React 18 and 19 disagree on the attribute)
+  React.useEffect(() => {
+    const order = ["ask", "claim", "done"]
+    panelRefs.current.forEach((el, i) => {
+      if (el) el.inert = order[i] !== state.step
+    })
+  }, [state.step, mounted, isOpen])
+
+  // ---- a new step starts at the top of the popup
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [state.step])
+
   // ---- which photo is lit, and the swap choreography
   const slot = litSlot(state)
   React.useEffect(() => {
@@ -845,12 +922,27 @@ export default function SpotlightOfferQuiz({
   }, [slot, reduced])
 
   const shots = React.useMemo(() => {
-    const list = [{ key: -1, src: image, alt: imageAlt, focus: imageFocus, word: brand || offerLines.join(" ") }]
-    options.forEach((o, i) =>
-      list.push({ key: i, src: o.image || image, alt: o.imageAlt || imageAlt, focus: o.focus || imageFocus, word: o.pick || o.label }),
-    )
+    const list = [{ key: -1, src: image, alt: imageAlt, focus: imageFocus, fit: imageFit, word: brand || offerLines.join(" ") }]
+    // An answer without its own photo spells its pick rather than repeating the stage's photo.
+    options.forEach((o, i) => list.push({ key: i, src: o.image || "", alt: o.imageAlt || o.pick || o.label, focus: o.focus || imageFocus, fit: o.fit || imageFit, word: o.pick || o.label }))
     return list
-  }, [options, image, imageAlt, imageFocus, brand, offerLines])
+  }, [options, image, imageAlt, imageFocus, imageFit, brand, offerLines])
+
+  // Lettering sizes: measured in the display face, fitted to the stage box like the offer.
+  const stillSizes = React.useMemo(() => {
+    const out: { [word: string]: number } = {}
+    if (!box.w || typeof document === "undefined") return out
+    const ctx = document.createElement("canvas").getContext("2d")
+    if (!ctx) return out
+    ctx.font = "800 100px " + displayFont
+    const area = box.narrow ? { w: box.w - 16, h: 192 } : { w: box.w, h: box.h }
+    shots.forEach((s) => {
+      const { lines } = stillWords(s.word)
+      const w = lines.reduce((m, l) => Math.max(m, ctx.measureText(l).width - 4.5 * Math.max(0, l.length - 1)), 0)
+      out[s.word] = stillSize(w * 1.04, lines.length, area, box.narrow ? 0.9 : 0.7)
+    })
+    return out
+  }, [shots, box, displayFont])
 
   // Preload every answer's photo so a hover never waits on the network.
   React.useEffect(() => {
@@ -876,7 +968,7 @@ export default function SpotlightOfferQuiz({
     try {
       const out = onClaim ? await onClaim({ email: value, option: opt, index }) : await new Promise((r) => window.setTimeout(r, 700))
       if (!alive.current) return
-      if (rememberDismissDays > 0) writeStamp(storageKey)
+      if (quietDays > 0) writeStamp(storageKey)
       dispatch({ type: "success", code: resolveCode(out, opt, code), email: value })
       window.setTimeout(() => copyRef.current?.focus({ preventScroll: true }), 320)
     } catch (err) {
@@ -891,7 +983,9 @@ export default function SpotlightOfferQuiz({
     dispatch({ type: "pick", index: i })
     onPick?.(options[i], i)
     if (!collectEmail) {
-      finish(options[i], i, "")
+      if (onClaim) finish(options[i], i, "")
+      else dispatch({ type: "success", code: resolveCode(undefined, options[i], code), email: "" })
+      if (!onClaim) window.setTimeout(() => copyRef.current?.focus({ preventScroll: true }), reduced ? 30 : 330)
       return
     }
     window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), reduced ? 30 : 330)
@@ -994,22 +1088,27 @@ export default function SpotlightOfferQuiz({
           : "Use it at checkout. It works on " + (option.pick || "your pick") + " or anything else in the shop.")
     : null
   const showDecline = decline !== null && decline !== undefined && (isModal || !!onDecline)
-  const hide = (h: boolean) => (h ? ({ "data-hidden": "", inert: "", "aria-hidden": true } as { [k: string]: unknown }) : {})
+  const hide = (h: boolean) => (h ? ({ "data-hidden": "", "aria-hidden": true } as { [k: string]: unknown }) : {})
+  const litShot = shots.find((x) => x.key === slot)
+  const litKind = litShot && litShot.src && !failed[litShot.src] ? "photo" : "still"
+  const panelRef = (i: number) => (el: HTMLDivElement | null) => {
+    panelRefs.current[i] = el
+  }
 
   const plate = (
     <>
       <div className="soq-stage" aria-hidden="true" />
-      <div className="soq-plate" aria-hidden="true">
+      <div className="soq-plate" ref={plateRef}>
         {shots.map((s) => {
           const on = s.key === slot
           const was = s.key === prev && !on
           const ok = !!s.src && !failed[s.src]
           return (
-            <div key={s.key} className="soq-shot" data-on={on || undefined} data-prev={was || undefined}>
+            <div key={s.key} className="soq-shot" data-on={on || undefined} data-prev={was || undefined} data-kind={ok ? "photo" : "still"} data-fit={ok ? s.fit : undefined}>
               {ok ? (
                 <img
                   src={s.src}
-                  alt=""
+                  alt={on ? s.alt || "" : ""}
                   width={1600}
                   height={1200}
                   decoding="async"
@@ -1017,7 +1116,7 @@ export default function SpotlightOfferQuiz({
                   onError={() => setFailed((f) => ({ ...f, [s.src]: true }))}
                 />
               ) : (
-                <Still text={s.word} />
+                <Still text={s.word} size={stillSizes[s.word] || 0} />
               )}
             </div>
           )
@@ -1050,7 +1149,7 @@ export default function SpotlightOfferQuiz({
           {question ? <p className="soq-q">{question}</p> : null}
 
           <div className="soq-panels">
-            <div className="soq-panel" {...hide(step !== "ask")}>
+            <div className="soq-panel" ref={panelRef(0)} {...hide(step !== "ask")}>
               <fieldset className="soq-pills" style={{ "--i": 0 } as React.CSSProperties} onPointerLeave={() => preview(-1)}>
                 <legend className="soq-sr">{optionsLabel}</legend>
                 {options.map((o, i) => (
@@ -1078,7 +1177,7 @@ export default function SpotlightOfferQuiz({
               ) : null}
             </div>
 
-            <div className="soq-panel" {...hide(step !== "claim")}>
+            <div className="soq-panel" ref={panelRef(1)} {...hide(step !== "claim")}>
               {option ? (
                 <>
                   <p className="soq-for" style={{ "--i": 0 } as React.CSSProperties}>
@@ -1109,7 +1208,7 @@ export default function SpotlightOfferQuiz({
                       <label className="soq-label" htmlFor={uid + "-e"}>
                         {emailLabel}
                       </label>
-                      <div className="soq-row" data-invalid={state.status === "error" || undefined} key={state.error}>
+                      <div className="soq-row" data-invalid={state.status === "error" || undefined} data-stack={submitText.length > 14 || undefined} key={state.error}>
                         <input
                           ref={inputRef}
                           id={uid + "-e"}
@@ -1148,15 +1247,27 @@ export default function SpotlightOfferQuiz({
                       ) : null}
                     </form>
                   ) : (
-                    <p className="soq-msg" role="alert" aria-live="assertive">
-                      {state.error}
-                    </p>
+                    <div style={{ "--i": 4 } as React.CSSProperties}>
+                      {state.status === "pending" ? (
+                        <p className="soq-wait" role="status">
+                          {pendingLabel}
+                          <span className="soq-dots" aria-hidden="true">
+                            <i />
+                            <i />
+                            <i />
+                          </span>
+                        </p>
+                      ) : null}
+                      <p className="soq-msg" role="alert" aria-live="assertive">
+                        {state.error}
+                      </p>
+                    </div>
                   )}
                 </>
               ) : null}
             </div>
 
-            <div className="soq-panel" {...hide(step !== "done")}>
+            <div className="soq-panel" ref={panelRef(2)} {...hide(step !== "done")}>
               {option ? (
                 <>
                   <p className="soq-for" style={{ "--i": 0 } as React.CSSProperties}>
@@ -1189,7 +1300,7 @@ export default function SpotlightOfferQuiz({
                       </a>
                     ) : isModal ? (
                       <button type="button" className="soq-shop" onClick={requestClose}>
-                        {shopText}
+                        {continueLabel}
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                           <path d="M3 8h9.5M8.5 3.5 13 8l-4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -1210,6 +1321,7 @@ export default function SpotlightOfferQuiz({
     ref: rootRef,
     "data-step": step,
     "data-swap": swap || undefined,
+    "data-lit": litKind,
     "data-paired": darkPreset ? "" : undefined,
     style: vars,
   }
@@ -1229,7 +1341,12 @@ export default function SpotlightOfferQuiz({
       >
         <style>{CSS}</style>
         {plate}
-        <div className="soq-scroll">{content}</div>
+        <div className="soq-scroll" ref={scrollRef}>
+          <div className="soq-frame">
+            {plate}
+            {content}
+          </div>
+        </div>
         <button type="button" className="soq-close" aria-label={closeLabel} onClick={requestClose}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />

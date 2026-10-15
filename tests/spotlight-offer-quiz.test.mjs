@@ -74,6 +74,16 @@ assert.equal(m.fitSize(0, 343, 36, 112), 36, "no measurement yet falls back to t
 
 // ---- the empty stage's lettering
 assert.deepEqual(m.stillWords("Kiboko  Highlands"), { lines: ["KIBOKO", "HIGHLANDS"], longest: 9 })
+assert.deepEqual(m.stillWords("Halden & Co.").lines, ["HALDEN", "& CO."], "an ampersand never stands alone")
+assert.deepEqual(m.stillWords("Gift card").lines, ["GIFT", "CARD"])
+assert.deepEqual(m.stillWords("Tea &").lines, ["TEA &"], "a trailing short word joins the last line")
+// lettering fits the stage box: width share and height both respected
+const box = { w: 800, h: 900 }
+const sz = m.stillSize(600, 2, box, 0.7)
+assert.ok(sz * 6 <= 800 * 0.7 + 0.5, "the widest line stays inside its share of the stage")
+assert.ok(sz * 2 * 0.86 <= 900 * 0.8 + 0.5, "all lines fit the stage height")
+assert.ok(m.stillSize(100, 1, { w: 800, h: 300 }, 0.7) <= 300 * 0.8 / 0.86 + 0.5, "a short word is held by the height")
+assert.equal(m.stillSize(600, 2, { w: 0, h: 0 }, 0.7), 0, "no box yet, no size")
 assert.deepEqual(m.stillWords(""), { lines: [], longest: 0 })
 
 // ---- dismissal memory
@@ -111,7 +121,11 @@ assert.ok(/<legend className="soq-sr">/.test(src), "the answers group is named")
 assert.ok(/htmlFor=\{uid \+ "-e"\}/.test(src), "the email field has a real label")
 assert.ok(/role="alert"/.test(src), "errors are announced")
 assert.ok(/onError=\{/.test(src), "a failed photo falls back instead of showing a broken image")
-assert.ok(/inert: ""/.test(src), "hidden steps are inert")
+assert.ok(/el\.inert = /.test(src), "hidden steps are inert, set as a property so React 18 and 19 agree")
+assert.ok(!/inert: ""/.test(src), "no inert attribute string (React 19 reads it as false)")
+assert.ok(/closest\("\[inert\], \[data-hidden\]"\)/.test(src), "the focus trap skips hidden steps")
+assert.ok(/\.soq-modal:focus \{ outline: none; \}/.test(css), "the programmatically focused dialog draws no frame")
+assert.ok(/defaultOpen = false/.test(src), "a bare popup does not take over the page")
 assert.ok(/try \{\s*window\.localStorage/.test(src), "storage access is guarded")
 
 // the 21st CLI hangs on generics before the first JSX close tag
