@@ -237,8 +237,8 @@ const SKY: CplSkyStop[] = [
   { h: 0, skyTop: "#0a0f2e", skyMid: "#18204e", skyLow: "#363266", sun: "#fff2c6", cloud: "#2a2e5c", far: "#28295a", near: "#1c1e42", shade: "#121433", ground: "#383150", wall: "#5d5f8a", palm: "#0b0d22", pool: "#1fd8ea", poolDeep: "#0a6a8c", deck: "#463f66", lights: 1, stars: 1, shadow: 0 },
   { h: 5.4, skyTop: "#1c2258", skyMid: "#5a4e8e", skyLow: "#e29a9c", sun: "#ffd27a", cloud: "#b47f9c", far: "#685d8e", near: "#4a4572", shade: "#322f5a", ground: "#977d8e", wall: "#c8b6c8", palm: "#1e1c3a", pool: "#3aa8c4", poolDeep: "#1c5e86", deck: "#b098a6", lights: 0.7, stars: 0.35, shadow: 0.05 },
   { h: 6.8, skyTop: "#4a7ec2", skyMid: "#f0a08c", skyLow: "#ffd39c", sun: "#ffc85e", cloud: "#ffd6c4", far: "#c899a8", near: "#a07388", shade: "#6b4868", ground: "#e6b28f", wall: "#ffe5d2", palm: "#3a3046", pool: "#3cc2d6", poolDeep: "#1e7ea6", deck: "#efc4aa", lights: 0.12, stars: 0, shadow: 0.35 },
-  { h: 9, skyTop: "#3a8dd6", skyMid: "#8cc6ee", skyLow: "#d8eff7", sun: "#fff0b4", cloud: "#ffffff", far: "#b8aec6", near: "#c98f7c", shade: "#8a5a5e", ground: "#ecc69e", wall: "#fff7ee", palm: "#2e6a4e", pool: "#2ec6d4", poolDeep: "#1178a0", deck: "#f2d2b8", lights: 0, stars: 0, shadow: 0.45 },
-  { h: 13, skyTop: "#2a82d6", skyMid: "#6ebcf0", skyLow: "#c6ebf7", sun: "#fffbe2", cloud: "#ffffff", far: "#c4b8ca", near: "#d29a80", shade: "#99645a", ground: "#f1cea4", wall: "#ffffff", palm: "#2d6d4b", pool: "#22c2d2", poolDeep: "#0f70a0", deck: "#f5dbc2", lights: 0, stars: 0, shadow: 0.5 },
+  { h: 9, skyTop: "#3a8dd6", skyMid: "#8cc6ee", skyLow: "#d8eff7", sun: "#ffe08a", cloud: "#ffffff", far: "#b8aec6", near: "#c98f7c", shade: "#8a5a5e", ground: "#ecc69e", wall: "#fff7ee", palm: "#2e6a4e", pool: "#2ec6d4", poolDeep: "#1178a0", deck: "#f2d2b8", lights: 0, stars: 0, shadow: 0.45 },
+  { h: 13, skyTop: "#2a82d6", skyMid: "#6ebcf0", skyLow: "#c6ebf7", sun: "#ffe680", cloud: "#ffffff", far: "#c4b8ca", near: "#d29a80", shade: "#99645a", ground: "#f1cea4", wall: "#ffffff", palm: "#2d6d4b", pool: "#22c2d2", poolDeep: "#0f70a0", deck: "#f5dbc2", lights: 0, stars: 0, shadow: 0.5 },
   { h: 17, skyTop: "#3e7dca", skyMid: "#efb07a", skyLow: "#ffd88e", sun: "#ffb44a", cloud: "#ffe0b8", far: "#cf9a90", near: "#be6f5a", shade: "#783f4c", ground: "#efb37a", wall: "#ffe1c2", palm: "#2b493a", pool: "#2eb5c8", poolDeep: "#166a96", deck: "#f1bf8f", lights: 0.05, stars: 0, shadow: 0.55 },
   { h: 18.6, skyTop: "#3a3e8a", skyMid: "#e65f7a", skyLow: "#ff9e5a", sun: "#ff6a3e", cloud: "#ff998a", far: "#a0527a", near: "#6d3962", shade: "#45234a", ground: "#c36a62", wall: "#f5afa0", palm: "#1c1530", pool: "#3c9ec2", poolDeep: "#22508a", deck: "#d8897f", lights: 0.4, stars: 0, shadow: 0.3 },
   { h: 19.7, skyTop: "#1d2060", skyMid: "#6a3e86", skyLow: "#df6f8a", sun: "#ff7a52", cloud: "#894e80", far: "#5a3e78", near: "#3a2e5e", shade: "#251e45", ground: "#6d4a6a", wall: "#a38aae", palm: "#121029", pool: "#2ad0e6", poolDeep: "#145e94", deck: "#795f80", lights: 0.88, stars: 0.3, shadow: 0.04 },
@@ -459,7 +459,7 @@ export const SUN_SET = 19.3
 function sunPosition(hour: number) {
   const k = (wrapHour(hour) - SUN_RISE) / (SUN_SET - SUN_RISE)
   const alt = Math.sin(Math.PI * clamp(k, 0, 1))
-  return { x: 300 + k * 760, y: 440 - alt * 230, alt, k, up: k > -0.08 && k < 1.08 }
+  return { x: 300 + k * 760, y: 450 - alt * 215, alt, k, up: k > -0.08 && k < 1.08 }
 }
 const MOON_RISE = 19.9
 const MOON_SPAN = 10.1
@@ -529,7 +529,7 @@ const TRACK = 22
 export const WIDE = 1.3
 const SPACE = 46
 function layoutWord(text: string) {
-  const chars = text.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().split("")
+  const chars = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().split("")
   const out: { d: string; x: number }[] = []
   let x = 0
   for (const ch of chars) {
@@ -857,9 +857,12 @@ export function PosterScene({
   align = "xMidYMax slice",
   label,
   className,
+  initial = "P",
 }: {
   hour: number
   preset: CplPreset
+  /** The letter on the pylon sign. */
+  initial?: string
   uid: string
   view?: string
   align?: string
@@ -973,16 +976,28 @@ export function PosterScene({
       {/* the far and near land */}
       {coast ? (
         <g>
-          <path d="M1180 560L1250 548L1330 552L1400 560Z M1560 560L1640 540L1720 546L1800 560Z" fill={p.far} />
-          <rect x="-200" y="560" width="2000" height="60" fill={p.sea} />
-          <path d="M-200 600V540L-60 520L90 502L180 472L260 454L330 472L420 502L520 542L600 600Z" fill={p.near} />
-          <path d="M260 454L330 472L420 502L520 542L600 600H430L360 520Z" fill={p.shade} opacity={sunLeft ? 0.85 : 0.35} />
-          <g stroke={mix(p.sea, "#ffffff", 0.45)} strokeWidth="3" opacity="0.55">
-            <path d="M640 574H760M900 586H1060M1180 576H1300M720 600H820" />
+          <rect x="-200" y="468" width="2000" height="200" fill={p.sea} />
+          <rect x="-200" y="468" width="2000" height="40" fill={mix(p.sea, p.skyLow, 0.45)} />
+          <path d="M1120 470L1190 452L1270 448L1350 470Z M1560 470L1640 444L1730 450L1800 470Z" fill={p.far} />
+          {sun.up && (
+            <g fill={p.sun} opacity={0.35 + (1 - sun.alt) * 0.5}>
+              {[0, 1, 2, 3, 4, 5].map((k) => (
+                <rect key={k} x={sun.x - 70 + k * 9 - (k % 2) * 30} y={478 + k * 22} width={140 - k * 14} height="5" rx="2.5" />
+              ))}
+            </g>
+          )}
+          <g stroke={mix(p.sea, "#ffffff", 0.45)} strokeWidth="3" opacity="0.5">
+            <path d="M640 520H760M900 540H1060M1180 512H1300M720 580H820M1420 560H1540M1200 620H1330" />
           </g>
-          <rect x="300" y="414" width="16" height="44" fill={white} />
-          <rect x="296" y="404" width="24" height="12" fill={preset.stripe} />
-          <circle cx="308" cy="398" r={7 + p.lights * 4} fill="#ffe7a0" opacity={0.4 + p.lights * 0.6} />
+          <path d="M-200 668V400L-110 372L-20 360L70 380L170 418L270 466L360 520L440 590L500 668Z" fill={p.near} />
+          <path d="M70 380L170 418L270 466L360 520L440 590L500 668H300L230 540L150 450Z" fill={p.shade} opacity={sunLeft ? 0.9 : 0.3} />
+          <path d="M70 380L170 418L270 466L360 520L440 590L500 668H300L230 540L150 450Z" fill={ref("dots")} opacity={sunLeft ? 0.3 : 0.08} />
+          <path d={"M44 358L-180 " + (318 - p.lights * 40) + "V" + (398 + p.lights * 40) + "Z"} fill="#fff4c4" opacity={p.lights * 0.28} />
+          <rect x="30" y="290" width="28" height="80" fill={white} />
+          <rect x="30" y="310" width="28" height="12" fill={preset.stripe} />
+          <rect x="30" y="338" width="28" height="12" fill={preset.stripe} />
+          <rect x="26" y="276" width="36" height="16" fill={ink} opacity="0.8" />
+          <circle cx="44" cy="270" r={8 + p.lights * 5} fill="#ffe7a0" opacity={0.5 + p.lights * 0.5} />
         </g>
       ) : (
         <g>
@@ -1004,7 +1019,8 @@ export function PosterScene({
       )}
 
       {/* desert floor */}
-      <rect x="-200" y="600" width="2000" height="400" fill={coast ? mix(p.ground, p.wall, 0.35) : p.ground} />
+      <rect x="-200" y={coast ? 662 : 600} width="2000" height="400" fill={coast ? mix(p.ground, p.wall, 0.35) : p.ground} />
+      {coast && <path d="M-200 662H1800" stroke={white} strokeWidth="6" />}
       <Agave x={470} y={706} s={1.1} fill={mix(p.palm, p.ground, 0.25)} />
       <Agave x={1370} y={708} s={0.9} fill={mix(p.palm, p.ground, 0.25)} />
       <Agave x={-40} y={712} s={1.3} fill={mix(p.palm, p.ground, 0.25)} />
@@ -1014,7 +1030,7 @@ export function PosterScene({
       <path d="M1586 708H1800" stroke={ink} strokeWidth="2" opacity="0.4" />
       <path d="M1574 744H1800" stroke={ink} strokeWidth="3" opacity="0.55" strokeDasharray="3 3" />
 
-      {BACK_PALMS.map((pp, i) => (
+      {BACK_PALMS.filter((pp) => !coast || (pp.x > 520 && pp.x < 1420)).map((pp, i) => (
         <PalmTree key={i} p={pp} i={i + 4} fill={mix(p.palm, p.far, 0.18)} ring={mix(p.palm, "#000000", 0.35)} />
       ))}
 
@@ -1052,8 +1068,8 @@ export function PosterScene({
         <rect x="490" y="440" width="30" height="262" fill={preset.stripe} />
         <rect x="490" y="440" width="10" height="262" fill={ink} opacity="0.18" />
         <circle cx="505" cy="420" r="44" fill={mix(white, "#ffe7a0", p.lights)} stroke={ink} strokeWidth="5" />
-        <g transform="translate(486 397) scale(0.44)">
-          <path d={(GLYPHS.P || GLYPHS.A)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" />
+        <g transform="translate(486.5 397) scale(0.44)">
+          <path d={(GLYPHS[initial] || GLYPHS.P)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} transform={"translate(" + (42 - (GLYPHS[initial] || GLYPHS.P)[0] / 2) + " 0)"} />
         </g>
       </g>
 
@@ -1305,7 +1321,9 @@ function Postcard({
   clock,
   onBook,
   index,
+  initial,
 }: {
+  initial: string
   room: CplRoom
   preset: CplPreset
   uid: string
@@ -1315,6 +1333,13 @@ function Postcard({
   index: number
 }) {
   const [back, setBack] = React.useState(false)
+  const backBtn = React.useRef(null as HTMLButtonElement | null)
+  const frontBtn = React.useRef(null as HTMLButtonElement | null)
+  const turn = (b: boolean) => {
+    setBack(b)
+    // Move focus to the face that is now showing, so keyboard users follow the card.
+    setTimeout(() => (b ? backBtn.current : frontBtn.current)?.focus({ preventScroll: true }), 60)
+  }
   const hour = room.hour ?? 12
   return (
     <li className={"cpl-card cpl-rv" + (back ? " cpl-flipped" : "")} style={{ ["--cpl-tilt" as string]: [-1.6, 1.1, -0.7, 1.5][index % 4] + "deg" }}>
@@ -1324,7 +1349,7 @@ function Postcard({
             {room.image ? (
               <img src={room.image} alt={room.imageAlt || room.name} width={900} height={600} loading="lazy" />
             ) : (
-              <PosterScene hour={hour} preset={preset} uid={uid + "pc" + index} view={VIEWS[room.view || "pool"]} align="xMidYMid slice" label={room.name + ", printed at " + formatHour(hour, clock)} />
+              <PosterScene initial={initial} hour={hour} preset={preset} uid={uid + "pc" + index} view={VIEWS[room.view || "pool"]} align="xMidYMid slice" label={room.name + ", printed at " + formatHour(hour, clock)} />
             )}
             <span className="cpl-stamp" aria-hidden="true">
               <b>{formatMoney(room.rate, currency)}</b>
@@ -1336,7 +1361,7 @@ function Postcard({
             <p>
               {room.size}, sleeps {room.sleeps}
             </p>
-            <button type="button" className="cpl-turn" onClick={() => setBack(true)} aria-label={"Turn over the " + room.name + " postcard"} tabIndex={back ? -1 : 0}>
+            <button ref={frontBtn} type="button" className="cpl-turn" onClick={() => turn(true)} aria-label={"Turn over the " + room.name + " postcard"} tabIndex={back ? -1 : 0}>
               Turn over
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
                 <path d="M3 6a5 5 0 0 1 9-1.6M13 2v3h-3M13 10a5 5 0 0 1-9 1.6M3 14v-3h3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -1374,11 +1399,11 @@ function Postcard({
             </dl>
           </div>
           <div className="cpl-back-act">
-            <button type="button" className="cpl-btn cpl-solid" onClick={() => onBook(room)} tabIndex={back ? 0 : -1}>
+            <button ref={backBtn} type="button" className="cpl-btn cpl-solid" onClick={() => onBook(room)} tabIndex={back ? 0 : -1}>
               Book this room
               <Arrow />
             </button>
-            <button type="button" className="cpl-turn" onClick={() => setBack(false)} tabIndex={back ? 0 : -1}>
+            <button type="button" className="cpl-turn" onClick={() => turn(false)} tabIndex={back ? 0 : -1} aria-label={"Turn the " + room.name + " postcard back"}>
               Turn back
             </button>
           </div>
@@ -1517,16 +1542,20 @@ export default function PalomaHotelLanding({
     const alt = left === 0 ? roomList.find((r) => r.id !== room.id && r.sleeps >= guests && roomsLeft(r.id, checkIn, nights) > 0) : undefined
     setResult({ q, left, total, alt })
   }
-  const bookRoom = (r: CplRoom) => {
-    setRoomId(r.id)
-    setResult(null)
-    setHeld(false)
-    if (guests > r.sleeps) setGuests(r.sleeps)
+  /** Scroll to the registration card and put the cursor in "Check in". */
+  const goBook = () => {
     scrollTo("#book")
     setTimeout(() => {
       const el = root.current && (root.current.querySelector("#" + uid + "in") as HTMLElement | null)
       if (el) el.focus({ preventScroll: true })
     }, reduced ? 0 : 500)
+  }
+  const bookRoom = (r: CplRoom) => {
+    setRoomId(r.id)
+    setResult(null)
+    setHeld(false)
+    if (guests > r.sleeps) setGuests(r.sleeps)
+    goBook()
   }
 
   /* newsletter */
@@ -1547,6 +1576,8 @@ export default function PalomaHotelLanding({
   }, [])
   React.useEffect(() => {
     if (!menu) return
+    const first = root.current && (root.current.querySelector(".cpl-menu a") as HTMLElement | null)
+    if (first) first.focus()
     const k = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenu(false)
     }
@@ -1575,6 +1606,18 @@ export default function PalomaHotelLanding({
   return (
     <div ref={root} className={"cpl-root" + (className ? " " + className : "")} data-theme={dark ? "dark" : "light"} style={{ ...style, ["--cpl-on-pool" as string]: onPool }}>
       <style>{CPL_CSS}</style>
+      {booking && (
+        <a
+          className="cpl-skip"
+          href={"#" + uid + "book"}
+          onClick={(e) => {
+            e.preventDefault()
+            goBook()
+          }}
+        >
+          Skip to booking
+        </a>
+      )}
 
       {/* memo strip */}
       {memo && (
@@ -1648,7 +1691,7 @@ export default function PalomaHotelLanding({
                 <span className="cpl-tint" style={{ background: "linear-gradient(180deg," + pal.skyTop + "," + pal.skyLow + ")", opacity: 0.18 + pal.lights * 0.4 }} aria-hidden="true" />
               </>
             ) : (
-              <PosterScene hour={hour} preset={preset} uid={uid + "hero"} view="-200 190 2000 810" align="xMidYMid slice" label={brand + " at " + formatHour(hour, clock) + ": the pool, the palms and the mountains"} className="cpl-live" />
+              <PosterScene initial={initial} hour={hour} preset={preset} uid={uid + "hero"} view="-200 190 2000 810" align="xMidYMid slice" label={brand + " at " + formatHour(hour, clock) + ": the pool, the palms and the mountains"} className="cpl-live" />
             )}
           </div>
           <div className="cpl-cap">
@@ -1672,7 +1715,7 @@ export default function PalomaHotelLanding({
 
       {/* booking */}
       {booking && (
-        <section className="cpl-book cpl-sec" data-sec="book" aria-labelledby={uid + "bk"}>
+        <section id={uid + "book"} tabIndex={-1} className="cpl-book cpl-sec" data-sec="book" aria-labelledby={uid + "bk"}>
           <div className="cpl-book-l cpl-rv">
             <h2 id={uid + "bk"}>{booking.title ?? "Book direct, pay at the desk."}</h2>
             <p>{booking.text ?? "Free cancellation up to seven days before you arrive. Rates include the airport shuttle and bikes."}</p>
@@ -1793,7 +1836,7 @@ export default function PalomaHotelLanding({
           </div>
           <ul className="cpl-cards">
             {roomList.map((r, i) => (
-              <Postcard key={r.id} room={r} preset={preset} uid={uid} currency={currency} clock={clock} onBook={bookRoom} index={i} />
+              <Postcard key={r.id} initial={initial} room={r} preset={preset} uid={uid} currency={currency} clock={clock} onBook={bookRoom} index={i} />
             ))}
           </ul>
         </section>
@@ -1809,7 +1852,7 @@ export default function PalomaHotelLanding({
               </h2>
               <p className="cpl-rv">{programme.text ?? "Move the sun and see what is on. Every hour has its place, and most of them have a drink."}</p>
               <div className="cpl-window">
-                <PosterScene hour={hour} preset={preset} uid={uid + "win"} view="300 300 1000 700" align="xMidYMid slice" />
+                <PosterScene initial={initial} hour={hour} preset={preset} uid={uid + "win"} view="300 300 1000 700" align="xMidYMid slice" />
                 <span className="cpl-window-time" aria-hidden="true">
                   {formatHour(hour, clock)}
                 </span>
@@ -1894,7 +1937,7 @@ export default function PalomaHotelLanding({
                     </span>
                     {i === 0 && (
                       <span className="cpl-lstamp" aria-hidden="true">
-                        <PosterScene hour={21.9} preset={preset} uid={uid + "st"} view="420 560 760 520" align="xMidYMid slice" />
+                        <PosterScene initial={initial} hour={21.9} preset={preset} uid={uid + "st"} view="420 560 760 520" align="xMidYMid slice" />
                       </span>
                     )}
                     <blockquote>
@@ -2003,7 +2046,7 @@ export default function PalomaHotelLanding({
       {/* footer */}
       <footer className="cpl-foot">
         <div className="cpl-foot-band">
-          <PosterScene hour={22.4} preset={preset} uid={uid + "ft"} view="200 560 1300 440" align="xMidYMid slice" />
+          <PosterScene initial={initial} hour={22.4} preset={preset} uid={uid + "ft"} view="200 560 1300 440" align="xMidYMid slice" />
         </div>
         <div className="cpl-foot-in">
           <div className="cpl-foot-brand">
@@ -2029,7 +2072,7 @@ export default function PalomaHotelLanding({
 
       {/* sticky pill nav */}
       <div className={"cpl-pill-dock" + (pill ? " cpl-pill-on" : "")}>
-        <nav className="cpl-pill" aria-label="Quick">
+        <nav className="cpl-pill" aria-label="Quick" aria-hidden={!pill}>
           <a className="cpl-pill-mark" href="#top" onClick={(e) => onLink(e, "#top")} aria-label={brand + ", back to top"} tabIndex={pill ? 0 : -1}>
             <Monogram letter={initial} color="currentColor" size={18} />
           </a>
@@ -2083,6 +2126,8 @@ const CPL_CSS = `
 .cpl-root img,.cpl-root svg{max-width:none}
 .cpl-root ::selection{background:var(--cpl-sun);color:#191d3a}
 .cpl-root :focus-visible{outline:2.5px solid var(--cpl-ink);outline-offset:3px;border-radius:6px}
+.cpl-skip{position:absolute;left:12px;top:-60px;z-index:6;padding:.6rem 1rem;border-radius:999px;background:var(--cpl-ink);color:var(--cpl-paper);font-weight:700;text-decoration:none;transition:top .2s var(--cpl-ease)}
+.cpl-skip:focus{top:12px}
 .cpl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 .cpl-memo{display:flex;flex-wrap:wrap;justify-content:center;gap:.25rem .9rem;padding:.6rem 1rem;border-bottom:1px solid var(--cpl-rule);font-family:var(--cpl-type);font-size:12.5px;line-height:1.35;letter-spacing:.04em;text-transform:uppercase;text-align:center}
@@ -2201,7 +2246,7 @@ const CPL_CSS = `
 .cpl-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(16px,2vw,28px);align-items:start}
 .cpl-card{perspective:1400px}
 .cpl-card:nth-child(even){margin-top:clamp(0px,3vw,44px)}
-.cpl-card-inner{position:relative;display:grid;transform:rotate(var(--cpl-tilt));transform-style:preserve-3d;transition:transform .7s var(--cpl-ease)}
+.cpl-card-inner{position:relative;display:grid;transform:rotate(var(--cpl-tilt));transform-style:preserve-3d;transition:transform .5s var(--cpl-ease)}
 .cpl-card:hover .cpl-card-inner{transform:rotate(0deg) translateY(-4px)}
 .cpl-flipped .cpl-card-inner,.cpl-flipped:hover .cpl-card-inner{transform:rotate(0deg) rotateY(180deg)}
 .cpl-face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fffaf6;color:#191d3a;border-radius:10px;padding:10px;box-shadow:0 1px 0 rgba(25,29,58,.25),5px 7px 0 rgba(25,29,58,.9);display:flex;flex-direction:column}
@@ -2324,8 +2369,8 @@ const CPL_CSS = `
 .cpl-menu a{display:block;padding:.75rem 1rem;border-radius:14px;text-decoration:none;font-family:var(--cpl-display);font-weight:800;font-size:18px}
 .cpl-menu a:hover{background:var(--cpl-card)}
 
-.cpl-rv.cpl-arm{opacity:0;transform:translateY(22px);transition:opacity .7s var(--cpl-ease),transform .8s var(--cpl-ease)}
-.cpl-card.cpl-rv.cpl-arm{transform:translateY(34px)}
+.cpl-rv.cpl-arm{opacity:0;transform:translateY(12px);transition:opacity .5s var(--cpl-ease),transform .5s var(--cpl-ease)}
+.cpl-card.cpl-rv.cpl-arm{transform:translateY(16px)}
 .cpl-rv.cpl-arm.cpl-in{opacity:1;transform:none}
 
 @media (max-width:1100px){
