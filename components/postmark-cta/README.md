@@ -54,6 +54,8 @@ Your own stamps, with your own photos printed as two-ink duotones:
 | `headline` | `string` | preset | `*stars*` set words in the highlight colour, `\n` breaks the line |
 | `description` | `ReactNode` | preset | One or two sentences |
 | `ctaLabel` / `ctaHref` / `onCtaClick` | | preset | A link when there is an href, otherwise a button |
+| `postDelay` | `number` | `0` | With `ctaHref`, wait this long (ms) before following the link so the postmark is seen; ~280 lets it land. 0 never delays. Modifier-clicks and `target` links are never delayed |
+| `onPosted` | `() => void` | | Called when the postmark lands, on every press |
 | `secondaryLabel` / `secondaryHref` / `onSecondaryClick` | | preset | Empty label hides it |
 | `note` | `ReactNode \| null` | preset | One quiet line under the buttons |
 | `stamps` | `PostmarkStamp[]` | preset | Up to seven. The first four show on phones; the third sits by the button |
