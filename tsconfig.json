@@ -151,7 +151,8 @@
       "@/components/ui/loyly-sauna-landing": ["./components/loyly-sauna-landing/loyly-sauna-landing.tsx"],
       "@/components/ui/callsign-radio-landing": ["./components/callsign-radio-landing/callsign-radio-landing.tsx"],
       "@/components/ui/galaxy-starfield": ["./components/galaxy-starfield/galaxy-starfield.tsx"],
-      "@/components/ui/wordmark-newsletter-signup": ["./components/wordmark-newsletter-signup/wordmark-newsletter-signup.tsx"]
+      "@/components/ui/wordmark-newsletter-signup": ["./components/wordmark-newsletter-signup/wordmark-newsletter-signup.tsx"],
+      "@/components/ui/postmark-cta": ["./components/postmark-cta/postmark-cta.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
