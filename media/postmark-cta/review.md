@@ -111,3 +111,39 @@ Critic's changes, most important first, and what was done:
    opacity) and the offer stamp dips 2 px as it lands.
 6. Dark mode lost the bars past the stamp. **Done:** the live postmark is now sized so the bars
    end at the stamp's edge.
+
+## Round 3 (final): REDO (average 7.8)
+
+| | Score |
+|---|---|
+| Usability | 8 |
+| Idea | 8 |
+| Craft | 7 |
+| Originality | 7 |
+| Install-safety | 9 |
+
+Nothing below 7, but the average is under 8, so by the brief this piece lives on
+`claude/review-postmark-cta` for the owner to decide. What the critic credited: the postmark slam
+with the wavy bars and date die, stamps settling clear of the copy after repeated throws, three
+presets that look different from each other, a designed phone layout, correct focus ring and
+reduced-motion state.
+
+Its changes were applied after the verdict (not re-scored, the brief allows three rounds):
+
+1. The slogan overprint was illegible and ran past the frame. **Done:** one short line in
+   heavier, larger type in a single ruled box, kept inside the art window ("PAR AVION",
+   "KEEP COOL", "BY HAND").
+2. Short viewports cut the top stamp's label. **Done:** stamps shrink with viewport height a
+   little more, and only the perforated margin (8%) may hang off an edge, never the label band.
+3. Headline word gaps collapsed under the tight tracking. **Done:** `word-spacing: 0.06em`, and
+   the copy column is 880 px so the voyage headline still sets in two lines.
+4. Halftone dots ran under the small note. **Done:** the clearing in the field is now measured
+   from the copy as it actually sits, so the note and secondary link sit on a clear ground.
+5. Engraving tells. **Done:** the cube's faces use straight lines (no slivers); the bridge towers
+   have two beams instead of a ladder. The peaks' layering was left as is.
+6. Fonts: the headline stack leads with Inter Display where installed and falls back to the
+   system UI face at 900; `displayFont` is documented for installers who want their own face.
+7. Originality of the static frame. **Partly done:** the offer stamp that takes the postmark is
+   now visibly larger (scale 1.16) than the rest of the set; the ring layout is otherwise the
+   reference's.
+8. The armed ghost postmark is at 62% so the hover preview reads.

@@ -218,11 +218,11 @@ export function band(x: number, lo: number, hi: number, dim: number) {
 }
 
 /** Halftone dot radius as a fraction of the pitch: big at the bottom, quieter at the top, clear behind the copy. */
-export function dotSize(x: number, y: number) {
+export function dotSize(x: number, y: number, c: number[] = [0.5, 0.48, 0.34, 0.3]) {
   const base = 0.12 + 0.6 * smooth(0.42, 1.04, y) + 0.32 * smooth(0.36, -0.08, y)
   const wave = 0.06 * Math.sin(x * 9.1 + y * 4.3) + 0.05 * Math.sin(x * 3.7 - y * 7.9 + 1.3)
-  const dx = (x - 0.5) / 0.34
-  const dy = (y - 0.48) / 0.3
+  const dx = (x - c[0]) / c[2]
+  const dy = (y - c[1]) / c[3]
   const clear = smooth(0.55, 1.25, Math.sqrt(dx * dx + dy * dy))
   return clamp01((base + wave) * (0.25 + 0.75 * clear))
 }
@@ -541,7 +541,7 @@ export const SCENES: { [k: string]: Scene } = {
     // towers: two legs and cross beams, in the second ink
     for (const c of [0.27, 0.77]) {
       const leg = Math.abs(u - (c - 0.024)) < 0.011 || Math.abs(u - (c + 0.024)) < 0.011
-      const beam = Math.abs(u - c) < 0.035 && [0.16, 0.3, 0.45].some((y) => Math.abs(v - y) < 0.01)
+      const beam = Math.abs(u - c) < 0.035 && [0.17, 0.4].some((y) => Math.abs(v - y) < 0.012)
       if (v > 0.12 && v < 0.74 && (leg || beam)) {
         l = u < c ? 0.48 : 0.2
         t = 1
@@ -765,10 +765,8 @@ export const SCENES: { [k: string]: Scene } = {
       t = 1
     } else if (inPoly([0.25, 0.335, 0.5, 0.47, 0.5, 0.8, 0.25, 0.665])) {
       l = 0.6
-      b = (u - 0.25) * 0.54
     } else if (inPoly([0.5, 0.47, 0.75, 0.335, 0.75, 0.665, 0.5, 0.8])) {
-      l = 0.2
-      b = -(u - 0.5) * 0.54
+      l = 0.24
     }
     return [l, t, b]
   },
@@ -992,12 +990,12 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Plan a trip",
       secondaryLabel: "Browse 1,200 places",
       note: "Free to plan. You only pay when you book.",
-      postmark: { top: "BON VOYAGE", bottom: "POSTED TODAY", slogan: "PAR AVION\nBY AIR MAIL" },
+      postmark: { top: "BON VOYAGE", bottom: "POSTED TODAY", slogan: "PAR AVION" },
     },
     stamps: [
       { art: "balloon", shape: "round", label: "CAPPADOCIA", caption: "TÜRKIYE", ink: "#1d3a62", tint: "#ef7d3b", scale: 0.92 },
       { art: "peaks", label: "DOLOMITI", value: "3.20", caption: "Alto Adige", ink: "#1d3a62", tint: "#f2a541", cancelled: true },
-      { art: "sail", label: "HELLAS", value: "from €49", caption: "Aegean ferries", ink: "#1d3a62", tint: "#ef7d3b", scale: 1.06 },
+      { art: "sail", label: "HELLAS", value: "from €49", caption: "Aegean ferries", ink: "#1d3a62", tint: "#ef7d3b", scale: 1.16 },
       { art: "dunes", label: "MAROC", value: "12", caption: "Erg Chebbi", ink: "#b2402a", tint: "#f2a541", shape: "landscape" },
       { art: "lighthouse", label: "PORTUGAL", value: "0.85", caption: "Cabo da Roca", ink: "#b2402a", tint: "#7fa6d8", frame: "oval" },
       { art: "bridge", label: "LISBOA", value: "1.50", caption: "Ponte 25 de Abril", ink: "#1d3a62", tint: "#d9522e", frame: "bare" },
@@ -1013,12 +1011,12 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Build my first box",
       secondaryLabel: "See this week’s menu",
       note: "Skip a week or cancel any time, in two taps.",
-      postmark: { top: "FARM TO DOOR", bottom: "PACKED TODAY", slogan: "KEEP COOL\nFRESH PRODUCE" },
+      postmark: { top: "FARM TO DOOR", bottom: "PACKED TODAY", slogan: "KEEP COOL" },
     },
     stamps: [
       { art: "olives", shape: "round", label: "OLIO NUOVO", caption: "PUGLIA", ink: "#24472f", tint: "#9bb04a", scale: 0.92 },
       { art: "lemon", label: "AMALFI", value: "2.40", caption: "Sfusato lemons", ink: "#24472f", tint: "#f2c230", shape: "landscape", cancelled: true },
-      { art: "tomato", label: "WEEK ONE", value: "half price", caption: "Heirloom tomato", ink: "#24472f", tint: "#e2553f", scale: 1.06 },
+      { art: "tomato", label: "WEEK ONE", value: "half price", caption: "Heirloom tomato", ink: "#24472f", tint: "#e2553f", scale: 1.16 },
       { art: "pear", label: "ANJOU", value: "1.10", caption: "Winter pears", ink: "#7e2a1d", tint: "#d8b13c", frame: "oval" },
       { art: "cherries", label: "KENT", value: "0.90", caption: "Early cherries", ink: "#7e2a1d", tint: "#e2553f", frame: "bare" },
     ],
@@ -1033,12 +1031,12 @@ const PRESETS: { [k: string]: PresetDef } = {
       ctaLabel: "Start a project",
       secondaryLabel: "See the work",
       note: "We reply within two working days.",
-      postmark: { top: "STUDIO MAIL", bottom: "RECEIVED", slogan: "PRINTED MATTER\nDO NOT BEND" },
+      postmark: { top: "STUDIO MAIL", bottom: "RECEIVED", slogan: "BY HAND" },
     },
     stamps: [
       { art: "ring", shape: "round", label: "FORM STUDY", caption: "NO. 04", ink: "#21254f", tint: "#ff6b3d", scale: 0.9 },
       { art: "sphere", label: "SPHERE", value: "I", caption: "Light study", ink: "#21254f", tint: "#ff6b3d", shape: "landscape", cancelled: true },
-      { art: "cube", label: "INTAKE", value: "Q1 2027", caption: "Two slots open", ink: "#21254f", tint: "#f6c445", scale: 1.06 },
+      { art: "cube", label: "INTAKE", value: "Q1 2027", caption: "Two slots open", ink: "#21254f", tint: "#f6c445", scale: 1.16 },
       { art: "arch", label: "ARCH", value: "IV", caption: "Light study", ink: "#5c1f3c", tint: "#ff8a5c", frame: "bare" },
       { art: "cone", label: "CONE", value: "II", caption: "Light study", ink: "#5c1f3c", tint: "#9fb3ff", frame: "oval" },
     ],
@@ -1070,10 +1068,10 @@ const CSS = `
 .pm-in { position: relative; min-height: var(--pm-h); display: grid; place-items: center; padding: clamp(110px, 11cqw, 170px) 16px; }
 .pm-dots { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; pointer-events: none; z-index: 0; }
 
-.pm-copy { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 820px; pointer-events: none; }
+.pm-copy { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 880px; pointer-events: none; }
 .pm-h {
   margin: 0; font-family: var(--pm-display); font-weight: 900; text-transform: uppercase;
-  font-size: clamp(38px, 6.3cqw, 96px); line-height: 0.93; letter-spacing: -0.035em; color: var(--k);
+  font-size: clamp(38px, 6.3cqw, 96px); line-height: 0.93; letter-spacing: -0.035em; word-spacing: 0.06em; color: var(--k);
   text-wrap: balance;
 }
 .pm-line { display: block; }
@@ -1163,12 +1161,12 @@ const CSS = `
 .pm-face[data-frame="classic"][data-shape="landscape"] { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; }
 .pm-face[data-shape="landscape"] .pm-art { grid-column: 1; grid-row: 1; }
 .pm-face[data-shape="landscape"] .pm-cap { grid-column: 1; grid-row: 2; font-size: 4.4cqw; padding: 1.8cqw; }
-.pm-face[data-shape="landscape"] ~ .pm-old { top: 22%; left: 2%; width: 84%; }
+.pm-face[data-shape="landscape"] ~ .pm-old { top: 30%; left: 14%; width: 56%; }
 .pm-side { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding-left: 0.5cqw; }
 .pm-side .pm-value { font-size: 9cqw; }
 .pm-vert { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 5.4cqw; }
-.pm-slogan { font: 900 19px/1 var(--pm-text); letter-spacing: 0.14em; fill: currentColor; }
-.pm-slogan-2 { font-size: 13px; font-weight: 800; letter-spacing: 0.2em; }
+.pm-slogan { font: 900 27px/1 var(--pm-text); letter-spacing: 0.12em; fill: currentColor; }
+.pm-slogan-2 { font-size: 16px; font-weight: 800; letter-spacing: 0.16em; }
 .pm-round .pm-face { inset: 0; border: 0; padding: 0; }
 .pm-round .pm-art { position: absolute; inset: 17%; border-radius: 50%; border: max(1px, 0.7cqw) solid var(--si); }
 .pm-ring-text { font: 800 7.4px/1 var(--pm-text); letter-spacing: 0.16em; fill: var(--si); text-transform: uppercase; }
@@ -1178,10 +1176,10 @@ const CSS = `
 .pm-mark svg { display: block; width: 100%; height: auto; max-width: none; overflow: visible; }
 .pm-mark text { font: 800 9px/1 var(--pm-text); letter-spacing: 0.12em; fill: currentColor; }
 .pm-mark .pm-date { font-size: 11px; letter-spacing: 0.04em; }
-.pm-old { left: 4%; top: 46%; width: 92%; rotate: -12deg; opacity: 0.78; color: #a63521; }
+.pm-old { left: 18%; top: 48%; width: 64%; rotate: -10deg; opacity: 0.86; color: #a63521; }
 .pm-live { left: 24%; top: 42%; width: 86%; rotate: -9deg; opacity: 1; }
 .pm-ghost { opacity: 0; transform: translateY(-14px) scale(1.12); transition: opacity 200ms var(--pm-out), transform 260ms var(--pm-out); }
-.pm[data-armed="true"] .pm-ghost { opacity: 0.5; transform: translateY(-8px) scale(1.06); }
+.pm[data-armed="true"] .pm-ghost { opacity: 0.62; transform: translateY(-8px) scale(1.06); }
 .pm-slam { animation: pm-slam 260ms cubic-bezier(0.3, 0, 0.2, 1) both; }
 .pm-slam .pm-bar { stroke-dasharray: 160; animation: pm-bars 300ms var(--pm-out) 70ms both; }
 
@@ -1295,15 +1293,14 @@ function Postmark(props: { top: string; bottom: string; date: string; bars?: num
 function Slogan(props: { text: string; filter: string }) {
   const [a, b = ""] = props.text.split("\n")
   return (
-    <svg viewBox="0 0 200 66" aria-hidden="true">
+    <svg viewBox={"0 0 200 " + (b ? 72 : 52)} aria-hidden="true">
       <g filter={"url(#" + props.filter + ")"}>
-        <rect x="3" y="3" width="194" height="60" rx="3" fill="none" stroke="currentColor" strokeWidth="3.4" />
-        <rect x="10" y="10" width="180" height="46" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
-        <text className="pm-slogan" x="100" y={b ? 30 : 39} textAnchor="middle">
+        <rect x="3" y="3" width="194" height={b ? 66 : 46} rx="3" fill="none" stroke="currentColor" strokeWidth="4" />
+        <text className="pm-slogan" x="100" y={b ? 33 : 35.5} textAnchor="middle">
           {a}
         </text>
         {b ? (
-          <text className="pm-slogan pm-slogan-2" x="100" y="48" textAnchor="middle">
+          <text className="pm-slogan pm-slogan-2" x="100" y="57" textAnchor="middle">
             {b}
           </text>
         ) : null}
@@ -1583,6 +1580,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
   const [armed, setArmed] = React.useState(false)
   const rootRef = React.useRef(null as HTMLElement | null)
   const canvasRef = React.useRef(null as HTMLCanvasElement | null)
+  const copyRef = React.useRef(null as HTMLDivElement | null)
   const slotRefs = React.useRef([] as (HTMLDivElement | null)[])
   const dragRefs = React.useRef([] as (HTMLDivElement | null)[])
 
@@ -1618,6 +1616,12 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
         const a = cs.getPropertyValue("--dA").trim()
         const b = cs.getPropertyValue("--dB").trim()
         const pitch = w < 720 ? 8 : 10
+        // clear the field round the copy as it actually sits, so small text never lands on dots
+        const cr = copyRef.current?.getBoundingClientRect()
+        const rr = root.getBoundingClientRect()
+        const clearing = cr
+          ? [(cr.left + cr.width / 2 - rr.left) / w, (cr.top + cr.height / 2 - rr.top) / h, (cr.width / w) * 0.62 + 0.04, (cr.height / h) * 0.62 + 0.05]
+          : undefined
         const rows = Math.ceil(h / pitch) + 1
         const cols = Math.ceil(w / pitch) + 1
         for (let j = 0; j < rows; j++) {
@@ -1627,7 +1631,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
           ctx.beginPath()
           for (let i = 0; i < cols; i++) {
             const x = i * pitch + (j % 2 ? pitch / 2 : 0)
-            const r = dotSize(x / w, yn) * pitch * 0.5
+            const r = dotSize(x / w, yn, clearing) * pitch * 0.5
             if (r < 0.35) continue
             ctx.moveTo(x + r, y)
             ctx.arc(x, y, r, 0, Math.PI * 2)
@@ -1650,7 +1654,6 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
   }, [colourKey])
 
   // ---- keep every stamp off the copy, whatever its length
-  const copyRef = React.useRef(null as HTMLDivElement | null)
   React.useEffect(() => {
     const root = rootRef.current
     const copy = copyRef.current
@@ -1670,7 +1673,8 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
           const base = { left: r.left - nx, right: r.right - nx, top: r.top - ny, bottom: r.bottom - ny }
           let [dx, dy, ok] = clearOf(base, avoid, frame, 24)
           // a cramped section: hanging a little off the edge beats sitting on the copy or a long jump across it
-          const [lx, ly, lok] = clearOf(base, avoid, frame, 24, 0.3)
+          // only the perforated margin may hang off, never the label band
+          const [lx, ly, lok] = clearOf(base, avoid, frame, 24, 0.08)
           if (lok && (!ok || Math.hypot(lx, ly) < Math.hypot(dx, dy) * 0.6)) [dx, dy] = [lx, ly]
           else if (!ok) [dx, dy] = [lx, ly]
           slot.style.setProperty("--nx", dx.toFixed(1) + "px")
@@ -1972,7 +1976,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
             "--y": (s.y ?? slot.y) + "%",
             "--cx": slot.c ? slot.c.x : "50%",
             "--cy": slot.c ? slot.c.y : "50%",
-            "--w": s.shape === "landscape" ? "clamp(140px, min(15.5cqw, 27vh), 248px)" : "clamp(112px, min(12.4cqw, 21vh), 196px)",
+            "--w": s.shape === "landscape" ? "clamp(136px, min(15.5cqw, 25vh), 248px)" : "clamp(106px, min(12.4cqw, 19vh), 196px)",
             "--s": String(clamp(s.scale ?? 1, 0.7, 1.3)),
             "--r": (s.rotate ?? slot.r) + "deg",
             "--d": String(slot.d),
