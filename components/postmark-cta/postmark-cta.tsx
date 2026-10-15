@@ -103,6 +103,13 @@ export type PostmarkCtaProps = {
   ctaHref?: string
   /** Runs on click, alongside navigation when there is an href. */
   onCtaClick?: (e: PostmarkClickEvent) => void
+  /** Called when the postmark lands (on every press). */
+  onPosted?: () => void
+  /**
+   * With `ctaHref`: wait this many ms before following the link, so the postmark is seen.
+   * 0 (the default) never delays navigation; around 280 lets the slam finish.
+   */
+  postDelay?: number
   secondaryLabel?: string
   secondaryHref?: string
   onSecondaryClick?: (e: PostmarkClickEvent) => void
@@ -325,17 +332,21 @@ export const SCENES: { [k: string]: Scene } = {
       l = 1
       t = 1
     }
+    // rock strata: faint diagonal banding that the line widths pick up
+    const strata = 0.07 * Math.sin((u * 1.4 + v) * 52)
     const [b] = ridge(u, PEAK_BACK)
     if (v > b) {
-      const [fl, below] = facet(u, v, PEAK_BACK, 0.66, 0.34)
-      l = fl - (v - b) * 0.25
-      if (below < 0.09 + 0.025 * Math.sin(u * 47)) l = fl > 0.5 ? 0.995 : 0.74
+      const [fl, below] = facet(u, v, PEAK_BACK, 0.7, 0.4)
+      l = fl - (v - b) * 0.25 + strata
+      if (below < 0.085 + 0.025 * Math.sin(u * 47)) l = fl > 0.55 ? 0.995 : 0.8
+      if (v - b < 0.009) l = 0.16
       t = 0
     }
     const [f] = ridge(u, PEAK_FRONT)
     if (v > f) {
-      const [fl] = facet(u, v, PEAK_FRONT, 0.5, 0.12)
-      l = fl - (v - f) * 0.3
+      const [fl] = facet(u, v, PEAK_FRONT, 0.54, 0.27)
+      l = fl - (v - f) * 0.2 + strata
+      if (v - f < 0.01) l = 0.12
     }
     if (v > 0.8) return [0.74 + 0.08 * Math.sin(u * 30), 0.5, waves(u, v, 1)]
     return [l, t, 0]
@@ -343,16 +354,14 @@ export const SCENES: { [k: string]: Scene } = {
   lighthouse(u, v) {
     let l = sky(v)
     let t = 0
-    // the beam
-    const ang = Math.atan2(v - 0.175, u - 0.78)
-    if (u < 0.74 && Math.abs(ang - Math.PI + 0.12) < 0.07) {
-      l = 1
-      t = 0.001
-    }
     if (t === 0) t = 0.18 + 0.3 * v
     if (v >= 0.62) return [0.58 + 0.1 * Math.sin(u * 30), 0.85, waves(u, v, 1)]
     const edge = 0.58 + 0.16 * (v - 0.47) + 0.025 * Math.sin(v * 38)
-    if (v > 0.47 && u > edge) l = v < 0.5 ? 0.66 : 0.58 - 0.4 * smooth(0, 0.14, u - edge)
+    if (v > 0.47 && u > edge) {
+      t = 0
+      l = v < 0.5 ? 0.62 : 0.6 - 0.3 * smooth(0, 0.16, u - edge) + 0.08 * Math.sin((v * 2 - u) * 48)
+      if (u - edge < 0.008 || (v - 0.47 < 0.008 && v > 0.47)) l = 0.15
+    }
     // tower
     const hw = 0.04 + 0.022 * ((v - 0.2) / 0.27)
     if (v > 0.2 && v <= 0.47 && Math.abs(u - 0.78) < hw) {
@@ -376,18 +385,23 @@ export const SCENES: { [k: string]: Scene } = {
       l = 1
       t = 1
     }
+    // each layer is a row of dunes; behind each crest a slip face in shadow widens as it falls
     const layers: [number, number, number, number, number][] = [
-      [0.44, 0.06, 5.2, 0.4, 0.62],
-      [0.58, 0.08, 4.1, 2.1, 0.5],
-      [0.74, 0.07, 6.3, 1.0, 0.38],
+      [0.44, 0.06, 5.2, 0.4, 0.66],
+      [0.58, 0.08, 4.1, 2.1, 0.56],
+      [0.74, 0.07, 6.3, 1.0, 0.46],
     ]
     for (const [base, amp, fr, ph, lit] of layers) {
-      const d = base + amp * Math.sin(u * fr + ph)
+      const phi = u * fr + ph
+      const d = base + amp * Math.sin(phi)
       if (v > d) {
-        const s = Math.cos(u * fr + ph - (v - d) * 7)
-        l = (s > 0 ? lit * 0.45 : lit + 0.32) - (v - d) * 0.35
-        t = s > 0 ? 0 : 0.55
-        b = amp * Math.sin(u * fr + ph) * 0.8
+        const q = (((phi + Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI)
+        const depth = clamp01((v - (base - amp)) / (2 * amp + 0.12))
+        const slip = q < 0.46 * Math.sqrt(depth) + 0.02
+        l = slip ? 0.3 + 0.12 * depth : lit + 0.26 - (v - d) * 0.4 + 0.05 * Math.sin(u * 90 + v * 30)
+        t = slip ? 0.15 : 0.6
+        if (v - d < 0.007) l = 0.16
+        b = amp * Math.sin(phi) * 0.7
       }
     }
     return [l, t, b]
@@ -512,6 +526,10 @@ export const SCENES: { [k: string]: Scene } = {
       t = 1
       b = 0.035 * nz
     }
+    if (segDist(u, v, 0.61, 0.42, 0.665, 0.365) < 0.009) {
+      l = 0.14
+      t = 0
+    }
     const lf = leaf(u, v, 0.66, 0.37, 0.86, 0.2, 0.06)
     if (lf >= 0) {
       l = lf
@@ -546,7 +564,7 @@ export const SCENES: { [k: string]: Scene } = {
       const nz = Math.sqrt(1 - (1 - depth) ** 2)
       const sxy = Math.sqrt(Math.max(0, 1 - nz * nz))
       const gl = Math.hypot(gx, gy) || 1
-      l = lambert((gx / gl) * sxy, (gy / gl) * sxy, nz)
+      l = Math.max(0.2, lambert((gx / gl) * sxy, (gy / gl) * sxy, nz))
       t = 1
       b = 0.03 * nz
     }
@@ -1021,8 +1039,15 @@ const CSS = `
   transition: transform 160ms var(--pm-out), box-shadow 240ms var(--pm-out);
   -webkit-tap-highlight-color: transparent;
 }
-.pm-cta:hover { box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 16px 30px -12px var(--a); }
-.pm-cta:active { transform: scale(0.97); }
+.pm-cta { overflow: hidden; isolation: isolate; }
+.pm-cta::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: color-mix(in srgb, var(--a) 78%, var(--k));
+  transform: scaleX(0); transform-origin: left; transition: transform 260ms var(--pm-out);
+}
+.pm-cta:hover, .pm-cta:focus-visible { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 18px 32px -12px var(--a); }
+.pm-cta:hover::before, .pm-cta:focus-visible::before { transform: scaleX(1); }
+.pm-cta:active { transform: translateY(0) scale(0.97); transition-duration: 100ms; }
 .pm-cta:focus-visible, .pm-link:focus-visible { outline: 3px solid var(--a); outline-offset: 4px; }
 .pm-arrow { position: relative; width: 34px; height: 34px; border-radius: 999px; background: var(--oa); color: var(--a); overflow: hidden; flex: none; }
 .pm-arrow svg { position: absolute; left: 9px; top: 9px; width: 16px; height: 16px; max-width: none; transition: transform 260ms var(--pm-out); }
@@ -1081,14 +1106,14 @@ const CSS = `
 .pm-ring-text { font: 800 7.4px/1 var(--pm-text); letter-spacing: 0.16em; fill: var(--si); text-transform: uppercase; }
 
 /* postmarks */
-.pm-mark { position: absolute; pointer-events: none; color: var(--pk); mix-blend-mode: multiply; opacity: 0.86; }
+.pm-mark { position: absolute; pointer-events: none; color: var(--pk); mix-blend-mode: multiply; opacity: 0.9; }
 .pm-mark svg { display: block; width: 100%; height: auto; max-width: none; overflow: visible; }
 .pm-mark text { font: 800 9px/1 var(--pm-text); letter-spacing: 0.12em; fill: currentColor; }
 .pm-mark .pm-date { font-size: 11px; letter-spacing: 0.04em; }
 .pm-old { left: 50%; top: 40%; width: 92%; rotate: -14deg; opacity: 0.72; }
-.pm-live { left: 6%; top: 10%; width: 150%; rotate: -9deg; }
+.pm-live { left: 30%; top: 44%; width: 108%; rotate: -9deg; }
 .pm-ghost { opacity: 0; transform: translateY(-14px) scale(1.12); transition: opacity 200ms var(--pm-out), transform 260ms var(--pm-out); }
-.pm[data-armed="true"] .pm-ghost { opacity: 0.34; transform: translateY(-8px) scale(1.06); }
+.pm[data-armed="true"] .pm-ghost { opacity: 0.5; transform: translateY(-8px) scale(1.06); }
 .pm-slam { animation: pm-slam 260ms cubic-bezier(0.3, 0, 0.2, 1) both; }
 .pm-slam .pm-bar { stroke-dasharray: 160; animation: pm-bars 300ms var(--pm-out) 70ms both; }
 
@@ -1099,7 +1124,7 @@ const CSS = `
 @keyframes pm-slam {
   0% { opacity: 0; transform: translateY(-16px) scale(1.3); }
   55% { opacity: 0.95; transform: scale(0.96); }
-  100% { opacity: 0.86; transform: scale(1); }
+  100% { opacity: 0.9; transform: scale(1); }
 }
 @keyframes pm-bars { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
 
@@ -1117,7 +1142,7 @@ const CSS = `
   .pm-par { transform: none; transition: none; }
   .pm-stamp, .pm-paper, .pm-arrow svg, .pm-link::after, .pm-ghost { transition-duration: 1ms; }
   .pm-slam, .pm-slam .pm-bar { animation: pm-fade 1ms both; }
-  @keyframes pm-fade { from { opacity: 0; } to { opacity: 0.86; } }
+  @keyframes pm-fade { from { opacity: 0; } to { opacity: 0.9; } }
 }
 `
 
@@ -1166,7 +1191,7 @@ function Postmark(props: { top: string; bottom: string; date: string; bars?: num
     const y = 50 + (i - (bars - 1) / 2) * 12.5
     let d = "M98 " + y
     for (let x = 98; x < 238; x += 12) d += " q6 " + (i % 2 ? -4.5 : 4.5) + " 12 0"
-    lines.push(<path key={i} className="pm-bar" d={d} fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" />)
+    lines.push(<path key={i} className="pm-bar" d={d} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />)
   }
   return (
     <svg viewBox="0 0 240 100" aria-hidden="true">
@@ -1271,7 +1296,7 @@ function Engraving(props: { art: StampArt; ink: string; tint: string }) {
       }
       ctx.fillStyle = PAPER
       ctx.fillRect(0, 0, W, H)
-      plate(tintImg, Math.round(0.7 * dpr), Math.round(0.5 * dpr))
+      plate(tintImg, Math.round(0.4 * dpr), Math.round(0.3 * dpr))
       ctx.globalCompositeOperation = "multiply"
       plate(inkImg, 0, 0)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -1406,6 +1431,8 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
     textFont = TEXT_FONT,
     ctaHref,
     onCtaClick,
+    onPosted,
+    postDelay = 0,
     secondaryHref,
     onSecondaryClick,
     id,
@@ -1521,9 +1548,10 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
           if (!slot || getComputedStyle(slot).display === "none") return
           const nx = parseFloat(slot.style.getPropertyValue("--nx")) || 0
           const ny = parseFloat(slot.style.getPropertyValue("--ny")) || 0
-          const r = slot.getBoundingClientRect()
+          // the rotated paper, not the upright slot
+          const r = (slot.querySelector(".pm-paper") ?? slot).getBoundingClientRect()
           const base = { left: r.left - nx, right: r.right - nx, top: r.top - ny, bottom: r.bottom - ny }
-          const [dx, dy] = clearOf(base, avoid, frame, 22)
+          const [dx, dy] = clearOf(base, avoid, frame, 24)
           slot.style.setProperty("--nx", dx.toFixed(1) + "px")
           slot.style.setProperty("--ny", dy.toFixed(1) + "px")
         })
@@ -1677,9 +1705,12 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
       // never come to rest on the copy: slide to the nearest clear spot instead
       const copy = copyRef.current
       if (copy && slot) {
-        const sr = slot.getBoundingClientRect()
-        const box = { left: sr.left + b.tx, right: sr.right + b.tx, top: sr.top + b.ty, bottom: sr.bottom + b.ty }
-        const [cx, cy] = clearOf(box, copyBoxes(copy), root.getBoundingClientRect(), 22)
+        // where the rotated paper will rest: its box now, moved by the rest of the throw
+        const sr = (slot.querySelector(".pm-paper") ?? slot).getBoundingClientRect()
+        const ox = b.tx - b.x
+        const oy = b.ty - b.y
+        const box = { left: sr.left + ox, right: sr.right + ox, top: sr.top + oy, bottom: sr.bottom + oy }
+        const [cx, cy] = clearOf(box, copyBoxes(copy), root.getBoundingClientRect(), 24)
         b.tx = clamp(b.tx + cx, b.lo[0], b.lo[1])
         b.ty = clamp(b.ty + cy, b.lo[2], b.lo[3])
       }
@@ -1739,6 +1770,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
 
   const post = () => {
     setLive((n) => n + 1)
+    window.setTimeout(() => onPosted?.(), 260)
     const st = slotRefs.current[postOn]?.querySelector(".pm-stamp")
     if (st && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
       st.animate([{ transform: "scale(1)" }, { transform: "scale(0.955)", offset: 0.3 }, { transform: "scale(1)" }], {
@@ -1766,7 +1798,14 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
     onPointerLeave: disarm,
     onFocus: arm,
     onBlur: disarm,
-    onClick: (e: React.MouseEvent<HTMLElement>) => onCtaClick?.(e),
+    onClick: (e: React.MouseEvent<HTMLElement>) => {
+      onCtaClick?.(e)
+      if (!ctaHref || postDelay <= 0 || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const target = (e.currentTarget as HTMLAnchorElement).target
+      if (target && target !== "_self") return
+      e.preventDefault()
+      window.setTimeout(() => window.location.assign(ctaHref), postDelay)
+    },
   }
 
   const lines = parseHeadline(headline)
@@ -1786,11 +1825,11 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
       <style>{CSS}</style>
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true" focusable="false">
         <filter id={filterId} x="-10%" y="-10%" width="120%" height="120%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="n" />
-          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 1.75" result="skip" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="1" seed="7" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -7 5.15" result="skip" />
           <feComposite in="SourceGraphic" in2="skip" operator="in" result="inked" />
-          <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="1" seed="3" result="w" />
-          <feDisplacementMap in="inked" in2="w" scale="2.2" xChannelSelector="R" yChannelSelector="G" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="1" seed="3" result="w" />
+          <feDisplacementMap in="inked" in2="w" scale="1" xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </svg>
       <canvas ref={canvasRef} className="pm-dots" aria-hidden="true" />
