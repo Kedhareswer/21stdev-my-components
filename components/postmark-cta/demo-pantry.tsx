@@ -7,7 +7,7 @@ export default function PostmarkCtaPantryDemo() {
         preset="pantry"
         postmark={{ top: "GREENLANE BOX", bottom: "PACKED TODAY" }}
         onCtaClick={() => console.log("start checkout")}
-        secondaryHref="#menu"
+        onSecondaryClick={() => console.log("open the menu")}
       />
     </div>
   )

@@ -108,7 +108,7 @@ export type PostmarkCtaProps = {
   onSecondaryClick?: (e: PostmarkClickEvent) => void
   /** One quiet line under the buttons. null hides it. */
   note?: React.ReactNode | null
-  /** Up to seven stamps. The first four are the ones a phone shows. */
+  /** Up to seven stamps. The first four are the ones a phone shows; the third sits by the button and takes the postmark. */
   stamps?: PostmarkStamp[]
   /** Which stamp the button's postmark lands on. */
   postOn?: number
@@ -888,9 +888,9 @@ export function clearOf(b: Box, avoid: Box[], frame: Box, m: number) {
 export const SLOTS = [
   { x: 17, y: 27, r: -8, d: 1.2, c: { x: "23%", y: "92px" } },
   { x: 40, y: 16, r: 5, d: 0.7, c: { x: "73%", y: "84px" } },
-  { x: 83, y: 25, r: 7, d: 1.0, c: null },
   { x: 70, y: 86, r: -6, d: 1.3, c: { x: "71%", y: "calc(100% - 96px)" } },
   { x: 14, y: 69, r: -9, d: 0.9, c: { x: "27%", y: "calc(100% - 92px)" } },
+  { x: 83, y: 25, r: 7, d: 1.0, c: null },
   { x: 86, y: 64, r: 4, d: 1.1, c: null },
   { x: 33, y: 86, r: 6, d: 0.8, c: null },
 ]
@@ -929,12 +929,12 @@ const PRESETS: { [k: string]: PresetDef } = {
     stamps: [
       { art: "balloon", shape: "round", label: "CAPPADOCIA", caption: "TÜRKIYE", ink: "#1d3a62", tint: "#ef7d3b", scale: 0.92 },
       { art: "peaks", label: "DOLOMITI", value: "3.20", caption: "Alto Adige", ink: "#1d3a62", tint: "#f2a541", cancelled: true },
-      { art: "lighthouse", label: "PORTUGAL", value: "0.85", caption: "Cabo da Roca", ink: "#b2402a", tint: "#7fa6d8" },
       { art: "sail", label: "HELLAS", value: "from €49", caption: "Aegean ferries", ink: "#1d3a62", tint: "#ef7d3b", scale: 1.06 },
       { art: "dunes", label: "MAROC", value: "12", caption: "Erg Chebbi", ink: "#b2402a", tint: "#f2a541", cancelled: true },
+      { art: "lighthouse", label: "PORTUGAL", value: "0.85", caption: "Cabo da Roca", ink: "#b2402a", tint: "#7fa6d8" },
       { art: "bridge", label: "LISBOA", value: "1.50", caption: "Ponte 25 de Abril", ink: "#1d3a62", tint: "#d9522e" },
     ],
-    postOn: 3,
+    postOn: 2,
   },
   pantry: {
     light: { ground: "#eceee2", dotsTop: "#bccb9e", dotsBottom: "#efbf7d", ink: "#183522", muted: "#4a5a4c", accent: "#b33a17", onAccent: "#ffffff", highlight: "#b33a17" },
@@ -943,18 +943,18 @@ const PRESETS: { [k: string]: PresetDef } = {
       headline: "Dinner, *sorted*\nby Tuesday.",
       description: "Seasonal produce from forty small farms, packed with recipes for five weeknight dinners.",
       ctaLabel: "Build my first box",
-      secondaryLabel: "See this week's menu",
+      secondaryLabel: "See this week’s menu",
       note: "Skip a week or cancel any time, in two taps.",
       postmark: { top: "FARM TO DOOR", bottom: "PACKED TODAY" },
     },
     stamps: [
       { art: "olives", shape: "round", label: "OLIO NUOVO", caption: "PUGLIA", ink: "#24472f", tint: "#9bb04a", scale: 0.92 },
       { art: "lemon", label: "AMALFI", value: "2.40", caption: "Sfusato lemons", ink: "#24472f", tint: "#f2c230", cancelled: true },
-      { art: "cherries", label: "KENT", value: "0.90", caption: "Early cherries", ink: "#7e2a1d", tint: "#e2553f" },
-      { art: "tomato", label: "WEEK ONE", value: "half price", caption: "Heritage tomatoes", ink: "#24472f", tint: "#e2553f", scale: 1.06 },
+      { art: "tomato", label: "WEEK ONE", value: "half price", caption: "Heirloom tomato", ink: "#24472f", tint: "#e2553f", scale: 1.06 },
       { art: "pear", label: "ANJOU", value: "1.10", caption: "Winter pears", ink: "#7e2a1d", tint: "#d8b13c", cancelled: true },
+      { art: "cherries", label: "KENT", value: "0.90", caption: "Early cherries", ink: "#7e2a1d", tint: "#e2553f" },
     ],
-    postOn: 3,
+    postOn: 2,
   },
   atelier: {
     light: { ground: "#eceef6", dotsTop: "#b9c1df", dotsBottom: "#f6b9a0", ink: "#1b1e42", muted: "#4d5172", accent: "#1b1e42", onAccent: "#ffffff", highlight: "#d4471f" },
@@ -970,11 +970,11 @@ const PRESETS: { [k: string]: PresetDef } = {
     stamps: [
       { art: "ring", shape: "round", label: "FORM STUDY", caption: "NO. 04", ink: "#21254f", tint: "#ff6b3d", scale: 0.9 },
       { art: "sphere", label: "SPHERE", value: "I", caption: "Light study", ink: "#21254f", tint: "#ff6b3d", cancelled: true },
-      { art: "cone", label: "CONE", value: "II", caption: "Light study", ink: "#5c1f3c", tint: "#9fb3ff" },
       { art: "cube", label: "INTAKE", value: "Q1 2027", caption: "Two slots open", ink: "#21254f", tint: "#f6c445", scale: 1.06 },
       { art: "arch", label: "ARCH", value: "IV", caption: "Light study", ink: "#5c1f3c", tint: "#ff8a5c", cancelled: true },
+      { art: "cone", label: "CONE", value: "II", caption: "Light study", ink: "#5c1f3c", tint: "#9fb3ff" },
     ],
-    postOn: 3,
+    postOn: 2,
   },
 }
 
@@ -1025,17 +1025,17 @@ const CSS = `
 .pm-cta:active { transform: scale(0.97); }
 .pm-cta:focus-visible, .pm-link:focus-visible { outline: 3px solid var(--a); outline-offset: 4px; }
 .pm-arrow { position: relative; width: 34px; height: 34px; border-radius: 999px; background: var(--oa); color: var(--a); overflow: hidden; flex: none; }
-.pm-arrow svg { position: absolute; left: 9px; top: 9px; width: 16px; height: 16px; max-width: none; transition: transform 320ms var(--pm-out); }
+.pm-arrow svg { position: absolute; left: 9px; top: 9px; width: 16px; height: 16px; max-width: none; transition: transform 260ms var(--pm-out); }
 .pm-arrow svg + svg { transform: translateX(-30px); }
 .pm-cta:hover .pm-arrow svg, .pm-cta:focus-visible .pm-arrow svg { transform: translateX(30px); }
 .pm-cta:hover .pm-arrow svg + svg, .pm-cta:focus-visible .pm-arrow svg + svg { transform: translateX(0); }
 .pm-link {
-  position: relative; color: var(--k); font: 600 16px/1.2 var(--pm-text); text-decoration: none; padding: 6px 0; cursor: pointer;
+  position: relative; color: var(--k); font: 600 16px/1.2 var(--pm-text); text-decoration: none; padding: 14px 2px; cursor: pointer;
   background: none; border: 0;
 }
 .pm-link::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 1px; height: 2px; background: currentColor;
-  transform: scaleX(0.28); transform-origin: left; transition: transform 300ms var(--pm-out);
+  content: ""; position: absolute; left: 2px; right: 2px; bottom: 9px; height: 2px; background: currentColor;
+  transform: scaleX(0.28); transform-origin: left; transition: transform 250ms var(--pm-out);
 }
 .pm-link:hover::after, .pm-link:focus-visible::after { transform: scaleX(1); }
 .pm-note { margin: 18px 0 0; font-size: 14px; line-height: 1.4; color: var(--mu); }
@@ -1052,7 +1052,7 @@ const CSS = `
 .pm-par { transform: translate3d(calc(var(--px, 0) * var(--d) * -12px), calc(var(--py, 0) * var(--d) * -9px), 0); transition: transform 1100ms var(--pm-out); }
 .pm-float { animation: pm-float var(--fd) ease-in-out var(--fdel) infinite alternate; }
 .pm[data-ambient="false"] .pm-float { animation: none; }
-.pm-stamp { position: relative; rotate: var(--r); transition: transform 260ms var(--pm-out); container-type: inline-size; }
+.pm-stamp { position: relative; rotate: var(--r); transition: transform 240ms var(--pm-out); container-type: inline-size; }
 .pm-drag:hover .pm-stamp { transform: translateY(-3px) scale(1.015); }
 .pm-slot[data-up="true"] .pm-stamp { transform: scale(1.07); }
 .pm-paper { display: block; width: 100%; height: auto; max-width: none; overflow: visible;
@@ -1065,7 +1065,8 @@ const CSS = `
 .pm-top { display: flex; align-items: baseline; justify-content: space-between; gap: 3cqw; line-height: 1; }
 .pm-label { font: 800 6.6cqw/1 var(--pm-text); letter-spacing: 0.09em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm-value { font: 900 11cqw/0.9 var(--pm-display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pm-value[data-long="true"] { font-size: 8.6cqw; letter-spacing: -0.01em; }
+.pm-top[data-long="true"] { flex-direction: column; align-items: flex-start; gap: 1.6cqw; }
+.pm-top[data-long="true"] .pm-value { font-size: 9.6cqw; letter-spacing: -0.02em; }
 .pm-art { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--pm-paper); isolation: isolate; }
 .pm-art canvas, .pm-art img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block; }
 .pm-art img { object-fit: cover; filter: grayscale(1) contrast(1.12) brightness(1.04); }
@@ -1074,6 +1075,7 @@ const CSS = `
 .pm-duo-paper { background: var(--pm-paper); mix-blend-mode: darken; }
 .pm-duo-lines { background: repeating-linear-gradient(0deg, transparent 0 1.5px, rgba(251, 247, 238, 0.55) 1.5px 2.4px); }
 .pm-cap { background: var(--st); color: var(--si); font: 800 6.6cqw/1 var(--pm-text); letter-spacing: 0.06em; text-transform: uppercase; text-align: center; padding: 2.6cqw 2cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-cap[data-long="true"] { font-size: 5.4cqw; padding: 3.2cqw 2cqw; }
 .pm-round .pm-face { inset: 0; border: 0; padding: 0; }
 .pm-round .pm-art { position: absolute; inset: 17%; border-radius: 50%; border: max(1px, 0.7cqw) solid var(--si); }
 .pm-ring-text { font: 800 7.4px/1 var(--pm-text); letter-spacing: 0.16em; fill: var(--si); text-transform: uppercase; }
@@ -1085,8 +1087,8 @@ const CSS = `
 .pm-mark .pm-date { font-size: 11px; letter-spacing: 0.04em; }
 .pm-old { left: 50%; top: 40%; width: 92%; rotate: -14deg; opacity: 0.72; }
 .pm-live { left: 6%; top: 10%; width: 150%; rotate: -9deg; }
-.pm-ghost { opacity: 0; transform: translateY(-14px) scale(1.12); transition: opacity 220ms var(--pm-out), transform 320ms var(--pm-out); }
-.pm[data-armed="true"] .pm-ghost { opacity: 0.2; transform: translateY(-8px) scale(1.06); }
+.pm-ghost { opacity: 0; transform: translateY(-14px) scale(1.12); transition: opacity 200ms var(--pm-out), transform 260ms var(--pm-out); }
+.pm[data-armed="true"] .pm-ghost { opacity: 0.34; transform: translateY(-8px) scale(1.06); }
 .pm-slam { animation: pm-slam 260ms cubic-bezier(0.3, 0, 0.2, 1) both; }
 .pm-slam .pm-bar { stroke-dasharray: 160; animation: pm-bars 300ms var(--pm-out) 70ms both; }
 
@@ -1118,6 +1120,18 @@ const CSS = `
   @keyframes pm-fade { from { opacity: 0; } to { opacity: 0.86; } }
 }
 `
+
+/** The boxes a resting stamp must stay clear of: the lines of copy and the buttons. */
+function copyBoxes(copy: HTMLElement) {
+  const avoid: Box[] = []
+  const range = document.createRange()
+  copy.querySelectorAll(".pm-h, .pm-p, .pm-note").forEach((el) => {
+    range.selectNodeContents(el)
+    for (const r of Array.from(range.getClientRects())) if (r.width > 1) avoid.push(r)
+  })
+  copy.querySelectorAll(".pm-cta, .pm-link").forEach((el) => avoid.push(el.getBoundingClientRect()))
+  return avoid
+}
 
 type Body = {
   x: number
@@ -1342,10 +1356,10 @@ const Stamp = React.memo(function Stamp(props: {
       </svg>
       <div className="pm-face">
         {!round && (stamp.label || stamp.value) ? (
-          <div className="pm-top">
+          <div className="pm-top" data-long={longValue ? "true" : undefined}>
             <span className="pm-label">{stamp.label}</span>
             {stamp.value ? (
-              <span className="pm-value" data-long={longValue ? "true" : undefined}>
+              <span className="pm-value">
                 {stamp.value}
               </span>
             ) : null}
@@ -1354,7 +1368,11 @@ const Stamp = React.memo(function Stamp(props: {
         <div className="pm-art">
           <StampArtBox stamp={stamp} ink={inks.ink} tint={inks.tint} fallback={FALLBACK_ART[index % FALLBACK_ART.length]} />
         </div>
-        {!round && stamp.caption ? <div className="pm-cap">{stamp.caption}</div> : null}
+        {!round && stamp.caption ? (
+          <div className="pm-cap" data-long={stamp.caption.length > 14 ? "true" : undefined}>
+            {stamp.caption}
+          </div>
+        ) : null}
       </div>
       {stamp.cancelled ? (
         <div className="pm-mark pm-old">
@@ -1497,13 +1515,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
     const layout = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
-        const avoid: Box[] = []
-        const range = document.createRange()
-        copy.querySelectorAll(".pm-h, .pm-p, .pm-note").forEach((el) => {
-          range.selectNodeContents(el)
-          for (const r of Array.from(range.getClientRects())) if (r.width > 1) avoid.push(r)
-        })
-        copy.querySelectorAll(".pm-cta, .pm-link").forEach((el) => avoid.push(el.getBoundingClientRect()))
+        const avoid = copyBoxes(copy)
         const frame = root.getBoundingClientRect()
         slotRefs.current.forEach((slot) => {
           if (!slot || getComputedStyle(slot).display === "none") return
@@ -1511,7 +1523,7 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
           const ny = parseFloat(slot.style.getPropertyValue("--ny")) || 0
           const r = slot.getBoundingClientRect()
           const base = { left: r.left - nx, right: r.right - nx, top: r.top - ny, bottom: r.bottom - ny }
-          const [dx, dy] = clearOf(base, avoid, frame, 20)
+          const [dx, dy] = clearOf(base, avoid, frame, 22)
           slot.style.setProperty("--nx", dx.toFixed(1) + "px")
           slot.style.setProperty("--ny", dy.toFixed(1) + "px")
         })
@@ -1662,6 +1674,15 @@ export default function PostmarkCta(props: PostmarkCtaProps) {
       const rate = reduce.matches ? 0 : 0.985
       b.tx = clamp(b.x + (rate ? project(b.vx, rate) : 0), b.lo[0], b.lo[1])
       b.ty = clamp(b.y + (rate ? project(b.vy, rate) : 0), b.lo[2], b.lo[3])
+      // never come to rest on the copy: slide to the nearest clear spot instead
+      const copy = copyRef.current
+      if (copy && slot) {
+        const sr = slot.getBoundingClientRect()
+        const box = { left: sr.left + b.tx, right: sr.right + b.tx, top: sr.top + b.ty, bottom: sr.bottom + b.ty }
+        const [cx, cy] = clearOf(box, copyBoxes(copy), root.getBoundingClientRect(), 22)
+        b.tx = clamp(b.tx + cx, b.lo[0], b.lo[1])
+        b.ty = clamp(b.ty + cy, b.lo[2], b.lo[3])
+      }
       if (reduce.matches) {
         b.vx = 0
         b.vy = 0
