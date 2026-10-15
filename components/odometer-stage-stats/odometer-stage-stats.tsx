@@ -334,7 +334,7 @@ function Figure({
               style={{
                 transform: "translate3d(0," + y + "em,0)",
                 // The new figure waits for the old one to clear its cells, then lands left to right.
-                transitionDelay: (phase === "out" ? i * 28 : 150 + i * 70) + "ms",
+                transitionDelay: (phase === "out" ? i * 28 : 150 + i * 55) + "ms",
               }}
             >
               {ordered.map((g, k) => (
@@ -418,37 +418,41 @@ const css = `
 .ost-figure { display: inline-flex; align-items: flex-start; line-height: 1; height: 1em; color: var(--ost-ink); }
 .ost-cell { position: relative; display: block; flex: none; height: 1em; overflow: hidden; }
 .ost-cell[data-tail] { overflow: visible; clip-path: inset(0 -0.1em -0.2em -0.1em); }
-.ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 1050ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+.ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 950ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
 .ost-figure[data-phase="from"] .ost-strip { transition: none; }
 .ost-figure[data-phase="out"] .ost-strip { transition-duration: 340ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
 .ost-figure[data-phase="out"] .ost-slot:not([data-target]) { visibility: hidden; }
 .ost-slot { display: block; height: 1.2em; }
 .ost-glyph { display: block; overflow: hidden; }
 .ost-fallback { display: block; height: 1em; font-size: 1em; line-height: 1; font-weight: 800; font-family: var(--ost-ui); letter-spacing: -0.04em; }
-.ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease, transform 520ms cubic-bezier(0.23, 1, 0.32, 1); }
-.ost-label[data-state="from"] { opacity: 0; transform: translateY(10px); transition: none; }
+.ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease 260ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 260ms, filter 380ms ease 260ms; }
+.ost-label[data-state="from"] { opacity: 0; transform: translateY(12px); filter: blur(3px); transition: none; }
 .ost-cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 48px; padding: 0 24px; border-radius: 999px; background: var(--ost-ink); color: var(--ost-field-now); font-size: 15px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease; }
 .ost-cta svg { transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ost-cta:hover svg { transform: translateX(4px); }
 .ost-cta:active { transform: scale(0.97); }
-.ost-cta[data-state="from"] { opacity: 0; transition: none; }
-.ost-story { position: absolute; z-index: 1; width: min(340px, 27cqw); margin: 0; font-size: 15px; line-height: 1.55; transition: opacity 420ms ease, transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-cta[data-state="from"] { opacity: 0; transform: translateY(8px); transition: none; }
+.ost-cta[data-state="to"] { transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease 420ms; }
+.ost-story { position: absolute; z-index: 1; width: min(340px, 27cqw); margin: 0; font-size: 15px; line-height: 1.55; text-wrap: pretty; transition: opacity 400ms ease 340ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 340ms, filter 400ms ease 340ms; }
 .ost-story[data-side="start"] { left: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
 .ost-story[data-side="end"] { right: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
-.ost-story[data-state="from"] { opacity: 0; transition: none; }
-.ost-story[data-state="from"][data-side="start"] { transform: translateX(-16px); }
-.ost-story[data-state="from"][data-side="end"] { transform: translateX(16px); }
+.ost-story[data-state="from"] { opacity: 0; filter: blur(3px); transition: none; }
+.ost-story[data-state="out"] { opacity: 0; transition: opacity 150ms ease, transform 150ms ease; transition-delay: 0ms; }
+.ost-story[data-state="from"][data-side="start"], .ost-story[data-state="out"][data-side="start"] { transform: translateX(-12px); }
+.ost-story[data-state="from"][data-side="end"], .ost-story[data-state="out"][data-side="end"] { transform: translateX(12px); }
 .ost-mark { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 .ost-source { display: block; margin-top: 12px; font-size: 12.5px; line-height: 1.4; font-weight: 500; }
 .ost-bar { position: absolute; z-index: 2; left: clamp(18px, 3cqw, 48px); right: clamp(18px, 3cqw, 48px); bottom: clamp(14px, 2cqw, 26px); display: flex; gap: 8px; }
 .ost-seg { position: relative; flex: 1 1 0; height: 28px; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; color: var(--ost-ink); }
 .ost-seg::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: currentColor; opacity: 0.28; transition: opacity 160ms ease, height 160ms ease; }
 .ost-seg:hover::before { opacity: 0.5; }
+.ost-seg:active .ost-fill, .ost-seg:active::before { opacity: 0.8; }
 .ost-fill { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: currentColor; transform-origin: 0 50%; transition: transform 240ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ost[data-mode="click"] .ost-fill { transition: transform 360ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ost-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .ost-strip, .ost-word, .ost-label, .ost-story, .ost-cta, .ost-fill, .ost-btn, .ost-btn svg, .ost-stage { transition: none !important; }
+  .ost-strip, .ost-word, .ost-label, .ost-story, .ost-cta, .ost-fill, .ost-btn, .ost-btn svg, .ost-stage { transition: none !important; filter: none !important; }
+  .ost-story[data-state="out"], .ost-word[data-state="out"] { display: none; }
 }
 `
 
@@ -513,7 +517,7 @@ export default function OdometerStageStats({
   const [held, setHeld] = React.useState(false)
   const [announce, setAnnounce] = React.useState("")
   const lockRef = React.useRef<{ target: number; until: number } | null>(null)
-  const firstRef = React.useRef(true)
+  const shownRef = React.useRef(0)
   const headingId = React.useId()
 
   React.useEffect(() => {
@@ -527,10 +531,9 @@ export default function OdometerStageStats({
   // A stat change starts the roll: the new figure mounts below its cells ("from"),
   // then two frames later it is released to travel ("to"); the old one leaves ("out").
   React.useEffect(() => {
-    if (firstRef.current) {
-      firstRef.current = false
-      return
-    }
+    // Compare against what is on stage, so a re-run (Strict Mode) never rolls or announces twice.
+    if (shownRef.current === index) return
+    shownRef.current = index
     setView((v) => {
       if (v.cur === index) return v
       const dir: 1 | -1 = index > v.cur ? 1 : -1
@@ -782,6 +785,13 @@ export default function OdometerStageStats({
           ) : null}
         </div>
 
+        {prev && (prev.story || prev.source) ? (
+          <p key={"s" + (view.key - 1)} className="ost-story" data-side={view.prev % 2 === 0 ? "start" : "end"} data-state="out" aria-hidden="true">
+            <span className="ost-mark">[ {pad2(view.prev + 1)} ]</span>
+            {prev.story}
+            {prev.source ? <span className="ost-source">Source: {prev.source}</span> : null}
+          </p>
+        ) : null}
         {cur.story || cur.source ? (
           <p key={"s" + view.key} className="ost-story" data-side={side} data-state={enter} aria-hidden="true">
             <span className="ost-mark">[ {pad2(view.cur + 1)} ]</span>
