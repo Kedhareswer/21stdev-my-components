@@ -19,7 +19,7 @@ import * as React from "react"
  * with prev / next, the segment bar and optional autoplay. Both take ←/→, and
  * the segment bar along the bottom jumps to any stat.
  *
- * The numerals are drawn in SVG by this file (0–9 . , % + − × / $ K M B), so
+ * The numerals are drawn in SVG by this file (0–9 . , % + − × / $ € £ ¥ ₹ K M B), so
  * the figure is the same heavy condensed shape on every machine with no web
  * font. Any other character falls back to the UI font.
  */
@@ -33,13 +33,17 @@ export type StagePalette = {
   ink: string
   /** The field in dark mode (an ancestor with the `dark` class). Defaults to `field`. */
   fieldDark?: string
+  /** The faint backdrop word. Defaults to the field mixed with 20% black. */
+  ghost?: string
 }
 
 export type Stat = {
   /** The figure, e.g. "96", "4.2×", "$2.4B", "61%", "12K". */
   value: string
-  /** What the figure counts, one short line under it. */
-  label: string
+  /** What the figure counts, one short line under it. Text, or any node (then give `alt`). */
+  label: React.ReactNode
+  /** What a screen reader hears for this stat. Defaults to the figure and the label when the label is text. */
+  alt?: string
   /** Two or three sentences, pinned to a corner. */
   story?: string
   /** Where the number comes from. Shown small in the corner. */
@@ -83,7 +87,7 @@ const PRESETS: { [k: string]: StagePalette } = {
   signal: { field: "#D3261C", ink: "#FFFFFF", fieldDark: "#A81C14" },
   cobalt: { field: "#1C3ED4", ink: "#FFFFFF", fieldDark: "#1430A8" },
   forest: { field: "#0E4A32", ink: "#E6F5C4", fieldDark: "#0A3825" },
-  ink: { field: "#151515", ink: "#F3F3F3", fieldDark: "#0C0C0C" },
+  ink: { field: "#151515", ink: "#F3F3F3", fieldDark: "#0C0C0C", ghost: "#262626" },
   saffron: { field: "#F2B705", ink: "#141414", fieldDark: "#DCA500" },
 }
 
@@ -129,43 +133,47 @@ const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")"
 
 /*
- * Glyphs are stroked skeletons: cap height 200 units, a 34-unit stroke, butt
- * caps and mitred joins, which gives a heavy engineered condensed figure. Each
- * one sits in a box 240 units tall (the extra 40 is for the comma's tail), and
- * the box clips anything that pokes past the cap line.
+ * Glyphs are stroked skeletons: cap height 200 units, a 42-unit stroke, butt
+ * caps and mitred joins, which gives a heavy compressed poster figure with slit
+ * counters. Each sits in a box 240 units tall (the extra 40 is for the comma's
+ * tail). Strokes stay inside their width (the test samples every path); the
+ * box clips terminals flat at the cap line and the baseline on purpose.
  */
 type Glyph = { w: number; d: string; s?: number; d2?: string; s2?: number; rot?: boolean }
 
-const BOWL_SIX = "M17 117A35 35 0 0 1 87 117V148A35 35 0 0 1 17 148ZM84.9 40A35 35 0 0 0 17 52V148"
+const STROKE = 42
+const BOWL_SIX = "M21 112A28 28 0 0 1 77 112V151A28 28 0 0 1 21 151ZM74.4 37.2A28 28 0 0 0 21 49V151"
 
 const GLYPHS: { [k: string]: Glyph } = {
-  "0": { w: 104, d: "M17 52A35 35 0 0 1 87 52V148A35 35 0 0 1 17 148Z" },
-  "1": { w: 84, d: "M58 0V200M14 48L58 8" },
-  "2": { w: 104, d: "M18 56A35 35 0 0 1 87 52C87 92 17 132 17 183H104" },
-  "3": { w: 104, d: "M17 50A35 35 0 0 1 87 50V62A34 34 0 0 1 53 96H40M53 96A35 35 0 0 1 87 131V148A35 35 0 0 1 17 148" },
-  "4": { w: 108, d: "M74 0V200M70 0L17 136V140H108" },
-  "5": { w: 104, d: "M100 17H21V98M21 98C30 87 40 82 52 82A35 35 0 0 1 87 117V148A35 35 0 0 1 17 148" },
-  "6": { w: 104, d: BOWL_SIX },
-  "7": { w: 100, d: "M6 17H85L42 200" },
-  "8": { w: 104, d: "M20 49A32 32 0 0 1 84 49V64A32 32 0 0 1 20 64ZM17 131A35 35 0 0 1 87 131V148A35 35 0 0 1 17 148Z" },
-  "9": { w: 104, d: BOWL_SIX, rot: true },
-  ".": { w: 40, d: "M20 166V200" },
-  ",": { w: 40, d: "M22 166V194L10 226" },
-  "%": { w: 168, s: 26, d: "M13 40A22 22 0 0 1 57 40V66A22 22 0 0 1 13 66ZM111 134A22 22 0 0 1 155 134V160A22 22 0 0 1 111 160ZM132 2L36 198" },
-  "+": { w: 112, s: 30, d: "M56 50V150M8 100H104" },
-  "×": { w: 104, s: 30, d: "M16 62L88 146M88 62L16 146" },
-  "-": { w: 84, s: 32, d: "M8 108H76" },
-  "/": { w: 92, s: 30, d: "M80 0L12 200" },
-  K: { w: 110, d: "M17 0V200M96 0L28 116M52 82L106 200" },
-  M: { w: 140, d: "M17 200V10L70 140L123 10V200" },
-  B: { w: 114, d: "M17 0V200M0 17H56A39.5 39.5 0 0 1 56 96H17M17 96H57A43.5 43.5 0 0 1 57 183H0" },
-  $: {
-    w: 104,
-    s: 30,
-    d: "M84 58A33 30 0 0 0 19 64C19 98 85 102 85 136A33 30 0 0 1 20 142",
-    d2: "M52 4V196",
-    s2: 14,
+  "0": { w: 98, d: "M21 49A28 28 0 0 1 77 49V151A28 28 0 0 1 21 151Z" },
+  "1": { w: 70, d: "M49 0V200M16 54L54 10" },
+  "2": { w: 98, d: "M21 49A28 28 0 0 1 77 49C77 105 21 128 21 168V179H98" },
+  "3": { w: 98, d: "M21 49A28 28 0 0 1 77 49V74A24 24 0 0 1 53 98H41M41 98H49A28 28 0 0 1 77 126V151A28 28 0 0 1 21 151" },
+  "4": { w: 104, d: "M80 0V200M72 0L21 132V140H104" },
+  "5": { w: 98, d: "M94 21H21V112M21 112C21 94 33 84 49 84A28 28 0 0 1 77 112V151A28 28 0 0 1 21 151" },
+  "6": { w: 98, d: BOWL_SIX },
+  "7": { w: 98, d: "M4 21H77L36 200" },
+  "8": { w: 98, d: "M24 46A25 25 0 0 1 74 46V67A25 25 0 0 1 24 67ZM21 126A28 28 0 0 1 77 126V151A28 28 0 0 1 21 151Z" },
+  "9": { w: 98, d: BOWL_SIX, rot: true },
+  ".": { w: 42, d: "M21 158V200" },
+  ",": { w: 50, d: "M28 158V198L21 232" },
+  "%": {
+    w: 170,
+    s: 32,
+    d: "M16 37A21 21 0 0 1 58 37V69A21 21 0 0 1 16 69ZM112 131A21 21 0 0 1 154 131V163A21 21 0 0 1 112 163ZM128 0L42 200",
   },
+  "+": { w: 112, s: 36, d: "M56 48V152M6 100H106" },
+  "×": { w: 106, s: 36, d: "M18 60L88 140M88 60L18 140" },
+  "-": { w: 86, s: 38, d: "M6 108H80" },
+  "/": { w: 106, s: 36, d: "M88 0L18 200" },
+  K: { w: 104, d: "M21 0V200M36 128L84 -10M48 96L88 222" },
+  M: { w: 140, d: "M21 200V0M21 0L70 150L119 0M119 0V200" },
+  B: { w: 118, d: "M21 0V200M0 21H52A37.5 37.5 0 0 1 52 96H21M21 96H55A41.5 41.5 0 0 1 55 179H0" },
+  $: { w: 100, s: 36, d: "M80 56A30 28 0 0 0 20 64C20 98 80 102 80 136A30 28 0 0 1 20 144", d2: "M50 0V200", s2: 16 },
+  "€": { w: 120, s: 36, d: "M100 52.6A40 79 0 1 0 100 147.4", d2: "M4 84H72M4 116H72", s2: 18 },
+  "£": { w: 100, d: "M82 39A30 30 0 0 0 26 54V179M0 179H100", d2: "M4 104H72", s2: 26 },
+  "¥": { w: 110, s: 36, d: "M22 0L55 98L88 0M55 98V200", d2: "M16 120H94M16 154H94", s2: 22 },
+  "₹": { w: 104, s: 30, d: "M2 15H102M2 54H102", d2: "M2 15H40A39 39 0 0 1 40 93H16L86 200", s2: 30 },
 }
 
 // #region logic
@@ -249,16 +257,18 @@ export function rollStrip(target: string, position: number): string[] {
   return out
 }
 
-/** The faint backdrop word: the stat's own, else the first word of its label. */
-export function backdropWord(stat: { label: string; word?: string }): string {
+/** The faint backdrop word: the stat's own, else the first word of its label (when the label is text). */
+export function backdropWord(stat: { label?: unknown; word?: string }): string {
   if (typeof stat.word === "string") return stat.word
-  const first = String(stat.label || "").trim().split(/\s+/)[0] || ""
+  if (typeof stat.label !== "string") return ""
+  const first = stat.label.trim().split(/\s+/)[0] || ""
   return first.replace(/[^\p{L}\p{N}]/gu, "")
 }
 
 /** One sentence a screen reader hears for a stat. */
-export function spoken(stat: { value: string; label: string }): string {
-  return (stat.value + " " + stat.label).trim()
+export function spoken(stat: { value: string; label?: unknown; alt?: string }): string {
+  if (stat.alt) return stat.alt
+  return (stat.value + " " + (typeof stat.label === "string" ? stat.label : "")).trim()
 }
 // #endregion logic
 
@@ -276,14 +286,16 @@ function GlyphSvg({ ch }: { ch: string }) {
       focusable="false"
     >
       <g transform={g.rot ? "rotate(180 " + g.w / 2 + " 100)" : undefined}>
-        <path d={g.d} fill="none" stroke="currentColor" strokeWidth={g.s || 34} strokeLinejoin="miter" strokeMiterlimit={3} />
-        {g.d2 ? <path d={g.d2} fill="none" stroke="currentColor" strokeWidth={g.s2 || 34} /> : null}
+        <path d={g.d} fill="none" stroke="currentColor" strokeWidth={g.s || STROKE} strokeLinejoin="miter" strokeMiterlimit={3} />
+        {g.d2 ? <path d={g.d2} fill="none" stroke="currentColor" strokeWidth={g.s2 || STROKE} strokeLinejoin="miter" /> : null}
       </g>
     </svg>
   )
 }
 
 type Phase = "from" | "to" | "out"
+
+const PITCH = 1.6
 
 function Figure({
   value,
@@ -316,12 +328,13 @@ function Figure({
         const ordered = order === 1 ? strip : strip.slice().reverse()
         const len = ordered.length
         const target = order === 1 ? len - 1 : 0
-        // Up: the strip starts one cell below and travels until its last glyph is in the cell.
-        // Down: it starts above and travels until its first glyph is.
-        const start = order === 1 ? 1.2 : -1.2 * len
-        const end = -1.2 * target
-        // Leaving, the landed glyph carries on one more cell in the step's direction.
-        const y = phase === "from" ? start : phase === "to" ? end : end + (dir === 1 ? -1.2 : 1.2)
+        // Slots are PITCH tall (the glyph plus a gap, so a digit that is nearly home never shows
+        // its neighbour's edge). Up: the strip starts one slot below and travels until its last
+        // glyph is in the cell. Down: it starts above and travels until its first glyph is.
+        const start = order === 1 ? PITCH : -PITCH * len
+        const end = -PITCH * target
+        // Leaving, the landed glyph carries on one more slot in the step's direction.
+        const y = phase === "from" ? start : phase === "to" ? end : end + (dir === 1 ? -PITCH : PITCH)
         return (
           <span
             key={i}
@@ -334,7 +347,7 @@ function Figure({
               style={{
                 transform: "translate3d(0," + y + "em,0)",
                 // The new figure waits for the old one to clear its cells, then lands left to right.
-                transitionDelay: (phase === "out" ? i * 28 : 150 + i * 55) + "ms",
+                transitionDelay: (phase === "out" ? i * 20 : 120 + i * 50) + "ms",
               }}
             >
               {ordered.map((g, k) => (
@@ -348,6 +361,10 @@ function Figure({
       })}
     </span>
   )
+}
+
+function wordStyle(word: string): React.CSSProperties {
+  return { ["--ost-chars" as string]: Math.max(3, Array.from(word).length) } as React.CSSProperties
 }
 
 function Arrow({ dir, axis }: { dir: "prev" | "next"; axis: "x" | "y" }) {
@@ -393,16 +410,16 @@ const css = `
 .ost-anchor { position: absolute; left: 0; width: 1px; height: 1px; pointer-events: none; }
 .ost-stage { position: relative; width: 100%; overflow: hidden; background-color: var(--ost-field-now); color: var(--ost-ink); container-type: size; font-family: var(--ost-ui); transition: background-color 400ms ease; }
 .ost[data-mode="scroll"] .ost-stage { position: sticky; }
-.ost-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.22; mix-blend-mode: overlay; background-size: 220px 220px; }
-.ost-word { position: absolute; left: clamp(12px, 2.4cqw, 40px); bottom: 0; margin: 0; font-family: var(--ost-word); font-weight: 900; font-stretch: condensed; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.74; font-size: clamp(88px, 21cqw, 380px); white-space: nowrap; color: var(--ost-ink); opacity: 0.1; transform: translate3d(0, 9%, 0); pointer-events: none; user-select: none; transition: opacity 420ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
-.ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0); transition: none; }
-.ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -18%, 0); transition-duration: 220ms; }
+.ost-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.38; mix-blend-mode: soft-light; background-size: 220px 220px; }
+.ost-word { position: absolute; left: clamp(12px, 2.4cqw, 40px); bottom: 0; margin: 0; font-family: var(--ost-word); font-weight: 900; font-stretch: condensed; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.74; font-size: min(clamp(88px, 24cqw, 420px), calc((100cqw - 32px) / (var(--ost-chars, 6) * 0.47))); white-space: nowrap; color: rgba(0, 0, 0, 0.16); color: var(--ost-ghost, color-mix(in srgb, var(--ost-field-now) 80%, #000)); transform-origin: 0 100%; transform: translate3d(0, 9%, 0) scaleX(0.72); pointer-events: none; user-select: none; transition: opacity 420ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0) scaleX(0.72); transition: none; }
+.ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -18%, 0) scaleX(0.72); transition-duration: 220ms; }
 .ost-top { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: clamp(18px, 2.6cqw, 36px) clamp(18px, 3cqw, 48px); }
 .ost-title { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 600; letter-spacing: 0.005em; max-width: 30ch; }
 .ost-nav { display: flex; align-items: center; gap: 10px; }
 .ost-count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; margin-right: 6px; white-space: nowrap; }
 .ost-count span { opacity: 0.7; }
-.ost-btn { appearance: none; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 999px; border: 1.5px solid var(--ost-ink); background: transparent; color: var(--ost-ink); cursor: pointer; transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-btn { appearance: none; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 0; border: 1.5px solid var(--ost-ink); background: transparent; color: var(--ost-ink); cursor: pointer; transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ost-btn:hover { background: var(--ost-ink); color: var(--ost-field-now); }
 .ost-btn:active { transform: scale(0.94); }
 .ost-btn:disabled { opacity: 0.35; cursor: default; background: transparent; color: var(--ost-ink); transform: none; }
@@ -412,7 +429,8 @@ const css = `
 .ost[data-mode="click"] .ost-btn[data-dir="next"]:hover:not(:disabled) svg { transform: translateX(2px); }
 .ost[data-mode="click"] .ost-btn[data-dir="prev"]:hover:not(:disabled) svg { transform: translateX(-2px); }
 .ost-btn:focus-visible, .ost-seg:focus-visible, .ost-cta:focus-visible { outline: 2px solid var(--ost-ink); outline-offset: 3px; }
-.ost-center { position: absolute; z-index: 1; left: 0; right: 0; top: 44%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 clamp(16px, 3cqw, 48px); }
+.ost-center { position: absolute; z-index: 1; left: 0; right: 0; top: clamp(64px, 11cqh, 112px); bottom: clamp(56px, 10cqh, 104px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 clamp(16px, 3cqw, 48px); pointer-events: none; }
+.ost-center > * { pointer-events: auto; }
 .ost-figwrap { display: grid; justify-items: center; align-items: end; }
 .ost-figwrap > * { grid-area: 1 / 1; }
 .ost-figure { display: inline-flex; align-items: flex-start; line-height: 1; height: 1em; color: var(--ost-ink); }
@@ -420,14 +438,14 @@ const css = `
 .ost-cell[data-tail] { overflow: visible; clip-path: inset(0 -0.1em -0.2em -0.1em); }
 .ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 950ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
 .ost-figure[data-phase="from"] .ost-strip { transition: none; }
-.ost-figure[data-phase="out"] .ost-strip { transition-duration: 340ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+.ost-figure[data-phase="out"] .ost-strip { opacity: 0; transition-property: transform, opacity; transition-duration: 220ms, 160ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1), ease; }
 .ost-figure[data-phase="out"] .ost-slot:not([data-target]) { visibility: hidden; }
-.ost-slot { display: block; height: 1.2em; }
+.ost-slot { display: block; height: 1.6em; }
 .ost-glyph { display: block; overflow: hidden; }
 .ost-fallback { display: block; height: 1em; font-size: 1em; line-height: 1; font-weight: 800; font-family: var(--ost-ui); letter-spacing: -0.04em; }
 .ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease 260ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 260ms, filter 380ms ease 260ms; }
 .ost-label[data-state="from"] { opacity: 0; transform: translateY(12px); filter: blur(3px); transition: none; }
-.ost-cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 48px; padding: 0 24px; border-radius: 999px; background: var(--ost-ink); color: var(--ost-field-now); font-size: 15px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease; }
+.ost-cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 48px; padding: 0 22px; border-radius: 0; background: var(--ost-ink); color: var(--ost-field-now); font-size: 15px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease; }
 .ost-cta svg { transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ost-cta:hover svg { transform: translateX(4px); }
 .ost-cta:active { transform: scale(0.97); }
@@ -463,18 +481,17 @@ const narrowCss = `
   .ost-story { width: min(300px, 28cqw); }
 }
 @container (max-width: 760px) {
-  .ost-center { top: 40%; --ost-fitw: 84cqw; }
+  .ost-center { bottom: 36cqh; --ost-fitw: 84cqw; }
   .ost-label { max-width: 30ch; }
   .ost-story { position: absolute; left: clamp(18px, 5cqw, 32px) !important; right: clamp(18px, 5cqw, 32px) !important; top: auto !important; bottom: 64px; width: auto; max-width: 46ch; font-size: 14.5px; }
   .ost-story[data-state="from"] { transform: translateY(10px) !important; }
-  .ost-word { font-size: 30cqw; }
   .ost-title { font-size: 14px; max-width: 18ch; }
   .ost-count { display: none; }
   .ost-btn { width: 40px; height: 40px; }
 }
 @container (max-height: 620px) {
   .ost-story { display: none; }
-  .ost-center { top: 50%; }
+  .ost-center { bottom: clamp(56px, 10cqh, 104px); }
 }
 `
 
@@ -489,7 +506,7 @@ export default function OdometerStageStats({
   stickyTop = 0,
   autoplay = 5200,
   cta,
-  numberSize = "min(44cqh, 560px)",
+  numberSize = "min(42cqh, 560px)",
   uiFont = UI_FONT,
   wordFont = WORD_FONT,
   showGrain = true,
@@ -504,6 +521,7 @@ export default function OdometerStageStats({
     field: (palette && palette.field) || base.field,
     ink: (palette && palette.ink) || base.ink,
     fieldDark: (palette && (palette.fieldDark || palette.field)) || base.fieldDark || base.field,
+    ghost: (palette && palette.ghost) || (palette && palette.field ? undefined : base.ghost),
   }
 
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -665,6 +683,7 @@ export default function OdometerStageStats({
     "--ost-field": colors.field,
     "--ost-field-dark": colors.fieldDark,
     "--ost-ink": colors.ink,
+    ...(colors.ghost ? { "--ost-ghost": colors.ghost } : null),
     "--ost-ui": uiFont,
     "--ost-word": wordFont,
     height: totalHeight,
@@ -709,12 +728,12 @@ export default function OdometerStageStats({
         {showGrain ? <div className="ost-grain" style={{ backgroundImage: GRAIN }} aria-hidden="true" /> : null}
 
         {prev && prevWord ? (
-          <p key={"w" + (view.key - 1)} className="ost-word" data-state="out" aria-hidden="true">
+          <p key={"w" + (view.key - 1)} className="ost-word" data-state="out" aria-hidden="true" style={wordStyle(prevWord)}>
             {prevWord}
           </p>
         ) : null}
         {word ? (
-          <p key={"w" + view.key} className="ost-word" data-state={enter} aria-hidden="true">
+          <p key={"w" + view.key} className="ost-word" data-state={enter} aria-hidden="true" style={wordStyle(word)}>
             {word}
           </p>
         ) : null}
@@ -826,9 +845,9 @@ export default function OdometerStageStats({
       <dl className="ost-sr">
         {list.map((s, i) => (
           <div key={i}>
-            <dt>{s.value}</dt>
+            <dt>{s.alt ? s.alt : s.value}</dt>
             <dd>
-              {s.label}
+              {s.alt ? null : s.label}
               {s.story ? ". " + s.story : ""}
               {s.source ? " Source: " + s.source + "." : ""}
             </dd>

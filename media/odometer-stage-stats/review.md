@@ -36,3 +36,27 @@ slat-count-preloader); (b) a sticky stage inside a track `n × height` tall with
 height, index / arrows / click mode working without scroll, frame one finished, `aria-live`
 announcing whole stats; (c) clean roll transitions across different figure lengths, alternating
 corner story, 4.5:1 text contrast on every preset.
+
+## Round 1 (fresh critic): REDO
+
+Scores: usability 7, idea 7, craft 6, originality 6, install-safety 9 (average 7.0).
+Findings, most important first: B and K clipped at their sides, notch in K, % slash cut,
+2 short of the cap line; stray slivers where the outgoing and incoming figures overlap
+mid-step; only `$` drawn (other currencies fell back to the system font); backdrop word wide
+and pink rather than a dark condensed ghost, and cut mid-word on phones; DIN road-sign
+figures rather than the reference's compressed poster figure; click mode cramped under the
+header; grain invisible; `label` text only.
+
+Changes made:
+- New glyph set: 42-unit stroke, narrower bodies, slit counters (a compressed poster figure),
+  B/K/% rebuilt, 2 reaches the cap line, `€ £ ¥ ₹` drawn. The test now samples every stroke
+  edge and fails if any glyph leaves its width (it catches the first draft's B).
+- Hand-off: the outgoing figure fades while it leaves (220 ms, 20 ms stagger); slots are 1.6em
+  apart so a digit that is nearly home never shows its neighbour's edge; the new figure starts
+  120 ms in.
+- Backdrop word: field mixed with 20% black (or `palette.ghost`), compressed with `scaleX(.72)`
+  and fitted to the stage width by its letter count.
+- Figure and label block centred between the header and the segment bar; `numberSize` cap
+  42cqh.
+- Grain visible (soft-light, 0.38). Controls and CTA squared to match the poster language.
+- `label` accepts any node, with `alt` for what screen readers hear.

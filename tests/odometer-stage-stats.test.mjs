@@ -15,7 +15,7 @@ const src = readFileSync(new URL("../components/odometer-stage-stats/odometer-st
 const start = src.indexOf("// #region logic")
 const end = src.indexOf("// #endregion logic")
 assert.ok(start > -1 && end > start, "logic region markers missing")
-const six = src.match(/const BOWL_SIX = "[^"]+"/)[0]
+const six = src.match(/const BOWL_SIX = "[^"]+"/)[0] + "\n" + src.match(/const STROKE = \d+/)[0]
 const gStart = src.indexOf("const GLYPHS: { [k: string]: Glyph } = {")
 assert.ok(gStart > -1, "glyph table not found")
 const glyphs = src.slice(gStart, src.indexOf("\n}\n", gStart) + 2).replace(": { [k: string]: Glyph }", "")
@@ -26,19 +26,19 @@ const js = (six + "\n" + glyphs + "\n" + src.slice(start, end))
   .replace(/(\w+): (string\[\]|number|string)(?=[,)])/g, "$1")
   .replace("const out: string[] = []", "const out = []")
   .replace("const out: string[] = []", "const out = []")
-const m = await import("data:text/javascript," + encodeURIComponent(js + "\nexport { GLYPHS }"))
+const m = await import("data:text/javascript," + encodeURIComponent(js + "\nexport { GLYPHS, STROKE }"))
 
 // Figures: aliases map onto the drawn set, anything else is kept for the text fallback.
 assert.deepEqual(m.parseValue("4.2x"), ["4", ".", "2", "×"])
 assert.deepEqual(m.parseValue("12k"), ["1", "2", "K"])
 assert.deepEqual(m.parseValue("$2.4B"), ["$", "2", ".", "4", "B"])
 assert.deepEqual(m.parseValue("−3"), ["-", "3"])
-assert.deepEqual(m.parseValue("9€"), ["9", "€"])
-for (const ch of "0123456789.,%+×-/$KMB") assert.ok(m.isDrawn(ch), "glyph missing: " + ch)
-assert.equal(m.isDrawn("€"), false)
+assert.deepEqual(m.parseValue("9₩"), ["9", "₩"])
+for (const ch of "0123456789.,%+×-/$€£¥₹KMB") assert.ok(m.isDrawn(ch), "glyph missing: " + ch)
+assert.equal(m.isDrawn("₩"), false)
 
 // Width in ems of the cap height drives the fit-to-width size.
-assert.equal(m.figureEm(["9", "6"]), 104 / 200 + 104 / 200 + m.GAP_EM)
+assert.equal(m.figureEm(["9", "6"]), m.GLYPHS["9"].w / 200 + m.GLYPHS["6"].w / 200 + m.GAP_EM)
 assert.ok(m.figureEm(m.parseValue("$2.4B")) > m.figureEm(m.parseValue("96")))
 assert.ok(m.figureEm([]) > 0, "an empty figure must not divide by zero")
 
@@ -71,15 +71,83 @@ assert.equal(m.backdropWord({ label: "brands launched since 2014" }), "brands")
 assert.equal(m.backdropWord({ label: "x", word: "" }), "", "an empty word turns the backdrop off")
 assert.equal(m.backdropWord({ label: "“Teams” here" }), "Teams")
 assert.equal(m.spoken({ value: "96", label: "brands" }), "96 brands")
+assert.equal(m.spoken({ value: "96", label: { node: true }, alt: "96 brands launched" }), "96 brands launched")
+assert.equal(m.spoken({ value: "96", label: { node: true } }), "96")
+assert.equal(m.backdropWord({ label: { node: true } }), "", "a node label has no backdrop word unless one is given")
 assert.equal(m.pad2(4), "04")
 assert.equal(m.wrap(-1, 4), 3)
 assert.equal(m.wrap(2, 0), 0)
 
-// Glyph paths are plain path data, and every glyph has a width.
+// Glyph paths are plain path data, and no stroke edge leaves its glyph's width
+// anywhere between the cap line and the baseline (the box clips the top and
+// bottom on purpose; a cut at the side reads as a broken glyph).
+function edges(d, stroke) {
+  const tk = d.match(/[MLHVCAZ]|-?\d*\.?\d+/g)
+  let i = 0, x = 0, y = 0, sx = 0, sy = 0, cmd = ""
+  const pts = []
+  const num = () => Number(tk[i++])
+  const seg = (f, steps) => { for (let k = 0; k <= steps; k++) pts.push(f(k / steps)) }
+  while (i < tk.length) {
+    if (/[A-Z]/.test(tk[i])) cmd = tk[i++]
+    if (cmd === "M") { x = sx = num(); y = sy = num(); cmd = "L"; continue }
+    let x2, y2
+    if (cmd === "L" || cmd === "H" || cmd === "V" || cmd === "Z") {
+      if (cmd === "L") { x2 = num(); y2 = num() } else if (cmd === "H") { x2 = num(); y2 = y } else if (cmd === "V") { x2 = x; y2 = num() } else { x2 = sx; y2 = sy }
+      const [ax, ay] = [x, y]
+      seg((t) => [ax + (x2 - ax) * t, ay + (y2 - ay) * t, x2 - ax, y2 - ay], 20)
+    } else if (cmd === "C") {
+      const P = [[x, y], [num(), num()], [num(), num()], [num(), num()]]
+      seg((t) => {
+        const u = 1 - t
+        const px = u * u * u * P[0][0] + 3 * u * u * t * P[1][0] + 3 * u * t * t * P[2][0] + t * t * t * P[3][0]
+        const py = u * u * u * P[0][1] + 3 * u * u * t * P[1][1] + 3 * u * t * t * P[2][1] + t * t * t * P[3][1]
+        const tx = 3 * u * u * (P[1][0] - P[0][0]) + 6 * u * t * (P[2][0] - P[1][0]) + 3 * t * t * (P[3][0] - P[2][0])
+        const ty = 3 * u * u * (P[1][1] - P[0][1]) + 6 * u * t * (P[2][1] - P[1][1]) + 3 * t * t * (P[3][1] - P[2][1])
+        return [px, py, tx, ty]
+      }, 40)
+      x2 = P[3][0]; y2 = P[3][1]
+    } else if (cmd === "A") {
+      let rx = num(), ry = num(); num(); const fa = num(), fs = num(); x2 = num(); y2 = num()
+      const dx = (x - x2) / 2, dy = (y - y2) / 2
+      const lam = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)
+      if (lam > 1) { rx *= Math.sqrt(lam); ry *= Math.sqrt(lam) }
+      let co = Math.sqrt(Math.max(0, (rx * rx * ry * ry - rx * rx * dy * dy - ry * ry * dx * dx) / (rx * rx * dy * dy + ry * ry * dx * dx)))
+      if (fa === fs) co = -co
+      const cxp = (co * rx * dy) / ry, cyp = (-co * ry * dx) / rx
+      const cx = cxp + (x + x2) / 2, cy = cyp + (y + y2) / 2
+      const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy)
+      const t1 = ang(1, 0, (dx - cxp) / rx, (dy - cyp) / ry)
+      let dt = ang((dx - cxp) / rx, (dy - cyp) / ry, (-dx - cxp) / rx, (-dy - cyp) / ry)
+      if (!fs && dt > 0) dt -= 2 * Math.PI
+      else if (fs && dt < 0) dt += 2 * Math.PI
+      seg((t) => { const a = t1 + dt * t; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a), -rx * Math.sin(a) * Math.sign(dt), ry * Math.cos(a) * Math.sign(dt)] }, 60)
+    } else throw new Error("unexpected path command " + cmd)
+    x = x2; y = y2
+  }
+  const out = []
+  for (const [px, py, tx, ty] of pts) {
+    const len = Math.hypot(tx, ty) || 1
+    for (const sg of [-1, 1]) out.push([px - (sg * ty * stroke) / 2 / len, py + (sg * tx * stroke) / 2 / len])
+  }
+  return out
+}
 for (const [k, g] of Object.entries(m.GLYPHS)) {
   assert.ok(g.w > 0, "glyph width: " + k)
-  for (const d of [g.d, g.d2].filter(Boolean)) assert.match(d, /^[MLHVCQAZ0-9.\s-]+$/, "path data: " + k)
+  const floor = k === "," ? 240 : 200
+  for (const [d, sw] of [[g.d, g.s || m.STROKE], [g.d2, g.s2 || m.STROKE]]) {
+    if (!d) continue
+    assert.match(d, /^[MLHVCAZ0-9.\s-]+$/, "path data: " + k)
+    for (let [ex, ey] of edges(d, sw)) {
+      if (g.rot) { ex = g.w - ex; ey = 200 - ey }
+      if (ey < 0.5 || ey > floor - 0.5) continue
+      assert.ok(ex >= -0.5 && ex <= g.w + 0.5, `glyph ${k} pokes out of its width at (${ex.toFixed(1)}, ${ey.toFixed(1)})`)
+    }
+  }
 }
+// The check has teeth: the first draft's B ran past its box.
+assert.throws(() => {
+  for (const [ex, ey] of edges("M17 0V200M0 17H56A39.5 39.5 0 0 1 56 96H17M17 96H57A43.5 43.5 0 0 1 57 183H0", 34)) if (ey > 0.5 && ey < 199.5) assert.ok(ex <= 114.5)
+})
 // #endregion
 
 // A root that inherits its height renders here and collapses once installed.
