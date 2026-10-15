@@ -33,3 +33,31 @@ in: #2's marker lines on the cover, the tab strip as step tabs. Risks named: fak
 the coil in two halves through holes, real fibre texture), the banned cream look (bold colour
 fields only), web fonts (SVG cover title, mono answers, no fake handwriting), the closed cover
 must work alone, real form semantics, no backface flicker in SwiftShader, install safety.
+
+## Round 1 (fresh critic, 2026-10-15): REDO
+
+Scores: usability 6, idea 7, craft 7, originality 8, install-safety 7 (average 7.0).
+Banned looks: passed (cobalt or orange field, no beige, no SaaS skeleton, the notebook is the form).
+
+Changes asked, most important first, and what was done:
+1. `inert: ""` is false under React 19, so hidden pages stayed tabbable. Now each face's `inert`
+   property is set from an effect (same under React 18 and 19); checked with a Tab pass: from the
+   band, Tab reaches the cover links, then after opening the heading, chips, Back, Next and tabs,
+   never a hidden page.
+2. Hydration: the width started from `window.innerWidth`. Now a constant first render (1440 × 900),
+   measured in a layout effect before paint.
+3. Phone coil clipped at x≈0: the single-page book now reserves the coil overhang (14px).
+4. Hard-coded copy: every small string (labels, errors, announcements) is in a `copy` prop with
+   `{n}`, `{total}`, `{studio}`, `{time}` fills; validation returns copy keys. Added
+   `layout="notebook"` for the notebook alone.
+5. The email appeared three times: the column's email and socials are gone on wide screens (the
+   cover carries them). Added `notes`: a client note on paper, held by a strip of tape.
+6. Handwriting voice: `handFont` prop (Segoe Print, Bradley Hand, Noteworthy, Ink Free, Marker
+   Felt) for answers, cover entries and notes; it falls back to the mono stack where no handwriting
+   face exists (as in the cloud renderer). No web fonts.
+7. Focus on kraft was ~1.6:1: cover links and the band now take a `coverText` outline with a
+   highlight ring.
+8. Scale: pages grow with the viewport height (about 68%, ratio 1.3 to 1.48) and the copy column
+   is narrower, so the closed book is about 470 × 640 at 1440 × 900.
+9. Index tabs: 11px labels and a 40px hit area.
+10. Hover peek was invisible: the cover now lifts to -26deg with a shade, showing the first page's edge.

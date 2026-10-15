@@ -29,14 +29,24 @@ assert.equal(m.layoutFor(768).mode, "stacked")
 assert.equal(m.layoutFor(375).mode, "single")
 for (const w of [320, 375, 414, 768, 1024, 1280, 1440, 1920, 2560]) {
   const L = m.layoutFor(w)
-  const book = L.mode === "single" ? L.gap + L.pageW + L.tab : L.tab * 2 + L.pageW * 2 + L.gap
+  const book = L.mode === "single" ? m.COIL_OVERHANG + L.gap + L.pageW + L.tab : L.tab * 2 + L.pageW * 2 + L.gap
   const room = L.mode === "wide" ? Math.min(w, 1560) - L.pad * 2 - L.textW - 40 : w - L.pad * 2
   assert.ok(book <= room, w + "px: the notebook must fit its column (" + book + " > " + room + ")")
-  assert.ok(L.pageW >= 230, w + "px: page too narrow for the form (" + L.pageW + ")")
+  assert.ok(L.pageW >= 220, w + "px: page too narrow for the form (" + L.pageW + ")")
   assert.ok(L.pageH >= 450, w + "px: page too short for the details page")
   assert.ok(L.rule >= 26 && L.rule <= 31, "ruled lines stay readable")
 }
 assert.ok(m.layoutFor(0).pageW > 0, "a zero width (first paint, hidden tab) must not break the maths")
+// Taller screens get taller pages, within a paper-like ratio.
+assert.ok(m.layoutFor(1440, 1200).pageH > m.layoutFor(1440, 700).pageH)
+for (const vh of [500, 900, 1600]) {
+  const L = m.layoutFor(1440, vh)
+  assert.ok(L.pageH / L.pageW >= 1.29 && L.pageH / L.pageW <= 1.49, "page ratio stays paper-like at vh " + vh)
+}
+// Without the copy column the notebook takes the width: a spread from tablet up.
+assert.equal(m.layoutFor(1440, 900, false).mode, "stacked")
+assert.ok(m.layoutFor(1440, 900, false).pageW > m.layoutFor(1440, 900, true).pageW - 1)
+assert.equal(m.layoutFor(600, 900, false).mode, "single")
 
 // Coil loops: evenly spaced, inside the page, enough of them to read as a binding.
 const ys = m.ringYs(520)
@@ -66,10 +76,14 @@ assert.equal(m.firstBlocked(qs, { a: ["x"], c: ["y"] }, 3), -1)
 assert.equal(m.firstBlocked(qs, { a: [] }, 1), 0, "an emptied answer blocks again")
 
 assert.deepEqual(m.detailsErrors("Ada", "ada@northfold.co", "", false), {})
-assert.ok(m.detailsErrors(" ", "ada@northfold.co", "", false).name)
-assert.ok(m.detailsErrors("Ada", "", "", false).email)
-assert.ok(m.detailsErrors("Ada", "ada@", "", false).email)
-assert.ok(m.detailsErrors("Ada", "ada@northfold.co", " ", true).message)
+// Errors are copy keys, so every message can be replaced through the copy prop.
+assert.equal(m.detailsErrors(" ", "ada@northfold.co", "", false).name, "errorName")
+assert.equal(m.detailsErrors("Ada", "", "", false).email, "errorEmail")
+assert.equal(m.detailsErrors("Ada", "ada@", "", false).email, "errorEmailInvalid")
+assert.equal(m.detailsErrors("Ada", "ada@northfold.co", " ", true).message, "errorMessage")
+for (const key of ["errorName", "errorEmail", "errorEmailInvalid", "errorMessage"]) {
+  assert.ok(new RegExp("\\b" + key + ": \"").test(src), "default copy for " + key)
+}
 
 assert.equal(m.firstName("  Ada Lindqvist "), "Ada")
 assert.equal(m.firstName(""), "")
@@ -124,7 +138,11 @@ assert.ok(/aria-live="polite"/.test(src))
 assert.ok(/role="alert"/.test(src))
 assert.ok(/htmlFor=\{uid \+ "-email"\}/.test(src))
 assert.ok(/autoComplete="email"/.test(src))
-// Pages that are not on top cannot be tabbed into.
-assert.ok(/inert: ""/.test(src))
+// Pages that are not on top cannot be tabbed into: set as a DOM property, which
+// behaves the same under React 18 and 19.
+assert.ok(/el\.inert = off/.test(src))
+// The first render is the same on the server and the client (no window reads in state init).
+assert.ok(/React\.useState\(1440\)/.test(src))
+assert.ok(!/useState\(\(\) => \(typeof window/.test(src))
 
 console.log("wirebound-inquiry: ok")

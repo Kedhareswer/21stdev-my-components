@@ -88,6 +88,76 @@ export type WireboundBrief = {
 
 export type WireboundLink = { label: string; href: string }
 
+/** A client note taped beside the notebook. */
+export type WireboundNote = { quote: string; name: string; role?: string }
+
+/** Every small string the component writes. `{n}`, `{total}`, `{studio}` and `{time}` are filled in. */
+export type WireboundCopy = {
+  writeTo: string
+  findUs: string
+  repliesWithin: string
+  beforeYouStart: string
+  ratherTalk: string
+  skip: string
+  pickOne: string
+  pickAny: string
+  optional: string
+  lastPage: string
+  filed: string
+  whatHappensNext: string
+  yourBriefSoFar: string
+  yourBrief: string
+  tapToChange: string
+  sentTo: string
+  skipped: string
+  thanks: string
+  thanksName: string
+  errorPickOne: string
+  errorPickAny: string
+  errorName: string
+  errorEmail: string
+  errorEmailInvalid: string
+  errorMessage: string
+  errorSend: string
+  announcePage: string
+  announceClosed: string
+  pages: string
+}
+
+const DEFAULT_COPY: WireboundCopy = {
+  writeTo: "Write to",
+  findUs: "Find us",
+  repliesWithin: "Replies within {time}",
+  beforeYouStart: "Before you start",
+  ratherTalk: "Rather talk?",
+  skip: "Skip",
+  pickOne: "circle one",
+  pickAny: "circle any",
+  optional: "optional",
+  lastPage: "last page",
+  filed: "filed",
+  whatHappensNext: "What happens next",
+  yourBriefSoFar: "Your brief so far",
+  yourBrief: "Your brief",
+  tapToChange: "Tap a line to change it",
+  sentTo: "Sent to {studio}",
+  skipped: "skipped",
+  thanks: "Thanks.",
+  thanksName: "Thanks, {name}.",
+  errorPickOne: "Circle one to carry on.",
+  errorPickAny: "Circle at least one to carry on.",
+  errorName: "Add a name so we know who to reply to.",
+  errorEmail: "Add an email address.",
+  errorEmailInvalid: "That address looks incomplete.",
+  errorMessage: "Add a line about the project.",
+  errorSend: "That didn't send. Try again, or email us directly.",
+  announcePage: "Page {n} of {total}",
+  announceClosed: "Notebook closed.",
+  pages: "{total} pages, about two minutes. {reader} reads every brief and replies within {time}.",
+}
+
+const fill = (t: string, v: { [k: string]: string | number }) => t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m))
+
 export type WireboundInquiryProps = {
   /** Studio or person. Used in the copy and, by default, on the cover. */
   studio?: string
@@ -129,6 +199,12 @@ export type WireboundInquiryProps = {
   closeLabel?: string
   stampLabel?: string
   resetLabel?: string
+  /** Taped client notes beside the notebook (wide and tablet layouts). [] hides them. */
+  notes?: WireboundNote[]
+  /** "section": copy column plus notebook. "notebook": the notebook alone, to sit inside your own contact page. */
+  layout?: "section" | "notebook"
+  /** Every small string the component writes (labels, errors, announcements). */
+  copy?: WireboundCopyInput
   /** Inside-cover note. A function gets the number of pages. */
   insideNote?: React.ReactNode | ((pages: number) => React.ReactNode)
   /** What happens after a brief is sent, listed in order on the receipt. Empty hides it. */
@@ -155,6 +231,8 @@ export type WireboundInquiryProps = {
   displayFont?: string
   textFont?: string
   monoFont?: string
+  /** Pen-written text: answers, cover entries, notes. Falls back to the mono stack where no handwriting face is installed. */
+  handFont?: string
   ariaLabel?: string
   id?: string
   className?: string
@@ -273,7 +351,15 @@ const DEFAULT_SOCIALS: WireboundLink[] = [
   { label: "Are.na", href: "https://are.na" },
 ]
 
-const DEFAULT_NEXT = ["We read it together.", "You get a plan and price.", "A short call if it fits."]
+const DEFAULT_NOTES: WireboundNote[] = [
+  {
+    quote: "Sent the brief on a Tuesday. Wednesday morning we had a plan, a price and three questions we hadn't thought to ask.",
+    name: "Priya Raman",
+    role: "Founder, Tallow & Tide",
+  },
+]
+
+const DEFAULT_NEXT = ["We read it together.", "A plan and a price.", "A short call if it fits."]
 
 // #region logic
 export type WireboundLayout = {
@@ -287,31 +373,39 @@ export type WireboundLayout = {
   textW: number
 }
 
-/** Page size and arrangement for a section this wide. */
-export function layoutFor(width: number): WireboundLayout {
+/** How far the coil loops stand out past the binding edge on a single page. */
+export const COIL_OVERHANG = 14
+
+/**
+ * Page size and arrangement for a section this wide. `vh` (the viewport height) lets the
+ * notebook grow taller on tall screens; `withIntro` false leaves the whole width to the notebook.
+ */
+export function layoutFor(width: number, vh = 900, withIntro = true): WireboundLayout {
   const w = Math.max(280, width || 0)
-  if (w >= 1220) {
-    const pad = 56
+  const tallH = (pageW: number, lo: number, hi: number) =>
+    Math.round(Math.min(pageW * hi, Math.max(pageW * lo, (vh || 900) * 0.68)))
+  if (withIntro && w >= 1220) {
+    const pad = 48
     const tab = 26
     const gap = 30
-    const textW = Math.round(Math.min(460, Math.max(340, w * 0.3)))
+    const textW = Math.round(Math.min(420, Math.max(330, w * 0.26)))
     const stage = Math.min(w, 1560) - pad * 2 - textW - 40
-    const pageW = Math.floor(Math.min(430, (stage - gap - tab * 2) / 2))
-    const pageH = Math.max(Math.round(pageW * 1.32), 470)
+    const pageW = Math.floor(Math.min(470, (stage - gap - tab * 2) / 2))
+    const pageH = Math.max(tallH(pageW, 1.3, 1.48), 470)
     return { mode: "wide", pad, tab, gap, pageW, pageH, rule: ruleFor(pageH), textW }
   }
   if (w >= 760) {
     const pad = 32
     const tab = 24
     const gap = 28
-    const pageW = Math.floor(Math.min(400, (w - pad * 2 - gap - tab * 2) / 2))
-    const pageH = Math.max(Math.round(pageW * 1.32), 450)
+    const pageW = Math.floor(Math.min(440, (w - pad * 2 - gap - tab * 2) / 2))
+    const pageH = Math.max(tallH(pageW, 1.3, 1.45), 450)
     return { mode: "stacked", pad, tab, gap, pageW, pageH, rule: ruleFor(pageH), textW: Math.min(680, w - pad * 2) }
   }
   const pad = 16
   const tab = 24
   const gap = 24
-  const pageW = Math.floor(Math.min(440, w - pad * 2 - gap - tab))
+  const pageW = Math.floor(Math.min(440, w - pad * 2 - COIL_OVERHANG - gap - tab))
   const pageH = Math.max(Math.round(pageW * 1.62), 520)
   return { mode: "single", pad, tab, gap, pageW, pageH, rule: 27, textW: w - pad * 2 }
 }
@@ -349,12 +443,13 @@ export function firstBlocked(questions: { optional?: boolean; id: string }[], an
   return -1
 }
 
+/** Validation for the details page: a copy key per failing field. */
 export function detailsErrors(name: string, email: string, message: string, requireMessage: boolean) {
   const out: { name?: string; email?: string; message?: string } = {}
-  if (!name.trim()) out.name = "Add a name so we know who to reply to."
-  if (!email.trim()) out.email = "Add an email address."
-  else if (!isEmail(email)) out.email = "That address looks incomplete."
-  if (requireMessage && !message.trim()) out.message = "Add a line about the project."
+  if (!name.trim()) out.name = "errorName"
+  if (!email.trim()) out.email = "errorEmail"
+  else if (!isEmail(email)) out.email = "errorEmailInvalid"
+  if (requireMessage && !message.trim()) out.message = "errorMessage"
   return out
 }
 
@@ -423,6 +518,7 @@ const CSS = `
 .wbi svg { max-width: none; }
 :where(.wbi) button { font: inherit; color: inherit; background: none; border: 0; margin: 0; padding: 0; cursor: pointer; text-align: inherit; }
 :where(.wbi) a { color: inherit; }
+.wbi-kraft :focus-visible { outline-color: var(--coverText) !important; }
 .wbi-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .wbi-inner {
@@ -434,8 +530,58 @@ const CSS = `
   align-items: center;
   gap: 40px;
 }
-.wbi[data-mode="wide"] .wbi-inner { grid-template-columns: var(--text-w) minmax(0, 1fr); }
+.wbi[data-mode="wide"] .wbi-inner {
+  grid-template-columns: var(--text-w) minmax(0, 1fr);
+  grid-template-areas: "intro stage" "notes stage";
+  grid-template-rows: auto auto;
+  row-gap: 0;
+}
+.wbi[data-mode="wide"] .wbi-intro { grid-area: intro; align-self: end; }
+.wbi[data-mode="wide"] .wbi-stage { grid-area: stage; }
+.wbi[data-mode="wide"] .wbi-notes { grid-area: notes; align-self: start; }
 .wbi[data-mode="stacked"] .wbi-inner, .wbi[data-mode="single"] .wbi-inner { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+.wbi[data-mode="wide"] .wbi-direct-links { display: none; }
+
+/* A client note taped beside the notebook */
+.wbi-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; margin-top: 8px; }
+.wbi[data-mode="wide"] .wbi-notes { justify-content: flex-start; margin-top: 40px; }
+.wbi-slip {
+  position: relative;
+  margin: 0;
+  max-width: 340px;
+  padding: 26px 22px 18px;
+  background-color: var(--paper);
+  color: var(--ink);
+  border-radius: 2px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12), 0 14px 26px -14px rgba(0, 0, 0, 0.5);
+}
+.wbi-slip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--wbi-grain);
+  background-size: 200px 200px;
+  mix-blend-mode: multiply;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.wbi-tape {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 92px;
+  height: 24px;
+  margin-left: -46px;
+  transform: rotate(-3deg);
+  background: color-mix(in srgb, var(--highlight) 46%, rgba(255, 255, 255, 0.55));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  clip-path: polygon(2% 8%, 7% 0, 14% 6%, 22% 0, 31% 7%, 40% 1%, 50% 6%, 60% 0, 69% 7%, 79% 1%, 88% 6%, 96% 0, 100% 10%, 98% 92%, 92% 100%, 84% 94%, 75% 100%, 66% 93%, 56% 100%, 46% 94%, 36% 100%, 27% 93%, 18% 100%, 9% 94%, 0 100%);
+}
+.wbi-slip blockquote { margin: 0; font-family: var(--wbi-hand); font-size: 16px; line-height: 1.5; color: var(--pen); }
+.wbi-slip figcaption { display: grid; margin-top: 12px; font-size: 12px; line-height: 1.4; }
+.wbi-slip figcaption b { font-size: 13px; font-weight: 800; }
+.wbi-slip figcaption span { color: color-mix(in srgb, var(--ink) 66%, transparent); }
 
 /* Intro beside the notebook */
 .wbi-intro { max-width: var(--text-w); }
@@ -554,7 +700,9 @@ const CSS = `
   will-change: transform;
 }
 .wbi-sheet[data-turned] { transform: perspective(var(--persp)) rotateY(-180deg); }
-.wbi-sheet[data-peek]:hover, .wbi-sheet[data-peek]:focus-within { transform: perspective(var(--persp)) rotateY(-11deg); transition-duration: 380ms; }
+.wbi-sheet[data-peek]:hover, .wbi-sheet[data-peek]:focus-within { transform: perspective(var(--persp)) rotateY(-26deg); transition-duration: 380ms; }
+.wbi-sheet[data-peek] .wbi-shade { transition: opacity 380ms ease; }
+.wbi-sheet[data-peek]:hover .wbi-shade { opacity: 0.32; }
 .wbi[data-mode="single"] .wbi-sheet[data-turned]:not([data-turning]) { visibility: hidden; }
 .wbi-face {
   position: absolute;
@@ -618,7 +766,7 @@ const CSS = `
 }
 .wbi-cover-line .wbi-cl { font-size: calc(11px * var(--u)); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .wbi-cover-line a {
-  font-family: var(--wbi-mono);
+  font-family: var(--wbi-hand);
   font-weight: 700;
   font-size: max(13px, calc(15px * var(--u)));
   text-decoration: none;
@@ -626,7 +774,7 @@ const CSS = `
   border-radius: 2px;
 }
 .wbi-cover-line a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.wbi-cover-line a:focus-visible { outline: 2px solid var(--highlight); outline-offset: 2px; }
+.wbi-cover-line a:focus-visible { outline: 2px solid var(--coverText); outline-offset: 2px; box-shadow: 0 0 0 5px var(--highlight); }
 .wbi-cover-foot {
   position: absolute;
   font-family: var(--wbi-mono);
@@ -821,7 +969,7 @@ const CSS = `
   border: 0;
   border-radius: 0;
   background: transparent;
-  font-family: var(--wbi-mono);
+  font-family: var(--wbi-hand);
   font-size: 16px;
   font-weight: 600;
   line-height: var(--rule);
@@ -851,7 +999,7 @@ const CSS = `
 }
 button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, transparent); }
 .wbi-sumrow .wbi-sk { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 66%, transparent); }
-.wbi-sumrow .wbi-sv { font-family: var(--wbi-mono); font-size: 14px; font-weight: 600; color: var(--pen); overflow-wrap: anywhere; }
+.wbi-sumrow .wbi-sv { font-family: var(--wbi-hand); font-size: 14px; font-weight: 600; color: var(--pen); overflow-wrap: anywhere; }
 .wbi-sumrow .wbi-sv.wbi-empty { color: color-mix(in srgb, var(--ink) 45%, transparent); font-weight: 500; }
 .wbi-note { margin: 0; font-family: var(--wbi-mono); font-size: max(13px, calc(14px * var(--u))); line-height: var(--rule); }
 .wbi-toc { margin: 0; padding: 0; list-style: none; font-family: var(--wbi-mono); font-size: 13px; line-height: var(--rule); }
@@ -890,9 +1038,9 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
   justify-content: center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink);
   background: color-mix(in srgb, var(--paper) 70%, var(--highlight) 30%);
@@ -900,6 +1048,7 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
   transition: background-color 160ms ease, padding 200ms var(--ease-out);
 }
 .wbi-tab span { writing-mode: vertical-rl; white-space: nowrap; }
+.wbi-tab::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40px; }
 .wbi-tab[data-side="r"] { border-radius: 0 6px 6px 0; }
 .wbi-tab[data-side="l"] { border-radius: 6px 0 0 6px; transform: rotateY(180deg); }
 .wbi-tab[data-side="l"] span { transform: rotate(180deg); }
@@ -923,6 +1072,7 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
 const SANS = 'Inter, "Helvetica Neue", "Segoe UI", "Liberation Sans", Arial, system-ui, sans-serif'
 const DISPLAY = '"Arial Black", "Inter Display", Inter, "Helvetica Neue", "Liberation Sans", Arial, sans-serif'
 const MONO = '"IBM Plex Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace'
+const HAND = '"Segoe Print", "Bradley Hand", Noteworthy, "Ink Free", "Marker Felt", ' + MONO
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
 
@@ -1015,7 +1165,7 @@ export default function WireboundInquiry({
   nameLabel = "Name",
   namePlaceholder = "Your name",
   emailFieldLabel = "Email",
-  emailPlaceholder = "you@company.com",
+  emailPlaceholder = "you@work.com",
   messageLabel = "Notes",
   messagePlaceholder = "Links, deadlines, anything we should read first",
   requireMessage = false,
@@ -1028,6 +1178,9 @@ export default function WireboundInquiry({
   stampLabel = "Received",
   resetLabel = "Start a new brief",
   insideNote,
+  notes = DEFAULT_NOTES,
+  layout = "section",
+  copy,
   nextSteps = DEFAULT_NEXT,
   receipt,
   onSubmit,
@@ -1040,6 +1193,7 @@ export default function WireboundInquiry({
   displayFont,
   textFont,
   monoFont,
+  handFont,
   ariaLabel,
   id,
   className,
@@ -1052,7 +1206,9 @@ export default function WireboundInquiry({
   const focusAfter = React.useRef(-1)
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "")
 
-  const [width, setWidth] = React.useState(() => (typeof window === "undefined" ? 1440 : window.innerWidth))
+  // Constant first render (server and client agree); measured before paint.
+  const [width, setWidth] = React.useState(1440)
+  const [vh, setVh] = React.useState(900)
   const [grain, setGrain] = React.useState(null as { fibre: string; grain: string } | null)
   const [reduced, setReduced] = React.useState(false)
   const nQ = questions.length
@@ -1072,13 +1228,15 @@ export default function WireboundInquiry({
   const [announce, setAnnounce] = React.useState("")
   const [fit, setFit] = React.useState([] as { scale: number; size: number }[])
 
-  const L = layoutFor(width)
+  const C = { ...DEFAULT_COPY, ...(copy || {}) }
+  const withIntro = layout !== "notebook"
+  const L = layoutFor(width, vh, withIntro)
   const spread = L.mode !== "single"
   const u = L.pageW / 400
   const { pageW, pageH, gap, tab, rule } = L
-  const rightLeft = spread ? tab + pageW + gap : gap
+  const rightLeft = spread ? tab + pageW + gap : COIL_OVERHANG + gap
   const spine = rightLeft - gap / 2
-  const bookW = spread ? tab * 2 + pageW * 2 + gap : gap + pageW + tab
+  const bookW = spread ? tab * 2 + pageW * 2 + gap : COIL_OVERHANG + gap + pageW + tab
   const head = rule * 3
   const ringR = gap / 2 + 11
   const rings = React.useMemo(() => ringYs(pageH), [pageH])
@@ -1089,15 +1247,20 @@ export default function WireboundInquiry({
   useIsoLayoutEffect(() => {
     const el = rootRef.current
     if (!el) return
-    setWidth(el.clientWidth)
-    if (typeof ResizeObserver === "undefined") return
-    const ro = new ResizeObserver((entries) => {
-      // clientWidth: the layout maths includes the section's own padding.
-      const w = (entries[0].target as HTMLElement).clientWidth
-      if (w > 0) setWidth(w)
-    })
+    // clientWidth: the layout maths includes the section's own padding.
+    const read = () => {
+      if (el.clientWidth > 0) setWidth(el.clientWidth)
+      setVh(window.innerHeight || 900)
+    }
+    read()
+    window.addEventListener("resize", read)
+    if (typeof ResizeObserver === "undefined") return () => window.removeEventListener("resize", read)
+    const ro = new ResizeObserver(read)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      window.removeEventListener("resize", read)
+    }
   }, [])
   React.useEffect(() => {
     setGrain(makeGrain())
@@ -1137,6 +1300,18 @@ export default function WireboundInquiry({
     const fonts = (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts
     if (fonts && fonts.ready) fonts.ready.then(measure).catch(() => {})
   }, [lines.join("|"), titleW, baseSize, displayFont])
+
+  React.useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    root.querySelectorAll(".wbi-face").forEach((n) => {
+      const el = n as HTMLElement & { inert?: boolean }
+      const off = el.hasAttribute("data-inert")
+      el.inert = off
+      if (off) el.setAttribute("aria-hidden", "true")
+      else el.removeAttribute("aria-hidden")
+    })
+  })
 
   // Move focus to the new page once its turn has landed.
   React.useEffect(() => {
@@ -1181,7 +1356,13 @@ export default function WireboundInquiry({
     timers.current.push(t)
     if (focus) focusAfter.current = target
     setTurned(target)
-    setAnnounce(target === 0 ? "Notebook closed." : target === RECEIPT ? stampLabel : "Page " + Math.min(target, S) + " of " + S + ": " + stepTitle(target))
+    setAnnounce(
+      target === 0
+        ? C.announceClosed
+        : target === RECEIPT
+          ? stampLabel
+          : fill(C.announcePage, { n: Math.min(target, S), total: S }) + ": " + stepTitle(target),
+    )
   }
 
   /** Go to a page, stopping at the first question that still needs an answer. */
@@ -1193,7 +1374,7 @@ export default function WireboundInquiry({
       if (blocked > -1 && blocked + 1 < t) {
         t = blocked + 1
         const q = questions[blocked]
-        setQErrors((e) => ({ ...e, [q.id]: q.multiple ? "Circle at least one to carry on." : "Circle one to carry on." }))
+        setQErrors((e) => ({ ...e, [q.id]: q.multiple ? C.errorPickAny : C.errorPickOne }))
       }
     }
     turnTo(t)
@@ -1203,7 +1384,7 @@ export default function WireboundInquiry({
     const q = questions[qi]
     const picked = answers[q.id] || []
     if (!q.optional && !picked.length) {
-      setQErrors((e) => ({ ...e, [q.id]: q.multiple ? "Circle at least one to carry on." : "Circle one to carry on." }))
+      setQErrors((e) => ({ ...e, [q.id]: q.multiple ? C.errorPickAny : C.errorPickOne }))
       return
     }
     turnTo(qi + 2)
@@ -1252,7 +1433,7 @@ export default function WireboundInquiry({
       turnTo(RECEIPT)
     } catch (err) {
       setStatus("error")
-      setSendError(err instanceof Error && err.message ? err.message : "That didn't send. Try again, or email us directly.")
+      setSendError(err instanceof Error && err.message ? err.message : C.errorSend)
     }
   }
 
@@ -1275,7 +1456,9 @@ export default function WireboundInquiry({
   // Which faces take input: the page on top on the right, and the summary on top on the left.
   const frontActive = (i: number) => i === turned
   const backActive = (i: number) => spread && i === turned - 1
-  const inert = (on: boolean) => (on ? {} : { inert: "", "aria-hidden": true }) as {}
+  // Faces that are not on top: marked here, made inert (and hidden from assistive tech) in an effect,
+  // because React 18 and 19 disagree about the inert attribute.
+  const inert = (on: boolean) => ({ "data-inert": on ? undefined : "" }) as {}
 
   const lightVars: { [k: string]: string } = {}
   const darkVars: { [k: string]: string } = {}
@@ -1289,6 +1472,7 @@ export default function WireboundInquiry({
     "--wbi-sans": textFont || SANS,
     "--wbi-display": displayFont || DISPLAY,
     "--wbi-mono": monoFont || MONO,
+    "--wbi-hand": handFont || HAND,
     "--wbi-fibre": grain ? grain.fibre : "none",
     "--wbi-grain": grain ? grain.grain : "none",
     "--text-w": L.textW + "px",
@@ -1343,11 +1527,9 @@ export default function WireboundInquiry({
         <button {...common} data-side="r" style={{ left: pageW - 1, top: tabTop(j), width: tab, height: tabH - 3 }}>
           <span>{label}</span>
         </button>
-        {spread ? (
-          <button {...common} tabIndex={-1} aria-hidden data-side="l" style={{ left: pageW - 1, top: tabTop(j), width: tab, height: tabH - 3 }}>
-            <span>{label}</span>
-          </button>
-        ) : null}
+        <button {...common} tabIndex={-1} aria-hidden data-side="l" style={{ left: pageW - 1, top: tabTop(j), width: tab, height: tabH - 3 }}>
+          <span>{label}</span>
+        </button>
       </>
     )
   }
@@ -1358,9 +1540,9 @@ export default function WireboundInquiry({
         const v = (answers[q.id] || []).join(", ")
         return (
           <li key={q.id}>
-            <button type="button" className="wbi-sumrow" onClick={() => goTo(i + 1)} aria-label={"Change " + q.tab + ": " + (v || "skipped")}>
+            <button type="button" className="wbi-sumrow" onClick={() => goTo(i + 1)} aria-label={q.tab + ": " + (v || C.skipped)}>
               <span className="wbi-sk">{q.tab}</span>
-              <span className={"wbi-sv" + (v ? "" : " wbi-empty")}>{v || "skipped"}</span>
+              <span className={"wbi-sv" + (v ? "" : " wbi-empty")}>{v || C.skipped}</span>
             </button>
           </li>
         )
@@ -1443,13 +1625,13 @@ export default function WireboundInquiry({
       >
         {email ? (
           <div className="wbi-cover-line">
-            <span className="wbi-cl">Write to</span>
+            <span className="wbi-cl">{C.writeTo}</span>
             <a href={"mailto:" + email}>{email}</a>
           </div>
         ) : null}
         {socials.length ? (
           <div className="wbi-cover-line">
-            <span className="wbi-cl">Find us</span>
+            <span className="wbi-cl">{C.findUs}</span>
             {socials.map((s) => (
               <a key={s.label} href={s.href} target="_blank" rel="noreferrer">
                 {s.label}
@@ -1459,7 +1641,7 @@ export default function WireboundInquiry({
         ) : null}
       </div>
       <div className="wbi-cover-foot" style={{ left: coverPad + 14, right: coverPad, bottom: Math.round(coverPad * 0.9) }}>
-        Replies within {replyTime}
+        {fill(C.repliesWithin, { time: replyTime })}
       </div>
       <span className="wbi-shade" />
     </div>
@@ -1470,15 +1652,13 @@ export default function WireboundInquiry({
       {holes("b")}
       <div className="wbi-page" style={{ ...pageBox("b"), top: Math.round(coverPad * 1.2), color: "var(--coverText)" }}>
         <p className="wbi-sumhead" style={{ color: "inherit", opacity: 0.8 }}>
-          Before you start
+          {C.beforeYouStart}
         </p>
         <p className="wbi-note" style={{ marginBottom: rule * 0.5 }}>
           {typeof insideNote === "function"
             ? insideNote(S)
             : insideNote ?? (
-                <>
-                  {S} pages, about two minutes. {reader} reads every brief and replies within {replyTime}.
-                </>
+fill(C.pages, { total: S, reader, time: replyTime, studio })
               )}
         </p>
         <ol className="wbi-toc">
@@ -1516,7 +1696,7 @@ export default function WireboundInquiry({
           <span>
             {sheetIndex} / {S}
           </span>
-          <span>{q.optional ? "optional" : q.multiple ? "circle any" : "circle one"}</span>
+          <span>{q.optional ? C.optional : q.multiple ? C.pickAny : C.pickOne}</span>
         </div>
         <form
           className="wbi-page"
@@ -1565,7 +1745,7 @@ export default function WireboundInquiry({
               &larr; {backLabel}
             </button>
             <button type="submit" className="wbi-next">
-              {q.optional && !picked.length ? "Skip" : nextLabel}
+              {q.optional && !picked.length ? C.skip : nextLabel}
               <span className="wbi-arrow" aria-hidden>
                 &rarr;
               </span>
@@ -1582,10 +1762,10 @@ export default function WireboundInquiry({
       {holes("b")}
       <span className="wbi-marginline" style={{ right: marginX }} />
       <div className="wbi-meta" style={pageBox("b")}>
-        <span>{withDetails ? "Your brief" : "Your brief so far"}</span>
+        <span>{withDetails ? C.yourBrief : C.yourBriefSoFar}</span>
       </div>
       <div className="wbi-page" style={pageBox("b")}>
-        <p className="wbi-sumhead">{withDetails ? "Sent to " + studio : "Tap a line to change it"}</p>
+        <p className="wbi-sumhead">{withDetails ? fill(C.sentTo, { studio }) : C.tapToChange}</p>
         {summaryRows(upto, withDetails)}
         {withDetails && message.trim() ? (
           <p className="wbi-note" style={{ color: "var(--pen)", marginTop: rule * 0.5, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -1594,7 +1774,7 @@ export default function WireboundInquiry({
         ) : null}
         {email && !withDetails ? (
           <p className="wbi-note" style={{ marginTop: "auto", paddingBottom: rule * 0.6, fontSize: 13 }}>
-            Rather talk?{" "}
+            {C.ratherTalk}{" "}
             <a href={"mailto:" + email} style={{ color: "var(--pen)", fontWeight: 700 }}>
               {email}
             </a>
@@ -1614,7 +1794,7 @@ export default function WireboundInquiry({
         <span>
           {S} / {S}
         </span>
-        <span>last page</span>
+        <span>{C.lastPage}</span>
       </div>
       <form
         className="wbi-page"
@@ -1670,7 +1850,7 @@ export default function WireboundInquiry({
           <div className="wbi-field">
             <label htmlFor={uid + "-msg"}>{messageLabel}</label>
             <span className="wbi-hint" style={{ fontSize: 12, opacity: 0.9 }} aria-hidden>
-              {requireMessage ? "" : "optional"}
+              {requireMessage ? "" : C.optional}
             </span>
           </div>
           <textarea
@@ -1697,7 +1877,10 @@ export default function WireboundInquiry({
           {fErrors.name || fErrors.email || fErrors.message || (status === "error" ? sendError : "") ? (
             <>
               <span aria-hidden>!</span>
-              {fErrors.name || fErrors.email || fErrors.message || sendError}
+              {(() => {
+                const key = fErrors.name || fErrors.email || fErrors.message
+                return key ? (C as { [k: string]: string })[key] || key : sendError
+              })()}
             </>
           ) : null}
         </p>
@@ -1737,11 +1920,11 @@ export default function WireboundInquiry({
       <span className="wbi-marginline" style={{ left: marginX }} />
       <div className="wbi-meta" style={pageBox("f")}>
         <span>{reference ? "Ref. " + reference : studio}</span>
-        <span>filed</span>
+        <span>{C.filed}</span>
       </div>
       <div className="wbi-page" style={pageBox("f")}>
         <h3 className="wbi-q" tabIndex={-1} data-focus>
-          {firstName(name) ? "Thanks, " + firstName(name) + "." : "Thanks."}
+          {firstName(name) ? fill(C.thanksName, { name: firstName(name) }) : C.thanks}
         </h3>
         <div className="wbi-stamp" aria-hidden>
           <b>{stampLabel}</b>
@@ -1759,7 +1942,7 @@ export default function WireboundInquiry({
         {nextSteps.length ? (
           <>
             <p className="wbi-sumhead" style={{ marginTop: rule * 0.5 }}>
-              What happens next
+              {C.whatHappensNext}
             </p>
             <ol className="wbi-toc">
               {nextSteps.map((n, i) => (
@@ -1818,36 +2001,42 @@ export default function WireboundInquiry({
     >
       <style>{CSS_VARS + CSS}</style>
       <div className="wbi-inner">
-        <div className="wbi-intro">
-          {kicker ? <p className="wbi-kicker">{kicker}</p> : null}
-          <h2 className="wbi-headline">{headline}</h2>
-          {intro ? <p className="wbi-intro-copy">{intro}</p> : null}
-          <div className="wbi-direct">
-            {email ? (
-              <div>
-                <span className="wbi-label">{emailLabel}</span>
-                <a className="wbi-mark wbi-email" href={"mailto:" + email}>
-                  {email}
-                </a>
-              </div>
-            ) : null}
-            {socials.length && L.mode === "wide" ? (
-              <div>
-                <span className="wbi-label">{socialsLabel}</span>
-                <ul className="wbi-socials">
-                  {socials.map((s) => (
-                    <li key={s.label}>
-                      <a className="wbi-mark" href={s.href} target="_blank" rel="noreferrer">
-                        {s.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {availability ? <p className="wbi-avail" style={{ margin: 0 }}>{availability}</p> : null}
+        {withIntro ? (
+          <div className="wbi-intro">
+            {kicker ? <p className="wbi-kicker">{kicker}</p> : null}
+            <h2 className="wbi-headline">{headline}</h2>
+            {intro ? <p className="wbi-intro-copy">{intro}</p> : null}
+            <div className="wbi-direct">
+              {email ? (
+                <div className="wbi-direct-links">
+                  <span className="wbi-label">{emailLabel}</span>
+                  <a className="wbi-mark wbi-email" href={"mailto:" + email}>
+                    {email}
+                  </a>
+                </div>
+              ) : null}
+              {socials.length ? (
+                <div className="wbi-direct-links">
+                  <span className="wbi-label">{socialsLabel}</span>
+                  <ul className="wbi-socials">
+                    {socials.map((s) => (
+                      <li key={s.label}>
+                        <a className="wbi-mark" href={s.href} target="_blank" rel="noreferrer">
+                          {s.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {availability ? (
+                <p className="wbi-avail" style={{ margin: 0 }}>
+                  {availability}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="wbi-stage" style={{ height: pageH + 40 }}>
           <div
@@ -1923,6 +2112,20 @@ export default function WireboundInquiry({
             </svg>
           </div>
         </div>
+          {withIntro && notes.length ? (
+            <div className="wbi-notes">
+              {notes.slice(0, 2).map((n, i) => (
+                <figure key={i} className="wbi-slip" style={{ transform: "rotate(" + (i % 2 ? 1.8 : -2.2) + "deg)" }}>
+                  <span className="wbi-tape" aria-hidden />
+                  <blockquote>{n.quote}</blockquote>
+                  <figcaption>
+                    <b>{n.name}</b>
+                    {n.role ? <span>{n.role}</span> : null}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : null}
       </div>
       <p className="wbi-sr" aria-live="polite">
         {announce}
@@ -1932,3 +2135,4 @@ export default function WireboundInquiry({
 }
 
 export type WireboundPaletteInput = Partial<WireboundPalette>
+export type WireboundCopyInput = Partial<WireboundCopy>
