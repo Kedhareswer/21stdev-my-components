@@ -75,3 +75,21 @@ perks and under the highway sign; (5) muted text fell to 3.6:1 in the programme 
 bullets lacked a hanging indent; (9) the coast preset was the same motel recoloured; (10) the
 M read as a lowercase m and the dark-mode extrusion disappeared; (11) the newsletter was the
 last plain SaaS card.
+
+## Critic round 3 (new subagent): REDO, average 7.83
+
+| usability | idea | craft | originality | install-safety | template |
+|---|---|---|---|---|---|
+| 8 | 8 | 7 | 7 | 9 | 8 |
+
+Banned looks: passes. Asked for: (1) the key fob covered the check-out calendar button and
+clipped its own text; (2) the M still read as a lowercase m, and R had a kink; (3) no sun at
+sunrise, and the noon sun clipped by the frame; (4) the dial label disagreed with the programme
+(RIPOSO while Aperitivo was on); (5) the coast demo leaked Palm Springs perks and a desert
+casita; (6) the same motel composition three times (hero, programme window, footer);
+(7) a fuller wordmark footer with a real grid; (8) dead space under the registration card;
+(9) a duplicate doc comment and a mixed display font stack.
+
+Three rounds are the limit, so the piece moves to `claude/review-paloma-hotel-landing` for the
+owner. Every change from this round was still made and pushed there (see the commit after
+this log).
