@@ -94,13 +94,14 @@ assert.deepEqual(m.coverLines("NORTH\nFOLD\nSTUDIO\nEXTRA", 3), ["NORTH", "FOLD"
 assert.deepEqual(m.coverLines(["ODDFELLOW", "AUDIO"], 3), ["ODDFELLOW", "AUDIO"])
 assert.deepEqual(m.coverLines("KILN", 3), ["KILN"])
 
-// Fitting: condensed by default, squeezed to the cover, then shrunk rather than over-squeezed.
-assert.deepEqual(m.fitLine(200, 400, 80), { scale: 0.74, size: 80 })
-assert.equal(m.fitLine(800, 400, 80).scale, 0.5)
-const tight = m.fitLine(2000, 400, 80)
+// Fitting: one scale for all lines, set by the longest; never wider than the face, shrunk past 0.46.
+assert.deepEqual(m.fitTitle([200, 120], 400, 80), { scale: 1, size: 80 }, "short names are not stretched")
+assert.deepEqual(m.fitTitle([800, 500], 400, 80), { scale: 0.5, size: 80 })
+const tight = m.fitTitle([2000], 400, 80)
 assert.equal(tight.scale, 0.46)
 assert.ok(tight.size < 80 && Math.abs(2000 * (tight.size / 80) * tight.scale - 400) < 1, "a long line still ends at the cover edge")
-assert.deepEqual(m.fitLine(0, 400, 80), { scale: 0.74, size: 80 }, "unmeasured lines fall back to the condensed default")
+assert.deepEqual(m.fitTitle([0, 0], 400, 80), { scale: 0.74, size: 80 }, "unmeasured lines fall back to a condensed default")
+assert.deepEqual(m.fitTitle([], 400, 80), { scale: 0.74, size: 80 })
 // #endregion
 
 // A root that inherits its height renders here and collapses once installed.

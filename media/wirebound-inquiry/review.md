@@ -61,3 +61,24 @@ Changes asked, most important first, and what was done:
    is narrower, so the closed book is about 470 × 640 at 1440 × 900.
 9. Index tabs: 11px labels and a 40px hit area.
 10. Hover peek was invisible: the cover now lifts to -26deg with a shade, showing the first page's edge.
+
+## Round 2 (fresh critic, 2026-10-15): REDO
+
+Scores: usability 8, idea 8, craft 7, originality 8, install-safety 8 (average 7.8). Banned looks: passed.
+
+Changes asked and what was done:
+1. "Done" tick overflowed the index tabs and turned into a chevron on the left: tabs are now sized
+   from their longest label, and an answered page gets a darker fill plus a pen dot (a shape, so it
+   survives the flip).
+2. Field colour showed through the binding gap in the spread: a gutter strip of paper with
+   shading into the binding now fills it while the notebook is open.
+3. The Oddfellow demo reused the design studio's testimonial: it has its own note now.
+4. README: `notes`, `layout`, `copy` (with its fills) and `handFont` added; socials row corrected.
+5. Muddy olive cover: cream print with a dark emboss; the cover title now uses one scale for all
+   lines, as wide as the longest line allows, so short names (FERN / HALL) fill the cover and long
+   ones condense evenly.
+6. Contact repeated on the phone: the copy column no longer repeats the email and socials (the
+   cover carries them); on a phone the cover labels sit above their entries so the socials stay on
+   one line.
+7. Empty space on question pages: Back / Next now follow the options, and a pen note at the foot
+   says how many pages are left ("3 pages to go", "Then just your details").

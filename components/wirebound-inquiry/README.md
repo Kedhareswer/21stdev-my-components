@@ -10,6 +10,8 @@ the brief so far, so on a wide screen the left page always shows what the visito
   required ones show an inline error and block the next page. The last page takes a name, an
   email and an optional note (`requireMessage` makes it required). `onSubmit` is async with
   pending and error states; resolve with a string to print a reference on the receipt.
+- **Index tabs** stick out of every page with a question and fit their label; answered pages get a
+  pen dot. They flip to the left edge with their page.
 - **Easy to move around.** Index tabs on the page edge jump to any page you can reach, lines on
   the summary page jump back to that question, Enter goes to the next page, focus moves to each
   new page and an `aria-live` region announces it. Pages that are not on top are `inert`.
@@ -61,8 +63,10 @@ import WireboundInquiry from "@/components/ui/wirebound-inquiry"
 | `studio` | `"Marlowe & Pike"` | Used in the copy and, uppercased, on the cover. |
 | `coverTitle` | the studio | A string (`"\n"` fixes the breaks) or an array of up to 3 lines. |
 | `kicker`, `headline`, `intro` | sample copy | The column beside the notebook. `kicker={null}` hides it. |
-| `email`, `emailLabel` | sample | Shown beside the notebook and on the cover. |
-| `socials`, `socialsLabel` | Instagram, LinkedIn, Are.na | `{ label, href }[]`. On the cover always; beside it on wide screens. |
+| `email` | sample | Written on the cover, and in the "Rather talk?" line on the summary pages. |
+| `socials` | Instagram, LinkedIn, Are.na | `{ label, href }[]`, written on the cover. |
+| `notes` | one client note | `{ quote, name, role? }[]` (up to two), taped beside the notebook. `[]` hides them. |
+| `layout` | `"section"` | `"notebook"` drops the copy column and notes, for a contact page that already has its own. |
 | `availability` | `"Booking projects from January 2027"` | `null` hides it. |
 | `reader`, `replyTime` | `"Ines Marlowe"`, `"two working days"` | Inside cover and receipt copy. |
 | `questions` | Project, Budget, Timing | `{ id, tab, title, hint?, options, multiple?, optional? }[]`. One page each. |
@@ -78,7 +82,9 @@ import WireboundInquiry from "@/components/ui/wirebound-inquiry"
 | `theme` | `"auto"` | `"auto"` follows `.dark` on an ancestor; or force `"light"` / `"dark"`. |
 | `height` | `"100svh"` | Section minimum height. Any definite CSS length. |
 | `defaultOpen` | `false` | Start on the first question. |
+| `copy` | English | Every small string: cover labels, page meta, summary headings, errors, live-region text. `{n}`, `{total}`, `{left}`, `{name}`, `{reader}`, `{studio}` and `{time}` are filled in where they apply. See `WireboundCopy` in the source for the keys. |
 | `displayFont`, `textFont`, `monoFont` | system stacks | Pass `var(--font-…)` to use your site's fonts. A heavy display face suits the cover. |
+| `handFont` | Segoe Print, Bradley Hand, Noteworthy, Ink Free, Marker Felt, then the mono stack | Pen-written text: answers, cover entries, notes. Pass a handwriting face your site already loads. |
 | `id`, `className`, `style`, `ariaLabel` | | Passed to the `<section>`. |
 
 ## Notes

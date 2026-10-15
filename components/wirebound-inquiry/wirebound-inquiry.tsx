@@ -122,6 +122,8 @@ export type WireboundCopy = {
   announcePage: string
   announceClosed: string
   pages: string
+  pagesLeft: string
+  lastQuestion: string
 }
 
 const DEFAULT_COPY: WireboundCopy = {
@@ -154,6 +156,8 @@ const DEFAULT_COPY: WireboundCopy = {
   announcePage: "Page {n} of {total}",
   announceClosed: "Notebook closed.",
   pages: "{total} pages, about two minutes. {reader} reads every brief and replies within {time}.",
+  pagesLeft: "{left} pages to go",
+  lastQuestion: "Then just your details",
 }
 
 const fill = (t: string, v: { [k: string]: string | number }) => t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m))
@@ -169,9 +173,7 @@ export type WireboundInquiryProps = {
   intro?: React.ReactNode
   /** Direct address, shown beside the notebook and on the cover. */
   email?: string
-  emailLabel?: string
   socials?: WireboundLink[]
-  socialsLabel?: string
   /** A short availability line, e.g. "Booking projects from January 2027". null hides it. */
   availability?: React.ReactNode | null
   /** Who reads the briefs. Used on the inside cover. */
@@ -308,12 +310,12 @@ const PRESETS: { [k: string]: { light: WireboundPalette; dark: WireboundPalette 
   olive: {
     light: {
       field: "#b9a8ff", text: "#17122b", muted: "rgba(23, 18, 43, 0.78)",
-      cover: "#6c7838", coverPrint: "#454e1f", coverEmboss: "rgba(240, 250, 200, 0.28)", coverText: "#f5f3e6",
+      cover: "#6c7838", coverPrint: "#f1efd9", coverEmboss: "rgba(28, 34, 8, 0.5)", coverText: "#f5f3e6",
       ...PAPER, highlight: "#fff06a", onHighlight: "#17130b", wire: "#1d1d21",
     },
     dark: {
       field: "#1a1530", text: "#ece6ff", muted: "rgba(236, 230, 255, 0.74)",
-      cover: "#64702f", coverPrint: "#3f481b", coverEmboss: "rgba(240, 250, 200, 0.24)", coverText: "#f5f3e6",
+      cover: "#64702f", coverPrint: "#e9e7d0", coverEmboss: "rgba(28, 34, 8, 0.5)", coverText: "#f5f3e6",
       ...PAPER_DARK, highlight: "#fff06a", onHighlight: "#17130b", wire: "#26262b",
     },
   },
@@ -477,11 +479,14 @@ export function coverLines(title: string | string[], max: number) {
   return best.slice(0, max)
 }
 
-/** Horizontal squeeze and size for one cover line: condensed look, never wider than the cover. */
-export function fitLine(natural: number, avail: number, size: number) {
-  const ideal = 0.74
-  if (natural <= 0) return { scale: ideal, size }
-  const scale = Math.min(ideal, avail / natural)
+/**
+ * One horizontal scale for every cover line, so the letters match from line to line: as wide as
+ * the longest line allows (never wider than the drawn face), shrunk rather than squeezed past 0.46.
+ */
+export function fitTitle(naturals: number[], avail: number, size: number) {
+  const widest = Math.max(0, ...naturals)
+  if (widest <= 0) return { scale: 0.74, size }
+  const scale = Math.min(1, avail / widest)
   if (scale >= 0.46) return { scale, size }
   return { scale: 0.46, size: (size * scale) / 0.46 }
 }
@@ -540,7 +545,6 @@ const CSS = `
 .wbi[data-mode="wide"] .wbi-stage { grid-area: stage; }
 .wbi[data-mode="wide"] .wbi-notes { grid-area: notes; align-self: start; }
 .wbi[data-mode="stacked"] .wbi-inner, .wbi[data-mode="single"] .wbi-inner { grid-template-columns: minmax(0, 1fr); gap: 36px; }
-.wbi[data-mode="wide"] .wbi-direct-links { display: none; }
 
 /* A client note taped beside the notebook */
 .wbi-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; margin-top: 8px; }
@@ -683,6 +687,15 @@ const CSS = `
   opacity: 0.55;
   pointer-events: none;
 }
+.wbi-gutter {
+  position: absolute;
+  z-index: 2;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.04) 30%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.04) 70%, rgba(0, 0, 0, 0.26)),
+    var(--paper);
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
 .wbi-edges {
   position: absolute;
   border-radius: 2px 5px 5px 2px;
@@ -764,7 +777,8 @@ const CSS = `
   padding-bottom: 5px;
   border-bottom: 2px solid var(--highlight);
 }
-.wbi-cover-line .wbi-cl { font-size: calc(11px * var(--u)); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.wbi-cover-line .wbi-cl { font-size: max(10px, calc(11px * var(--u))); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.wbi[data-mode="single"] .wbi-cover-line .wbi-cl { flex-basis: 100%; }
 .wbi-cover-line a {
   font-family: var(--wbi-hand);
   font-weight: 700;
@@ -910,6 +924,21 @@ const CSS = `
   height: calc(var(--rule) * 2);
   padding-bottom: calc(var(--rule) * 0.45);
 }
+.wbi-nav-inline { margin-top: calc(var(--rule) * 0.5); }
+.wbi-penote {
+  margin: auto 0 0;
+  padding-bottom: calc(var(--rule) * 0.55);
+  align-self: flex-end;
+  font-family: var(--wbi-hand);
+  font-size: 15px;
+  line-height: var(--rule);
+  white-space: nowrap;
+  color: var(--pen);
+  opacity: 0.85;
+  transform: rotate(-2deg);
+  transform-origin: right bottom;
+}
+.wbi-penote::before { content: "\\2192\\00a0"; }
 .wbi-backbtn {
   font-size: 14px;
   font-weight: 700;
@@ -1055,7 +1084,21 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
 .wbi-tab:hover { background: var(--highlight); }
 .wbi-tab:active { filter: brightness(0.94); }
 .wbi-tab[aria-current="step"] { background: var(--highlight); color: var(--onHighlight); }
-.wbi-tab[data-done] span::after { content: " \\2713"; }
+.wbi-tab[data-done] { background: color-mix(in srgb, var(--paper) 35%, var(--highlight) 65%); }
+.wbi-tab[data-done]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--pen);
+}
+.wbi-tab[data-side="l"][data-done]::after { bottom: auto; top: 7px; }
+.wbi-tab[data-done] span { margin-bottom: 8px; }
+.wbi-tab[data-side="l"][data-done] span { margin-bottom: 0; margin-top: 8px; }
 
 .wbi-coil { position: absolute; top: 0; overflow: visible; pointer-events: none; }
 
@@ -1152,9 +1195,7 @@ export default function WireboundInquiry({
   headline = "Start with a page, not a call.",
   intro = "Four short questions about what you're making. We read every brief ourselves and write back with a rough plan and a price range.",
   email = "hello@marlowepike.studio",
-  emailLabel = "Or write to",
   socials = DEFAULT_SOCIALS,
-  socialsLabel = "Elsewhere",
   availability = "Booking projects from January 2027",
   reader = "Ines Marlowe",
   replyTime = "two working days",
@@ -1226,7 +1267,7 @@ export default function WireboundInquiry({
   const [sendError, setSendError] = React.useState("")
   const [reference, setReference] = React.useState("")
   const [announce, setAnnounce] = React.useState("")
-  const [fit, setFit] = React.useState([] as { scale: number; size: number }[])
+  const [fit, setFit] = React.useState(null as { scale: number; size: number } | null)
 
   const C = { ...DEFAULT_COPY, ...(copy || {}) }
   const withIntro = layout !== "notebook"
@@ -1282,19 +1323,18 @@ export default function WireboundInquiry({
   const baseSize = lineBox * 1.16
   useIsoLayoutEffect(() => {
     const measure = () => {
-      const next = lines.map((_, i) => {
+      const naturals = lines.map((_, i) => {
         const el = titleRefs.current[i]
-        let natural = 0
         try {
           // Measured at whatever size is on screen now; normalise to the base size.
           const at = el ? parseFloat(el.getAttribute("font-size") || "") || baseSize : baseSize
-          natural = el ? (el.getComputedTextLength() * baseSize) / at : 0
+          return el ? (el.getComputedTextLength() * baseSize) / at : 0
         } catch {
-          natural = 0
+          return 0
         }
-        return fitLine(natural, titleW, baseSize)
       })
-      setFit((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+      const next = fitTitle(naturals, titleW, baseSize)
+      setFit((prev) => (prev && prev.scale === next.scale && prev.size === next.size ? prev : next))
     }
     measure()
     const fonts = (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts
@@ -1504,8 +1544,10 @@ export default function WireboundInquiry({
   const pageBox = (side: "f" | "b") =>
     ({ left: side === "f" ? padL : padR, right: side === "f" ? padR : padL }) as React.CSSProperties
 
-  const tabH = Math.min(70, Math.round((pageH * 0.64) / S))
-  const tabTop = (j: number) => Math.round(pageH * 0.16 + j * tabH)
+  // Tabs fit their longest label (11px caps, about 7.6px a letter, plus room for the done dot).
+  const longest = Math.max(...questions.map((q) => q.tab.length), detailsTab.length)
+  const tabH = Math.min(Math.round((pageH * 0.84) / S), Math.max(Math.round(longest * 7.6 + 34), Math.min(84, Math.round((pageH * 0.66) / S))))
+  const tabTop = (j: number) => Math.round(Math.min(pageH * 0.14, pageH - S * tabH - 12) + j * tabH)
   const doneStep = (j: number) => (j < nQ ? (answers[questions[j].id] || []).length > 0 || (!!questions[j].optional && turned > j + 1) : status === "sent")
 
   const tabs = (sheetIndex: number) => {
@@ -1583,7 +1625,7 @@ export default function WireboundInquiry({
         style={{ left: coverPad + 14, top: Math.round(coverPad * 1.1) }}
       >
         {lines.map((line, i) => {
-          const f = fit[i] || { scale: 0.74, size: baseSize }
+          const f = fit || { scale: 0.74, size: baseSize }
           const y = (i + 1) * lineBox - lineBox * 0.06
           const tr = "translate(" + titleW + " " + y.toFixed(1) + ") scale(" + f.scale.toFixed(3) + " 1)"
           return (
@@ -1740,7 +1782,7 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
               </>
             ) : null}
           </p>
-          <div className="wbi-nav">
+          <div className="wbi-nav wbi-nav-inline">
             <button type="button" className="wbi-backbtn" onClick={() => goTo(sheetIndex - 1)}>
               &larr; {backLabel}
             </button>
@@ -1751,6 +1793,9 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
               </span>
             </button>
           </div>
+          <p className="wbi-penote" aria-hidden>
+            {S - sheetIndex === 1 ? C.lastQuestion : fill(C.pagesLeft, { left: S - sheetIndex })}
+          </p>
         </form>
         <span className="wbi-shade" />
       </div>
@@ -2007,28 +2052,6 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
             <h2 className="wbi-headline">{headline}</h2>
             {intro ? <p className="wbi-intro-copy">{intro}</p> : null}
             <div className="wbi-direct">
-              {email ? (
-                <div className="wbi-direct-links">
-                  <span className="wbi-label">{emailLabel}</span>
-                  <a className="wbi-mark wbi-email" href={"mailto:" + email}>
-                    {email}
-                  </a>
-                </div>
-              ) : null}
-              {socials.length ? (
-                <div className="wbi-direct-links">
-                  <span className="wbi-label">{socialsLabel}</span>
-                  <ul className="wbi-socials">
-                    {socials.map((s) => (
-                      <li key={s.label}>
-                        <a className="wbi-mark" href={s.href} target="_blank" rel="noreferrer">
-                          {s.label}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
               {availability ? (
                 <p className="wbi-avail" style={{ margin: 0 }}>
                   {availability}
@@ -2051,6 +2074,12 @@ fill(C.pages, { total: S, reader, time: replyTime, studio })
               />
             ) : null}
             <span className="wbi-board" style={{ left: rightLeft, top: 0, width: pageW, height: pageH }} />
+            {spread ? (
+              <span
+                className="wbi-gutter"
+                style={{ left: tab + pageW - 4, top: 3, width: gap + 8, height: pageH - 6, opacity: isOpen ? 1 : 0 }}
+              />
+            ) : null}
             <span
               className="wbi-edges"
               style={{ left: rightLeft, top: 4, width: pageW - 6, height: pageH - 9, opacity: turned < RECEIPT ? 1 : 0 }}

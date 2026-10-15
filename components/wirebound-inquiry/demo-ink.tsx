@@ -15,6 +15,13 @@ export default function WireboundInquiryInkDemo() {
         { label: "Instagram", href: "https://instagram.com" },
       ]}
       availability="Two mix stages free from March"
+      notes={[
+        {
+          quote: "We sent a rough cut and three reference tracks. The plan that came back already knew which scenes needed silence.",
+          name: "Mateo Ilunga",
+          role: "Director, Low Tide (2026)",
+        },
+      ]}
       reader="Ruth Okafor"
       replyTime="one working day"
       questions={[
