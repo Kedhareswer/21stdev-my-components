@@ -82,3 +82,35 @@ Changes made:
   make room.
 - Type voice: the title is set condensed uppercase in the word stack, and the stories in a
   book-serif stack (`storyFont`), echoing the reference's printed captions.
+
+## Round 3 (fresh critic): REDO, final round
+
+Scores: usability 8, idea 8, craft 7, originality 7, install-safety 9 (average 7.8, under the 8
+needed to SHIP). Not a SCRAP: no Banned look, a clear real job, a strong poster frame on every
+stat.
+Findings, most important first: the figure's baseline drifted between stats (the column was
+centred around the label and CTA); mid-roll stills read as shards (0.3em gaps, +3 digit jumps,
+symbol cells blank mid-step, a stray stem from the old figure); the two backdrop words
+cross-faded into each other; the backdrop word was squeezed with `scaleX(.72)`; the title left a
+one-word last line; click-mode Next was disabled on the last stat while autoplay wrapped; dead
+band on phones between the story and the word; the "1" flag outside the phone gutter.
+
+Changes made after round 3 (the brief allows three critic rounds, so these were not re-scored):
+- The figure sits in a fixed box `numberSize` tall at a fixed top, bottom-aligned; the label,
+  CTA and story only grow downward, so the baseline never moves between stats.
+- The roll is a wheel: digits spin through the ones before them in order (t−3, t−2, t−1, t),
+  slots 1.2em apart, and each cell fades passing digits over 0.16em at its top and bottom
+  edges (a mask that sits outside the cell, so a landed glyph is fully opaque and its
+  neighbours are out of sight; asserted in the test). Symbols rise into place while their
+  neighbours spin, so no cell is ever blank. The old figure leaves in 120 ms.
+- Backdrop words no longer cross: the old one is gone in 110 ms and the new one starts at
+  140 ms. Squeeze reduced to `scaleX(.88)` with tighter tracking.
+- `text-wrap: balance` on the title. Click mode's prev / next and arrow keys wrap like its
+  autoplay (and a wrap still rolls in the step's direction).
+- Phones: figure 88cqw wide at most, the stack spaced against the backdrop word, the word
+  fitted inside the gutters.
+
+## Verdict
+
+REDO after three rounds (7.8). The piece stays on GitHub on `claude/review-odometer-stage-stats`
+for the owner to judge.

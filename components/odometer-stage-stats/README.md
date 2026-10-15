@@ -16,14 +16,16 @@ an annual-report or impact page.
   stretch of scroll is one stat. The segment bar along the bottom fills with your scroll,
   and clicking a segment (or the arrows, or ↑/↓/←/→/Home/End while focus is in the section)
   scrolls you to that stat. Works inside any scrolling element, not only the window.
-- **`mode="click"`**: a fixed-height band with prev / next, the segment bar, and autoplay
-  that pauses on hover, keyboard focus, a hidden tab and the pause button.
+- **`mode="click"`**: a fixed-height band with prev / next (they wrap, like the autoplay),
+  the segment bar, and autoplay that pauses on hover, keyboard focus, a hidden tab and the
+  pause button.
 - The numerals are drawn as SVG by the component (`0–9 . , % + − × / $ € £ ¥ ₹ K M B`): a
   heavy compressed poster figure with slit counters, the same shape on every OS with no
   web font. `x` becomes `×`, `k`/`m`/`b` become `K`/`M`/`B`. Any other character falls
   back to the UI font. A test samples every stroke so no glyph is clipped at its sides.
 - The figure is as tall as `numberSize` allows and shrinks to fit the width, so `$2.4B`
-  and `1` both fill the stage without clipping.
+  and `1` both fill the stage without clipping. Its baseline is pinned: the label, CTA and
+  story grow downward, so nothing jumps between stats.
 - The backdrop word is a darker shade of the field, compressed and fitted to the stage
   width, so it reads as one condensed word on any font and never stops mid-letter.
 - Frame one is finished: the first stat is fully on stage, never a 0 counting up.

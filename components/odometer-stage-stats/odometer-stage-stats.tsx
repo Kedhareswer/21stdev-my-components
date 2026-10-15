@@ -247,7 +247,8 @@ export function pad2(n: number): string {
 }
 
 /**
- * The digits a cell spins through before it lands on its own. Digits pass
+ * The digits a cell spins through before it lands on its own: the two or
+ * three before it, in order, like a counter wheel. Digits pass
  * two or three neighbours (longer for cells further right, so the figure
  * settles left to right); anything else just slides in.
  */
@@ -256,7 +257,7 @@ export function rollStrip(target: string, position: number): string[] {
   const t = Number(target)
   const spins = 2 + (position % 2)
   const out: string[] = []
-  for (let k = spins; k >= 1; k--) out.push(String((t + k * 3) % 10))
+  for (let k = spins; k >= 1; k--) out.push(String((t - k + 10) % 10))
   out.push(target)
   return out
 }
@@ -299,14 +300,13 @@ function GlyphSvg({ ch }: { ch: string }) {
 
 type Phase = "from" | "to" | "out"
 
-const PITCH = 1.3
+const PITCH = 1.2
 
 function Figure({
   value,
   phase,
   dir,
   order,
-  maxSize,
 }: {
   value: string
   phase: Phase
@@ -314,7 +314,6 @@ function Figure({
   dir: 1 | -1
   /** Which way the figure was stacked when it came in (it keeps that stack on the way out). */
   order: 1 | -1
-  maxSize: string
 }) {
   const chars = parseValue(value)
   const em = figureEm(chars)
@@ -324,7 +323,7 @@ function Figure({
       className="ost-figure"
       data-phase={phase}
       data-dir={dir === 1 ? "up" : "down"}
-      style={{ fontSize: "min(" + maxSize + ", " + fit + ")" }}
+      style={{ fontSize: "min(var(--ost-figmax), " + fit + ")" }}
       aria-hidden="true"
     >
       {chars.map((ch, i) => {
@@ -332,13 +331,17 @@ function Figure({
         const ordered = order === 1 ? strip : strip.slice().reverse()
         const len = ordered.length
         const target = order === 1 ? len - 1 : 0
-        // Slots are PITCH tall (the glyph plus a gap, so a digit that is nearly home never shows
-        // its neighbour's edge). Up: the strip starts one slot below and travels until its last
-        // glyph is in the cell. Down: it starts above and travels until its first glyph is.
-        const start = order === 1 ? PITCH : -PITCH * len
+        // Symbols (% $ K . …) do not spin: they rise a hair into place while their neighbours
+        // roll, so no cell is ever empty mid-step.
+        const sym = len === 1
+        // Digits sit PITCH apart like numbers on a wheel; the 0.2em gap is just wider than the
+        // cells' 0.16em edge fade, so a landed digit's neighbours are fully out of sight. Up: the strip starts one slot below and
+        // travels until its last glyph is in the cell. Down: it starts above and travels until
+        // its first glyph is.
+        const start = sym ? 0.14 * (order === 1 ? 1 : -1) : order === 1 ? PITCH : -PITCH * len
         const end = -PITCH * target
-        // Leaving, the landed glyph carries on one more slot in the step's direction.
-        const y = phase === "from" ? start : phase === "to" ? end : end + (dir === 1 ? -PITCH : PITCH)
+        // Leaving, the landed glyph carries on part of a slot in the step's direction and fades.
+        const y = phase === "from" ? start : phase === "to" ? end : end + (dir === 1 ? -0.5 : 0.5)
         return (
           <span
             key={i}
@@ -348,10 +351,11 @@ function Figure({
           >
             <span
               className="ost-strip"
+              data-sym={sym ? "" : undefined}
               style={{
                 transform: "translate3d(0," + y + "em,0)",
                 // The new figure waits for the old one to clear its cells, then lands left to right.
-                transitionDelay: (phase === "out" ? i * 20 : 40 + i * 50) + "ms",
+                transitionDelay: (phase === "out" ? i * 10 : 40 + i * 50) + "ms",
               }}
             >
               {ordered.map((g, k) => (
@@ -415,11 +419,11 @@ const css = `
 .ost-stage { position: relative; width: 100%; overflow: hidden; background-color: var(--ost-field-now); color: var(--ost-ink); container-type: size; font-family: var(--ost-ui); transition: background-color 400ms ease; }
 .ost[data-mode="scroll"] .ost-stage { position: sticky; }
 .ost-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.38; mix-blend-mode: soft-light; background-size: 220px 220px; }
-.ost-word { position: absolute; left: clamp(12px, 2.4cqw, 40px); bottom: 0; margin: 0; font-family: var(--ost-word); font-weight: 900; font-stretch: condensed; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.74; font-size: min(clamp(88px, 24cqw, 420px), calc((100cqw - 32px) / (var(--ost-chars, 6) * 0.47))); white-space: nowrap; color: rgba(0, 0, 0, 0.16); color: var(--ost-ghost, color-mix(in srgb, var(--ost-field-now) 80%, #000)); transform-origin: 0 100%; transform: translate3d(0, 9%, 0) scaleX(0.72); pointer-events: none; user-select: none; transition: opacity 420ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
-.ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0) scaleX(0.72); transition: none; }
-.ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -18%, 0) scaleX(0.72); transition-duration: 220ms; }
+.ost-word { position: absolute; left: clamp(12px, 2.4cqw, 40px); bottom: 0; margin: 0; font-family: var(--ost-word); font-weight: 900; font-stretch: condensed; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.74; font-size: min(clamp(88px, 22cqw, 400px), calc((100cqw - 32px) / (var(--ost-chars, 6) * 0.58))); white-space: nowrap; color: rgba(0, 0, 0, 0.16); color: var(--ost-ghost, color-mix(in srgb, var(--ost-field-now) 80%, #000)); transform-origin: 0 100%; transform: translate3d(0, 9%, 0) scaleX(0.88); pointer-events: none; user-select: none; transition: opacity 420ms cubic-bezier(0.23, 1, 0.32, 1) 140ms, transform 620ms cubic-bezier(0.23, 1, 0.32, 1) 140ms; }
+.ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0) scaleX(0.88); transition: none; }
+.ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -10%, 0) scaleX(0.88); transition: opacity 110ms ease, transform 110ms ease; }
 .ost-top { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: clamp(18px, 2.6cqw, 36px) clamp(18px, 3cqw, 48px); }
-.ost-title { margin: 0; font-family: var(--ost-word); font-size: 17px; line-height: 1.15; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; max-width: 44ch; }
+.ost-title { margin: 0; font-family: var(--ost-word); font-size: 17px; line-height: 1.15; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; max-width: 44ch; text-wrap: balance; }
 .ost-nav { display: flex; align-items: center; gap: 10px; }
 .ost-count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; margin-right: 6px; white-space: nowrap; }
 .ost-count span { opacity: 0.7; }
@@ -433,18 +437,20 @@ const css = `
 .ost[data-mode="click"] .ost-btn[data-dir="next"]:hover:not(:disabled) svg { transform: translateX(2px); }
 .ost[data-mode="click"] .ost-btn[data-dir="prev"]:hover:not(:disabled) svg { transform: translateX(-2px); }
 .ost-btn:focus-visible, .ost-seg:focus-visible, .ost-cta:focus-visible { outline: 2px solid var(--ost-ink); outline-offset: 3px; }
-.ost-center { position: absolute; z-index: 1; left: 0; right: 0; top: clamp(64px, 11cqh, 112px); bottom: clamp(56px, 10cqh, 104px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 clamp(16px, 3cqw, 48px); pointer-events: none; }
+.ost-center { --ost-ctop: clamp(64px, 11cqh, 112px); --ost-cbot: clamp(56px, 10cqh, 104px); --ost-below: 96px; position: absolute; z-index: 1; left: 0; right: 0; top: var(--ost-ctop); bottom: var(--ost-cbot); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; padding: 0 clamp(16px, 3cqw, 48px); pointer-events: none; }
 .ost-center > * { pointer-events: auto; }
-.ost-figwrap { display: grid; justify-items: center; align-items: end; }
+.ost-figwrap { display: grid; justify-items: center; align-items: end; flex: none; height: var(--ost-figmax); margin-top: max(0px, calc((100cqh - var(--ost-ctop) - var(--ost-cbot) - var(--ost-figmax) - var(--ost-below)) / 2)); }
 .ost-figwrap > * { grid-area: 1 / 1; }
 .ost-figure { display: inline-flex; align-items: flex-start; line-height: 1; height: 1em; color: var(--ost-ink); }
-.ost-cell { position: relative; display: block; flex: none; height: 1em; clip-path: inset(0 -0.12em); }
-.ost-cell[data-tail] { clip-path: inset(0 -0.12em -0.2em -0.12em); }
+.ost-cell { position: relative; display: block; flex: none; height: 1em; clip-path: inset(-0.16em -0.12em); -webkit-mask-image: linear-gradient(transparent, #000 0.16em, #000 calc(100% - 0.16em), transparent); mask-image: linear-gradient(transparent, #000 0.16em, #000 calc(100% - 0.16em), transparent); -webkit-mask-size: 100% calc(100% + 0.32em); mask-size: 100% calc(100% + 0.32em); -webkit-mask-position: 0 -0.16em; mask-position: 0 -0.16em; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.ost-cell[data-tail] { clip-path: inset(-0.16em -0.12em -0.24em -0.12em); -webkit-mask-size: 100% calc(100% + 0.4em); mask-size: 100% calc(100% + 0.4em); }
 .ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 850ms; transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 .ost-figure[data-phase="from"] .ost-strip { transition: none; }
-.ost-figure[data-phase="out"] .ost-strip { opacity: 0; transition-property: transform, opacity; transition-duration: 220ms, 160ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1), ease; }
+.ost-strip[data-sym] { transition-property: transform, opacity; transition-duration: 420ms, 300ms; }
+.ost-figure[data-phase="from"] .ost-strip[data-sym] { opacity: 0; }
+.ost-figure[data-phase="out"] .ost-strip { opacity: 0; transition-property: transform, opacity; transition-duration: 120ms, 100ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1), ease; }
 .ost-figure[data-phase="out"] .ost-slot:not([data-target]) { visibility: hidden; }
-.ost-slot { display: flex; justify-content: center; height: 1.3em; }
+.ost-slot { display: flex; justify-content: center; height: 1.2em; }
 .ost-glyph { display: block; flex: none; overflow: hidden; }
 .ost-fallback { display: block; height: 1em; font-size: 1em; line-height: 1; font-weight: 800; font-family: var(--ost-ui); letter-spacing: -0.04em; }
 .ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease 120ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 120ms, filter 380ms ease 120ms; }
@@ -486,21 +492,21 @@ const narrowCss = `
   .ost-story { width: min(300px, 28cqw); }
 }
 @container (max-width: 760px) {
-  .ost-center { top: 72px; bottom: clamp(118px, 31cqw, 170px); --ost-fitw: 92cqw; --ost-nh: 34cqh; }
+  .ost-center { --ost-ctop: 72px; --ost-cbot: clamp(118px, 31cqw, 170px); --ost-below: 210px; --ost-fitw: 88cqw; --ost-nh: 34cqh; }
   .ost-label { max-width: 30ch; }
   .ost-stories { display: grid; width: 100%; max-width: 46ch; margin-top: clamp(16px, 3cqh, 28px); }
   .ost-stories > .ost-story { grid-area: 1 / 1; position: static; width: auto; font-size: 15.5px; }
   .ost-story[data-state="from"], .ost-story[data-state="out"] { transform: translateY(8px) !important; }
-  .ost-word { bottom: 44px; font-size: min(30cqw, calc((100cqw - 24px) / (var(--ost-chars, 6) * 0.47))); transform: scaleX(0.72); }
-  .ost-word[data-state="from"] { transform: translate3d(0, 24%, 0) scaleX(0.72); }
-  .ost-word[data-state="out"] { transform: translate3d(0, -12%, 0) scaleX(0.72); }
+  .ost-word { bottom: 44px; font-size: min(30cqw, calc((100cqw - 44px) / (var(--ost-chars, 6) * 0.62))); transform: scaleX(0.88); }
+  .ost-word[data-state="from"] { transform: translate3d(0, 24%, 0) scaleX(0.88); }
+  .ost-word[data-state="out"] { transform: translate3d(0, -8%, 0) scaleX(0.88); }
   .ost-title { font-size: 14px; max-width: 24ch; }
   .ost-count { display: none; }
   .ost-btn { width: 40px; height: 40px; }
 }
 @container (max-height: 620px) {
   .ost-stories { display: none; }
-  .ost-center { bottom: clamp(56px, 10cqh, 104px); }
+  .ost-center { --ost-cbot: clamp(56px, 10cqh, 104px); --ost-below: 96px; }
 }
 `
 
@@ -561,10 +567,13 @@ export default function OdometerStageStats({
   React.useEffect(() => {
     // Compare against what is on stage, so a re-run (Strict Mode) never rolls or announces twice.
     if (shownRef.current === index) return
+    const forcedDir = stepDirRef.current
+    stepDirRef.current = 0
     shownRef.current = index
     setView((v) => {
       if (v.cur === index) return v
-      const dir: 1 | -1 = index > v.cur ? 1 : -1
+      const forced = forcedDir
+      const dir: 1 | -1 = forced ? (forced > 0 ? 1 : -1) : index > v.cur ? 1 : -1
       return { cur: index, prev: v.cur, dir, prevDir: v.dir, phase: reduced ? "to" : "from", key: v.key + 1 }
     })
     setAnnounce("Stat " + (index + 1) + " of " + n + ": " + spoken(list[index] || list[0]))
@@ -625,9 +634,14 @@ export default function OdometerStageStats({
     }
   }, [mode, n, stickyTop])
 
+  // Which way the next step should roll when it is not simply "higher index = up" (a wrap).
+  const stepDirRef = React.useRef(0)
+
   const go = React.useCallback(
     (to: number) => {
-      const i = Math.max(0, Math.min(n - 1, to))
+      // Click mode wraps, like its autoplay; scroll mode stops at the ends of the section.
+      const i = mode === "click" ? wrap(to, n) : Math.max(0, Math.min(n - 1, to))
+      if (mode === "click" && i !== to) stepDirRef.current = to > i ? 1 : -1
       if (mode === "scroll") {
         const a = anchorsRef.current[i]
         if (a) {
@@ -649,7 +663,10 @@ export default function OdometerStageStats({
     if (!autoplayOn || !playing || held) return
     const t = window.setTimeout(() => {
       if (document.visibilityState === "hidden") return
-      setIndex((i) => wrap(i + 1, n))
+      setIndex((i) => {
+        if (i === n - 1) stepDirRef.current = 1
+        return wrap(i + 1, n)
+      })
     }, autoplay)
     return () => window.clearTimeout(t)
   }, [autoplayOn, playing, held, autoplay, index, n])
@@ -662,12 +679,12 @@ export default function OdometerStageStats({
     const t = e.target as HTMLElement
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return
     if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") {
-      if (index < n - 1) {
+      if (index < n - 1 || mode === "click") {
         e.preventDefault()
         go(index + 1)
       }
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
-      if (index > 0) {
+      if (index > 0 || mode === "click") {
         e.preventDefault()
         go(index - 1)
       }
@@ -772,7 +789,7 @@ export default function OdometerStageStats({
               className="ost-btn"
               data-dir="prev"
               onClick={() => go(index - 1)}
-              disabled={index <= 0}
+              disabled={mode === "scroll" && index <= 0}
               aria-label="Previous stat"
             >
               <Arrow dir="prev" axis={mode === "scroll" ? "y" : "x"} />
@@ -782,7 +799,7 @@ export default function OdometerStageStats({
               className="ost-btn"
               data-dir="next"
               onClick={() => go(index + 1)}
-              disabled={index >= n - 1}
+              disabled={mode === "scroll" && index >= n - 1}
               aria-label="Next stat"
             >
               <Arrow dir="next" axis={mode === "scroll" ? "y" : "x"} />
@@ -790,12 +807,13 @@ export default function OdometerStageStats({
           </div>
         </div>
 
-        <div className="ost-center">
+        {/* The size cap is declared here, not on the root, so the phone layout's --ost-nh applies to it. */}
+        <div className="ost-center" style={{ ["--ost-figmax" as string]: numberSize } as React.CSSProperties}>
           <div className="ost-figwrap">
             {prev ? (
-              <Figure key={"n" + (view.key - 1)} value={prev.value} phase="out" dir={view.dir} order={view.prevDir} maxSize={numberSize} />
+              <Figure key={"n" + (view.key - 1)} value={prev.value} phase="out" dir={view.dir} order={view.prevDir} />
             ) : null}
-            <Figure key={"n" + view.key} value={cur.value} phase={enter} dir={view.dir} order={view.dir} maxSize={numberSize} />
+            <Figure key={"n" + view.key} value={cur.value} phase={enter} dir={view.dir} order={view.dir} />
           </div>
           <p key={"l" + view.key} className="ost-label" data-state={enter} aria-hidden="true">
             {cur.label}

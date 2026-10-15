@@ -55,13 +55,15 @@ assert.equal(m.progressWithin(1, 4), 1)
 // Jumping to a stat lands inside its own stretch, never on a boundary.
 for (const n of [1, 2, 3, 4, 7]) for (let i = 0; i < n; i++) assert.equal(m.stepFromProgress(m.anchorFraction(i, n), n), i, `anchor ${i}/${n}`)
 
-// The roll: digits spin through others and land on themselves; symbols just slide in.
+// The roll: digits spin through the ones before them, in order, and land on themselves;
+// symbols do not spin.
 for (let d = 0; d < 10; d++) {
   for (const pos of [0, 1, 2]) {
     const s = m.rollStrip(String(d), pos)
     assert.equal(s[s.length - 1], String(d))
     assert.ok(s.length >= 3, "a digit must spin")
     assert.ok(s.slice(0, -1).every((x) => x !== String(d)), "no spin digit repeats the target")
+    for (let k = 1; k < s.length; k++) assert.equal((Number(s[k - 1]) + 1) % 10, Number(s[k]), "consecutive, like a wheel")
   }
 }
 assert.deepEqual(m.rollStrip("%", 0), ["%"])
@@ -184,7 +186,13 @@ assert.ok(/width=\{g\.w\}/.test(src) && /height=\{240\}/.test(src), "numerals ne
 
 // The cells clip at the cap height (so a spinning digit never spills over the label) but not
 // at the sides, so a wide digit passing through a narrow cell (a 4 through a 1) stays whole.
-assert.ok(css.includes(".ost-cell { position: relative; display: block; flex: none; height: 1em; clip-path: inset(0 -0.12em); }"))
+const cell = css.slice(css.indexOf(".ost-cell {"), css.indexOf("}", css.indexOf(".ost-cell {")))
+assert.ok(cell.includes("clip-path: inset(-0.16em -0.12em)"), "cells clip a little past the cap line and the baseline")
+assert.ok(cell.includes("mask-image: linear-gradient(transparent, #000 0.16em, #000 calc(100% - 0.16em), transparent)"), "rolling digits fade at the cell edges")
+assert.ok(cell.includes("mask-position: 0 -0.16em"), "the fade sits outside the cell, so a landed glyph is fully opaque")
+const pitch = Number(src.match(/const PITCH = ([\d.]+)/)[1])
+assert.ok(pitch - 1 > 0.16, "a landed digit's neighbours must sit beyond the edge fade, or their feet show above it")
+assert.ok(css.includes(".ost-slot { display: flex; justify-content: center; height: " + pitch + "em; }"), "slot height matches PITCH")
 const widest = Math.max(...[..."0123456789"].map((d) => m.GLYPHS[d].w))
 const narrowest = Math.min(...[..."0123456789"].map((d) => m.GLYPHS[d].w))
 assert.ok((widest - narrowest) / 2 / 200 <= 0.12, "a passing digit must fit inside the side allowance")
