@@ -31,7 +31,8 @@ an annual-report or impact page.
   smooth-scroll.
 - Screen readers get every stat as a text list, and each change is announced once
   (`aria-live`); the drawn glyphs are hidden from them.
-- Narrow containers (under 760px) stack the story under the figure; very short stages
+- Narrow containers (under 760px) set the story in flow under the label and lift the
+  backdrop word above the segment bar; very short stages
   (under 620px tall) drop the story and keep the figure, label and controls.
 
 No dependencies. Styles are scoped to `.ost` in one inline `<style>`.
@@ -50,8 +51,8 @@ No dependencies. Styles are scoped to `.ost` in one inline `<style>`.
 | `stickyTop` | `0` | px of fixed header above the stage in scroll mode. |
 | `autoplay` | `5200` | ms per stat in click mode; `0` turns it off. |
 | `cta` | none | `{ label, href?, onClick? }`, shown under the last stat. |
-| `numberSize` | `"min(42cqh, 560px)"` | Height cap of the numeral. |
-| `uiFont` / `wordFont` | system stacks | Pass your own, e.g. `"var(--font-sans)"`. |
+| `numberSize` | `"min(var(--ost-nh, 42cqh), 560px)"` | Height cap of the numeral (`--ost-nh` drops to 34cqh on narrow stages to make room for the story). |
+| `uiFont` / `wordFont` / `storyFont` | system stacks | `uiFont`: label, controls, source. `wordFont`: the title and the backdrop word (condensed stack). `storyFont`: the corner stories (a book serif stack, like the printed captions of a poster). Pass your own, e.g. `"var(--font-sans)"`. |
 | `showGrain` | `true` | A faint print grain over the field. |
 | `onStepChange` | none | `(index) => void`. |
 

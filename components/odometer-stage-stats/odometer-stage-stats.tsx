@@ -75,8 +75,10 @@ export type OdometerStageStatsProps = {
   numberSize?: string
   /** Font stack for text. Pass your own, e.g. "var(--font-sans)". */
   uiFont?: string
-  /** Font stack for the faint backdrop word. */
+  /** Font stack for the faint backdrop word and the title. */
   wordFont?: string
+  /** Font stack for the corner stories. */
+  storyFont?: string
   showGrain?: boolean
   onStepChange?: (index: number) => void
   className?: string
@@ -129,6 +131,8 @@ const UI_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "H
 const WORD_FONT =
   '"Bebas Neue", "Oswald", "Antonio", Impact, Haettenschweiler, "Arial Narrow Bold", "Roboto Condensed", "Helvetica Neue", sans-serif'
 
+const STORY_FONT = '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Charter, Georgia, "Times New Roman", serif'
+
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")"
 
@@ -149,7 +153,7 @@ const GLYPHS: { [k: string]: Glyph } = {
   "1": { w: 70, d: "M49 0V200M16 54L54 10" },
   "2": { w: 98, d: "M21 49A28 28 0 0 1 77 49C77 105 21 128 21 168V179H98" },
   "3": { w: 98, d: "M21 49A28 28 0 0 1 77 49V74A24 24 0 0 1 53 98H41M41 98H49A28 28 0 0 1 77 126V151A28 28 0 0 1 21 151" },
-  "4": { w: 104, d: "M80 0V200M72 0L21 132V140H104" },
+  "4": { w: 102, d: "M81 0V200M73 0L21 132V140H102" },
   "5": { w: 98, d: "M94 21H21V112M21 112C21 94 33 84 49 84A28 28 0 0 1 77 112V151A28 28 0 0 1 21 151" },
   "6": { w: 98, d: BOWL_SIX },
   "7": { w: 98, d: "M4 21H77L36 200" },
@@ -163,7 +167,7 @@ const GLYPHS: { [k: string]: Glyph } = {
     d: "M16 37A21 21 0 0 1 58 37V69A21 21 0 0 1 16 69ZM112 131A21 21 0 0 1 154 131V163A21 21 0 0 1 112 163ZM128 0L42 200",
   },
   "+": { w: 112, s: 36, d: "M56 48V152M6 100H106" },
-  "×": { w: 106, s: 36, d: "M18 60L88 140M88 60L18 140" },
+  "×": { w: 96, s: 30, d: "M20 66L76 134M76 66L20 134" },
   "-": { w: 86, s: 38, d: "M6 108H80" },
   "/": { w: 106, s: 36, d: "M88 0L18 200" },
   K: { w: 104, d: "M21 0V200M36 128L84 -10M48 96L88 222" },
@@ -295,7 +299,7 @@ function GlyphSvg({ ch }: { ch: string }) {
 
 type Phase = "from" | "to" | "out"
 
-const PITCH = 1.6
+const PITCH = 1.3
 
 function Figure({
   value,
@@ -347,7 +351,7 @@ function Figure({
               style={{
                 transform: "translate3d(0," + y + "em,0)",
                 // The new figure waits for the old one to clear its cells, then lands left to right.
-                transitionDelay: (phase === "out" ? i * 20 : 120 + i * 50) + "ms",
+                transitionDelay: (phase === "out" ? i * 20 : 40 + i * 50) + "ms",
               }}
             >
               {ordered.map((g, k) => (
@@ -415,7 +419,7 @@ const css = `
 .ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0) scaleX(0.72); transition: none; }
 .ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -18%, 0) scaleX(0.72); transition-duration: 220ms; }
 .ost-top { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: clamp(18px, 2.6cqw, 36px) clamp(18px, 3cqw, 48px); }
-.ost-title { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 600; letter-spacing: 0.005em; max-width: 30ch; }
+.ost-title { margin: 0; font-family: var(--ost-word); font-size: 17px; line-height: 1.15; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; max-width: 44ch; }
 .ost-nav { display: flex; align-items: center; gap: 10px; }
 .ost-count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; margin-right: 6px; white-space: nowrap; }
 .ost-count span { opacity: 0.7; }
@@ -434,16 +438,16 @@ const css = `
 .ost-figwrap { display: grid; justify-items: center; align-items: end; }
 .ost-figwrap > * { grid-area: 1 / 1; }
 .ost-figure { display: inline-flex; align-items: flex-start; line-height: 1; height: 1em; color: var(--ost-ink); }
-.ost-cell { position: relative; display: block; flex: none; height: 1em; overflow: hidden; }
-.ost-cell[data-tail] { overflow: visible; clip-path: inset(0 -0.1em -0.2em -0.1em); }
-.ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 950ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+.ost-cell { position: relative; display: block; flex: none; height: 1em; clip-path: inset(0 -0.12em); }
+.ost-cell[data-tail] { clip-path: inset(0 -0.12em -0.2em -0.12em); }
+.ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 850ms; transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
 .ost-figure[data-phase="from"] .ost-strip { transition: none; }
 .ost-figure[data-phase="out"] .ost-strip { opacity: 0; transition-property: transform, opacity; transition-duration: 220ms, 160ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1), ease; }
 .ost-figure[data-phase="out"] .ost-slot:not([data-target]) { visibility: hidden; }
-.ost-slot { display: block; height: 1.6em; }
-.ost-glyph { display: block; overflow: hidden; }
+.ost-slot { display: flex; justify-content: center; height: 1.3em; }
+.ost-glyph { display: block; flex: none; overflow: hidden; }
 .ost-fallback { display: block; height: 1em; font-size: 1em; line-height: 1; font-weight: 800; font-family: var(--ost-ui); letter-spacing: -0.04em; }
-.ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease 260ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 260ms, filter 380ms ease 260ms; }
+.ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease 120ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 120ms, filter 380ms ease 120ms; }
 .ost-label[data-state="from"] { opacity: 0; transform: translateY(12px); filter: blur(3px); transition: none; }
 .ost-cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 48px; padding: 0 22px; border-radius: 0; background: var(--ost-ink); color: var(--ost-field-now); font-size: 15px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease; }
 .ost-cta svg { transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
@@ -451,15 +455,16 @@ const css = `
 .ost-cta:active { transform: scale(0.97); }
 .ost-cta[data-state="from"] { opacity: 0; transform: translateY(8px); transition: none; }
 .ost-cta[data-state="to"] { transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease 420ms; }
-.ost-story { position: absolute; z-index: 1; width: min(340px, 27cqw); margin: 0; font-size: 15px; line-height: 1.55; text-wrap: pretty; transition: opacity 400ms ease 340ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 340ms, filter 400ms ease 340ms; }
-.ost-story[data-side="start"] { left: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
-.ost-story[data-side="end"] { right: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
+.ost-stories { display: contents; }
+.ost-story { position: absolute; z-index: 1; width: min(340px, 27cqw); margin: 0; text-align: left; font-family: var(--ost-story); font-size: 16.5px; line-height: 1.45; text-wrap: pretty; transition: opacity 400ms ease 200ms, transform 500ms cubic-bezier(0.22, 1, 0.36, 1) 200ms, filter 400ms ease 200ms; }
+.ost-story[data-side="start"] { left: clamp(18px, 3cqw, 48px); bottom: clamp(12px, 3cqh, 36px); }
+.ost-story[data-side="end"] { right: clamp(18px, 3cqw, 48px); bottom: clamp(12px, 3cqh, 36px); }
 .ost-story[data-state="from"] { opacity: 0; filter: blur(3px); transition: none; }
 .ost-story[data-state="out"] { opacity: 0; transition: opacity 150ms ease, transform 150ms ease; transition-delay: 0ms; }
 .ost-story[data-state="from"][data-side="start"], .ost-story[data-state="out"][data-side="start"] { transform: translateX(-12px); }
 .ost-story[data-state="from"][data-side="end"], .ost-story[data-state="out"][data-side="end"] { transform: translateX(12px); }
-.ost-mark { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
-.ost-source { display: block; margin-top: 12px; font-size: 12.5px; line-height: 1.4; font-weight: 500; }
+.ost-mark { display: block; margin-bottom: 8px; font-family: var(--ost-ui); font-size: 13px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.ost-source { display: block; margin-top: 12px; font-family: var(--ost-ui); font-size: 12.5px; line-height: 1.4; font-weight: 500; }
 .ost-bar { position: absolute; z-index: 2; left: clamp(18px, 3cqw, 48px); right: clamp(18px, 3cqw, 48px); bottom: clamp(14px, 2cqw, 26px); display: flex; gap: 8px; }
 .ost-seg { position: relative; flex: 1 1 0; height: 28px; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; color: var(--ost-ink); }
 .ost-seg::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: currentColor; opacity: 0.28; transition: opacity 160ms ease, height 160ms ease; }
@@ -481,16 +486,20 @@ const narrowCss = `
   .ost-story { width: min(300px, 28cqw); }
 }
 @container (max-width: 760px) {
-  .ost-center { bottom: 36cqh; --ost-fitw: 84cqw; }
+  .ost-center { top: 72px; bottom: clamp(118px, 31cqw, 170px); --ost-fitw: 92cqw; --ost-nh: 34cqh; }
   .ost-label { max-width: 30ch; }
-  .ost-story { position: absolute; left: clamp(18px, 5cqw, 32px) !important; right: clamp(18px, 5cqw, 32px) !important; top: auto !important; bottom: 64px; width: auto; max-width: 46ch; font-size: 14.5px; }
-  .ost-story[data-state="from"] { transform: translateY(10px) !important; }
-  .ost-title { font-size: 14px; max-width: 18ch; }
+  .ost-stories { display: grid; width: 100%; max-width: 46ch; margin-top: clamp(16px, 3cqh, 28px); }
+  .ost-stories > .ost-story { grid-area: 1 / 1; position: static; width: auto; font-size: 15.5px; }
+  .ost-story[data-state="from"], .ost-story[data-state="out"] { transform: translateY(8px) !important; }
+  .ost-word { bottom: 44px; font-size: min(30cqw, calc((100cqw - 24px) / (var(--ost-chars, 6) * 0.47))); transform: scaleX(0.72); }
+  .ost-word[data-state="from"] { transform: translate3d(0, 24%, 0) scaleX(0.72); }
+  .ost-word[data-state="out"] { transform: translate3d(0, -12%, 0) scaleX(0.72); }
+  .ost-title { font-size: 14px; max-width: 24ch; }
   .ost-count { display: none; }
   .ost-btn { width: 40px; height: 40px; }
 }
 @container (max-height: 620px) {
-  .ost-story { display: none; }
+  .ost-stories { display: none; }
   .ost-center { bottom: clamp(56px, 10cqh, 104px); }
 }
 `
@@ -506,9 +515,10 @@ export default function OdometerStageStats({
   stickyTop = 0,
   autoplay = 5200,
   cta,
-  numberSize = "min(42cqh, 560px)",
+  numberSize = "min(var(--ost-nh, 42cqh), 560px)",
   uiFont = UI_FONT,
   wordFont = WORD_FONT,
+  storyFont = STORY_FONT,
   showGrain = true,
   onStepChange,
   className,
@@ -686,6 +696,7 @@ export default function OdometerStageStats({
     ...(colors.ghost ? { "--ost-ghost": colors.ghost } : null),
     "--ost-ui": uiFont,
     "--ost-word": wordFont,
+    "--ost-story": storyFont,
     height: totalHeight,
     ...style,
   } as React.CSSProperties
@@ -802,22 +813,23 @@ export default function OdometerStageStats({
               </button>
             )
           ) : null}
+          <div className="ost-stories">
+            {prev && (prev.story || prev.source) ? (
+              <p key={"s" + (view.key - 1)} className="ost-story" data-side={view.prev % 2 === 0 ? "start" : "end"} data-state="out" aria-hidden="true">
+                <span className="ost-mark">[ {pad2(view.prev + 1)} ]</span>
+                {prev.story}
+                {prev.source ? <span className="ost-source">Source: {prev.source}</span> : null}
+              </p>
+            ) : null}
+            {cur.story || cur.source ? (
+              <p key={"s" + view.key} className="ost-story" data-side={side} data-state={enter} aria-hidden="true">
+                <span className="ost-mark">[ {pad2(view.cur + 1)} ]</span>
+                {cur.story}
+                {cur.source ? <span className="ost-source">Source: {cur.source}</span> : null}
+              </p>
+            ) : null}
+          </div>
         </div>
-
-        {prev && (prev.story || prev.source) ? (
-          <p key={"s" + (view.key - 1)} className="ost-story" data-side={view.prev % 2 === 0 ? "start" : "end"} data-state="out" aria-hidden="true">
-            <span className="ost-mark">[ {pad2(view.prev + 1)} ]</span>
-            {prev.story}
-            {prev.source ? <span className="ost-source">Source: {prev.source}</span> : null}
-          </p>
-        ) : null}
-        {cur.story || cur.source ? (
-          <p key={"s" + view.key} className="ost-story" data-side={side} data-state={enter} aria-hidden="true">
-            <span className="ost-mark">[ {pad2(view.cur + 1)} ]</span>
-            {cur.story}
-            {cur.source ? <span className="ost-source">Source: {cur.source}</span> : null}
-          </p>
-        ) : null}
 
         <div className="ost-bar">
           {list.map((s, i) => {

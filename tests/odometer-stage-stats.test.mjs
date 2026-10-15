@@ -144,6 +144,10 @@ for (const [k, g] of Object.entries(m.GLYPHS)) {
     }
   }
 }
+// Bars end flush with the stem they meet: the 4's crossbar stops at the stem's outer edge.
+const four = m.GLYPHS["4"]
+assert.equal(Number(four.d.match(/^M([\d.]+) 0V200/)[1]) + m.STROKE / 2, four.w)
+assert.ok(four.d.endsWith("H" + four.w))
 // The check has teeth: the first draft's B ran past its box.
 assert.throws(() => {
   for (const [ex, ey] of edges("M17 0V200M0 17H56A39.5 39.5 0 0 1 56 96H17M17 96H57A43.5 43.5 0 0 1 57 183H0", 34)) if (ey > 0.5 && ey < 199.5) assert.ok(ex <= 114.5)
@@ -178,8 +182,12 @@ assert.ok(css.includes("container-type: size"), "the stage is the size container
 assert.ok(css.includes(".ost svg { max-width: none; }") && src.includes('maxWidth: "none"'), "numerals need a max-width escape")
 assert.ok(/width=\{g\.w\}/.test(src) && /height=\{240\}/.test(src), "numerals need explicit dimensions")
 
-// The cells clip at the cap height, so a spinning digit never spills over the label.
-assert.ok(css.includes(".ost-cell { position: relative; display: block; flex: none; height: 1em; overflow: hidden; }"))
+// The cells clip at the cap height (so a spinning digit never spills over the label) but not
+// at the sides, so a wide digit passing through a narrow cell (a 4 through a 1) stays whole.
+assert.ok(css.includes(".ost-cell { position: relative; display: block; flex: none; height: 1em; clip-path: inset(0 -0.12em); }"))
+const widest = Math.max(...[..."0123456789"].map((d) => m.GLYPHS[d].w))
+const narrowest = Math.min(...[..."0123456789"].map((d) => m.GLYPHS[d].w))
+assert.ok((widest - narrowest) / 2 / 200 <= 0.12, "a passing digit must fit inside the side allowance")
 
 // Motion is not optional, and autoplay can be stopped.
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "must honour prefers-reduced-motion")

@@ -60,3 +60,25 @@ Changes made:
   42cqh.
 - Grain visible (soft-light, 0.38). Controls and CTA squared to match the poster language.
 - `label` accepts any node, with `alt` for what screen readers hear.
+
+## Round 2 (fresh critic): REDO
+
+Scores: usability 8, idea 7, craft 6, originality 7, install-safety 9 (average 7.4).
+Findings, most important first: a nub on every 4 (crossbar past the stem); wide digits cut
+off while rolling through a narrow cell (a 4 through a 1); near-blank frames mid-step; phone
+layout not designed (dead space, a 50px ghost word under the segment bar, a small figure);
+× as heavy as the digits; every line of text in the default system sans.
+
+Changes made:
+- 4 rebuilt so the crossbar ends at the stem's outer edge (asserted in the test); × at about
+  0.6 cap height and lighter.
+- Cells clip only top and bottom (`clip-path: inset(0 -0.12em)`) and every passing digit is
+  centred in its slot; the test asserts the widest digit fits the side allowance in the
+  narrowest cell.
+- Hand-off overlaps: the new figure starts 40 ms in, slot pitch 1.3em, label in at 120 ms,
+  story at 200 ms; roll 850 ms on the smooth-out curve.
+- Phone: the story sits in flow under the label, the ghost word stands above the segment bar
+  at up to 30cqw, the figure may use 92cqw of the width, and its height cap drops to 34cqh to
+  make room.
+- Type voice: the title is set condensed uppercase in the word stack, and the stories in a
+  book-serif stack (`storyFont`), echoing the reference's printed captions.
