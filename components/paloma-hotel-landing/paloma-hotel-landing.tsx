@@ -138,7 +138,7 @@ export interface PalomaHotelLandingProps {
   /** "12h" prints 5:30 pm, "24h" prints 17:30. */
   clock?: "12h" | "24h"
   currency?: string
-  booking?: { title?: string; text?: string; maxGuests?: number } | null
+  booking?: { title?: string; text?: string; maxGuests?: number; perks?: string[] } | null
   /** Called on "Check availability". Return false to block, or numbers to override the shown result. */
   onSearch?: (q: CplBookingQuery) => void | false | { left?: number; total?: number }
   /** Called on "Hold this room". */
@@ -150,7 +150,8 @@ export interface PalomaHotelLandingProps {
   visit?: CplVisit | null
   newsletter?: { title?: string; text?: string; button?: string } | null
   onSubscribe?: (email: string) => void | false
-  footer?: { note?: string; links?: CplLink[] }
+  /** `links` default to the page links; `social` and `legal` rows appear when given. */
+  footer?: { note?: string; links?: CplLink[]; social?: CplLink[]; legal?: CplLink[] }
   preset?: CplPresetName
   /** Override any colour of the light page. */
   colors?: CplColors
@@ -628,6 +629,19 @@ function useReduced() {
   return reduced
 }
 
+function useNarrow() {
+  const [narrow, setNarrow] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof matchMedia !== "function") return
+    const mq = matchMedia("(max-width: 700px)")
+    const read = () => setNarrow(mq.matches)
+    read()
+    mq.addEventListener("change", read)
+    return () => mq.removeEventListener("change", read)
+  }, [])
+  return narrow
+}
+
 function useTheme(pref: "system" | "light" | "dark") {
   const [dark, setDark] = React.useState(pref === "dark")
   React.useEffect(() => {
@@ -689,10 +703,16 @@ function Wordmark({ text, pal, uid, className, rim = "#100c26" }: { text: string
   const id = uid + "wm"
   const c = pal.chrome
   const sparkles = glyphs.length ? [(glyphs[Math.min(1, glyphs.length - 1)].x + 70) * WIDE, glyphs[glyphs.length - 1].x * WIDE + 6] : []
+  const vw = (width + pad * 2) * WIDE + ext
+  const vh = 100 + pad * 2 + ext
+  // Square caps give every stroke end the same overhang, so all letters fill one cap box and
+  // keep even gaps; the clip trims diagonal ends (V, N, X) back to that box.
+  const band = (w: number) => ({ x: -400, y: -w / 2, width: width + 800, height: 100 + w })
   return (
     <svg
       className={"cpl-wordmark " + (className || "")}
-      viewBox={-pad * WIDE + " " + -pad + " " + ((width + pad * 2) * WIDE + ext) + " " + (100 + pad * 2 + ext)}
+      viewBox={-pad * WIDE + " " + -pad + " " + vw + " " + vh}
+      style={{ ["--cpl-ar" as string]: (vw / vh).toFixed(3) }}
       role="img"
       aria-label={text}
     >
@@ -710,19 +730,25 @@ function Wordmark({ text, pal, uid, className, rim = "#100c26" }: { text: string
           <stop offset="0" stopColor="#2a2350" />
           <stop offset="1" stopColor="#0d0b22" />
         </linearGradient>
+        <clipPath id={id + "k"}>
+          <rect {...band(STROKE + 8)} />
+        </clipPath>
+        <clipPath id={id + "j"}>
+          <rect {...band(STROKE)} />
+        </clipPath>
         <g id={id + "g"} fill="none">
           {glyphs.map((g, i) => (
             <path key={i} d={g.d} transform={"translate(" + g.x + " 0)"} />
           ))}
         </g>
       </defs>
-      <g strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="butt" transform={"scale(" + WIDE + " 1)"}>
+      <g strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square" transform={"scale(" + WIDE + " 1)"}>
         {Array.from({ length: ext }, (_, i) => ext - i).map((i) => (
-          <use key={i} href={"#" + id + "g"} transform={"translate(" + (i * 0.7) / WIDE + " " + i + ")"} stroke={"url(#" + id + "x)"} strokeWidth={STROKE + 8} />
+          <use key={i} href={"#" + id + "g"} transform={"translate(" + (i * 0.7) / WIDE + " " + i + ")"} stroke={"url(#" + id + "x)"} strokeWidth={STROKE + 8} clipPath={"url(#" + id + "k)"} />
         ))}
-        <use href={"#" + id + "g"} stroke={rim} strokeWidth={STROKE + 8} />
-        <use href={"#" + id + "g"} stroke={"url(#" + id + "c)"} strokeWidth={STROKE} />
-        <use href={"#" + id + "g"} stroke="#ffffff" strokeOpacity={0.62} strokeWidth={2.6} transform="translate(-1.2 -2)" />
+        <use href={"#" + id + "g"} stroke={rim} strokeWidth={STROKE + 8} clipPath={"url(#" + id + "k)"} />
+        <use href={"#" + id + "g"} stroke={"url(#" + id + "c)"} strokeWidth={STROKE} clipPath={"url(#" + id + "j)"} />
+        <use href={"#" + id + "g"} stroke="#ffffff" strokeOpacity={0.62} strokeWidth={2.6} strokeLinecap="butt" transform="translate(-1.2 -2)" />
       </g>
       {sparkles.map((x, i) => (
         <path
@@ -743,7 +769,7 @@ function Monogram({ letter, color, size = 22 }: { letter: string; color: string;
   const w = g[0] + STROKE
   return (
     <svg viewBox={-STROKE / 2 + " " + -STROKE / 2 + " " + w + " " + (100 + STROKE)} width={(size * w) / (100 + STROKE)} height={size} aria-hidden="true">
-      <path d={g[1]} fill="none" stroke={color} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} />
+      <path d={g[1]} fill="none" stroke={color} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square" />
     </svg>
   )
 }
@@ -858,9 +884,12 @@ export function PosterScene({
   label,
   className,
   initial = "P",
+  nest,
 }: {
   hour: number
   preset: CplPreset
+  /** Draw inside another svg at this box (used for the view through a window). */
+  nest?: { x: number; y: number; w: number; h: number }
   /** The letter on the pylon sign. */
   initial?: string
   uid: string
@@ -905,7 +934,18 @@ export function PosterScene({
   const doors = preset.doors
 
   return (
-    <svg className={"cpl-scene " + (className || "")} viewBox={view} preserveAspectRatio={align} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    <svg
+      className={nest ? undefined : "cpl-scene " + (className || "")}
+      x={nest ? nest.x : undefined}
+      y={nest ? nest.y : undefined}
+      width={nest ? nest.w : undefined}
+      height={nest ? nest.h : undefined}
+      viewBox={view}
+      preserveAspectRatio={align}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
       <defs>
         <linearGradient id={id("sky")} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={p.skyTop} />
@@ -933,6 +973,10 @@ export function PosterScene({
           <circle cx="14" cy="14" r="9" fill={wallShade} />
           <circle cx="14" cy="14" r="5" fill={mix(p.glass, p.lit, 0.6)} />
         </pattern>
+        <linearGradient id={id("beam")} gradientUnits="userSpaceOnUse" x1="1649" y1="0" x2="1060" y2="0">
+          <stop offset="0" stopColor="#fff4c4" stopOpacity="0.6" />
+          <stop offset="1" stopColor="#fff4c4" stopOpacity="0" />
+        </linearGradient>
         <clipPath id={id("poolclip")}>
           <path d="M360 790H1240L1400 952H200Z" />
         </clipPath>
@@ -978,7 +1022,7 @@ export function PosterScene({
         <g>
           <rect x="-200" y="468" width="2000" height="200" fill={p.sea} />
           <rect x="-200" y="468" width="2000" height="40" fill={mix(p.sea, p.skyLow, 0.45)} />
-          <path d="M1120 470L1190 452L1270 448L1350 470Z M1560 470L1640 444L1730 450L1800 470Z" fill={p.far} />
+          <path d="M-150 470L-60 450L40 446L130 470Z M560 470L640 456L730 458L800 470Z" fill={p.far} />
           {sun.up && (
             <g fill={p.sun} opacity={0.35 + (1 - sun.alt) * 0.5}>
               {[0, 1, 2, 3, 4, 5].map((k) => (
@@ -989,15 +1033,18 @@ export function PosterScene({
           <g stroke={mix(p.sea, "#ffffff", 0.45)} strokeWidth="3" opacity="0.5">
             <path d="M640 520H760M900 540H1060M1180 512H1300M720 580H820M1420 560H1540M1200 620H1330" />
           </g>
-          <path d="M-200 668V400L-110 372L-20 360L70 380L170 418L270 466L360 520L440 590L500 668Z" fill={p.near} />
-          <path d="M70 380L170 418L270 466L360 520L440 590L500 668H300L230 540L150 450Z" fill={p.shade} opacity={sunLeft ? 0.9 : 0.3} />
-          <path d="M70 380L170 418L270 466L360 520L440 590L500 668H300L230 540L150 450Z" fill={ref("dots")} opacity={sunLeft ? 0.3 : 0.08} />
-          <path d={"M44 358L-180 " + (318 - p.lights * 40) + "V" + (398 + p.lights * 40) + "Z"} fill="#fff4c4" opacity={p.lights * 0.28} />
-          <rect x="30" y="290" width="28" height="80" fill={white} />
-          <rect x="30" y="310" width="28" height="12" fill={preset.stripe} />
-          <rect x="30" y="338" width="28" height="12" fill={preset.stripe} />
-          <rect x="26" y="276" width="36" height="16" fill={ink} opacity="0.8" />
-          <circle cx="44" cy="270" r={8 + p.lights * 5} fill="#ffe7a0" opacity={0.5 + p.lights * 0.5} />
+          {/* the headland and its lighthouse, on the open side of the poster */}
+          <path d="M1120 668L1210 606L1300 548L1400 484L1500 428L1590 392L1660 380L1730 386L1800 400V668Z" fill={p.near} />
+          <path d="M1660 380L1730 386L1800 400V668H1600L1640 480Z" fill={p.shade} opacity={sunLeft ? 0.9 : 0.3} />
+          <path d="M1660 380L1590 392L1500 428L1400 484L1300 548L1210 606L1120 668H1330L1450 540Z" fill={p.shade} opacity={sunLeft ? 0.2 : 0.8} />
+          <path d="M1660 380L1590 392L1500 428L1400 484L1300 548L1210 606L1120 668H1330L1450 540Z" fill={ref("dots")} opacity={sunLeft ? 0.06 : 0.3} />
+          <path d="M1649 296L1060 236V322L1649 304Z" fill={ref("beam")} opacity={p.lights} />
+          <rect x="1634" y="306" width="30" height="78" fill={white} />
+          <rect x="1634" y="324" width="30" height="12" fill={preset.stripe} />
+          <rect x="1634" y="352" width="30" height="12" fill={preset.stripe} />
+          <rect x="1629" y="292" width="40" height="16" fill={ink} opacity="0.8" />
+          <path d="M1631 292L1649 274L1667 292Z" fill={preset.stripe} />
+          <circle cx="1649" cy="300" r={6 + p.lights * 5} fill="#ffe7a0" opacity={0.55 + p.lights * 0.45} />
         </g>
       ) : (
         <g>
@@ -1069,7 +1116,7 @@ export function PosterScene({
         <rect x="490" y="440" width="10" height="262" fill={ink} opacity="0.18" />
         <circle cx="505" cy="420" r="44" fill={mix(white, "#ffe7a0", p.lights)} stroke={ink} strokeWidth="5" />
         <g transform="translate(486.5 397) scale(0.44)">
-          <path d={(GLYPHS[initial] || GLYPHS.P)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} transform={"translate(" + (42 - (GLYPHS[initial] || GLYPHS.P)[0] / 2) + " 0)"} />
+          <path d={(GLYPHS[initial] || GLYPHS.P)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square" transform={"translate(" + (42 - (GLYPHS[initial] || GLYPHS.P)[0] / 2) + " 0)"} />
         </g>
       </g>
 
@@ -1081,7 +1128,7 @@ export function PosterScene({
       </g>
       {/* shadows */}
       <g fill={p.shade} opacity={shadowA * 0.75}>
-        {FRONT_PALMS.map((pp, i) => (
+        {FRONT_PALMS.filter((pp) => !coast || pp.x < 1500).map((pp, i) => (
           <g key={i}>
             <path d={"M" + (pp.x - 7) + " " + pp.y + "L" + (pp.x + 7) + " " + pp.y + "L" + (pp.x + sh.dx * pp.s + 3) + " " + (pp.y + sh.dy * pp.s) + "L" + (pp.x + sh.dx * pp.s - 3) + " " + (pp.y + sh.dy * pp.s) + "Z"} />
             <ellipse cx={pp.x + sh.dx * pp.s} cy={pp.y + sh.dy * pp.s} rx={52 * pp.s} ry={14 * pp.s} />
@@ -1130,11 +1177,86 @@ export function PosterScene({
       <path d="M1200 790l10 -14h120l-6 14z" fill={white} />
       <rect x="1290" y="776" width="40" height="22" fill={ink} opacity="0.6" />
 
-      {FRONT_PALMS.map((pp, i) => (
+      {FRONT_PALMS.filter((pp) => !coast || pp.x < 1500).map((pp, i) => (
         <PalmTree key={i} p={pp} i={i} fill={p.palm} ring={mix(p.palm, "#000000", 0.4)} />
       ))}
       {/* the poster's own grain: a dot screen in the shadows */}
       <rect x="0" y="0" width="1600" height="1000" fill={ref("dots")} opacity={0.04 + p.lights * 0.04} />
+    </svg>
+  )
+}
+
+/** The stamp on the first guestbook letter: a striped sun going down behind two palms. */
+function StampArt({ uid, preset }: { uid: string; preset: CplPreset }) {
+  const p = samplePalette(18.4)
+  return (
+    <svg viewBox="0 0 160 120" width="88" height="66" aria-hidden="true">
+      <defs>
+        <linearGradient id={uid + "sg"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={p.skyTop} />
+          <stop offset="1" stopColor={p.skyLow} />
+        </linearGradient>
+        <mask id={uid + "sb"}>
+          <rect width="160" height="120" fill="#fff" />
+          {[0, 1, 2, 3].map((k) => (
+            <rect key={k} x="0" y={66 + k * 9} width="160" height={2 + k} fill="#000" />
+          ))}
+        </mask>
+      </defs>
+      <rect width="160" height="120" fill={"url(#" + uid + "sg)"} />
+      <circle cx="84" cy="82" r="38" fill={p.sun} mask={"url(#" + uid + "sb)"} />
+      <rect y="92" width="160" height="28" fill={preset.landscape === "coast" ? p.sea : p.near} />
+      <rect y="104" width="160" height="16" fill={p.poolDeep} />
+      <g transform="translate(-6 18) scale(0.3)">
+        <PalmTree p={{ x: 90, y: 320, h: 300, lean: 0.08, s: 1 }} i={9} fill={p.palm} ring={mix(p.palm, "#000000", 0.4)} />
+        <PalmTree p={{ x: 450, y: 330, h: 250, lean: -0.1, s: 0.9 }} i={10} fill={p.palm} ring={mix(p.palm, "#000000", 0.4)} />
+      </g>
+    </svg>
+  )
+}
+
+/** A fact set in white mosaic tiles, like the depth markings on a pool floor. */
+function TileValue({ text, uid }: { text: string; uid: string }) {
+  const { glyphs, width } = layoutWord(text)
+  const pad = STROKE / 2 + 2
+  return (
+    <svg
+      className="cpl-tileval"
+      viewBox={-pad + " " + -pad + " " + (width + pad * 2 + 6) + " " + (100 + pad * 2 + 6)}
+      style={{ ["--cpl-ar" as string]: ((width + pad * 2 + 6) / (100 + pad * 2 + 6)).toFixed(3) }}
+      aria-hidden="true"
+    >
+      <defs>
+        <pattern id={uid} width="12.5" height="12.5" patternUnits="userSpaceOnUse">
+          <rect x="0.9" y="0.9" width="10.7" height="10.7" rx="1.6" fill="#ffffff" />
+        </pattern>
+      </defs>
+      <g fill="none" strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square">
+        {glyphs.map((g, i) => (
+          <path key={"s" + i} d={g.d} transform={"translate(" + (g.x + 5) + " 5)"} stroke="rgba(6,20,44,.5)" />
+        ))}
+        {glyphs.map((g, i) => (
+          <path key={i} d={g.d} transform={"translate(" + g.x + " 0)"} stroke={"url(#" + uid + ")"} />
+        ))}
+      </g>
+    </svg>
+  )
+}
+
+/** The lane rope across the top and bottom of the pool band. */
+function LaneRope({ uid, coral, className }: { uid: string; coral: string; className: string }) {
+  return (
+    <svg className={className} width="100%" height="22" aria-hidden="true">
+      <defs>
+        <pattern id={uid} width="96" height="22" patternUnits="userSpaceOnUse">
+          <path d="M0 11H96" stroke="#0a2440" strokeWidth="2" />
+          <rect x="2" y="3" width="28" height="16" rx="8" fill={coral} />
+          <rect x="34" y="3" width="28" height="16" rx="8" fill="#ffffff" />
+          <rect x="66" y="3" width="28" height="16" rx="8" fill="#163a78" />
+          <path d="M10 6V16M22 6V16M42 6V16M54 6V16M74 6V16M86 6V16" stroke="rgba(10,36,64,.28)" strokeWidth="1.5" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="22" fill={"url(#" + uid + ")"} />
     </svg>
   )
 }
@@ -1251,14 +1373,15 @@ function Dial({
 
 /* ---------------- small drawn marks ---------------- */
 
-function Martini() {
+/** The header mark: one of the poster's striped umbrellas. It tips when you point at the corner. */
+function Parasol() {
   return (
-    <svg className="cpl-martini" viewBox="0 0 48 56" width="40" height="46" aria-hidden="true">
-      <path d="M4 6H44L24 30Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-      <path d="M10 13H38" stroke="currentColor" strokeWidth="2" />
-      <path d="M24 30V50M14 52H34" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M30 2L20 22" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="21" cy="19" r="4.2" fill="var(--cpl-olive)" stroke="currentColor" strokeWidth="1.6" />
+    <svg className="cpl-parasol" viewBox="0 0 48 52" width="42" height="46" aria-hidden="true">
+      <path d="M24 8V48" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M3 24A21 16 0 0 1 45 24Z" fill="var(--cpl-coral)" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+      <path d="M17 24Q18 11 24 8Q30 11 31 24Z" fill="var(--cpl-paper)" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M3 24q3.5 4 7 0t7 0t7 0t7 0t7 0t7 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14 48H34" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   )
 }
@@ -1306,12 +1429,273 @@ function SignArrow({ dir }: { dir: string }) {
 
 /* ---------------- rooms as postcards ---------------- */
 
-const VIEWS: { [k: string]: string } = {
-  pool: "330 430 900 600",
-  palms: "0 260 780 520",
-  mountain: "0 140 840 560",
-  night: "640 360 960 640",
+/** A striped sun, the poster's signature, at any size. */
+function StripedSun({ x, y, r, fill, uid }: { x: number; y: number; r: number; fill: string; uid: string }) {
+  return (
+    <g>
+      <defs>
+        <mask id={uid}>
+          <rect x={x - r} y={y - r} width={r * 2} height={r * 2} fill="#fff" />
+          {[0, 1, 2, 3, 4].map((k) => (
+            <rect key={k} x={x - r} y={y + r * (0.18 + k * 0.19)} width={r * 2} height={r * (0.035 + k * 0.022)} fill="#000" />
+          ))}
+        </mask>
+      </defs>
+      <circle cx={x} cy={y} r={r * 2} fill={fill} opacity="0.18" />
+      <circle cx={x} cy={y} r={r} fill={fill} mask={"url(#" + uid + ")"} />
+    </g>
+  )
 }
+
+/**
+ * The art on each room postcard: a different corner of the hotel for each kind of room,
+ * printed in the same inks as the poster and lit for the postcard's hour.
+ */
+function RoomVignette({ view, hour, preset, uid, initial, label }: { view: CplView; hour: number; preset: CplPreset; uid: string; initial: string; label: string }) {
+  const p = samplePalette(hour)
+  const sun = sunPosition(hour)
+  const coast = preset.landscape === "coast"
+  const ink = mix("#141836", p.shade, 0.3)
+  const white = mix(p.wall, "#ffffff", 0.35)
+  const id = (k: string) => uid + k
+  const sky = (
+    <linearGradient id={id("sky")} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stopColor={p.skyTop} />
+      <stop offset="0.6" stopColor={p.skyMid} />
+      <stop offset="1" stopColor={p.skyLow} />
+    </linearGradient>
+  )
+  const dots = (
+    <pattern id={id("dots")} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <circle cx="4" cy="4" r="1.5" fill={ink} />
+    </pattern>
+  )
+  const stars = (n: number, top: number) => {
+    const r = seeded(n)
+    return Array.from({ length: 34 }, (_, i) => <circle key={i} cx={r() * 600} cy={r() * top} r={0.7 + r() * 1.5} fill="#fff7e0" />)
+  }
+
+  if (view === "pool") {
+    // Poolside King: the room itself, with the deck and the water through the sliding door.
+    const wallIn = mix(p.wall, "#efc7b0", 0.55)
+    const r = seeded(11)
+    return (
+      <svg className="cpl-scene" viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+        <defs>{dots}</defs>
+        <rect width="600" height="400" fill={wallIn} />
+        <rect x="166" y="34" width="424" height="300" fill={ink} />
+        <PosterScene hour={hour} preset={preset} uid={id("win")} initial={initial} view="420 560 820 560" align="xMidYMid slice" nest={{ x: 176, y: 44, w: 404, h: 280 }} />
+        <rect x="372" y="44" width="10" height="280" fill={ink} />
+        <path d="M176 44H580" stroke={white} strokeWidth="3" opacity="0.5" />
+        <path d={"M196 60L250 60L210 300L176 300Z"} fill="#ffffff" opacity={0.08 + p.shadow * 0.18} />
+        {/* curtain */}
+        <path d="M150 26C140 110 162 200 146 340H196C186 240 204 120 188 26Z" fill={preset.stripe} />
+        <path d="M160 30C154 120 170 220 158 336M174 30C170 120 186 220 176 336" stroke={mix(preset.stripe, "#000000", 0.25)} strokeWidth="3" fill="none" />
+        <rect x="132" y="20" width="470" height="10" rx="3" fill={ink} />
+        {/* floor: terrazzo */}
+        <rect y="330" width="600" height="70" fill={mix(p.deck, "#ffffff", 0.35)} />
+        {Array.from({ length: 70 }, (_, i) => (
+          <circle key={i} cx={r() * 600} cy={334 + r() * 64} r={1 + r() * 2.4} fill={[preset.doors[0], preset.doors[1], preset.stripe, ink][i % 4]} opacity="0.55" />
+        ))}
+        <path d={"M250 334L330 334L380 400L270 400Z"} fill="#fff6d8" opacity={p.shadow * 0.45} />
+        {/* lamp */}
+        <path d="M96 236V330M80 330H112" stroke={ink} strokeWidth="4" />
+        <circle cx="96" cy="216" r="26" fill={mix("#fff2c8", p.lit, 0.3)} stroke={ink} strokeWidth="3" />
+        {/* credenza and record player */}
+        <rect x="430" y="286" width="170" height="54" fill="#b8733f" />
+        <rect x="430" y="286" width="170" height="8" fill="#8f5428" />
+        <path d="M444 340V360M586 340V360" stroke={ink} strokeWidth="5" />
+        <path d="M486 294V334M544 294V334" stroke="#8f5428" strokeWidth="3" />
+        <rect x="452" y="262" width="96" height="24" rx="3" fill={white} stroke={ink} strokeWidth="2.5" />
+        <ellipse cx="492" cy="266" rx="34" ry="7" fill="#15172c" />
+        <ellipse cx="492" cy="266" rx="9" ry="2.2" fill={preset.stripe} />
+        <path d="M534 262L512 268" stroke={ink} strokeWidth="2.5" strokeLinecap="round" />
+        {/* the bed, side on: headboard, pillows, white duvet and a striped throw at the foot */}
+        <rect x="-10" y="222" width="22" height="122" rx="4" fill="#9a5a2e" />
+        <rect x="8" y="296" width="292" height="40" rx="6" fill="#fffaf2" stroke={ink} strokeWidth="2.5" />
+        <path d="M14 296Q60 284 120 292Q190 282 296 296V312H14Z" fill="#ffffff" stroke={ink} strokeWidth="2.5" strokeLinejoin="round" />
+        <rect x="20" y="268" width="70" height="30" rx="13" fill="#ffffff" stroke={ink} strokeWidth="2.5" />
+        <rect x="60" y="274" width="64" height="26" rx="12" fill={preset.doors[1]} stroke={ink} strokeWidth="2.5" />
+        <rect x="222" y="292" width="58" height="46" fill={preset.doors[0]} stroke={ink} strokeWidth="2.5" />
+        <path d="M234 292V338M246 292V338M258 292V338M270 292V338" stroke="#fffaf2" strokeWidth="3.5" />
+        <rect x="8" y="336" width="292" height="12" fill="#9a5a2e" />
+        <path d="M22 348V366M286 348V366" stroke={ink} strokeWidth="6" strokeLinecap="round" />
+        <rect width="600" height="400" fill={"url(#" + id("dots") + ")"} opacity="0.05" />
+      </svg>
+    )
+  }
+
+  if (view === "palms") {
+    // Garden Casita: the casita in the grove, its fire pit and the bikes at the door.
+    const groundY = 300
+    return (
+      <svg className="cpl-scene" viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+        <defs>
+          {sky}
+          {dots}
+        </defs>
+        <rect width="600" height="400" fill={"url(#" + id("sky") + ")"} />
+        {sun.up && <StripedSun x={470} y={176 - sun.alt * 90} r={62} fill={p.sun} uid={id("sun")} />}
+        {coast ? (
+          <rect y="236" width="600" height="70" fill={p.sea} />
+        ) : (
+          <g>
+            <path d="M0 250L70 206L150 228L230 176L300 214L380 196L460 232L540 200L600 222V310H0Z" fill={p.far} />
+            <path d="M230 176L300 214L380 196L460 232L460 310H330Z" fill={p.shade} opacity="0.45" />
+          </g>
+        )}
+        <rect y={groundY} width="600" height="100" fill={mix(p.ground, p.deck, 0.4)} />
+        {/* long shadows */}
+        <path d={"M120 " + groundY + "H380L300 330H40Z"} fill={p.shade} opacity={p.shadow * 0.5} />
+        {/* grapefruit tree */}
+        <path d="M78 300V214" stroke={mix(p.palm, "#3b2412", 0.4)} strokeWidth="9" />
+        <g fill={mix(p.palm, "#3d7a3a", 0.35)}>
+          <circle cx="56" cy="196" r="34" />
+          <circle cx="98" cy="186" r="38" />
+          <circle cx="78" cy="160" r="34" />
+          <circle cx="40" cy="168" r="22" />
+        </g>
+        <g fill={mix("#ffcf3a", p.sun, 0.3)}>
+          {[[52, 190], [92, 170], [110, 200], [70, 150], [36, 172], [84, 206]].map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r="6.5" />
+          ))}
+        </g>
+        {/* the casita */}
+        <rect x="150" y="190" width="240" height="112" fill={p.wall} />
+        <path d="M136 176L270 200L404 176V188L270 214L136 188Z" fill={white} />
+        <path d="M136 188L270 214L404 188" stroke={ink} strokeWidth="3" fill="none" opacity="0.5" />
+        <rect x="246" y="226" width="46" height="76" fill={preset.doors[0]} />
+        <circle cx="284" cy="266" r="3" fill={ink} />
+        <circle cx="196" cy="246" r="20" fill={p.lit} stroke={white} strokeWidth="5" />
+        <g fill={mix(p.wall, p.shade, 0.35)}>
+          {[0, 1, 2].map((r) => [0, 1].map((c) => <circle key={r + "-" + c} cx={322 + c * 26} cy={226 + r * 26} r="9" />))}
+        </g>
+        <rect x="150" y="296" width="240" height="6" fill={p.shade} opacity="0.35" />
+        {/* bikes */}
+        <g fill="none" strokeWidth="5" strokeLinecap="round">
+          {[0, 1].map((k) => (
+            <g key={k} transform={"translate(" + (402 + k * 70) + " 0)"} stroke={k ? preset.doors[0] : preset.stripe}>
+              <circle cx="0" cy="306" r="24" stroke={ink} strokeWidth="4" />
+              <circle cx="66" cy="306" r="24" stroke={ink} strokeWidth="4" />
+              <path d="M0 306L24 266H56L66 306M24 266L34 306H0M56 266L52 254H64M24 266L20 254" />
+            </g>
+          ))}
+        </g>
+        {/* fire pit */}
+        <ellipse cx="300" cy="352" rx="66" ry="16" fill={ink} />
+        <ellipse cx="300" cy="347" rx="56" ry="11" fill={mix(ink, "#5a3a2a", 0.5)} />
+        <g className="cpl-flame">
+          <path d="M276 346C270 320 290 314 286 292C304 308 312 326 304 346Z" fill={preset.stripe} />
+          <path d="M296 346C292 326 306 318 304 304C318 318 322 332 314 346Z" fill={p.sun} />
+          <path d="M286 346C284 334 292 330 292 322C300 330 302 338 298 346Z" fill="#fff1b0" />
+        </g>
+        <rect width="600" height="400" fill={"url(#" + id("dots") + ")"} opacity="0.05" />
+      </svg>
+    )
+  }
+
+  if (view === "mountain") {
+    // Mountain Suite: first light on the peaks, seen from the wraparound balcony.
+    return (
+      <svg className="cpl-scene" viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+        <defs>
+          {sky}
+          {dots}
+        </defs>
+        <rect width="600" height="400" fill={"url(#" + id("sky") + ")"} />
+        {sun.up && <StripedSun x={130} y={230 - sun.alt * 120} r={58} fill={p.sun} uid={id("sun")} />}
+        {coast ? (
+          <g>
+            <rect y="200" width="600" height="120" fill={p.sea} />
+            <path d="M330 320L400 250L470 214L540 196L600 200V320Z" fill={p.near} />
+            <path d="M540 196L600 200V320H520Z" fill={p.shade} opacity="0.5" />
+            <rect x="528" y="150" width="16" height="48" fill={white} />
+            <rect x="528" y="164" width="16" height="7" fill={preset.stripe} />
+            <path d="M524 150L536 138L548 150Z" fill={preset.stripe} />
+          </g>
+        ) : (
+          <g>
+            <path d="M0 250L90 196L170 214L250 150L330 120L420 168L500 140L600 186V320H0Z" fill={p.far} />
+            <path d="M120 320L210 220L290 170L340 132L400 176L470 236L560 320Z" fill={p.near} />
+            <path d="M340 132L400 176L470 236L560 320H420L380 220Z" fill={p.shade} opacity="0.85" />
+            <path d="M340 132L400 176L470 236L560 320H420L380 220Z" fill={"url(#" + id("dots") + ")"} opacity="0.3" />
+            <path d="M330 140L340 132L352 140L344 150Z" fill={mix(p.wall, "#ffffff", 0.6)} />
+          </g>
+        )}
+        <rect y="300" width="600" height="20" fill={mix(p.ground, p.near, 0.3)} />
+        {/* balcony floor and rail */}
+        <path d="M0 330H600V400H0Z" fill={mix(p.deck, "#ffffff", 0.2)} />
+        <path d="M0 350H600M0 374H600" stroke={mix(p.deck, ink, 0.25)} strokeWidth="2" />
+        <path d="M0 254H600" stroke={white} strokeWidth="10" />
+        <path d="M0 276H600M0 296H600M0 316H600" stroke={white} strokeWidth="4" />
+        {[40, 200, 360, 520].map((x) => (
+          <rect key={x} x={x} y="250" width="10" height="84" fill={white} />
+        ))}
+        {/* table, coffee, chair */}
+        <ellipse cx="170" cy="306" rx="54" ry="10" fill={preset.doors[1]} stroke={ink} strokeWidth="2.5" />
+        <path d="M170 316V364M146 364H194" stroke={ink} strokeWidth="4" />
+        <path d="M150 300h18v-14h-18zM168 290a5 5 0 0 1 0 10" fill="#ffffff" stroke={ink} strokeWidth="2" />
+        <path d="M186 300c0-10 12-10 12 0z" fill={preset.stripe} />
+        <path d="M400 380L430 290H520L548 380M430 290Q476 350 520 290" fill="none" stroke={ink} strokeWidth="4" />
+        <path d="M434 294Q476 352 516 294L506 352Q476 372 446 352Z" fill={preset.doors[0]} />
+        <rect width="600" height="400" fill={"url(#" + id("dots") + ")"} opacity="0.05" />
+      </svg>
+    )
+  }
+
+  // night: Roof Bungalow, the roof deck and its plunge pool under the stars.
+  return (
+    <svg className="cpl-scene" viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+      <defs>
+        {sky}
+        {dots}
+        <radialGradient id={id("glow")} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#dffcff" stopOpacity="0.9" />
+          <stop offset="1" stopColor={p.pool} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="600" height="400" fill={"url(#" + id("sky") + ")"} />
+      <g opacity={p.stars}>{stars(5, 200)}</g>
+      <circle cx="470" cy="70" r="26" fill="#fff4cf" opacity={p.stars} />
+      <circle cx="482" cy="64" r="24" fill={p.skyTop} opacity={p.stars * 0.92} />
+      {coast ? <rect y="200" width="600" height="60" fill={p.sea} /> : <path d="M0 230L80 190L170 206L260 160L350 190L440 170L520 196L600 180V260H0Z" fill={p.near} />}
+      <g fill="#ffd77a">
+        {Array.from({ length: 46 }, (_, i) => {
+          const r = seeded(31 + i)
+          return <rect key={i} x={i * 13 + r() * 6} y={246 + r() * 12} width="3" height="3" opacity={0.4 + r() * 0.6} />
+        })}
+      </g>
+      {/* deck */}
+      <path d="M0 268H600V400H0Z" fill={p.deck} />
+      <path d="M0 268L-40 400M150 268L120 400M300 268V400M450 268L480 400M600 268L640 400" stroke={mix(p.deck, ink, 0.3)} strokeWidth="2" />
+      {/* plunge pool */}
+      <path d="M90 300H330L360 372H60Z" fill={p.pool} />
+      <ellipse cx="210" cy="336" rx="170" ry="50" fill={"url(#" + id("glow") + ")"} opacity={p.lights} />
+      <path d="M90 300H330L360 372H60Z" fill="none" stroke={white} strokeWidth="7" strokeLinejoin="round" />
+      <path d="M100 322q20 -6 40 0t40 0t40 0t40 0t40 0M84 346q20 -6 40 0t40 0t40 0t40 0t40 0t40 0" fill="none" stroke="#ffffff" strokeWidth="2.5" opacity="0.6" />
+      {/* string lights */}
+      <path d="M0 120Q150 176 300 132Q450 176 600 124" fill="none" stroke={ink} strokeWidth="1.5" />
+      {Array.from({ length: 13 }, (_, i) => {
+        const t = (i + 0.5) / 13
+        const half = t < 0.5 ? t * 2 : (t - 0.5) * 2
+        const x0 = t < 0.5 ? 0 : 300
+        const y = (t < 0.5 ? 120 : 132) * (1 - half) * (1 - half) + 2 * (1 - half) * half * 176 + half * half * (t < 0.5 ? 132 : 124)
+        return <circle key={i} cx={x0 + half * 300} cy={y + 5} r="5" fill="#ffe28a" opacity={0.4 + p.lights * 0.6} />
+      })}
+      {/* telescope */}
+      <path d="M476 368L500 296L524 368M500 296V372" stroke={ink} strokeWidth="4" fill="none" />
+      <path d="M470 276L548 238L556 254L478 292Z" fill={white} stroke={ink} strokeWidth="3" />
+      <rect x="544" y="232" width="16" height="28" rx="3" fill={preset.stripe} stroke={ink} strokeWidth="2.5" transform="rotate(-26 552 246)" />
+      {/* lounger */}
+      <path d="M380 352h80l10 18H370zM372 352l14-26h12l-8 26z" fill={white} />
+      <path d="M384 358h74" stroke={preset.stripe} strokeWidth="3" />
+      {/* parapet */}
+      <rect y="384" width="600" height="16" fill={mix(p.wall, ink, 0.25)} />
+      <rect width="600" height="400" fill={"url(#" + id("dots") + ")"} opacity="0.06" />
+    </svg>
+  )
+}
+
 
 function Postcard({
   room,
@@ -1349,7 +1733,7 @@ function Postcard({
             {room.image ? (
               <img src={room.image} alt={room.imageAlt || room.name} width={900} height={600} loading="lazy" />
             ) : (
-              <PosterScene initial={initial} hour={hour} preset={preset} uid={uid + "pc" + index} view={VIEWS[room.view || "pool"]} align="xMidYMid slice" label={room.name + ", printed at " + formatHour(hour, clock)} />
+              <RoomVignette view={room.view || "pool"} hour={hour} preset={preset} uid={uid + "pc" + index} initial={initial} label={room.name + ", printed at " + formatHour(hour, clock)} />
             )}
             <span className="cpl-stamp" aria-hidden="true">
               <b>{formatMoney(room.rate, currency)}</b>
@@ -1564,6 +1948,9 @@ export default function PalomaHotelLanding({
 
   /* pill nav visibility and the phone menu */
   const [pill, setPill] = React.useState(false)
+  // On phones the pill is docked from the first screen, so the menu and "Book" are always one tap away.
+  const narrow = useNarrow()
+  const docked = pill || narrow
   const [menu, setMenu] = React.useState(false)
   const heroRef = React.useRef(null as HTMLElement | null)
   React.useEffect(() => {
@@ -1652,7 +2039,7 @@ export default function PalomaHotelLanding({
             <span>{place[0]}</span>
             <span>{place[1]}</span>
           </span>
-          <Martini />
+          <Parasol />
           <button
             type="button"
             className="cpl-theme"
@@ -1715,10 +2102,15 @@ export default function PalomaHotelLanding({
 
       {/* booking */}
       {booking && (
-        <section id={uid + "book"} tabIndex={-1} className="cpl-book cpl-sec" data-sec="book" aria-labelledby={uid + "bk"}>
+        <section id={uid + "book"} tabIndex={-1} className="cpl-book cpl-sec cpl-screen cpl-screen-tr" data-sec="book" aria-labelledby={uid + "bk"}>
           <div className="cpl-book-l cpl-rv">
             <h2 id={uid + "bk"}>{booking.title ?? "Book direct, pay at the desk."}</h2>
             <p>{booking.text ?? "Free cancellation up to seven days before you arrive. Rates include the airport shuttle and bikes."}</p>
+            <ul className="cpl-perks">
+              {(booking.perks || ["Airport shuttle, every flight", "Cruiser bikes and tennis racquets", "Late check-out on Sundays", "Pool towels, robes and sunscreen"]).map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
           </div>
           <div className="cpl-book-r cpl-rv">
             {room && (
@@ -1829,7 +2221,7 @@ export default function PalomaHotelLanding({
 
       {/* rooms */}
       {rooms && (
-        <section className="cpl-rooms cpl-sec" data-sec="rooms" aria-labelledby={uid + "rm"}>
+        <section className="cpl-rooms cpl-sec cpl-screen cpl-screen-bl" data-sec="rooms" aria-labelledby={uid + "rm"}>
           <div className="cpl-sec-head cpl-rv">
             <h2 id={uid + "rm"}>{rooms.title ?? "Four ways to stay."}</h2>
             <p>{rooms.text ?? "Every room opens onto the deck or the garden. Turn a postcard over for the details."}</p>
@@ -1886,17 +2278,19 @@ export default function PalomaHotelLanding({
       {/* facts on pool tiles */}
       {facts && facts.length > 0 && (
         <section className="cpl-tiles" aria-label="The hotel in numbers">
-          <svg className="cpl-lane" viewBox="0 0 1600 60" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0 30H1540M1540 6V54" stroke="currentColor" strokeWidth="14" fill="none" />
-          </svg>
+          <LaneRope uid={uid + "rope1"} coral={tokens.coral} className="cpl-rope cpl-rope-t" />
           <dl className="cpl-facts">
-            {facts.map((f) => (
+            {facts.map((f, i) => (
               <div key={f.label} className="cpl-fact cpl-rv">
-                <dt>{f.value}</dt>
+                <dt>
+                  <TileValue text={f.value} uid={uid + "tile" + i} />
+                  <span className="cpl-sr">{f.value}</span>
+                </dt>
                 <dd>{f.label}</dd>
               </div>
             ))}
           </dl>
+          <LaneRope uid={uid + "rope2"} coral={tokens.coral} className="cpl-rope cpl-rope-b" />
         </section>
       )}
 
@@ -1922,7 +2316,8 @@ export default function PalomaHotelLanding({
               {quotes.map((q, i) => (
                 <figure key={i} className={"cpl-quote cpl-rv" + (i === 0 ? " cpl-quote-big" : "")}>
                   <div className="cpl-letter">
-                    <span className="cpl-pm" aria-hidden="true">
+                    <div className="cpl-letter-head" aria-hidden="true">
+                    <span className="cpl-pm">
                       <svg viewBox="0 0 150 80" width="150" height="80">
                         <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="2.5" />
                         <circle cx="40" cy="40" r="26" fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -1936,10 +2331,11 @@ export default function PalomaHotelLanding({
                       </svg>
                     </span>
                     {i === 0 && (
-                      <span className="cpl-lstamp" aria-hidden="true">
-                        <PosterScene initial={initial} hour={21.9} preset={preset} uid={uid + "st"} view="420 560 760 520" align="xMidYMid slice" />
+                      <span className="cpl-lstamp">
+                        <StampArt uid={uid + "st"} preset={preset} />
                       </span>
                     )}
+                    </div>
                     <blockquote>
                       <p>“{q.quote}”</p>
                     </blockquote>
@@ -1957,7 +2353,7 @@ export default function PalomaHotelLanding({
 
       {/* getting here + newsletter */}
       {(visit || newsletter) && (
-        <section className="cpl-visit cpl-sec" data-sec="visit" aria-labelledby={uid + "vs"}>
+        <section className="cpl-visit cpl-sec cpl-screen cpl-screen-tl" data-sec="visit" aria-labelledby={uid + "vs"}>
           {visit && (
             <>
               <div className="cpl-visit-l cpl-rv">
@@ -2055,7 +2451,7 @@ export default function PalomaHotelLanding({
           </div>
           <nav aria-label="Footer">
             <ul>
-              {(footer.links || [...links, { label: "Careers", href: "#top" }, { label: "Press", href: "#top" }]).map((l) => (
+              {(footer.links || links).map((l) => (
                 <li key={l.label}>
                   <a href={l.href} onClick={(e) => onLink(e, l.href)} className="cpl-ulink">
                     <span>{l.label}</span>
@@ -2064,21 +2460,35 @@ export default function PalomaHotelLanding({
               ))}
             </ul>
           </nav>
-          <p className="cpl-small">
-            © {new Date().getFullYear()} {brand}
-          </p>
+          {visit && (
+            <address className="cpl-foot-addr">
+              <span>{visit.address.join(", ")}</span>
+              {visit.phone && <a href={"tel:" + visit.phone.replace(/[^\d+]/g, "")}>{visit.phone}</a>}
+              {visit.email && <a href={"mailto:" + visit.email}>{visit.email}</a>}
+            </address>
+          )}
+          <div className="cpl-small">
+            <span>
+              © {new Date().getFullYear()} {brand}
+            </span>
+            {[...(footer.social || []), ...(footer.legal || [])].map((l) => (
+              <a key={l.label + l.href} href={l.href}>
+                {l.label}
+              </a>
+            ))}
+          </div>
         </div>
       </footer>
 
       {/* sticky pill nav */}
-      <div className={"cpl-pill-dock" + (pill ? " cpl-pill-on" : "")}>
-        <nav className="cpl-pill" aria-label="Quick" aria-hidden={!pill}>
-          <a className="cpl-pill-mark" href="#top" onClick={(e) => onLink(e, "#top")} aria-label={brand + ", back to top"} tabIndex={pill ? 0 : -1}>
+      <div className={"cpl-pill-dock" + (docked ? " cpl-pill-on" : "")}>
+        <nav className="cpl-pill" aria-label="Quick" aria-hidden={!docked}>
+          <a className="cpl-pill-mark" href="#top" onClick={(e) => onLink(e, "#top")} aria-label={brand + ", back to top"} tabIndex={docked ? 0 : -1}>
             <Monogram letter={initial} color="currentColor" size={18} />
           </a>
           <span className="cpl-pill-links">
             {links.map((l) => (
-              <a key={l.href} href={l.href} onClick={(e) => onLink(e, l.href)} tabIndex={pill ? 0 : -1} className="cpl-ulink">
+              <a key={l.href} href={l.href} onClick={(e) => onLink(e, l.href)} tabIndex={docked ? 0 : -1} className="cpl-ulink">
                 <span>{l.label}</span>
               </a>
             ))}
@@ -2086,10 +2496,10 @@ export default function PalomaHotelLanding({
           <span className="cpl-pill-hour" aria-hidden="true">
             {formatHour(hour, clock)}
           </span>
-          <button type="button" className="cpl-pill-menu" aria-expanded={menu} aria-controls={uid + "menu"} onClick={() => setMenu(!menu)} tabIndex={pill ? 0 : -1}>
+          <button type="button" className="cpl-pill-menu" aria-expanded={menu} aria-controls={uid + "menu"} onClick={() => setMenu(!menu)} tabIndex={docked ? 0 : -1}>
             Menu
           </button>
-          <a className="cpl-btn cpl-solid cpl-pill-cta" href="#book" onClick={(e) => onLink(e, "#book")} tabIndex={pill ? 0 : -1}>
+          <a className="cpl-btn cpl-solid cpl-pill-cta" href="#book" onClick={(e) => onLink(e, "#book")} tabIndex={docked ? 0 : -1}>
             {h.cta}
           </a>
         </nav>
@@ -2116,7 +2526,7 @@ export default function PalomaHotelLanding({
 }
 
 const CPL_CSS = `
-.cpl-root{--cpl-display:"Futura","Futura PT","Avenir Next","Century Gothic","Inter Display","Helvetica Neue",ui-sans-serif,system-ui,sans-serif;--cpl-text:ui-sans-serif,system-ui,"Helvetica Neue",Arial,sans-serif;--cpl-type:"Courier Prime","Courier New",ui-monospace,monospace;--cpl-rule:color-mix(in srgb,var(--cpl-ink) 26%,transparent);--cpl-olive:#8fae3c;--cpl-ease:cubic-bezier(.23,1,.32,1);position:relative;min-height:var(--cpl-h);background:var(--cpl-paper);color:var(--cpl-ink);font-family:var(--cpl-text);font-size:16px;line-height:1.55;overflow:clip;-webkit-font-smoothing:antialiased;color-scheme:light}
+.cpl-root{--cpl-display:"Futura","Futura PT","Century Gothic","Avenir Next","Avenir","Trebuchet MS","Inter Display","Helvetica Neue",ui-sans-serif,system-ui,sans-serif;--cpl-text:ui-sans-serif,system-ui,"Helvetica Neue",Arial,sans-serif;--cpl-type:"Courier Prime","Courier New",ui-monospace,monospace;--cpl-rule:color-mix(in srgb,var(--cpl-ink) 26%,transparent);--cpl-ease:cubic-bezier(.23,1,.32,1);position:relative;min-height:var(--cpl-h);background:var(--cpl-paper);color:var(--cpl-ink);font-family:var(--cpl-text);font-size:16px;line-height:1.55;overflow:clip;-webkit-font-smoothing:antialiased;color-scheme:light}
 .cpl-root[data-theme="dark"]{color-scheme:dark}
 .cpl-root *,.cpl-root *::before,.cpl-root *::after{box-sizing:border-box}
 .cpl-root :where(h1,h2,h3,p,ul,ol,dl,dd,figure,blockquote){margin:0;padding:0}
@@ -2142,8 +2552,8 @@ const CPL_CSS = `
 .cpl-headnav{display:flex;gap:1.6rem;font-size:14px;font-weight:600}
 .cpl-head-r{display:flex;align-items:center;gap:.9rem;justify-self:end}
 .cpl-place{display:flex;flex-direction:column;text-align:right;font-family:var(--cpl-display);font-weight:800;text-transform:uppercase;font-size:12.5px;line-height:1.05;letter-spacing:.04em}
-.cpl-martini{color:var(--cpl-ink);transform-origin:50% 95%;transition:transform .5s var(--cpl-ease)}
-.cpl-head-r:hover .cpl-martini{transform:rotate(-12deg)}
+.cpl-parasol{color:var(--cpl-ink);transform-origin:50% 92%;transition:transform .45s var(--cpl-ease)}
+.cpl-head-r:hover .cpl-parasol{transform:rotate(-14deg)}
 .cpl-theme{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--cpl-ink);background:transparent;cursor:pointer;transition:transform .3s var(--cpl-ease),background-color .2s}
 .cpl-theme:hover{transform:rotate(-24deg);background:var(--cpl-card)}
 .cpl-theme:active{transform:scale(.94)}
@@ -2156,7 +2566,7 @@ const CPL_CSS = `
 .cpl-hero{position:relative;padding:.4rem clamp(16px,3vw,40px) clamp(28px,4vw,56px);min-height:calc(var(--cpl-h) - 96px);display:flex;flex-direction:column}
 .cpl-presents{text-align:center;font-family:var(--cpl-display);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:clamp(11px,1.05vw,14px);margin:0 0 .5rem}
 .cpl-wordmark{display:block;width:min(100%,1180px);height:auto;margin:0 auto;overflow:visible}
-.cpl-hero>.cpl-wordmark{width:min(86%,1040px)}
+.cpl-hero>.cpl-wordmark{width:min(86%,1040px,calc(clamp(84px,16vh,150px) * var(--cpl-ar)))}
 .cpl-spark{transform-box:fill-box;transform-origin:50% 50%;animation:cpl-twinkle 4.2s var(--cpl-ease) infinite}
 @keyframes cpl-twinkle{0%,62%,100%{transform:scale(0) rotate(0);opacity:0}72%{transform:scale(1) rotate(45deg);opacity:1}86%{transform:scale(.4) rotate(90deg);opacity:.6}}
 
@@ -2206,6 +2616,11 @@ const CPL_CSS = `
 .cpl-dial-compact{border-radius:22px;box-shadow:none;padding:.8rem 1rem}
 
 .cpl-sec{padding:clamp(56px,8vw,120px) clamp(16px,4vw,64px)}
+.cpl-screen{position:relative;isolation:isolate}
+.cpl-screen::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(color-mix(in srgb,var(--cpl-coral) 60%,transparent) 1.7px,transparent 2.2px);background-size:12px 12px;opacity:.55;-webkit-mask-image:var(--cpl-screen-mask);mask-image:var(--cpl-screen-mask)}
+.cpl-screen-tr{--cpl-screen-mask:radial-gradient(ellipse 55% 75% at 100% 0%,#000 0%,transparent 72%)}
+.cpl-screen-bl{--cpl-screen-mask:radial-gradient(ellipse 50% 70% at 0% 100%,#000 0%,transparent 72%)}
+.cpl-screen-tl{--cpl-screen-mask:radial-gradient(ellipse 45% 70% at 0% 0%,#000 0%,transparent 72%)}
 .cpl-sec-head{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:2rem;align-items:end;margin-bottom:clamp(28px,4vw,56px)}
 .cpl-root h2{font-family:var(--cpl-display);font-weight:800;font-size:clamp(2.1rem,1.2rem + 3.4vw,4.4rem);line-height:.98;letter-spacing:-.035em;text-wrap:balance}
 .cpl-sec-head p{color:var(--cpl-muted);font-size:17px;max-width:36ch}
@@ -2214,6 +2629,9 @@ const CPL_CSS = `
 .cpl-book{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);align-items:start}
 .cpl-book-l{display:flex;flex-direction:column;gap:1.1rem}
 .cpl-book-l>p{color:var(--cpl-muted);font-size:17px;max-width:34ch}
+.cpl-perks{display:grid;gap:0;margin-top:.4rem;border-top:1.5px solid var(--cpl-rule);max-width:26rem}
+.cpl-perks li{display:flex;align-items:center;gap:.7rem;padding:.7rem 0;border-bottom:1.5px solid var(--cpl-rule);font-weight:600;font-size:15px}
+.cpl-perks li::before{content:"";flex:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 50% 50%,var(--cpl-sun) 0 42%,transparent 44%),repeating-conic-gradient(var(--cpl-ink) 0 10deg,transparent 10deg 45deg);opacity:.9}
 .cpl-book-r{position:relative}
 .cpl-fob-wrap{position:absolute;right:-30px;top:-74px;z-index:2;rotate:7deg;pointer-events:none}
 .cpl-fob{transform-origin:50% 6%;animation:cpl-swing 1.6s var(--cpl-ease);filter:drop-shadow(4px 5px 0 var(--cpl-ink))}
@@ -2281,7 +2699,7 @@ const CPL_CSS = `
 .cpl-day-sticky{position:sticky;top:24px;display:flex;flex-direction:column;gap:1.1rem}
 .cpl-day-sticky>p{color:var(--cpl-muted);font-size:17px;max-width:38ch}
 .cpl-window{position:relative;aspect-ratio:10/7;border:1.5px solid var(--cpl-ink);border-radius:22px;overflow:hidden;box-shadow:6px 7px 0 var(--cpl-ink)}
-.cpl-window-time{position:absolute;left:14px;top:12px;font-family:var(--cpl-type);font-weight:700;font-size:15px;padding:.25rem .6rem;border-radius:999px;background:var(--cpl-paper);border:1.5px solid var(--cpl-ink);font-variant-numeric:tabular-nums}
+.cpl-window-time{position:absolute;right:14px;top:12px;font-family:var(--cpl-type);font-weight:700;font-size:15px;padding:.25rem .6rem;border-radius:999px;background:var(--cpl-paper);border:1.5px solid var(--cpl-ink);font-variant-numeric:tabular-nums}
 .cpl-events{display:flex;flex-direction:column;border-top:1.5px solid var(--cpl-ink);counter-reset:none}
 .cpl-ev{border-bottom:1.5px solid var(--cpl-rule)}
 .cpl-ev button{display:grid;grid-template-columns:7.2rem minmax(0,1fr) auto;gap:.4rem 1.4rem;align-items:baseline;width:100%;padding:1.2rem .4rem;border:0;background:transparent;text-align:left;cursor:pointer;border-radius:0;transition:background-color .25s,padding .35s var(--cpl-ease)}
@@ -2295,13 +2713,16 @@ const CPL_CSS = `
 .cpl-ev-on button{background:var(--cpl-card);padding-left:1rem;box-shadow:inset 6px 0 0 var(--cpl-sun)}
 .cpl-ev button:hover .cpl-ev-body strong{transform:translateX(4px)}
 
-.cpl-tiles{position:relative;padding:clamp(56px,7vw,104px) clamp(16px,4vw,64px);background-color:var(--cpl-pool);background-image:linear-gradient(rgba(255,255,255,.2) 2px,transparent 2px),linear-gradient(90deg,rgba(255,255,255,.2) 2px,transparent 2px);background-size:30px 30px;color:#ffffff;overflow:hidden}
-.cpl-lane{position:absolute;left:0;top:50%;width:100%;height:60px;margin-top:-30px;color:rgba(7,22,48,.38)}
+.cpl-tiles{position:relative;padding:clamp(80px,8vw,120px) clamp(16px,4vw,64px);background-color:var(--cpl-pool);background-image:linear-gradient(rgba(255,255,255,.2) 2px,transparent 2px),linear-gradient(90deg,rgba(255,255,255,.2) 2px,transparent 2px);background-size:30px 30px;color:#ffffff;overflow:hidden}
+.cpl-rope{position:absolute;left:0;display:block}
+.cpl-rope-t{top:18px}
+.cpl-rope-b{bottom:18px}
 .cpl-facts{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(16px,2.5vw,40px)}
-.cpl-fact{padding:1.2rem 1.1rem 1.3rem;background:color-mix(in srgb,var(--cpl-pool) 82%,#071630);border:1.5px solid rgba(255,255,255,.55);border-radius:20px}
-.cpl-fact:nth-child(odd){transform:translateY(-14px)}
-.cpl-fact dt{font-family:var(--cpl-display);font-weight:800;font-size:clamp(2.6rem,1.4rem + 3.6vw,4.8rem);line-height:.95;letter-spacing:-.04em;text-shadow:3px 4px 0 rgba(7,22,48,.55)}
-.cpl-fact dd{margin-top:.7rem;font-size:15px;line-height:1.4;max-width:24ch}
+.cpl-fact{display:flex;flex-direction:column;gap:.9rem}
+.cpl-tileval{display:block;width:min(100%,calc(clamp(52px,5.6vw,88px) * var(--cpl-ar)));height:auto;overflow:visible}
+.cpl-flame{transform-box:fill-box;transform-origin:50% 100%;animation:cpl-flame 1.4s ease-in-out infinite alternate}
+@keyframes cpl-flame{from{transform:scale(1,1)}to{transform:scale(.92,1.08)}}
+.cpl-fact dd{font-size:15px;line-height:1.4;max-width:24ch;font-weight:600;padding-top:.7rem;border-top:2px solid rgba(255,255,255,.45)}
 
 .cpl-guest{position:relative}
 .cpl-awning{display:block;filter:drop-shadow(0 6px 0 rgba(25,29,58,.18))}
@@ -2311,12 +2732,11 @@ const CPL_CSS = `
 .cpl-quote:nth-child(2){transform:rotate(1.2deg)}
 .cpl-quote:nth-child(3){transform:rotate(-.8deg)}
 .cpl-quote:hover{transform:rotate(0) translateY(-3px)}
-.cpl-letter{position:relative;height:auto;min-height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:1.2rem;padding:clamp(1.1rem,2vw,1.7rem);padding-top:clamp(4.4rem,6vw,5.2rem);background:#fffaf6;color:#191d3a;border-radius:9px}
-.cpl-lstamp{position:absolute;right:22px;top:18px;width:96px;height:72px;padding:4px;background:#fffaf6;outline:2px dashed rgba(25,29,58,.45);outline-offset:-1px;transform:rotate(3deg);overflow:hidden}
-.cpl-lstamp .cpl-scene{border-radius:2px}
-.cpl-quote-big .cpl-pm{right:96px;top:40px}
-.cpl-quote-big .cpl-letter{padding-top:clamp(6.2rem,8vw,7.2rem)}
-.cpl-pm{position:absolute;right:14px;top:10px;z-index:1;color:var(--cpl-coral);opacity:.85;transform:rotate(-8deg);filter:brightness(.82)}
+.cpl-letter{position:relative;display:flex;flex-direction:column;gap:1rem;padding:clamp(.9rem,1.6vw,1.3rem) clamp(1.1rem,2vw,1.7rem) clamp(1.1rem,2vw,1.6rem);background:#fffaf6;color:#191d3a;border-radius:9px}
+.cpl-letter-head{display:flex;justify-content:flex-end;align-items:center;min-height:76px;margin-right:-.5rem}
+.cpl-lstamp{display:block;width:96px;height:74px;padding:4px;background:#fffaf6;outline:2px dashed rgba(25,29,58,.45);outline-offset:-1px;transform:rotate(3deg);overflow:hidden;flex:none}
+.cpl-quote-big .cpl-pm{margin-right:-46px;position:relative;z-index:1}
+.cpl-pm{display:block;color:var(--cpl-coral);opacity:.85;transform:rotate(-8deg);filter:brightness(.82)}
 .cpl-quote:nth-child(2){margin-top:clamp(0px,4vw,60px)}
 .cpl-quote:nth-child(3){margin-top:clamp(0px,2vw,24px)}
 .cpl-quote p{font-family:var(--cpl-display);font-weight:700;font-size:clamp(1.15rem,1rem + .5vw,1.45rem);line-height:1.3;letter-spacing:-.01em;text-wrap:pretty}
@@ -2354,7 +2774,10 @@ const CPL_CSS = `
 .cpl-foot-brand p{margin-top:1rem;color:#cfc6dc;max-width:34ch}
 .cpl-foot nav ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem 2rem;font-family:var(--cpl-display);font-weight:700;font-size:clamp(1.05rem,.95rem + .5vw,1.4rem)}
 .cpl-foot nav a{min-height:32px}
-.cpl-small{grid-column:1/-1;font-size:13px;color:#cfc6dc;border-top:1px solid rgba(253,231,226,.2);padding-top:1.2rem}
+.cpl-foot-addr{grid-column:1/-1;font-style:normal;display:flex;flex-wrap:wrap;gap:.3rem 1.6rem;font-size:14px;color:#e6dfee}
+.cpl-foot-addr a{text-underline-offset:3px}
+.cpl-small{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:13px;color:#cfc6dc;border-top:1px solid rgba(253,231,226,.2);padding-top:1.2rem}
+.cpl-small a{color:inherit;text-underline-offset:3px}
 
 .cpl-pill-dock{position:sticky;bottom:16px;z-index:5;display:flex;flex-direction:column;align-items:center;gap:.5rem;height:0;overflow:visible;pointer-events:none}
 .cpl-pill{position:absolute;bottom:0;display:flex;align-items:center;gap:1.1rem;padding:.4rem .4rem .4rem .55rem;background:var(--cpl-paper);border:1.5px solid var(--cpl-ink);border-radius:999px;box-shadow:4px 5px 0 var(--cpl-ink);transform:translateY(calc(100% + 30px));opacity:0;transition:transform .45s var(--cpl-ease),opacity .3s;font-size:14px;font-weight:700}
@@ -2374,14 +2797,11 @@ const CPL_CSS = `
 .cpl-rv.cpl-arm.cpl-in{opacity:1;transform:none}
 
 @media (max-width:1100px){
-.cpl-headnav{display:none}
-.cpl-head{grid-template-columns:1fr auto}
+.cpl-headnav{gap:1.1rem;font-size:13.5px}
+.cpl-place{display:none}
 .cpl-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cpl-book{grid-template-columns:1fr}
 .cpl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
-.cpl-fact:nth-child(odd){transform:none}
-.cpl-pill-links{display:none}
-.cpl-pill-menu{display:inline-flex;align-items:center}
 .cpl-quotes{grid-template-columns:1fr 1fr}
 .cpl-quote-big{grid-column:1/-1}
 .cpl-quote:nth-child(2){margin-top:0}
@@ -2390,12 +2810,12 @@ const CPL_CSS = `
 .cpl-frame{height:auto;flex:none;padding:8px;border-radius:28px;margin-bottom:0;display:flex;flex-direction:column}
 .cpl-frame::before{display:none}
 .cpl-poster{height:clamp(360px,92vw,560px);border-radius:21px}
-.cpl-cap{position:relative;left:auto;top:auto;width:auto;margin:14px 2px 2px;box-shadow:4px 5px 0 var(--cpl-ink);order:3}
+.cpl-cap{position:relative;left:auto;top:auto;width:auto;margin:14px 2px 2px;box-shadow:4px 5px 0 var(--cpl-ink);order:2}
 .cpl-poster{order:1}
-.cpl-dial-wrap{position:relative;left:auto;bottom:auto;transform:none;width:auto;margin:14px 2px 0;order:2}
+.cpl-dial-wrap{position:relative;left:auto;bottom:auto;transform:none;width:auto;margin:14px 2px 0;order:3}
 .cpl-dial{border-radius:24px;flex-direction:column;align-items:stretch;gap:.8rem;padding:.9rem 1rem}
 .cpl-dial-read{flex-direction:row;align-items:baseline;justify-content:space-between;min-width:0}
-.cpl-moments{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.cpl-moments{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;padding-right:28px;-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent)}
 .cpl-chip{flex:none}
 .cpl-sec-head{grid-template-columns:1fr;gap:.8rem}
 .cpl-fob-wrap{right:-8px;top:-58px}
@@ -2413,23 +2833,35 @@ const CPL_CSS = `
 .cpl-news-row,.cpl-news .cpl-ok,.cpl-news .cpl-err,.cpl-news>p{grid-column:1;grid-row:auto}
 .cpl-foot-in{grid-template-columns:1fr}
 }
+@media (max-width:700px){
+.cpl-headnav{display:none}
+.cpl-head{grid-template-columns:1fr auto}
+.cpl-pill-links{display:none}
+.cpl-pill-menu{display:inline-flex;align-items:center}
+}
 @media (max-width:640px){
 .cpl-head{padding-top:.8rem}
-.cpl-place,.cpl-martini{display:none}
+.cpl-place,.cpl-parasol{display:none}
 .cpl-oval{font-size:9.5px}
 .cpl-hero>.cpl-wordmark{width:100%}
+.cpl-poster{height:clamp(220px,62vw,400px)}
+.cpl-memo{font-size:11px;padding:.5rem .8rem}
+.cpl-cap{padding:1rem 1rem 1.05rem}
+.cpl-cap p{font-size:14px;margin-top:.5rem}
+.cpl-cap-act{margin-top:.8rem}
 .cpl-cards{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;margin:0 calc(-1 * clamp(16px,4vw,64px));padding:6px clamp(16px,4vw,64px) 18px;scrollbar-width:none}
 .cpl-card{flex:0 0 84%;scroll-snap-align:center}
-.cpl-card-art{flex:none}
-.cpl-front{justify-content:space-between}
 .cpl-back{font-size:13px;gap:.6rem}
 .cpl-back-l p{font-size:13px}
 .cpl-card:nth-child(even){margin-top:0}
 .cpl-form{grid-template-columns:1fr}
 .cpl-field-l{border-right:0}
 .cpl-news-row{flex-direction:column}
-.cpl-facts{gap:12px}
-.cpl-fact{padding:1rem .9rem}
+.cpl-facts{grid-template-columns:1fr;gap:20px}
+.cpl-fact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:16px}
+.cpl-tileval{width:min(100%,calc(54px * var(--cpl-ar)))}
+.cpl-fact dd{border-top:0;padding:0 0 0 14px;border-left:2px solid rgba(255,255,255,.45);font-size:14px}
+.cpl-form-head span+span{display:none}
 .cpl-fact dd{font-size:14px}
 .cpl-foot nav ul{grid-template-columns:1fr 1fr}
 .cpl-pill{gap:.6rem}
@@ -2439,9 +2871,9 @@ const CPL_CSS = `
 .cpl-back-r dl{grid-template-columns:repeat(3,auto);gap:.8rem;text-align:left}
 }
 @media (prefers-reduced-motion:reduce){
-.cpl-sway,.cpl-caustic,.cpl-spark{animation:none}
+.cpl-sway,.cpl-caustic,.cpl-spark,.cpl-flame{animation:none}
 .cpl-spark{opacity:0}
-.cpl-card-inner,.cpl-pill,.cpl-btn,.cpl-knob,.cpl-oval,.cpl-martini,.cpl-ulink::after,.cpl-res,.cpl-menu{transition:none;animation:none}
+.cpl-card-inner,.cpl-pill,.cpl-btn,.cpl-knob,.cpl-oval,.cpl-parasol,.cpl-ulink::after,.cpl-res,.cpl-menu{transition:none;animation:none}
 .cpl-flipped .cpl-card-inner{transform:rotateY(180deg)}
 .cpl-rv.cpl-arm{opacity:1;transform:none}
 }
