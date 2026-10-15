@@ -31,7 +31,11 @@ export default function DemoCoast() {
         { label: "Aperitivo", hour: 18.2 },
         { label: "Lanterns", hour: 21.5 },
       ]}
-      booking={{ title: "Book with us, not the agency.", text: "Free cancellation until 14 days before arrival. Rates include breakfast on the terrace and the shuttle from Positano." }}
+      booking={{
+        title: "Book with us, not the agency.",
+        text: "Free cancellation until 14 days before arrival. Rates include breakfast on the terrace and the shuttle from Positano.",
+        perks: ["Driver from Naples airport or the Salerno ferry", "Breakfast on the lemon terrace", "Sun loungers on our rocks", "A seat on the morning boat to the grotto"],
+      }}
       rooms={{
         title: "Every room faces the water.",
         text: "Whitewashed walls, tiles from Vietri and shutters you will leave open. Turn a postcard over for the details.",

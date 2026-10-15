@@ -66,7 +66,8 @@ assert.match(src, /role="slider"/, "the time-of-day dial is a slider")
 assert.match(src, /aria-valuetext=\{time \+ ", " \+ label\}/, "and says the time and the moment, not a number")
 assert.match(src, /const n = dialKey\(hour, e\.key\)/, "arrow, page and home keys move the sun")
 assert.match(src, /setPointerCapture/, "dragging keeps tracking outside the track")
-assert.match(src, /aria-pressed=\{momentAt\(moments, hour\) === m\.label\}/, "moment chips show which one is on")
+assert.match(src, /aria-pressed=\{near === m\.label\}/, "moment chips show the nearest one")
+assert.match(src, /const dialTitle = programme && now\.now \? events\[now\.index\]\.title : undefined/, "the dial readout agrees with the programme")
 assert.match(src, /aria-current=\{on && now\.now \? "time" : undefined\}/, "the programme marks what is on now")
 assert.match(src, /const res = await onSearch\(q\)/, "onSearch may return a promise")
 assert.match(src, /if \(res === false\) return/, "onSearch can block a search")
@@ -97,7 +98,7 @@ assert.doesNotMatch(read("demo-coast.tsx"), /https?:\/\//, "and stays capture-sa
 /* ---------- logic, executed ---------- */
 
 const code = region("content") + region("logic") +
-  "\nexport { GLYPHS, SKY, PRESETS, DEFAULT_MOMENTS, DEFAULT_ROOMS, DEFAULT_PROGRAMME, DEFAULT_FACTS, DEFAULT_QUOTES, DEFAULT_VISIT, clamp, wrapHour, mix, contrast, samplePalette, sunPosition, moonPosition, shadowVector, formatHour, momentAt, inSpan, eventAt, layoutWord, nightsBetween, isoDay, dayNumber, roomsLeft, formatMoney, postDate, isEmail, nextIndex, dialKey, resolveColors, seeded }\n"
+  "\nexport { GLYPHS, SKY, PRESETS, DEFAULT_MOMENTS, DEFAULT_ROOMS, DEFAULT_PROGRAMME, DEFAULT_FACTS, DEFAULT_QUOTES, DEFAULT_VISIT, clamp, wrapHour, nearMoment, mix, contrast, samplePalette, sunPosition, moonPosition, shadowVector, formatHour, momentAt, inSpan, eventAt, layoutWord, nightsBetween, isoDay, dayNumber, roomsLeft, formatMoney, postDate, isEmail, nextIndex, dialKey, resolveColors, seeded }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 // the sky key frames run in order through one day and every colour is a hex
@@ -145,6 +146,11 @@ assert.equal(L.momentAt(L.DEFAULT_MOMENTS, 3), "Night swim", "the small hours be
 assert.equal(L.momentAt(L.DEFAULT_MOMENTS, 7), "Sunrise")
 assert.equal(L.momentAt(L.DEFAULT_MOMENTS, 17.6), "Golden hour")
 assert.equal(L.momentAt([], 7), "")
+assert.equal(L.nearMoment(L.DEFAULT_MOMENTS, 17.6), "Golden hour")
+assert.equal(L.nearMoment(L.DEFAULT_MOMENTS, 15), "", "no chip lights up far from every moment")
+assert.equal(L.nearMoment(L.DEFAULT_MOMENTS, 23.9), "", "and the wrap is measured both ways")
+assert.ok(L.sunPosition(6.75).up && L.sunPosition(6.75).y > 380, "at sunrise the sun is up but still on the ridge")
+assert.ok(L.sunPosition(12.8).y - L.sunPosition(12.8).r > 205, "at noon the whole disc stays inside the hero crop")
 
 // the programme: a full day without gaps, and the right event at every hour
 const ev = L.DEFAULT_PROGRAMME
@@ -162,7 +168,7 @@ for (const [ch, [w, d]] of Object.entries(L.GLYPHS)) {
   assert.match(d, /^M[MLHVACQZ0-9 .\-]+$/, `${ch} path is plain absolute commands`)
 }
 for (const ch of "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") assert.ok(L.GLYPHS[ch], `${ch} is in the alphabet`)
-assert.match(L.GLYPHS.M[1], /M52 0V100$/, "M has a full-height middle stem, so it reads as a capital")
+assert.equal(L.GLYPHS.M[1], "M0 100V0L52 64L104 0V100", "M has straight stems and a pointed middle, so it reads as a capital")
 const word = L.layoutWord("Paloma")
 assert.equal(word.glyphs.length, 6)
 assert.ok(word.width > 600 && word.width < 900)
