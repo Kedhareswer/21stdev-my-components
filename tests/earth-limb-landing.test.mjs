@@ -74,6 +74,12 @@ assert.match(src, /soft \? 0\.9e6 : reduced \? 2\.2e6 : 1\.6e6/, "the limb holds
 assert.match(src, /swiftshader\|llvmpipe\|software/, "software renderers are detected")
 assert.match(src, /const live = !!L && !L\.soft && !reduced/, "only a real GPU repaints the turning Earth")
 assert.match(src, /data-nogl/, "no WebGL still draws a limb")
+assert.match(src, /photo \? \(\n\s+<img className="elx-photo"/, "a real photo can replace the rendered limb")
+assert.match(src, /footer\.band !== null/, "the footer band is a prop and can be turned off")
+assert.match(src, /swath && has\("uses"\)/, "so is the swath between sections")
+assert.match(src, /uid \+ "-satcard-"/, "tooltip ids are namespaced per instance")
+assert.match(src, /<TrackMap /, "the fleet is shown on a live ground-track map")
+assert.match(src, /const has = \(k: ElxSection\)/, "sections can be dropped")
 assert.ok(read("demo.tsx").includes("<EarthLimbLanding />"), "default demo is the component, full bleed")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
 assert.match(read("demo-dawn.tsx"), /preset="dawn"/, "the second demo shows the dawn view")
@@ -83,7 +89,7 @@ assert.doesNotMatch(read("demo-dawn.tsx"), /https?:\/\//, "and stays capture-saf
 /* ---------- logic, executed ---------- */
 
 const code = region("content") + region("orbit") + region("imagery") +
-  "\nexport { DEFAULT_PLANES, DEFAULT_FLEET, DEFAULT_CITIES, DEFAULT_USES, PRESETS, period, gmst, sunEci, satEci, toEcef, subPoint, cityVec, nextPass, imagedToday, clock, fmtLat, fmtLon, cityForZone, viewMatrix, heroDisk, canvasRatio, nextIndex, isEmail, validateTask, shade, heroGeometry, pickLead, project, trackPath, renderTile, dot, mul, norm, REACH }\n"
+  "\nexport { DEFAULT_PLANES, DEFAULT_FLEET, DEFAULT_CITIES, DEFAULT_USES, PRESETS, period, gmst, sunEci, satEci, toEcef, subPoint, cityVec, nextPass, imagedToday, clock, fmtLat, fmtLon, cityForZone, viewMatrix, heroDisk, canvasRatio, nextIndex, isEmail, validateTask, shade, heroGeometry, pickLead, project, trackPath, renderTile, dot, mul, norm, REACH, subSolar, terminatorLat, mapXY, trackSvg, latLon }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 const T0 = Date.UTC(2026, 9, 15, 12, 0)
 const close = (a, b, eps, msg) => assert.ok(Math.abs(a - b) < eps, `${msg}: ${a} vs ${b}`)
@@ -185,6 +191,22 @@ const disk = L.heroDisk(1440, 900)
 assert.ok(disk.cy - disk.r > 0 && disk.cy - disk.r < 900 * 0.3, "the limb arcs across the top of the hero")
 assert.ok(1440 * 900 * L.canvasRatio(1440, 900, 3, 1.6e6) ** 2 <= 1.6e6 + 1, "pixel budget holds on dense screens")
 assert.ok(L.canvasRatio(3840, 2160, 2, 2.2e6) < 1, "and drops below 1 on 4K")
+
+// the flat map: sun overhead, a terminator that is really the day-night line, tracks that wrap
+const ss = L.subSolar(Date.UTC(2026, 5, 21, 12))
+close(ss.lat, 23.44, 0.3, "June solstice: sun over the tropic of Cancer")
+close(ss.lon, 0, 2.5, "around noon UTC it is over Greenwich")
+for (const lon of [-150, -60, 0, 45, 120]) {
+  const lat = L.terminatorLat(lon, ss.lat, ss.lon)
+  const la = lat * Math.PI / 180, lo = lon * Math.PI / 180, sla = ss.lat * Math.PI / 180, slo = ss.lon * Math.PI / 180
+  const cosz = Math.sin(la) * Math.sin(sla) + Math.cos(la) * Math.cos(sla) * Math.cos(lo - slo)
+  close(cosz, 0, 1e-9, "the terminator has the sun on the horizon")
+}
+assert.deepEqual(L.mapXY(90, -180, 1000, 500), { x: 0, y: 0 })
+assert.deepEqual(L.mapXY(-90, 180, 1000, 500), { x: 1000, y: 500 })
+const tk = L.trackSvg(L.DEFAULT_FLEET[0], L.DEFAULT_PLANES[0], T0, T0 + 3 * 3600000, 1000, 500)
+assert.ok((tk.match(/M/g) || []).length >= 2, "a long track breaks at the date line instead of drawing across the map")
+assert.ok(!/NaN/.test(tk))
 
 // forms and helpers
 assert.ok(L.isEmail("ines@port-authority.nl"))

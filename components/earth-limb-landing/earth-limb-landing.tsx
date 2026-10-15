@@ -107,6 +107,9 @@ export type ElxTaskRequest = {
 
 export type ElxFooterColumn = { title: string; links: ElxLink[] }
 
+/** A strip of imagery: generated `kind` unless `image` is given, with a small coordinate caption. */
+export type ElxBand = { kind: ElxTileKind; image?: string; caption?: string }
+
 export type EarthLimbLandingProps = {
   brand?: string
   tagline?: string
@@ -169,7 +172,13 @@ export type EarthLimbLandingProps = {
   }
   /** Return false (or throw, or reject) to show the error state. */
   onTask?: (req: ElxTaskRequest) => unknown
+  /** A full-bleed strip of imagery between the use cases and the spacecraft. */
+  swath?: ElxBand | null
+  /** A photo of the Earth's limb to use instead of the rendered one. The satellites still fly over it. */
+  photo?: string
   footer?: {
+    /** The imagery band at the top of the footer. */
+    band?: ElxBand | null
     columns: ElxFooterColumn[]
     newsletter?: { title: string; body: string }
     note: string
@@ -347,7 +356,7 @@ const DEFAULT_TASKING = {
   title: "Ask for a picture",
   body: "Tell us where and when. We put it on the next suitable pass and email you the moment the imagery lands.",
   steps: [
-    { title: "Name the place", body: "A city, a field ID or coordinates. Draw a polygon later in the console." },
+    { title: "Name the place", body: "A city or a pair of coordinates. Draw the exact polygon later in the console." },
     { title: "We schedule the pass", body: "Optical waits for daylight and clear sky. Radar takes the first pass." },
     { title: "It lands in your bucket", body: "GeoTIFF and a preview, usually within three hours of collection." },
   ],
@@ -360,6 +369,7 @@ const DEFAULT_TASKING = {
 }
 
 const DEFAULT_FOOTER = {
+  band: { kind: "dunes", caption: "24.81°N 54.62°E" } as ElxBand,
   columns: [
     { title: "Imagery", links: [{ label: "Archive" }, { label: "Tasking" }, { label: "Monitoring" }, { label: "Pricing" }] },
     { title: "Solutions", links: [{ label: "Agriculture" }, { label: "Insurance" }, { label: "Forests and carbon" }, { label: "Maritime" }, { label: "Infrastructure" }] },
@@ -664,6 +674,36 @@ function pickLead(sats: ElxSat[], plane: ElxPlane, ms: number) {
     }
   }
   return best
+}
+
+/** Where the sun is overhead, in degrees. */
+function subSolar(ms: number) {
+  return latLon(toEcef(sunEci(ms), gmst(ms)))
+}
+
+/** Latitude of the day-night line at a longitude, for a sun overhead at (sunLat, sunLon). */
+function terminatorLat(lon: number, sunLat: number, sunLon: number) {
+  const d = Math.abs(sunLat) < 0.05 ? (sunLat < 0 ? -0.05 : 0.05) : sunLat
+  return Math.atan(-Math.cos((lon - sunLon) * DEG) / Math.tan(d * DEG)) / DEG
+}
+
+/** Equirectangular map position, 0..w by 0..h. */
+const mapXY = (lat: number, lon: number, w: number, h: number) => ({ x: ((lon + 180) / 360) * w, y: ((90 - lat) / 180) * h })
+
+/**
+ * A satellite's ground track as SVG path data from `from` to `to` (ms), broken where it wraps
+ * across the date line.
+ */
+function trackSvg(sat: ElxSat, plane: ElxPlane, from: number, to: number, w: number, h: number, step = 30000) {
+  let d = ""
+  let last: { lon: number } | null = null
+  for (let t = from; t <= to; t += step) {
+    const p = subPoint(sat, plane, t)
+    const q = mapXY(p.lat, p.lon, w, h)
+    d += (last && Math.abs(p.lon - last.lon) < 180 ? "L" : "M") + q.x.toFixed(1) + " " + q.y.toFixed(1)
+    last = p
+  }
+  return d
 }
 
 /** Project a view-space point (planet radius 1) to hero pixels; `front` is false behind the planet. */
@@ -1039,15 +1079,15 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
 
   if (kind === "harbor") {
     const ships: number[][] = []
-    for (let i = 0; ships.length < 15 && i < 400; i++) {
-      const x = 30 + hash2(i, 1, s) * 520
-      const y = 40 + hash2(i, 2, s) * 500
-      if (fbm2(x * 0.004, y * 0.004, s, 4) * 0.7 + (x / 900) * 0.75 > 0.6) continue
+    for (let i = 0; ships.length < 16 && i < 600; i++) {
+      const x = 270 + hash2(i, 1, s) * 300
+      const y = 20 + hash2(i, 2, s) * 860
+      if (fbm2(x * 0.004, y * 0.004, s, 4) * 0.5 + (x / 900) * 0.75 > 0.62) continue
       if (ships.some((p) => Math.hypot(p[0] - x, p[1] - y) < 64)) continue
       const len = 12 + Math.pow(hash2(i, 3, s), 1.6) * 30
       ships.push([x, y, len, len * (0.14 + hash2(i, 5, s) * 0.06), 0.35 + hash2(i, 4, s) * 0.4, Math.floor(hash2(i, 6, s) * 3), hash2(i, 7, s) < 0.6 ? 1 : 0])
     }
-    for (let k = 0; k < 5; k++) ships.push([700, 92 + k * 104 + 22, 26 + (k % 3) * 6, 5.5, 0, k % 3, 0])
+    for (let k = 0; k < 8; k++) ships.push([560, 92 + k * 104 + 22, 26 + (k % 3) * 6, 5.5, 0, k % 3, 0])
     const PAL = [
       [0.62, 0.22, 0.18],
       [0.18, 0.3, 0.5],
@@ -1060,10 +1100,13 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
       [0.1, 0.12, 0.15],
       [0.16, 0.25, 0.4],
     ]
-    return (X, Y, o) => {
-      const lv = fbm2(X * 0.004, Y * 0.004, s, 4) * 0.7 + (X / 900) * 0.75
+    // drawn with the coast along the bottom: the old x axis runs down the tile
+    return (Xt, Yt, o) => {
+      const X = Yt * 0.95 + 262
+      const Y = Xt
+      const lv = fbm2(X * 0.004, Y * 0.004, s, 4) * 0.5 + (X / 900) * 0.75
       const pierBand = (Y - 70) % 104
-      const pier = X > 600 && X < 760 && pierBand > 0 && pierBand < 26
+      const pier = X > 520 && X < 700 && pierBand > 0 && pierBand < 26
       const land = lv > 0.72 || pier || X >= 760
       const wn = vnoise(X * 0.6, Y * 0.12, s + 2)
       if (!land) {
@@ -1100,8 +1143,8 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
             back = Math.max(back, 0.5)
           }
         }
-        const su = (X - 230) * 0.92 + (Y - 330) * 0.39
-        const sv = -(X - 230) * 0.39 + (Y - 330) * 0.92
+        const su = (Y - 300) * 0.92 + (X - 420) * 0.39
+        const sv = -(Y - 300) * 0.39 + (X - 420) * 0.92
         const slick = (su / 150) * (su / 150) + (sv / 34) * (sv / 34) + (fbm2(X * 0.02, Y * 0.02, s + 11, 3) - 0.5) * 1.6
         if (slick < 1 && !pt) {
           back *= 0.22
@@ -1282,7 +1325,7 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
 }
 
 /** Render a tile: `a` is true colour, `b` the other view. `span` is the ground width in tile units. */
-function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span = 900) {
+function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span = 900, cloudy = false) {
   const fn = makeKind(kind, seed, accent)
   const a = new Uint8ClampedArray(w * h * 4)
   const b = new Uint8ClampedArray(w * h * 4)
@@ -1292,6 +1335,18 @@ function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accen
     for (let x = 0; x < w; x++) {
       o[3] = o[4] = o[5] = 0
       fn(x * k, y * k, o)
+      if (cloudy) {
+        // a broken cloud deck over the optical view only: the reason radar exists
+        const X = x * k
+        const Y = y * k
+        const cover = smooth(0.5, 0.6, fbm2(X * 0.005 + 3, Y * 0.005, seed + 77, 5))
+        const shadowed = smooth(0.5, 0.6, fbm2((X - 12) * 0.005 + 3, (Y - 16) * 0.005, seed + 77, 5))
+        const sh = 1 - 0.5 * shadowed * (1 - cover)
+        const lit = 0.8 + 0.18 * fbm2(X * 0.03, Y * 0.03, seed + 78, 3)
+        o[0] = o[0] * sh + (lit - o[0] * sh) * cover
+        o[1] = o[1] * sh + (lit - o[1] * sh) * cover
+        o[2] = o[2] * sh + (lit * 1.02 - o[2] * sh) * cover
+      }
       const i = (y * w + x) * 4
       a[i] = o[0] * 255
       a[i + 1] = o[1] * 255
@@ -1333,15 +1388,16 @@ const LIMB_FS = [
   "vec3 q=w*2.3+vec3(uSeed*1.7,uSeed*0.3,uSeed*2.9);",
   "vec3 wq=vec3(fbm4(q),fbm4(q+vec3(5.2,1.3,2.8)),fbm4(q+vec3(2.1,7.7,4.4)));",
   "float big=fbm6(q+1.7*wq);float cell=fbm4(q*4.6+wq*1.3);float det=fbm4(q*15.0+wq*3.0);",
-  "float c=big*0.62+cell*0.46+(det-0.5)*0.16-0.04;",
-  "float cv=smoothstep(0.47,0.6,c);float thick=smoothstep(0.52,0.74,c);",
-  "float shadeO=1.0-0.38*smoothstep(0.42,0.56,c);",
+  "float c=big*0.62+cell*0.46+(det-0.5)*0.3-0.04;",
+  "float cv=smoothstep(0.5,0.58,c);float thick=smoothstep(0.53,0.74,c);",
+  "vec3 sE=uToEarth*S;float cs=big*0.62+fbm4((q-sE*0.012)*4.6+wq*1.3)*0.46-0.04;",
+  "float shadeO=1.0-0.55*smoothstep(0.48,0.56,cs)*(1.0-cv);",
   "vec3 ocean=mix(vec3(0.008,0.04,0.1),vec3(0.018,0.07,0.15),fbm4(w*11.0+3.0));",
   "float lamb=max(ndl,0.0);vec3 col=ocean*(0.18+1.15*lamb)*shadeO;",
   "float day=smoothstep(-0.06,0.14,ndl);float fres=pow(1.0-z,4.0);",
   "col+=vec3(0.18,0.32,0.6)*fres*day*0.75;",
   "vec3 H=normalize(S+vec3(0.0,0.0,1.0));float nh=max(dot(n,H),0.0);",
-  "float glint=pow(nh,700.0)*2.2+pow(nh,70.0)*0.3;col+=vec3(1.0,0.92,0.8)*glint*day*(1.0-cv);",
+  "float rough=0.6+0.8*fbm4(w*90.0);float glint=pow(nh,2600.0)*1.4*rough+pow(nh,500.0)*0.05*rough;col+=mix(vec3(0.55,0.72,0.9),vec3(1.0,0.94,0.84),pow(nh,2600.0))*glint*day*(1.0-cv);",
   "float cl=max(ndl+0.14,0.0)/1.14;vec3 sunC=mix(amber*1.45+vec3(0.08,0.02,0.04),vec3(1.0,0.98,0.95),smoothstep(0.02,0.34,ndl));",
   "vec3 cloud=sunC*(0.52+0.48*thick)*(0.74+0.36*det)*(0.05+1.05*cl);",
   "col=mix(col,cloud,cv);",
@@ -1472,15 +1528,15 @@ function useInView(ref: { current: Element | null }, margin = "300px") {
 // Tiles are generated one at a time off the critical path and cached by kind, size, seed and accent.
 const TILE_CACHE = new Map()
 let tileQueue = Promise.resolve()
-function tileFor(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span: number) {
-  const key = [kind, w, h, seed, accent, span].join("|")
+function tileFor(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span: number, cloudy: boolean) {
+  const key = [kind, w, h, seed, accent, span, cloudy].join("|")
   const hit = TILE_CACHE.get(key)
   if (hit) return Promise.resolve(hit as { a: Uint8ClampedArray; b: Uint8ClampedArray })
   const job = tileQueue.then(
     () =>
       new Promise((done: (v: { a: Uint8ClampedArray; b: Uint8ClampedArray }) => void) => {
         setTimeout(() => {
-          const t = TILE_CACHE.get(key) || renderTile(kind, w, h, seed, accent, span)
+          const t = TILE_CACHE.get(key) || renderTile(kind, w, h, seed, accent, span, cloudy)
           TILE_CACHE.set(key, t)
           done(t)
         }, 0)
@@ -1490,15 +1546,15 @@ function tileFor(kind: ElxTileKind, w: number, h: number, seed: number, accent: 
   return job
 }
 
-function Tile(props: { kind: ElxTileKind; which: "a" | "b"; seed: number; accent: string; w: number; h: number; span?: number; label?: string }) {
-  const { kind, which, seed, accent, w, h, span = 900, label } = props
+function Tile(props: { kind: ElxTileKind; which: "a" | "b"; seed: number; accent: string; w: number; h: number; span?: number; label?: string; cloudy?: boolean }) {
+  const { kind, which, seed, accent, w, h, span = 900, label, cloudy = false } = props
   const ref = React.useRef(null as HTMLCanvasElement | null)
   const seen = useInView(ref, "600px")
   const [ready, setReady] = React.useState(false)
   React.useEffect(() => {
     if (!seen) return
     let live = true
-    tileFor(kind, w, h, seed, accent, span).then((t) => {
+    tileFor(kind, w, h, seed, accent, span, cloudy).then((t) => {
       const c = ref.current
       if (!live || !c) return
       const ctx = c.getContext("2d")
@@ -1511,7 +1567,7 @@ function Tile(props: { kind: ElxTileKind; which: "a" | "b"; seed: number; accent
     return () => {
       live = false
     }
-  }, [seen, kind, which, seed, accent, w, h, span])
+  }, [seen, kind, which, seed, accent, w, h, span, cloudy])
   return (
     <canvas
       ref={ref}
@@ -1528,10 +1584,10 @@ function Tile(props: { kind: ElxTileKind; which: "a" | "b"; seed: number; accent
 }
 
 /** A picture: the installer's image when given, the generated tile otherwise. */
-function Picture(props: { image?: string; alt?: string; kind: ElxTileKind; which: "a" | "b"; seed: number; accent: string; w: number; h: number; span?: number }) {
+function Picture(props: { image?: string; alt?: string; kind: ElxTileKind; which: "a" | "b"; seed: number; accent: string; w: number; h: number; span?: number; cloudy?: boolean }) {
   if (props.image)
     return <img className="elx-tile" src={props.image} alt={props.alt || ""} width={props.w} height={props.h} loading="lazy" decoding="async" style={{ aspectRatio: props.w + " / " + props.h }} />
-  return <Tile kind={props.kind} which={props.which} seed={props.seed} accent={props.accent} w={props.w} h={props.h} span={props.span} label={props.alt} />
+  return <Tile kind={props.kind} which={props.which} seed={props.seed} accent={props.accent} w={props.w} h={props.h} span={props.span} label={props.alt} cloudy={props.cloudy} />
 }
 
 function Mark(props: { size?: number }) {
@@ -1567,8 +1623,10 @@ function OrbitHero(props: {
   city: ElxCity
   /** The hero copy: satellites passing behind it fade and drop their labels. */
   quiet: { current: HTMLElement | null }
+  uid: string
+  photo?: string
 }) {
-  const { preset, plane, sats, planes, seed, reduced, now, city, quiet } = props
+  const { preset, plane, sats, planes, seed, reduced, now, city, quiet, uid, photo } = props
   const wrap = React.useRef(null as HTMLDivElement | null)
   const canvas = React.useRef(null as HTMLCanvasElement | null)
   const glRef = React.useRef(null as LimbGl | null)
@@ -1609,9 +1667,9 @@ function OrbitHero(props: {
   // limb repaints ten times a second; a software renderer or reduced motion paints once and holds.
   React.useEffect(() => {
     const c = canvas.current
-    if (!c || !size.w || !size.h || !lead) return
-    if (!glRef.current && !noGl) {
-      glRef.current = initLimb(c)
+    if ((!c && !photo) || !size.w || !size.h || !lead) return
+    if (!glRef.current && !noGl && !photo) {
+      glRef.current = c ? initLimb(c) : null
       if (!glRef.current) setNoGl(true)
     }
     const L = glRef.current
@@ -1622,7 +1680,7 @@ function OrbitHero(props: {
     }
 
     const paint = (geo: ReturnType<typeof heroGeometry>) => {
-      if (!L) return
+      if (!L || !c || photo) return
       const { g, loc, soft } = L
       const ratio = canvasRatio(size.w, size.h, window.devicePixelRatio || 1, soft ? 0.9e6 : reduced ? 2.2e6 : 1.6e6)
       const cw = Math.max(1, Math.round(size.w * ratio))
@@ -1734,7 +1792,7 @@ function OrbitHero(props: {
       cancelAnimationFrame(raf)
       if (io) io.disconnect()
     }
-  }, [size.w, size.h, preset, plane, sats, lead, seed, reduced, noGl, quiet])
+  }, [size.w, size.h, preset, plane, sats, lead, seed, reduced, noGl, quiet, photo])
 
   const openView = sats.find((v) => v.sat.id === open)
   const minute = Math.floor(now / 60000)
@@ -1744,8 +1802,12 @@ function OrbitHero(props: {
   }, [openView, planes, city, minute])
 
   return (
-    <div ref={wrap} className="elx-sky" data-painted={painted ? "" : undefined} data-nogl={noGl ? "" : undefined}>
-      <canvas ref={canvas} className="elx-canvas" aria-hidden="true" />
+    <div ref={wrap} className="elx-sky" data-painted={painted || photo ? "" : undefined} data-nogl={noGl && !photo ? "" : undefined}>
+      {photo ? (
+        <img className="elx-photo" src={photo} alt="" width={size.w || 1440} height={size.h || 900} style={{ width: (size.w || 1440) + "px", height: (size.h || 900) + "px" }} />
+      ) : (
+        <canvas ref={canvas} className="elx-canvas" aria-hidden="true" />
+      )}
       <svg className="elx-orbit" width={size.w} height={size.h} viewBox={"0 0 " + (size.w || 1) + " " + (size.h || 1)} aria-hidden="true">
         <path className="elx-track" d={track} />
         {sats.map((v) => (
@@ -1778,7 +1840,7 @@ function OrbitHero(props: {
                 className="elx-satbtn"
                 aria-label={v.sat.id + ", " + v.plane.name.toLowerCase() + " " + v.plane.sensor + " plane"}
                 aria-expanded={open === v.sat.id}
-                aria-describedby={open === v.sat.id ? "elx-satcard-" + v.sat.id : undefined}
+                aria-describedby={open === v.sat.id ? uid + "-satcard-" + v.sat.id : undefined}
                 onFocus={() => setOpen(v.sat.id)}
                 onBlur={() => setOpen((o) => (o === v.sat.id ? null : o))}
                 onClick={() => setOpen((o) => (o === v.sat.id ? null : v.sat.id))}
@@ -1801,7 +1863,7 @@ function OrbitHero(props: {
                 </span>
               ) : null}
               {open === v.sat.id && sp ? (
-                <div className="elx-satcard" role="tooltip" id={"elx-satcard-" + v.sat.id}>
+                <div className="elx-satcard" role="tooltip" id={uid + "-satcard-" + v.sat.id}>
                   <b>{v.sat.id}</b>
                   <span>
                     {v.plane.name} plane, {v.plane.sensor}, {v.plane.altitude} km
@@ -1878,9 +1940,9 @@ function Compare(props: { use: ElxUse; seed: number; accent: string; reduced: bo
           drag.current = false
         }}
       >
-        <Picture image={use.compareImage} alt={use.after + ", " + use.place} kind={use.kind} which="b" seed={seed} accent={accent} w={880} h={560} />
+        <Picture image={use.compareImage} alt={use.after + ", " + use.place} kind={use.kind} which="b" seed={seed} accent={accent} w={880} h={560} cloudy={use.mode === "radar"} />
         <div className="elx-cleft" style={{ clipPath: "inset(0 " + (100 - pos * 100).toFixed(2) + "% 0 0)" }}>
-          <Picture image={use.image} alt={use.alt || use.before + ", " + use.place} kind={use.kind} which="a" seed={seed} accent={accent} w={880} h={560} />
+          <Picture image={use.image} alt={use.alt || use.before + ", " + use.place} kind={use.kind} which="a" seed={seed} accent={accent} w={880} h={560} cloudy={use.mode === "radar"} />
         </div>
         <div className="elx-cline" style={{ left: pos * 100 + "%" }} aria-hidden="true" />
         <div
@@ -2017,6 +2079,130 @@ function Spacecraft(props: { parts: string[] }) {
   )
 }
 
+/** The fleet on a flat map: graticule, night side, every satellite's ground track and the cities, live. */
+function TrackMap(props: { sats: SatView[]; now: number; city: ElxCity; cities: ElxCity[]; uid: string; label: string }) {
+  const { sats, now, city, cities, uid, label } = props
+  const W = 1000
+  const H = 500
+  const [open, setOpen] = React.useState(null as string | null)
+  const half = Math.floor(now / 30000) * 30000
+  const tracks = React.useMemo(
+    () =>
+      sats.map((v) => ({
+        id: v.sat.id,
+        featured: v.featured,
+        past: trackSvg(v.sat, v.plane, half - 15 * 60000, half, W, H),
+        next: trackSvg(v.sat, v.plane, half, half + 30 * 60000, W, H),
+      })),
+    [sats, half],
+  )
+  const minute = Math.floor(now / 60000) * 60000
+  const sun = React.useMemo(() => subSolar(minute), [minute])
+  const night = React.useMemo(() => {
+    let d = ""
+    for (let lon = -180; lon <= 180; lon += 3) {
+      const q = mapXY(terminatorLat(lon, sun.lat, sun.lon), lon, W, H)
+      d += (d ? "L" : "M") + q.x.toFixed(1) + " " + q.y.toFixed(1)
+    }
+    return d + (sun.lat > 0 ? "L1000 500L0 500Z" : "L1000 0L0 0Z")
+  }, [sun.lat, sun.lon])
+  const sunAt = mapXY(sun.lat, sun.lon, W, H)
+  // city labels: the chosen city first, then each one right or left of its dot, dropped if it would collide
+  const labels = React.useMemo(() => {
+    const boxes: number[][] = [[sunAt.x - 16, sunAt.y - 16, sunAt.x + 16, sunAt.y + 16]]
+    const order = cities.slice().sort((a, b) => (a.name === city.name ? -1 : b.name === city.name ? 1 : 0))
+    return order.map((c) => {
+      const q = mapXY(c.lat, c.lon, W, H)
+      const here = c.name === city.name
+      const wd = c.name.length * 7 + 4
+      let side = 0
+      for (const sd of q.x > W - wd - 20 ? [-1, 1] : [1, -1]) {
+        const b = sd > 0 ? [q.x + 6, q.y - 8, q.x + 8 + wd, q.y + 8] : [q.x - 8 - wd, q.y - 8, q.x - 6, q.y + 8]
+        if (b[0] < 0 || b[2] > W) continue
+        if (!boxes.some((o) => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) {
+          boxes.push(b)
+          side = sd
+          break
+        }
+      }
+      return { c, q, here, side }
+    })
+  }, [cities, city.name, sunAt.x, sunAt.y])
+  const grat = []
+  for (let lon = -150; lon <= 150; lon += 30) grat.push(<line key={"o" + lon} className="elx-grat" x1={((lon + 180) / 360) * W} x2={((lon + 180) / 360) * W} y1={0} y2={H} />)
+  for (let lat = -60; lat <= 60; lat += 30)
+    grat.push(<line key={"a" + lat} className={"elx-grat" + (lat === 0 ? " elx-eq" : "")} x1={0} x2={W} y1={((90 - lat) / 180) * H} y2={((90 - lat) / 180) * H} />)
+  return (
+    <figure className="elx-map">
+      <svg className="elx-mapsvg" viewBox={"0 0 " + W + " " + H} role="img" aria-label={label}>
+        <rect className="elx-mapbg" width={W} height={H} />
+        <path className="elx-night" d={night} />
+        {grat}
+        {tracks.map((t) => (
+          <g key={t.id}>
+            <path className="elx-tk-past" d={t.past} />
+            <path className={"elx-tk-next" + (t.featured ? " elx-on" : "")} d={t.next} />
+          </g>
+        ))}
+        {labels.map(({ c, q, here, side }) => (
+          <g key={c.name} className={"elx-city" + (here ? " elx-here" : "")}>
+            {here ? <circle className="elx-ring" cx={q.x} cy={q.y} r={7} /> : null}
+            <circle cx={q.x} cy={q.y} r={here ? 3 : 2.2} />
+            {side ? (
+              <text x={q.x + (side > 0 ? 8 : -8)} y={q.y + 4} textAnchor={side > 0 ? "start" : "end"}>
+                {c.name}
+              </text>
+            ) : null}
+          </g>
+        ))}
+        <g className="elx-sunmark">
+          <circle cx={sunAt.x} cy={sunAt.y} r={6} />
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <line key={i} x1={sunAt.x + Math.cos((i * Math.PI) / 4) * 9} y1={sunAt.y + Math.sin((i * Math.PI) / 4) * 9} x2={sunAt.x + Math.cos((i * Math.PI) / 4) * 13} y2={sunAt.y + Math.sin((i * Math.PI) / 4) * 13} />
+          ))}
+        </g>
+      </svg>
+      <div className="elx-mapsats">
+        {sats.map((v) => {
+          const sp = subPoint(v.sat, v.plane, now)
+          const q = mapXY(sp.lat, sp.lon, W, H)
+          const tip = uid + "-mtip-" + v.sat.id
+          return (
+            <div
+              key={v.sat.id}
+              className={"elx-msat" + (v.featured ? " elx-on" : "") + (q.x > W * 0.78 ? " elx-left" : "")}
+              style={{ left: (q.x / W) * 100 + "%", top: (q.y / H) * 100 + "%" }}
+              onMouseEnter={() => setOpen(v.sat.id)}
+              onMouseLeave={() => setOpen((o) => (o === v.sat.id ? null : o))}
+            >
+              <button
+                type="button"
+                aria-label={v.sat.id + ", " + v.plane.sensor + ", over " + fmtLat(sp.lat) + " " + fmtLon(sp.lon)}
+                aria-describedby={open === v.sat.id ? tip : undefined}
+                onFocus={() => setOpen(v.sat.id)}
+                onBlur={() => setOpen((o) => (o === v.sat.id ? null : o))}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpen(null)
+                }}
+              >
+                <i />
+              </button>
+              {open === v.sat.id ? (
+                <span className="elx-mtip" role="tooltip" id={tip}>
+                  <b>{v.sat.id}</b> {v.plane.name}, {v.plane.sensor}
+                  <span className="elx-mono">
+                    {fmtLat(sp.lat)} {fmtLon(sp.lon)}, {sp.day ? "daylight" : "eclipse"}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+    </figure>
+  )
+}
+
 const asHash = (href?: string) => (href && href.charAt(0) === "#" ? href.slice(1) : null)
 
 export default function EarthLimbLanding({
@@ -2024,7 +2210,7 @@ export default function EarthLimbLanding({
   tagline = "Earth imaging",
   preset = "day",
   accent = "#ffa23a",
-  theme = "system",
+  theme = "dark",
   themeToggle = false,
   height = "100svh",
   className = "",
@@ -2065,6 +2251,8 @@ export default function EarthLimbLanding({
   tasking = DEFAULT_TASKING,
   onTask,
   footer: footerProp,
+  swath = { kind: "fields", caption: "Central Valley, 36.7°N 119.8°W, 30 cm" },
+  photo,
   sections,
   rhythm = DEFAULT_RHYTHM,
   onSubscribe,
@@ -2367,7 +2555,7 @@ export default function EarthLimbLanding({
 
       <main id={uid + "-main"} tabIndex={-1}>
         <section className="elx-hero" aria-labelledby={uid + "-h1"}>
-          <OrbitHero preset={preset} plane={featured} sats={satViews} planes={planes} seed={seed} reduced={reduced} now={now} city={city} quiet={copyRef} />
+          <OrbitHero preset={preset} plane={featured} sats={satViews} planes={planes} seed={seed} reduced={reduced} now={now} city={city} quiet={copyRef} uid={uid} photo={photo} />
           <div className="elx-scrim" aria-hidden="true" />
           <div className="elx-herocopy elx-wrap" ref={copyRef}>
             <p className="elx-kicker">{kicker}</p>
@@ -2421,7 +2609,7 @@ export default function EarthLimbLanding({
                   </select>
                 </span>
               </p>
-              <p className="elx-big elx-mono" aria-live="off">
+              <p className="elx-big" aria-live="off">
                 {passIn === null ? "--:--:--" : passIn <= 0 ? "Overhead" : clock(passIn)}
               </p>
               <p className="elx-meta">
@@ -2431,7 +2619,7 @@ export default function EarthLimbLanding({
             <div className="elx-cell">
               <h2 className="elx-label">{L.imaged}</h2>
               <p className="elx-sub">{L.imagedSub}</p>
-              <p className="elx-big elx-mono">{imagedToday(now, imagesPerDay).toLocaleString("en-US")}</p>
+              <p className="elx-big">{imagedToday(now, imagesPerDay).toLocaleString("en-US")}</p>
               <p className="elx-meta">About {Math.round(imagesPerDay / 24).toLocaleString("en-US")} an hour</p>
             </div>
             <div className="elx-cell">
@@ -2530,6 +2718,12 @@ export default function EarthLimbLanding({
         </section>
         ) : null}
 
+        {swath && has("uses") && has("fleet") ? (
+          <div className="elx-band elx-swath" aria-hidden="true">
+            <Picture image={swath.image} kind={swath.kind} which="a" seed={seed + 60} accent={accent} w={1600} h={200} span={2600} />
+            {swath.caption ? <span className="elx-bandtag elx-mono">{swath.caption}</span> : null}
+          </div>
+        ) : null}
         {has("fleet") ? (
 <section className="elx-fleet" data-sec="fleet" aria-labelledby={uid + "-craft"}>
           <div className="elx-wrap elx-fleetgrid">
@@ -2568,7 +2762,25 @@ export default function EarthLimbLanding({
             </div>
           </div>
           <div className="elx-wrap">
-            <h3 className="elx-rostertitle">{rosterTitle}</h3>
+            <div className="elx-maphead">
+              <h3 className="elx-rostertitle">{rosterTitle}</h3>
+              <ul className="elx-legend">
+                {planes.map((p) => (
+                  <li key={p.id} data-on={p.id === featured.id ? "" : undefined}>
+                    <i aria-hidden="true" />
+                    {p.name}, {p.sensor}
+                  </li>
+                ))}
+                <li className="elx-legend-sun">
+                  <i aria-hidden="true" />
+                  Sun overhead, night shaded
+                </li>
+              </ul>
+            </div>
+            <TrackMap sats={satViews} now={now} city={city} cities={cities} uid={uid} label={"Map of the fleet's ground tracks for the next 30 minutes, with " + city.name + " marked"} />
+            <button type="button" className="elx-more" aria-expanded={rosterAll} aria-controls={uid + "-roster"} onClick={() => setRosterAll(!rosterAll)}>
+              {rosterAll ? "Hide the list" : "All " + roster.length + " positions as a list"}
+            </button>
             <ul className="elx-roster" data-all={rosterAll ? "" : undefined} id={uid + "-roster"}>
               {roster.map(({ v, sp }) => (
                 <li key={v.sat.id} data-day={sp.day ? "" : undefined}>
@@ -2583,11 +2795,6 @@ export default function EarthLimbLanding({
                 </li>
               ))}
             </ul>
-            {roster.length > 6 ? (
-              <button type="button" className="elx-more" aria-expanded={rosterAll} aria-controls={uid + "-roster"} onClick={() => setRosterAll(!rosterAll)}>
-                {rosterAll ? "Show fewer" : "Show all " + roster.length}
-              </button>
-            ) : null}
           </div>
         </section>
         ) : null}
@@ -2761,10 +2968,12 @@ export default function EarthLimbLanding({
 
       {has("footer") ? (
       <footer className="elx-foot">
-        <div className="elx-band" aria-hidden="true">
-          <Tile kind="dunes" which="a" seed={seed + 90} accent={accent} w={1600} h={220} span={2400} />
-          <span className="elx-bandtag elx-mono">24.81°N 54.62°E</span>
-        </div>
+        {footer.band !== null ? (
+          <div className="elx-band" aria-hidden="true">
+            <Picture image={(footer.band || DEFAULT_FOOTER.band).image} kind={(footer.band || DEFAULT_FOOTER.band).kind} which="a" seed={seed + 90} accent={accent} w={1600} h={220} span={2400} />
+            {(footer.band || DEFAULT_FOOTER.band).caption ? <span className="elx-bandtag elx-mono">{(footer.band || DEFAULT_FOOTER.band).caption}</span> : null}
+          </div>
+        ) : null}
         <div className="elx-wrap elx-footgrid">
           <div className="elx-footbrand">
             <a className="elx-brand" href="#" onClick={(e) => {
@@ -2849,8 +3058,8 @@ export default function EarthLimbLanding({
 }
 
 const ELX_CSS = `
-.elx-root{--elx-space:#04060a;--elx-navy:#061429;--elx-gut:clamp(16px,4vw,48px);--elx-headh:98px;--elx-sans:"Helvetica Neue","Inter Display",Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--elx-monof:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;--elx-ease:cubic-bezier(.23,1,.32,1);--elx-bg:#f1f3f6;--elx-sheet:#ffffff;--elx-ink:#0a101b;--elx-soft:#273142;--elx-muted:#4b5566;--elx-rule:rgba(10,16,27,.13);--elx-rule2:rgba(10,16,27,.28);--elx-faint:rgba(10,16,27,.045);--elx-face2:#e4e8ee;--elx-face3:#d3d9e2;--elx-panel:#1f2f4d;--elx-err:#b4332a;position:relative;min-height:var(--elx-h);overflow-x:clip;background:var(--elx-bg);color:var(--elx-ink);font-family:var(--elx-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.elx-root[data-theme="dark"]{--elx-bg:#05070b;--elx-sheet:#0b1017;--elx-ink:#e8edf4;--elx-soft:#c4ccd8;--elx-muted:#97a2b2;--elx-rule:rgba(232,237,244,.12);--elx-rule2:rgba(232,237,244,.3);--elx-faint:rgba(232,237,244,.045);--elx-face2:#131a24;--elx-face3:#192230;--elx-panel:#1b2944;--elx-err:#ff8f80;color-scheme:dark}
+.elx-root{--elx-space:#04060a;--elx-navy:#061429;--elx-gut:clamp(16px,4vw,48px);--elx-headh:98px;--elx-sans:"Helvetica Neue","Inter Display",Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--elx-monof:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;--elx-ease:cubic-bezier(.23,1,.32,1);--elx-bg:#f1f3f6;--elx-sheet:#ffffff;--elx-ink:#0a101b;--elx-soft:#273142;--elx-muted:#4b5566;--elx-rule:rgba(10,16,27,.13);--elx-rule2:rgba(10,16,27,.28);--elx-faint:rgba(10,16,27,.045);--elx-face2:#e4e8ee;--elx-face3:#d3d9e2;--elx-panel:#1f2f4d;--elx-err:#b4332a;--elx-mapbg:#e7ebf0;--elx-nightfill:rgba(10,16,27,.09);position:relative;min-height:var(--elx-h);overflow-x:clip;background:var(--elx-bg);color:var(--elx-ink);font-family:var(--elx-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.elx-root[data-theme="dark"]{--elx-bg:#05070b;--elx-sheet:#0b1017;--elx-ink:#e8edf4;--elx-soft:#c4ccd8;--elx-muted:#97a2b2;--elx-rule:rgba(232,237,244,.12);--elx-rule2:rgba(232,237,244,.3);--elx-faint:rgba(232,237,244,.045);--elx-face2:#131a24;--elx-face3:#192230;--elx-panel:#1b2944;--elx-err:#ff8f80;--elx-mapbg:#08101b;--elx-nightfill:rgba(0,0,0,.45);color-scheme:dark}
 .elx-root :where(*,*::before,*::after){box-sizing:border-box}
 .elx-root :where(h1,h2,h3,p,ul,ol,dl,dd,figure){margin:0;padding:0}
 .elx-root :where(ul,ol){list-style:none}
@@ -2926,6 +3135,7 @@ const ELX_CSS = `
 .elx-sky[data-nogl]{background:radial-gradient(circle at 66% 175%,#0f2c50 0,#0b2342 61%,#5d97f4 61.4%,rgba(93,151,244,.22) 62.2%,transparent 64%)}
 .elx-canvas{position:absolute;left:0;top:0;display:block;max-width:none;opacity:0;transition:opacity 1.2s ease}
 .elx-sky[data-painted] .elx-canvas{opacity:1}
+.elx-photo{position:absolute;left:0;top:0;display:block;max-width:none;object-fit:cover}
 .elx-orbit{position:absolute;left:0;top:0;z-index:1;overflow:visible;pointer-events:none;max-width:none}
 .elx-track{fill:none;stroke:var(--elx-accent);stroke-width:1.2;stroke-dasharray:2 7;stroke-linecap:round;opacity:.9}
 .elx-nadir{stroke:rgba(255,255,255,.3);stroke-width:1}
@@ -2972,7 +3182,7 @@ const ELX_CSS = `
 .elx-cell:first-child{box-shadow:none;padding-left:0}
 .elx-sub{font-size:15px;color:var(--elx-muted);margin-top:10px}
 .elx-big{font-size:clamp(2.1rem,1.3rem + 2vw,3.4rem);font-weight:600;letter-spacing:-.035em;line-height:1;margin-top:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.elx-big.elx-mono{letter-spacing:-.04em;font-weight:500}
+
 .elx-select{position:relative;display:inline-block}
 .elx-select::after{content:"";position:absolute;right:4px;top:50%;width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-70%) rotate(45deg);pointer-events:none}
 .elx-select select{appearance:none;-webkit-appearance:none;background:transparent;border:0;border-bottom:1px solid var(--elx-rule2);padding:0 24px 2px 0;font-weight:650;color:var(--elx-ink);cursor:pointer;border-radius:0}
@@ -2997,12 +3207,12 @@ const ELX_CSS = `
 
 .elx-uses{padding:0 0 clamp(80px,10vw,140px)}
 .elx-useshead{display:flex;flex-direction:column;gap:26px;margin-bottom:34px}
-.elx-tabs{display:flex;gap:4px 28px;box-shadow:inset 0 -1px 0 var(--elx-rule);overflow-x:auto;scrollbar-width:none}
+.elx-tabs{display:flex;gap:4px 16px;margin-left:-8px;box-shadow:inset 0 -1px 0 var(--elx-rule);overflow-x:auto;scrollbar-width:none}
 .elx-tabs::-webkit-scrollbar{display:none}
-.elx-tabs button{position:relative;flex:none;white-space:nowrap;padding:12px 0 14px;font-size:15.5px;font-weight:600;color:var(--elx-muted);transition:color .2s}
-.elx-tabs button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--elx-accent);transform:scaleX(0);transform-origin:left;transition:transform .25s var(--elx-ease)}
+.elx-tabs button{position:relative;flex:none;white-space:nowrap;padding:12px 8px 14px;font-size:15.5px;font-weight:600;color:var(--elx-muted);transition:color .2s}
+.elx-tabs button::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:2px;background:var(--elx-accent);transform:scaleX(0);transform-origin:left;transition:transform .25s var(--elx-ease)}
 .elx-tabs button:hover{color:var(--elx-ink)}
-.elx-tabs button:focus-visible{outline-offset:-3px}
+.elx-tabs button:focus-visible{outline-offset:-2px}
 .elx-tabs button[aria-selected="true"]{color:var(--elx-ink)}
 .elx-tabs button[aria-selected="true"]::after{transform:none}
 .elx-usegrid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:clamp(28px,4.5vw,72px);align-items:center}
@@ -3051,11 +3261,43 @@ const ELX_CSS = `
 .elx-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;margin:30px 0 32px}
 .elx-specs>div{box-shadow:inset 0 1px 0 var(--elx-rule);padding:13px 0 14px}
 .elx-specs dd{font-size:17px;font-weight:650;letter-spacing:-.01em;margin-top:3px}
-.elx-rostertitle{font-size:18px;font-weight:650;letter-spacing:-.01em;margin:clamp(56px,7vw,96px) 0 16px}
-.elx-roster{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0 22px}
+.elx-rostertitle{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.elx-roster{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0 22px;margin-top:18px}
+.elx-roster:not([data-all]){display:none}
+.elx-maphead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px 28px;margin:clamp(56px,7vw,96px) 0 16px}
+.elx-maphead .elx-rostertitle{margin:0}
+.elx-legend{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:13px;color:var(--elx-muted)}
+.elx-legend li{display:flex;align-items:center;gap:8px}
+.elx-legend i{width:18px;height:0;border-top:1.5px dashed var(--elx-soft)}
+.elx-legend li[data-on] i{border-top-color:var(--elx-accent)}
+.elx-legend .elx-legend-sun i{width:10px;height:10px;border:1.4px solid var(--elx-accent-ink);border-radius:50%}
+.elx-map{position:relative;margin:0;box-shadow:inset 0 0 0 1px var(--elx-rule)}
+.elx-mapsvg{display:block;width:100%;height:auto;max-width:none}
+.elx-mapbg{fill:var(--elx-mapbg)}
+.elx-night{fill:var(--elx-nightfill)}
+.elx-grat{stroke:var(--elx-rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.elx-grat.elx-eq{stroke:var(--elx-rule2)}
+.elx-tk-past{fill:none;stroke:var(--elx-muted);stroke-width:1;opacity:.4;vector-effect:non-scaling-stroke}
+.elx-tk-next{fill:none;stroke:var(--elx-soft);stroke-width:1;stroke-dasharray:3 4;opacity:.75;vector-effect:non-scaling-stroke}
+.elx-tk-next.elx-on{stroke:var(--elx-accent);stroke-width:1.5;opacity:1}
+.elx-city circle{fill:var(--elx-soft)}
+.elx-city text{font:500 11px var(--elx-monof);fill:var(--elx-muted)}
+.elx-city.elx-here circle{fill:var(--elx-accent-ink)}
+.elx-city.elx-here .elx-ring{fill:none;stroke:var(--elx-accent-ink);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.elx-city.elx-here text{fill:var(--elx-ink);font-weight:700}
+.elx-sunmark circle,.elx-sunmark line{fill:none;stroke:var(--elx-accent-ink);stroke-width:1.4;vector-effect:non-scaling-stroke}
+.elx-mapsats{position:absolute;left:0;top:0;right:0;bottom:0}
+.elx-msat{position:absolute;width:0;height:0}
+.elx-msat button{position:absolute;left:-13px;top:-13px;width:26px;height:26px;display:grid;place-items:center;border-radius:50%}
+.elx-msat i{width:6px;height:6px;background:var(--elx-ink);transform:rotate(45deg);transition:transform .16s var(--elx-ease)}
+.elx-msat.elx-on i{width:9px;height:9px;background:var(--elx-accent);box-shadow:0 0 0 3px var(--elx-bg)}
+.elx-msat button:hover i,.elx-msat button:focus-visible i{transform:rotate(45deg) scale(1.5)}
+.elx-mtip{position:absolute;left:14px;top:10px;z-index:2;display:grid;gap:2px;padding:9px 12px;font-size:12.5px;white-space:nowrap;background:var(--elx-sheet);color:var(--elx-ink);box-shadow:inset 0 0 0 1px var(--elx-rule2),0 10px 24px rgba(0,0,0,.18);animation:elx-in .16s var(--elx-ease)}
+.elx-msat.elx-left .elx-mtip{left:auto;right:14px}
+.elx-mtip .elx-mono{color:var(--elx-muted)}
 .elx-roster li{display:grid;gap:3px;padding:13px 0 15px;box-shadow:inset 0 1px 0 var(--elx-rule);font-size:12.5px}
 .elx-roster b{font:600 13px var(--elx-monof)}
-.elx-more{display:none;margin-top:14px;height:44px;padding:0 18px;font-size:14px;font-weight:650;box-shadow:inset 0 0 0 1px var(--elx-rule2)}
+.elx-more{display:inline-flex;align-items:center;margin-top:16px;height:44px;padding:0 18px;font-size:14px;font-weight:650;box-shadow:inset 0 0 0 1px var(--elx-rule2)}
 .elx-more:hover{background:var(--elx-ink);color:var(--elx-bg)}
 .elx-roster .elx-mono{color:var(--elx-soft)}
 .elx-state{display:flex;align-items:center;gap:7px;color:var(--elx-muted)}
@@ -3113,6 +3355,8 @@ const ELX_CSS = `
 .elx-band{position:relative;overflow:hidden}
 .elx-band .elx-tile{width:max(100%,1000px);background:#8a6a48}
 .elx-band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,41,0) 30%,var(--elx-navy) 100%)}
+.elx-swath::after{background:linear-gradient(180deg,var(--elx-bg) 0,rgba(0,0,0,0) 28%,rgba(0,0,0,0) 72%,var(--elx-sheet) 100%)}
+.elx-swath .elx-bandtag{top:auto;bottom:16px}
 .elx-bandtag{position:absolute;left:var(--elx-gut);top:14px;z-index:1;font-size:11px;color:#fff;background:rgba(6,20,41,.6);padding:4px 7px}
 .elx-footgrid{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(4,minmax(0,1fr));gap:40px clamp(24px,3vw,48px);padding-top:44px;padding-bottom:56px}
 .elx-footbrand .elx-brand{margin-bottom:30px}
@@ -3168,21 +3412,23 @@ const ELX_CSS = `
 .elx-hero h1{font-size:clamp(2.35rem,8.4vw + .4rem,3.2rem);max-width:12ch}
 .elx-ctas .elx-btn{flex:1 1 auto}
 .elx-big{font-size:clamp(1.7rem,7vw,2.2rem)}
-.elx-big.elx-mono{font-size:clamp(1.5rem,6.6vw,2rem)}
+
 .elx-sub{font-size:14px}
 .elx-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
 .elx-ccap{grid-template-columns:1fr auto}
 .elx-cplace{grid-column:1 / -1;grid-row:2;text-align:left}
 .elx-specs{grid-template-columns:minmax(0,1fr)}
 .elx-roster{grid-template-columns:repeat(2,minmax(0,1fr))}
-.elx-roster:not([data-all]) li:nth-child(n+7){display:none}
-.elx-more{display:inline-flex;align-items:center}
+.elx-city:not(.elx-here) text{display:none}
+.elx-city text{font-size:30px}
+.elx-legend{font-size:12px}
 .elx-parts{grid-template-columns:minmax(0,1fr)}
 .elx-form{grid-template-columns:minmax(0,1fr)}
 .elx-rail{grid-auto-columns:78vw}
 .elx-footgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .elx-footbrand{display:block}
 .elx-newsrow{flex-direction:column}
+.elx-newsrow input{flex:none;height:48px}
 .elx-satcard{width:220px}
 }
 @media (prefers-reduced-motion:reduce){

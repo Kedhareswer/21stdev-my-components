@@ -69,3 +69,25 @@ dark smear; the ground track ran through the hero copy, worst on phones; the tab
 was clipped; the form's email error read as a hint and the done state collapsed the panel;
 dead space under the statement; no way to drop sections; the theme toggle sat in product
 chrome; a stray satellite floated in empty space.
+
+## Round 2 (new critic)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 6 |
+| Install safety | 9 |
+| Template | 8 |
+
+Awwwards lens: Design 7, Usability 7.5, Creativity 6.5, Content 8 = 7.15.
+Verdict: **REDO** (average 7.17, craft and originality below 7).
+
+Changes asked for, most important first: carry the orbit language below the hero (a live
+ground-track map instead of the text roster, instrument chips, dark pages or imagery bands
+so the page does not turn into a grey corporate page); the broad sun-glint lobe read as a
+smudge behind the headline; the phone newsletter input collapsed; the tab focus ring cut
+letters; the maritime compare showed no ships on the radar side; the stats row mixed mono
+and grotesk at display size; a hard-coded footer band, no hero photo option, un-namespaced
+tooltip ids; soft CG clouds; tasking step copy promised field IDs the form lacks.
