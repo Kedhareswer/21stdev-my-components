@@ -60,3 +60,18 @@ in the stats band read as a stray shadow and the stat cards are a stock trope; (
 brochure language thinned out below the hero; (10) the phone dial chips were cut off with no
 scroll hint; (11) the window chip covered the pylon, the martini mark echoed the reference,
 empty space under the booking copy.
+
+## Critic round 2 (new subagent): REDO, average 7.67
+
+| usability | idea | craft | originality | install-safety | template |
+|---|---|---|---|---|---|
+| 7 | 8 | 7 | 7 | 9 | 8 |
+
+Banned looks: passes. Asked for: (1) async `onSearch` / `onSubscribe` with busy and error
+states, and no invented scarcity without real inventory; (2) the docked phone pill covered the
+dial; (3) the footer pool band was a hard crop through the umbrellas; (4) dead zones under the
+perks and under the highway sign; (5) muted text fell to 3.6:1 in the programme at night;
+(6) empty bands above the quotes in letters 2 and 3; (7) tablet fact rows touched; (8) postcard
+bullets lacked a hanging indent; (9) the coast preset was the same motel recoloured; (10) the
+M read as a lowercase m and the dark-mode extrusion disappeared; (11) the newsletter was the
+last plain SaaS card.
