@@ -35,7 +35,10 @@ export type ElxLink = { label: string; href?: string }
 export type ElxPlane = {
   id: string
   name: string
-  /** Local time of the ascending node in hours, e.g. 10.5 for a 10:30 plane, 6 for dawn-dusk. */
+  /**
+   * Local solar time of the ascending node, in hours. 6 or 18 is a dawn-dusk plane; 22.5 crosses
+   * the equator southbound at 10:30 in the morning; 13.5 crosses northbound at 13:30.
+   */
   ltan: number
   sensor: "optical" | "radar"
   /** km above the ground */
@@ -178,7 +181,7 @@ export type EarthLimbLandingProps = {
 // #region content
 const DEFAULT_PLANES: ElxPlane[] = [
   { id: "dawn", name: "Dawn-dusk", ltan: 6, sensor: "radar", altitude: 560 },
-  { id: "am", name: "Morning", ltan: 10.5, sensor: "optical", altitude: 520 },
+  { id: "am", name: "Morning", ltan: 22.5, sensor: "optical", altitude: 520 },
   { id: "pm", name: "Afternoon", ltan: 13.5, sensor: "optical", altitude: 520 },
 ]
 
@@ -356,10 +359,14 @@ const DEFAULT_FOOTER = {
   legal: [{ label: "Privacy" }, { label: "Terms" }, { label: "Imagery licence" }, { label: "Export compliance" }],
 }
 
-/** Each preset picks a plane and where its ground track and the sun sit in the frame. */
+/**
+ * Each preset picks the plane the hero rides with, where its lead satellite's ground point sits in the
+ * frame (fractions of the hero) and which way the light should come from: behind the limb at dawn,
+ * over the viewer's shoulder by day.
+ */
 const PRESETS = {
-  dawn: { plane: "dawn", normal: [0.1, 0.36, -0.93], sunSide: [0, 0.93, 0.36] },
-  day: { plane: "am", normal: [0.1, 0.36, -0.93], sunSide: [0.22, 0.42, 0.88] },
+  dawn: { plane: "dawn", at: [0.6, 0.34], light: [0, 0.6, -0.8] },
+  day: { plane: "am", at: [0.6, 0.34], light: [0.25, 0.45, 0.86] },
 }
 // #endregion content
 
@@ -586,14 +593,39 @@ function shade(hex: string, k: number) {
 }
 
 /**
- * Everything the hero needs for one instant: V (inertial to view), M (view to Earth-fixed, for the
- * clouds), the sun in view space, the disk, and the featured plane's ground track as a view-space normal.
+ * Everything the hero needs for one instant. The view rides with `lead`: its ground point stays where
+ * the preset puts it and its ground track runs along the limb, while the Earth turns underneath.
+ * V maps inertial to view, M maps view to Earth-fixed (for the clouds), `track` is the plane's normal
+ * in view space. `flip` mirrors the direction of travel; pass back the returned value so it never
+ * changes mid-session.
  */
-function heroGeometry(ms: number, w: number, h: number, preset: "dawn" | "day", plane: ElxPlane) {
+function heroGeometry(ms: number, w: number, h: number, preset: "dawn" | "day", plane: ElxPlane, lead: ElxSat, flip?: boolean) {
   const P = PRESETS[preset] || PRESETS.dawn
+  const disk = heroDisk(w, h)
+  const a1 = satEci(lead, plane, ms)
+  const ah = satEci(lead, plane, ms + 1000)
+  const a2 = norm([ah[0] - dot(ah, a1) * a1[0], ah[1] - dot(ah, a1) * a1[1], ah[2] - dot(ah, a1) * a1[2]])
+  const a3 = cross(a1, a2)
+  let lx = (P.at[0] * w - disk.cx) / disk.r
+  let ly = (disk.cy - P.at[1] * h) / disk.r
+  const l2 = lx * lx + ly * ly
+  if (l2 > 0.98) {
+    lx *= Math.sqrt(0.98 / l2)
+    ly *= Math.sqrt(0.98 / l2)
+  }
+  const b1 = [lx, ly, Math.sqrt(Math.max(0, 1 - lx * lx - ly * ly))]
+  const t0 = [ly, -lx, 0]
+  const tt = norm([t0[0] - dot(t0, b1) * b1[0], t0[1] - dot(t0, b1) * b1[1], t0[2] - dot(t0, b1) * b1[2]])
   const sun = sunEci(ms)
-  const n = planeNormal(raan(ms, plane.ltan), (plane.inclination ?? 97.5) * DEG)
-  const V = viewMatrix(n, sun, P.normal, P.sunSide)
+  const build = (b2: V3) => {
+    const b3 = cross(b1, b2)
+    const V: number[] = []
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) V.push(b1[r] * a1[c] + b2[r] * a2[c] + b3[r] * a3[c])
+    return { V, b3 }
+  }
+  let f = flip
+  if (f === undefined) f = dot(mul(build(tt).V, sun), P.light) < 0
+  const { V, b3 } = build(f ? [-tt[0], -tt[1], -tt[2]] : tt)
   const th = gmst(ms)
   const c = Math.cos(th)
   const s = Math.sin(th)
@@ -601,7 +633,25 @@ function heroGeometry(ms: number, w: number, h: number, preset: "dawn" | "day", 
   const M: number[] = []
   for (let r = 0; r < 3; r++)
     for (let k = 0; k < 3; k++) M.push(Rz[r * 3] * V[k * 3] + Rz[r * 3 + 1] * V[k * 3 + 1] + Rz[r * 3 + 2] * V[k * 3 + 2])
-  return { V, M, sun: mul(V, sun), disk: heroDisk(w, h), track: norm(P.normal) }
+  return { V, M, sun: mul(V, sun), disk, track: b3, flip: f }
+}
+
+/** The satellite the hero rides with: any in a dawn-dusk plane, otherwise the one over the most sunlit ground. */
+function pickLead(sats: ElxSat[], plane: ElxPlane, ms: number) {
+  const mine = sats.filter((x) => x.plane === plane.id)
+  if (!mine.length) return null
+  if (Math.abs((plane.ltan % 12) - 6) < 1.5) return mine[0]
+  const sun = sunEci(ms)
+  let best = mine[0]
+  let bv = -2
+  for (const x of mine) {
+    const v = dot(satEci(x, plane, ms), sun)
+    if (v > bv) {
+      bv = v
+      best = x
+    }
+  }
+  return best
 }
 
 /** Project a view-space point (planet radius 1) to hero pixels; `front` is false behind the planet. */
@@ -1070,42 +1120,40 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
       o[5] = o[2]
     }
 
-  // ponds
+  // ponds: rectangular salt ponds behind levees, coloured by how concentrated the brine is
   const PONDS = [
-    [0.38, 0.55, 0.5],
-    [0.27, 0.45, 0.45],
-    [0.33, 0.5, 0.42],
-    [0.56, 0.5, 0.36],
-    [0.74, 0.44, 0.45],
-    [0.86, 0.84, 0.78],
-    [0.62, 0.3, 0.34],
+    [0.35, 0.52, 0.48],
+    [0.27, 0.44, 0.44],
+    [0.4, 0.5, 0.38],
+    [0.55, 0.5, 0.36],
+    [0.72, 0.42, 0.42],
+    [0.84, 0.8, 0.72],
+    [0.6, 0.3, 0.33],
   ]
   return (X, Y, o) => {
-    const gx = Math.floor(X / 120)
-    const gy = Math.floor(Y / 90)
-    let d1 = 1e9
-    let d2 = 1e9
-    let id = 0
-    for (let j = -1; j <= 1; j++)
-      for (let i = -1; i <= 1; i++) {
-        const cx = (gx + i) * 120 + 20 + hash2(gx + i, gy + j, s) * 80
-        const cy = (gy + j) * 90 + 15 + hash2(gx + i, gy + j, s + 1) * 60
-        const d = Math.hypot(X - cx, Y - cy)
-        if (d < d1) {
-          d2 = d1
-          d1 = d
-          id = Math.floor(hash2(gx + i, gy + j, s + 2) * PONDS.length)
-        } else if (d < d2) d2 = d
-      }
-    const t = fbm2(X * 0.02, Y * 0.02, s + 3, 3)
-    const bay = Y < 70 + 30 * Math.sin(X * 0.008 + s)
-    if (bay) put(o, 0, 0.09 + t * 0.03, 0.22 + t * 0.03, 0.28 + t * 0.03)
-    else if (d2 - d1 < 4.5) {
-      const l = 0.55 + t * 0.08
-      put(o, 0, l, l * 0.92, l * 0.78)
+    const x = X * 0.97 - Y * 0.24
+    const y = X * 0.24 + Y * 0.97
+    const gx = Math.floor(x / 150)
+    const gy = Math.floor(y / 104)
+    const fx = x / 150 - gx
+    const fy = y / 104 - gy
+    const vert = hash2(gx, gy, s + 4) < 0.5
+    const cut = 0.3 + hash2(gx, gy, s + 5) * 0.4
+    const side = (vert ? fx : fy) < cut ? 0 : 1
+    const levee = Math.min(fx * 150, (1 - fx) * 150, fy * 104, (1 - fy) * 104) < 3.2 || Math.abs((vert ? fx * 150 : fy * 104) - cut * (vert ? 150 : 104)) < 2.2
+    const t = fbm2(X * 0.015, Y * 0.015, s + 3, 4)
+    const bay = Y < 90 + 40 * Math.sin(X * 0.006 + s) + 30 * fbm2(X * 0.01, 1, s + 6, 3)
+    const marsh = !bay && Y < 118 + 40 * Math.sin(X * 0.006 + s) + 30 * fbm2(X * 0.01, 1, s + 6, 3)
+    if (bay) put(o, 0, 0.12 + t * 0.04, 0.24 + t * 0.04, 0.29 + t * 0.03)
+    else if (marsh) {
+      const m = 0.85 + 0.3 * vnoise(X * 0.2, Y * 0.2, s + 7)
+      put(o, 0, 0.26 * m, 0.32 * m, 0.2 * m)
+    } else if (levee) {
+      const l = 0.6 + t * 0.1
+      put(o, 0, l, l * 0.93, l * 0.8)
     } else {
-      const c = PONDS[id]
-      const g = 0.9 + 0.16 * t + 0.06 * (d1 / 60)
+      const c = PONDS[Math.floor(hash2(gx * 2 + side, gy, s + 2) * PONDS.length)]
+      const g = 0.84 + 0.3 * t + 0.05 * Math.sin((vert ? fy : fx) * 6)
       put(o, 0, c[0] * g, c[1] * g, c[2] * g)
     }
     o[3] = o[0]
@@ -1165,9 +1213,10 @@ const LIMB_FS = [
   "vec3 w=uToEarth*n;float ndl=dot(n,S);",
   "vec3 q=w*2.3+vec3(uSeed*1.7,uSeed*0.3,uSeed*2.9);",
   "vec3 wq=vec3(fbm4(q),fbm4(q+vec3(5.2,1.3,2.8)),fbm4(q+vec3(2.1,7.7,4.4)));",
-  "float c=fbm6(q+1.7*wq);float det=fbm4(q*7.0+wq*2.0);",
-  "float cv=smoothstep(0.5,0.69,c+(det-0.5)*0.24);float thick=smoothstep(0.56,0.86,c);",
-  "float shadeO=1.0-0.4*smoothstep(0.44,0.62,c);",
+  "float big=fbm6(q+1.7*wq);float cell=fbm4(q*4.6+wq*1.3);float det=fbm4(q*15.0+wq*3.0);",
+  "float c=big*0.62+cell*0.46+(det-0.5)*0.16-0.04;",
+  "float cv=smoothstep(0.47,0.6,c);float thick=smoothstep(0.52,0.74,c);",
+  "float shadeO=1.0-0.38*smoothstep(0.42,0.56,c);",
   "vec3 ocean=mix(vec3(0.008,0.04,0.1),vec3(0.018,0.07,0.15),fbm4(w*11.0+3.0));",
   "float lamb=max(ndl,0.0);vec3 col=ocean*(0.18+1.15*lamb)*shadeO;",
   "float day=smoothstep(-0.06,0.14,ndl);float fres=pow(1.0-z,4.0);",
@@ -1175,11 +1224,11 @@ const LIMB_FS = [
   "vec3 H=normalize(S+vec3(0.0,0.0,1.0));float nh=max(dot(n,H),0.0);",
   "float glint=pow(nh,700.0)*2.2+pow(nh,70.0)*0.3;col+=vec3(1.0,0.92,0.8)*glint*day*(1.0-cv);",
   "float cl=max(ndl+0.07,0.0)/1.07;vec3 sunC=mix(amber*1.15,vec3(1.0,0.98,0.95),smoothstep(0.0,0.3,ndl));",
-  "vec3 cloud=sunC*(0.6+0.4*thick)*(0.8+0.2*det)*(0.05+1.02*cl);",
+  "vec3 cloud=sunC*(0.52+0.48*thick)*(0.74+0.36*det)*(0.05+1.05*cl);",
   "col=mix(col,cloud,cv);",
   "col+=amber*exp(-pow((ndl-0.01)/0.07,2.0))*0.08*(0.3+cv);",
   "float haze=pow(1.0-z,2.3);vec3 hz=mix(amber,blue*0.85,smoothstep(-0.02,0.25,ndl))*smoothstep(-0.12,0.1,ndl);",
-  "col=mix(col,hz*0.85,clamp(haze*0.9,0.0,0.85));",
+  "col=mix(col,hz*0.8,clamp(haze*0.75,0.0,0.7));",
   "vec3 night=vec3(0.003,0.006,0.013)+cv*vec3(0.01,0.012,0.018);",
   "inC=mix(night,col,smoothstep(-0.13,0.04,ndl));}",
   "vec3 col=mix(inC,outC,smoothstep(1.0-aa,1.0+aa,r));",
@@ -1387,7 +1436,7 @@ function Arrow() {
 
 type SatView = { sat: ElxSat; plane: ElxPlane; featured: boolean }
 
-/** The hero: the limb, the featured ground track, and every satellite that is in frame right now. */
+/** The hero: the limb as seen riding along with one satellite, its plane's ground track, and every satellite in frame. */
 function OrbitHero(props: {
   preset: "dawn" | "day"
   plane: ElxPlane
@@ -1397,18 +1446,27 @@ function OrbitHero(props: {
   reduced: boolean
   now: number
   city: ElxCity
+  /** The hero copy: satellites passing behind it fade and drop their labels. */
+  quiet: { current: HTMLElement | null }
 }) {
-  const { preset, plane, sats, planes, seed, reduced, now, city } = props
+  const { preset, plane, sats, planes, seed, reduced, now, city, quiet } = props
   const wrap = React.useRef(null as HTMLDivElement | null)
   const canvas = React.useRef(null as HTMLCanvasElement | null)
   const glRef = React.useRef(null as LimbGl | null)
   const satEls = React.useRef({} as { [k: string]: HTMLDivElement | null })
   const nadirEls = React.useRef({} as { [k: string]: SVGLineElement | null })
+  const posEl = React.useRef(null as HTMLElement | null)
+  const flip = React.useRef(undefined as boolean | undefined)
   const [size, setSize] = React.useState({ w: 0, h: 0 })
   const [noGl, setNoGl] = React.useState(false)
   const [painted, setPainted] = React.useState(false)
   const [open, setOpen] = React.useState(null as string | null)
   const [track, setTrack] = React.useState("")
+  const lead = React.useMemo(() => pickLead(sats.map((v) => v.sat), plane, Date.now()), [sats, plane])
+
+  React.useEffect(() => {
+    flip.current = undefined
+  }, [lead, preset])
 
   React.useEffect(() => {
     const el = wrap.current
@@ -1428,22 +1486,27 @@ function OrbitHero(props: {
     }
   }, [])
 
-  // paint the limb on demand: on size or preset change, then every 20 s as the Earth turns under it
+  // One clock for the hero. With a real GPU the Earth turns under the view about 2 px a second, so the
+  // limb repaints ten times a second; a software renderer or reduced motion paints once and holds.
   React.useEffect(() => {
     const c = canvas.current
-    if (!c || !size.w || !size.h) return
+    if (!c || !size.w || !size.h || !lead) return
     if (!glRef.current && !noGl) {
       glRef.current = initLimb(c)
-      if (!glRef.current) {
-        setNoGl(true)
-        return
-      }
+      if (!glRef.current) setNoGl(true)
     }
     const L = glRef.current
-    if (!L) return
-    const paint = () => {
+    const geoAt = (ms: number) => {
+      const g = heroGeometry(ms, size.w, size.h, preset, plane, lead, flip.current)
+      flip.current = g.flip
+      return g
+    }
+    setTrack(trackPath(geoAt(Date.now()).track, heroDisk(size.w, size.h), size.w, size.h))
+
+    const paint = (geo: ReturnType<typeof heroGeometry>) => {
+      if (!L) return
       const { g, loc, soft } = L
-      const ratio = canvasRatio(size.w, size.h, window.devicePixelRatio || 1, soft ? 0.5e6 : 2.2e6)
+      const ratio = canvasRatio(size.w, size.h, window.devicePixelRatio || 1, soft ? 0.9e6 : reduced ? 2.2e6 : 1.6e6)
       const cw = Math.max(1, Math.round(size.w * ratio))
       const ch = Math.max(1, Math.round(size.h * ratio))
       if (c.width !== cw || c.height !== ch) {
@@ -1452,7 +1515,6 @@ function OrbitHero(props: {
       }
       c.style.width = size.w + "px"
       c.style.height = size.h + "px"
-      const geo = heroGeometry(Date.now(), size.w, size.h, preset, plane)
       const M = geo.M
       g.viewport(0, 0, cw, ch)
       g.uniform2f(loc.uRes, cw, ch)
@@ -1463,82 +1525,104 @@ function OrbitHero(props: {
       g.drawArrays(g.TRIANGLES, 0, 3)
       setPainted(true)
     }
-    paint()
-    if (reduced || L.soft) return
-    const id = setInterval(() => {
-      if (!document.hidden) paint()
-    }, 20000)
-    return () => clearInterval(id)
-  }, [size.w, size.h, preset, plane, seed, reduced, noGl])
 
-  React.useEffect(() => {
-    if (!size.w) return
-    setTrack(trackPath(heroGeometry(Date.now(), size.w, size.h, preset, plane).track, heroDisk(size.w, size.h), size.w, size.h))
-  }, [size.w, size.h, preset, plane])
+    const zone = () => {
+      const q = quiet.current
+      const w = wrap.current
+      if (!q || !w) return null
+      const b = w.getBoundingClientRect()
+      let l = Infinity
+      let t = Infinity
+      let r = -Infinity
+      let bt = -Infinity
+      for (const ch of Array.from(q.children)) {
+        const a = ch.getBoundingClientRect()
+        l = Math.min(l, a.left)
+        t = Math.min(t, a.top)
+        r = Math.max(r, a.right)
+        bt = Math.max(bt, a.bottom)
+      }
+      return { l: l - b.left - 28, t: t - b.top - 36, r: r - b.left + 28, b: bt - b.top + 20 }
+    }
+    let qz = zone()
+    let qAt = performance.now()
 
-  // move the satellites: real speed is about 2 px a second, so 12 updates a second is plenty
-  React.useEffect(() => {
-    if (!size.w) return
-    let raf = 0
-    let last = 0
-    let visible = true
-    const io =
-      typeof IntersectionObserver !== "undefined" && wrap.current
-        ? new IntersectionObserver((es) => {
-            visible = es.some((e) => e.isIntersecting)
-          })
-        : null
-    if (io && wrap.current) io.observe(wrap.current)
-    const place = (ms: number) => {
-      const geo = heroGeometry(ms, size.w, size.h, preset, plane)
+    const place = (ms: number, geo: ReturnType<typeof heroGeometry>) => {
+      if (performance.now() - qAt > 2000) {
+        qz = zone()
+        qAt = performance.now()
+      }
       for (const v of sats) {
         const el = satEls.current[v.sat.id]
         if (!el) continue
         const e = satEci(v.sat, v.plane, ms)
-        const g = mul(geo.V, e)
+        const gv = mul(geo.V, e)
         const k = 1 + v.plane.altitude / RE
-        const at = project([g[0] * k, g[1] * k, g[2] * k], geo.disk)
-        const ground = project(g, geo.disk)
+        const at = project([gv[0] * k, gv[1] * k, gv[2] * k], geo.disk)
+        const ground = project(gv, geo.disk)
         const inFrame = at.front && at.x > -20 && at.x < size.w + 20 && at.y > -20 && at.y < size.h + 20
         el.style.transform = "translate(" + at.x.toFixed(1) + "px," + at.y.toFixed(1) + "px)"
         el.style.visibility = inFrame ? "visible" : "hidden"
+        const hush = (!!qz && at.x > qz.l && at.x < qz.r && at.y > qz.t && at.y < qz.b) || at.y < 104
+        if (hush) el.setAttribute("data-quiet", "")
+        else el.removeAttribute("data-quiet")
+        if (at.x > size.w - 240) el.setAttribute("data-flip", "")
+        else el.removeAttribute("data-flip")
         const ln = nadirEls.current[v.sat.id]
         if (ln) {
           ln.setAttribute("x1", at.x.toFixed(1))
           ln.setAttribute("y1", at.y.toFixed(1))
           ln.setAttribute("x2", ground.x.toFixed(1))
           ln.setAttribute("y2", ground.y.toFixed(1))
-          ln.style.visibility = inFrame && g[2] > 0 ? "visible" : "hidden"
+          ln.style.visibility = inFrame && gv[2] > 0 ? "visible" : "hidden"
+          ln.style.opacity = hush ? "0.25" : ""
         }
       }
-    }
-    place(Date.now())
-    if (reduced) {
-      const id = setInterval(() => place(Date.now()), 10000)
-      return () => {
-        clearInterval(id)
-        if (io) io.disconnect()
+      if (posEl.current) {
+        const sp = subPoint(lead, plane, ms)
+        const txt = fmtLat(sp.lat) + " " + fmtLon(sp.lon)
+        if (posEl.current.textContent !== txt) posEl.current.textContent = txt
       }
     }
+
+    const frame = () => {
+      const ms = Date.now()
+      const geo = geoAt(ms)
+      place(ms, geo)
+      return geo
+    }
+    paint(frame())
+    const live = !!L && !L.soft && !reduced
+    let visible = true
+    const io =
+      typeof IntersectionObserver !== "undefined" && wrap.current
+        ? new IntersectionObserver((es) => {
+            visible = es.some((x) => x.isIntersecting)
+          })
+        : null
+    if (io && wrap.current) io.observe(wrap.current)
+    let raf = 0
+    let last = 0
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick)
-      if (!visible || document.hidden || t - last < 80) return
+      if (!visible || document.hidden || t - last < (reduced ? 10000 : 100)) return
       last = t
-      place(Date.now())
+      const geo = frame()
+      if (live) paint(geo)
     }
     raf = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(raf)
       if (io) io.disconnect()
     }
-  }, [size.w, size.h, preset, plane, sats, reduced])
+  }, [size.w, size.h, preset, plane, sats, lead, seed, reduced, noGl, quiet])
 
   const openView = sats.find((v) => v.sat.id === open)
+  const minute = Math.floor(now / 60000)
   const openPass = React.useMemo(() => {
     if (!openView) return null
-    return nextPass([openView.sat], planes, city, Math.floor(now / 60000) * 60000, 48)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, city, Math.floor(now / 60000)])
+    return nextPass([openView.sat], planes, city, minute * 60000, 48)
+  }, [openView, planes, city, minute])
 
   return (
     <div ref={wrap} className="elx-sky" data-painted={painted ? "" : undefined} data-nogl={noGl ? "" : undefined}>
@@ -1558,13 +1642,14 @@ function OrbitHero(props: {
       <div className="elx-sats">
         {sats.map((v) => {
           const sp = v.sat.id === open ? subPoint(v.sat, v.plane, now) : null
+          const isLead = !!lead && v.sat.id === lead.id
           return (
             <div
               key={v.sat.id}
               ref={(el) => {
                 satEls.current[v.sat.id] = el
               }}
-              className={"elx-sat" + (v.featured ? " elx-on" : "")}
+              className={"elx-sat" + (v.featured ? " elx-on" : "") + (isLead ? " elx-lead" : "")}
               style={{ visibility: "hidden" }}
               onMouseEnter={() => setOpen(v.sat.id)}
               onMouseLeave={() => setOpen((o) => (o === v.sat.id ? null : o))}
@@ -1574,6 +1659,7 @@ function OrbitHero(props: {
                 className="elx-satbtn"
                 aria-label={v.sat.id + ", " + v.plane.name.toLowerCase() + " " + v.plane.sensor + " plane"}
                 aria-expanded={open === v.sat.id}
+                aria-describedby={open === v.sat.id ? "elx-satcard-" + v.sat.id : undefined}
                 onFocus={() => setOpen(v.sat.id)}
                 onBlur={() => setOpen((o) => (o === v.sat.id ? null : o))}
                 onClick={() => setOpen((o) => (o === v.sat.id ? null : v.sat.id))}
@@ -1586,10 +1672,17 @@ function OrbitHero(props: {
               {v.featured ? (
                 <span className="elx-satname" aria-hidden="true">
                   {v.sat.id}
+                  {isLead ? (
+                    <em
+                      ref={(el) => {
+                        posEl.current = el
+                      }}
+                    />
+                  ) : null}
                 </span>
               ) : null}
               {open === v.sat.id && sp ? (
-                <div className="elx-satcard" role="status">
+                <div className="elx-satcard" role="tooltip" id={"elx-satcard-" + v.sat.id}>
                   <b>{v.sat.id}</b>
                   <span>
                     {v.plane.name} plane, {v.plane.sensor}, {v.plane.altitude} km
@@ -1718,9 +1811,9 @@ function Compare(props: { use: ElxUse; seed: number; accent: string; reduced: bo
 
 /** The spacecraft as an isometric technical drawing, projected from its real proportions. */
 function Spacecraft(props: { parts: string[] }) {
-  const S = 66
-  const ox = 260
-  const oy = 190
+  const S = 76
+  const ox = 262
+  const oy = 212
   const iso = (x: number, y: number, z: number) => [ox + (x - y) * 0.866 * S, oy + (x + y) * 0.5 * S - z * S]
   const pts = (a: number[][]) => a.map((p) => iso(p[0], p[1], p[2]).map((v) => v.toFixed(1)).join(",")).join(" ")
   const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, key: string, top = "elx-f1") => (
@@ -1761,14 +1854,14 @@ function Spacecraft(props: { parts: string[] }) {
     { at: iso(0.33, -0.33, 1.52), n: 2 },
     { at: iso(0, 1.9, 0.96), n: 3 },
     { at: iso(0.5, 0, 0.42), n: 4 },
-    { at: iso(-0.1, 0.5, 0.4), n: 5 },
+    { at: iso(0.2, 0.5, 0.26), n: 5 },
   ]
   const tags = [
-    [ox - 30, 34],
-    [ox + 150, 60],
-    [ox - 230, 300],
-    [ox + 160, 300],
-    [ox - 120, 360],
+    [ox - 96, 40],
+    [ox + 118, 30],
+    [ox - 214, 318],
+    [ox + 168, 262],
+    [ox - 26, 352],
   ]
   return (
     <svg className="elx-craft" viewBox="0 0 520 400" role="img" aria-label={"Line drawing of the spacecraft with " + props.parts.length + " labelled parts"}>
@@ -1791,11 +1884,6 @@ function Spacecraft(props: { parts: string[] }) {
       ))}
       <polyline className="elx-hair elx-dim" points={pts([[0, 0.5, 0.94], [-0.42, 0.62, 0.94]])} />
       {wing(0.62, 2.55, "w2")}
-      <g className="elx-dimension">
-        <polyline points={pts([[0.62, 0.62, 0], [0.62, 2.55, 0]])} />
-        <polyline points={pts([[0.55, 0.62, 0], [0.7, 0.62, 0]])} />
-        <polyline points={pts([[0.55, 2.55, 0], [0.7, 2.55, 0]])} />
-      </g>
       {callouts.map((c, i) => (
         <g key={c.n} className="elx-callout">
           <polyline points={[c.at[0], c.at[1], tags[i][0], tags[i][1]].map((v) => v.toFixed(1)).join(" ")} />
@@ -1863,6 +1951,7 @@ export default function EarthLimbLanding({
 }: EarthLimbLandingProps) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
   const root = React.useRef(null as HTMLDivElement | null)
+  const copyRef = React.useRef(null as HTMLDivElement | null)
   const reduced = usePrefersReduced()
   const [dark, setDark] = useTheme(theme)
   const now = useNow()
@@ -1909,15 +1998,37 @@ export default function EarthLimbLanding({
     return () => window.removeEventListener("scroll", on)
   }, [])
 
+  // the phone menu is a modal: focus moves in, Tab stays inside, Escape closes, focus returns to the button
   React.useEffect(() => {
     if (!menu) return
+    const r = root.current
+    const items = () => (r ? (Array.from(r.querySelectorAll(".elx-menubtn, .elx-sheetnav a")) as HTMLElement[]) : [])
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenu(false)
+      if (e.key === "Escape") {
+        setMenu(false)
+        return
+      }
+      if (e.key !== "Tab") return
+      const list = items()
+      if (!list.length) return
+      const i = list.indexOf(document.activeElement as HTMLElement)
+      if (e.shiftKey && i <= 0) {
+        e.preventDefault()
+        list[list.length - 1].focus()
+      } else if (!e.shiftKey && i === list.length - 1) {
+        e.preventDefault()
+        list[0].focus()
+      }
     }
     document.addEventListener("keydown", onKey)
-    const first = root.current && (root.current.querySelector(".elx-sheetnav a, .elx-sheetnav button") as HTMLElement | null)
+    const first = r && (r.querySelector(".elx-sheetnav a") as HTMLElement | null)
     if (first) first.focus()
-    return () => document.removeEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      const btn = r && (r.querySelector(".elx-menubtn") as HTMLElement | null)
+      const at = document.activeElement as HTMLElement | null
+      if (btn && (!at || at === document.body || !!at.closest(".elx-sheet"))) btn.focus({ preventScroll: true })
+    }
   }, [menu])
 
   const go = (href?: string) => (e: React.MouseEvent) => {
@@ -1943,6 +2054,7 @@ export default function EarthLimbLanding({
 
   // fleet roster, live
   const roster = satViews.map((v) => ({ v, sp: subPoint(v.sat, v.plane, now) }))
+  const [rosterAll, setRosterAll] = React.useState(false)
 
   // archive carousel
   const rail = React.useRef(null as HTMLDivElement | null)
@@ -1963,6 +2075,7 @@ export default function EarthLimbLanding({
   const T = tasking
   const today = new Date(now).toISOString().slice(0, 10)
   const [form, setForm] = React.useState({ area: "", lat: "", lon: "", from: "", to: "", product: "", use: "", email: "" })
+  const untilDefault = new Date(Date.parse((form.from || today) + "T00:00:00Z") + 14 * 86400000).toISOString().slice(0, 10)
   const [errors, setErrors] = React.useState({} as { [k: string]: string })
   const [sent, setSent] = React.useState("idle" as "idle" | "sending" | "done" | "error")
   const area = form.area === "custom" ? null : cities.find((c) => c.name === form.area) || city
@@ -1987,7 +2100,7 @@ export default function EarthLimbLanding({
   }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const f = { ...form, area: form.area || city.name, from: form.from || today, to: form.to }
+    const f = { ...form, area: form.area || city.name, from: form.from || today, to: form.to || untilDefault }
     const errs = validateTask(f)
     setErrors(errs)
     if (Object.keys(errs).length) {
@@ -2101,34 +2214,34 @@ export default function EarthLimbLanding({
             <span className="elx-sr">{menu ? "Close menu" : "Menu"}</span>
           </button>
         </div>
-        {menu ? (
-          <div className="elx-sheet" id={uid + "-menu"} role="dialog" aria-modal="true" aria-label="Menu">
-            <nav className="elx-sheetnav elx-wrap" aria-label="Menu">
-              {nav.map((l) => (
+      </header>
+      {menu ? (
+        <div className="elx-sheet" id={uid + "-menu"} role="dialog" aria-modal="true" aria-label="Menu">
+          <nav className="elx-sheetnav elx-wrap" aria-label="Menu">
+            {nav.map((l) => (
+              <a key={l.label} href={l.href || "#"} onClick={go(l.href)}>
+                {l.label}
+              </a>
+            ))}
+            <a className="elx-btn elx-solid" href={cta.href || "#"} onClick={go(cta.href)}>
+              <span>{cta.label}</span>
+            </a>
+            <div className="elx-sheetutil">
+              {utility.map((l) => (
                 <a key={l.label} href={l.href || "#"} onClick={go(l.href)}>
                   {l.label}
                 </a>
               ))}
-              <a className="elx-btn elx-solid" href={cta.href || "#"} onClick={go(cta.href)}>
-                <span>{cta.label}</span>
-              </a>
-              <div className="elx-sheetutil">
-                {utility.map((l) => (
-                  <a key={l.label} href={l.href || "#"} onClick={go(l.href)}>
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            </nav>
-          </div>
-        ) : null}
-      </header>
+            </div>
+          </nav>
+        </div>
+      ) : null}
 
       <main id={uid + "-main"} tabIndex={-1}>
         <section className="elx-hero" aria-labelledby={uid + "-h1"}>
-          <OrbitHero preset={preset} plane={featured} sats={satViews} planes={planes} seed={seed} reduced={reduced} now={now} city={city} />
+          <OrbitHero preset={preset} plane={featured} sats={satViews} planes={planes} seed={seed} reduced={reduced} now={now} city={city} quiet={copyRef} />
           <div className="elx-scrim" aria-hidden="true" />
-          <div className="elx-herocopy elx-wrap">
+          <div className="elx-herocopy elx-wrap" ref={copyRef}>
             <p className="elx-kicker">{kicker}</p>
             <h1 id={uid + "-h1"}>{headline}</h1>
             <p className="elx-lede">{lede}</p>
@@ -2142,7 +2255,7 @@ export default function EarthLimbLanding({
               </a>
             </div>
           </div>
-          <ul className="elx-pillars" aria-label="Solutions">
+          <ul className="elx-pillars" aria-label="Solutions" style={{ gridTemplateColumns: "repeat(" + Math.max(1, uses.length) + ",minmax(0,1fr))" }}>
             {uses.map((u, i) => (
               <li key={u.id}>
                 <button type="button" onClick={() => pickUse(i, true)}>
@@ -2309,7 +2422,7 @@ export default function EarthLimbLanding({
           </div>
           <div className="elx-wrap">
             <h3 className="elx-rostertitle">{rosterTitle}</h3>
-            <ul className="elx-roster">
+            <ul className="elx-roster" data-all={rosterAll ? "" : undefined} id={uid + "-roster"}>
               {roster.map(({ v, sp }) => (
                 <li key={v.sat.id} data-day={sp.day ? "" : undefined}>
                   <b>{v.sat.id}</b>
@@ -2323,6 +2436,11 @@ export default function EarthLimbLanding({
                 </li>
               ))}
             </ul>
+            {roster.length > 6 ? (
+              <button type="button" className="elx-more" aria-expanded={rosterAll} aria-controls={uid + "-roster"} onClick={() => setRosterAll(!rosterAll)}>
+                {rosterAll ? "Show fewer" : "Show all " + roster.length}
+              </button>
+            ) : null}
           </div>
         </section>
 
@@ -2344,7 +2462,7 @@ export default function EarthLimbLanding({
               </div>
             </div>
           </div>
-          <div className="elx-rail" ref={rail} onScroll={readRail} tabIndex={0} aria-label={archiveTitle}>
+          <div className="elx-rail" ref={rail} onScroll={readRail} tabIndex={0} role="region" aria-label={archiveTitle}>
             {archive.map((s, i) => (
               <a key={s.title} className="elx-story" href={s.href || "#"} onClick={go(s.href)}>
                 <div className="elx-storyimg">
@@ -2429,7 +2547,7 @@ export default function EarthLimbLanding({
                   </div>
                   <div className="elx-field">
                     <label htmlFor={uid + "-to"}>Until</label>
-                    <input id={uid + "-to"} type="date" min={form.from || today} value={form.to} onChange={set("to")} {...errProps("to")} />
+                    <input id={uid + "-to"} type="date" min={form.from || today} value={form.to || untilDefault} onChange={set("to")} {...errProps("to")} />
                     {fieldErr("to")}
                   </div>
                   <div className="elx-field">
@@ -2491,8 +2609,8 @@ export default function EarthLimbLanding({
 
       <footer className="elx-foot">
         <div className="elx-band" aria-hidden="true">
-          <Tile kind="ponds" which="a" seed={seed + 90} accent={accent} w={1600} h={220} span={2400} />
-          <span className="elx-bandtag elx-mono">37.48°N 122.07°W</span>
+          <Tile kind="dunes" which="a" seed={seed + 90} accent={accent} w={1600} h={220} span={2400} />
+          <span className="elx-bandtag elx-mono">24.81°N 54.62°E</span>
         </div>
         <div className="elx-wrap elx-footgrid">
           <div className="elx-footbrand">
@@ -2624,7 +2742,7 @@ const ELX_CSS = `
 .elx-burger[data-open]{background:transparent}
 .elx-burger[data-open]::before{transform:rotate(45deg)}
 .elx-burger[data-open]::after{transform:rotate(-45deg)}
-.elx-sheet{position:fixed;left:0;right:0;top:64px;bottom:0;background:#04060a;overflow-y:auto;animation:elx-in .28s var(--elx-ease)}
+.elx-sheet{position:fixed;left:0;right:0;top:var(--elx-headh);bottom:0;z-index:39;color:#eef2f7;background:#04060a;overflow-y:auto;animation:elx-in .28s var(--elx-ease)}
 .elx-sheetnav{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding-top:28px;padding-bottom:40px}
 .elx-sheetnav>a:not(.elx-btn){font-size:30px;letter-spacing:-.03em;font-weight:600;padding:6px 0;color:#eef2f7}
 .elx-sheetnav>.elx-btn{margin-top:18px}
@@ -2632,7 +2750,7 @@ const ELX_CSS = `
 .elx-sheetutil a{padding:6px 0}
 
 .elx-btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;height:50px;padding:0 24px;border-radius:2px;font-size:15px;font-weight:650;letter-spacing:-.005em;white-space:nowrap;transition:transform .16s var(--elx-ease),background-color .2s,color .2s,border-color .2s;position:relative}
-.elx-btn:active{transform:scale(.97)}
+.elx-btn:active,.elx-tabs button:active,.elx-railbtns button:active,.elx-more:active,.elx-pillars button:active{transform:scale(.97)}
 .elx-btn:disabled{opacity:.6;cursor:progress}
 .elx-btn .elx-arrow{transition:transform .3s var(--elx-ease)}
 .elx-btn:hover .elx-arrow{transform:translateX(5px)}
@@ -2665,21 +2783,27 @@ const ELX_CSS = `
 .elx-sat.elx-on .elx-satdot{width:9px;height:9px;background:var(--elx-accent);box-shadow:0 0 0 4px rgba(4,6,10,.45)}
 .elx-sat.elx-on .elx-satbtn::after{content:"";position:absolute;inset:6px;border-radius:50%;border:1px solid var(--elx-accent);animation:elx-ping 2.8s var(--elx-ease) infinite}
 .elx-satbtn:hover .elx-satdot,.elx-satbtn[aria-expanded="true"] .elx-satdot{transform:rotate(45deg) scale(1.5)}
+.elx-sat[data-quiet]{opacity:.35}
+.elx-sat[data-quiet] .elx-satname{display:none}
 .elx-satname{position:absolute;left:14px;top:-26px;font:500 11px/1 var(--elx-monof);letter-spacing:.04em;color:#fff;background:rgba(4,6,10,.62);padding:4px 6px;white-space:nowrap;pointer-events:none}
+.elx-satname em{font-style:normal;color:rgba(255,255,255,.7);margin-left:8px}
+.elx-sat.elx-lead .elx-satname{top:-30px;padding:6px 8px}
+.elx-sat[data-flip] .elx-satname{left:auto;right:14px}
+.elx-sat[data-flip] .elx-satcard{left:auto;right:18px}
 .elx-satcard{position:absolute;left:18px;top:16px;width:260px;display:grid;gap:4px;padding:12px 14px;font-size:13px;line-height:1.4;color:#d9e1eb;background:rgba(5,8,13,.94);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);animation:elx-in .18s var(--elx-ease)}
 .elx-satcard b{color:#fff;font-size:14px}
 .elx-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,6,10,0) 38%,rgba(4,6,10,.5) 70%,rgba(4,6,10,.82) 100%),linear-gradient(90deg,rgba(4,6,10,.55),rgba(4,6,10,0) 60%)}
-.elx-herocopy{position:relative;z-index:3;padding-top:calc(var(--elx-headh) + 26vh);padding-bottom:clamp(30px,5.5vh,64px);pointer-events:none}
+.elx-herocopy{position:relative;z-index:3;padding-top:calc(var(--elx-headh) + 20vh);padding-bottom:clamp(30px,5.5vh,64px);pointer-events:none}
 .elx-herocopy>*{pointer-events:auto}
 .elx-kicker{color:var(--elx-accent);font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-bottom:18px}
-.elx-hero h1{font-size:clamp(2.6rem,1.1rem + 4.5vw,5.75rem);line-height:.97;letter-spacing:-.045em;font-weight:640;max-width:13.2ch;text-wrap:balance;margin-left:-.04em}
+.elx-hero h1{font-size:clamp(2.5rem,1.1rem + 3.7vw,4.9rem);line-height:.98;letter-spacing:-.042em;font-weight:640;max-width:18ch;text-wrap:balance;margin-left:-.04em}
 .elx-lede{font-size:clamp(1.02rem,.94rem + .32vw,1.22rem);line-height:1.5;color:rgba(233,238,245,.8);max-width:44ch;margin-top:22px}
 .elx-ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
 .elx-herocopy>*{animation:elx-rise .9s var(--elx-ease) both}
 .elx-herocopy>:nth-child(2){animation-delay:.06s}
 .elx-herocopy>:nth-child(3){animation-delay:.12s}
 .elx-herocopy>:nth-child(4){animation-delay:.18s}
-.elx-pillars{position:relative;z-index:3;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.12);background:rgba(8,12,18,.5);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.elx-pillars{position:relative;z-index:3;display:grid;border-top:1px solid rgba(255,255,255,.12);background:rgba(8,12,18,.5);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .elx-pillars li+li button{box-shadow:inset 1px 0 0 rgba(255,255,255,.1)}
 .elx-pillars button{position:relative;display:grid;align-content:start;gap:6px;width:100%;min-height:108px;padding:20px clamp(16px,2vw,28px) 22px;text-align:left;color:#eef2f7;transition:background-color .25s}
 .elx-pillars b{font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--elx-accent)}
@@ -2713,9 +2837,10 @@ const ELX_CSS = `
 
 .elx-uses{padding:0 0 clamp(80px,10vw,140px)}
 .elx-useshead{display:flex;flex-direction:column;gap:26px;margin-bottom:34px}
-.elx-tabs{display:flex;gap:4px 28px;flex-wrap:wrap;box-shadow:inset 0 -1px 0 var(--elx-rule)}
-.elx-tabs button{position:relative;padding:12px 0 14px;font-size:15.5px;font-weight:600;color:var(--elx-muted);transition:color .2s}
-.elx-tabs button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--elx-accent);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--elx-ease)}
+.elx-tabs{display:flex;gap:4px 28px;box-shadow:inset 0 -1px 0 var(--elx-rule);overflow-x:auto;scrollbar-width:none}
+.elx-tabs::-webkit-scrollbar{display:none}
+.elx-tabs button{position:relative;flex:none;white-space:nowrap;padding:12px 0 14px;font-size:15.5px;font-weight:600;color:var(--elx-muted);transition:color .2s}
+.elx-tabs button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--elx-accent);transform:scaleX(0);transform-origin:left;transition:transform .25s var(--elx-ease)}
 .elx-tabs button:hover{color:var(--elx-ink)}
 .elx-tabs button[aria-selected="true"]{color:var(--elx-ink)}
 .elx-tabs button[aria-selected="true"]::after{transform:none}
@@ -2769,6 +2894,8 @@ const ELX_CSS = `
 .elx-roster{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0 22px}
 .elx-roster li{display:grid;gap:3px;padding:13px 0 15px;box-shadow:inset 0 1px 0 var(--elx-rule);font-size:12.5px}
 .elx-roster b{font:600 13px var(--elx-monof)}
+.elx-more{display:none;margin-top:14px;height:44px;padding:0 18px;font-size:14px;font-weight:650;box-shadow:inset 0 0 0 1px var(--elx-rule2)}
+.elx-more:hover{background:var(--elx-ink);color:var(--elx-bg)}
 .elx-roster .elx-mono{color:var(--elx-soft)}
 .elx-state{display:flex;align-items:center;gap:7px;color:var(--elx-muted)}
 .elx-state i{width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1.2px var(--elx-muted)}
@@ -2803,7 +2930,7 @@ const ELX_CSS = `
 .elx-field{display:grid;gap:7px;align-content:start}
 .elx-field label{font-size:13.5px;font-weight:650}
 .elx-field input,.elx-field select{width:100%;height:48px;padding:0 14px;background:var(--elx-sheet);border:1px solid var(--elx-rule2);border-radius:2px;color:var(--elx-ink);transition:border-color .2s,box-shadow .2s}
-.elx-field input::placeholder{color:var(--elx-muted);opacity:.8}
+.elx-field input::placeholder{color:var(--elx-muted);opacity:1}
 .elx-field input:hover,.elx-field select:hover{border-color:var(--elx-ink)}
 .elx-field input:focus,.elx-field select:focus{outline:none;border-color:var(--elx-accent-ink);box-shadow:0 0 0 3px color-mix(in srgb,var(--elx-accent) 35%,transparent)}
 .elx-field input[aria-invalid="true"]{border-color:var(--elx-err)}
@@ -2821,7 +2948,7 @@ const ELX_CSS = `
 
 .elx-foot{background:var(--elx-navy);color:#c3cede}
 .elx-band{position:relative;overflow:hidden}
-.elx-band .elx-tile{width:max(100%,1000px);background:#33525a}
+.elx-band .elx-tile{width:max(100%,1000px);background:#8a6a48}
 .elx-band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,41,0) 30%,var(--elx-navy) 100%)}
 .elx-bandtag{position:absolute;left:var(--elx-gut);top:14px;z-index:1;font-size:11px;color:#fff;background:rgba(6,20,41,.6);padding:4px 7px}
 .elx-footgrid{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(4,minmax(0,1fr));gap:40px 32px;padding-top:44px;padding-bottom:56px}
@@ -2845,7 +2972,7 @@ const ELX_CSS = `
 .elx-legal nav{display:flex;flex-wrap:wrap;gap:8px 22px}
 .elx-legal a:hover{color:#fff}
 
-@keyframes elx-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes elx-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes elx-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @keyframes elx-ping{0%{transform:scale(.6);opacity:.9}70%{transform:scale(2.1);opacity:0}100%{transform:scale(2.1);opacity:0}}
 
@@ -2884,6 +3011,8 @@ const ELX_CSS = `
 .elx-cplace{grid-column:1 / -1;grid-row:2;text-align:left}
 .elx-specs{grid-template-columns:minmax(0,1fr)}
 .elx-roster{grid-template-columns:repeat(2,minmax(0,1fr))}
+.elx-roster:not([data-all]) li:nth-child(n+7){display:none}
+.elx-more{display:inline-flex;align-items:center}
 .elx-parts{grid-template-columns:minmax(0,1fr)}
 .elx-form{grid-template-columns:minmax(0,1fr)}
 .elx-rail{grid-auto-columns:78vw}
