@@ -1,0 +1,840 @@
+"use client"
+
+import * as React from "react"
+
+/*
+ * Odometer Stage Stats: a "by the numbers" section that puts one figure on
+ * stage at a time. A committed colour field, one enormous condensed numeral in
+ * the middle, the line that explains it underneath, a short story pinned to
+ * alternating corners and the stat's key word set huge and faint along the
+ * bottom edge.
+ *
+ * The step is the signature: the old figure drops out of its cells, and every
+ * character of the new one spins through a few digits like a counter wheel
+ * before it lands, each a beat after its neighbour. Forward steps roll up,
+ * backward steps roll down.
+ *
+ * Two modes. "scroll" (default): the stage sticks while the section scrolls
+ * past, and each stretch of scroll is one stat. "click": a fixed-height band
+ * with prev / next, the segment bar and optional autoplay. Both take ←/→, and
+ * the segment bar along the bottom jumps to any stat.
+ *
+ * The numerals are drawn in SVG by this file (0–9 . , % + − × / $ K M B), so
+ * the figure is the same heavy condensed shape on every machine with no web
+ * font. Any other character falls back to the UI font.
+ */
+
+export type StagePreset = "signal" | "cobalt" | "forest" | "ink" | "saffron"
+
+export type StagePalette = {
+  /** The colour field. */
+  field: string
+  /** Numerals and text on the field. */
+  ink: string
+  /** The field in dark mode (an ancestor with the `dark` class). Defaults to `field`. */
+  fieldDark?: string
+}
+
+export type Stat = {
+  /** The figure, e.g. "96", "4.2×", "$2.4B", "61%", "12K". */
+  value: string
+  /** What the figure counts, one short line under it. */
+  label: string
+  /** Two or three sentences, pinned to a corner. */
+  story?: string
+  /** Where the number comes from. Shown small in the corner. */
+  source?: string
+  /** The faint backdrop word. Defaults to the label's first word. Pass "" for none. */
+  word?: string
+}
+
+export type OdometerStageStatsProps = {
+  stats?: Stat[]
+  /** Small heading in the top-left corner. Also names the section for screen readers. */
+  title?: string
+  preset?: StagePreset
+  /** Override any colour of the preset. */
+  palette?: StagePaletteInput
+  /** "scroll": the stage sticks and scrolling steps through the stats. "click": a band with controls. */
+  mode?: "scroll" | "click"
+  /** Height of the stage. Any CSS length. */
+  height?: string
+  /** Scroll distance per stat in "scroll" mode. Any CSS length. */
+  step?: string
+  /** px of fixed header above the stage in "scroll" mode. */
+  stickyTop?: number
+  /** ms per stat in "click" mode; 0 turns autoplay off. Off under reduced motion. */
+  autoplay?: number
+  /** Shown under the last stat. */
+  cta?: { label: string; href?: string; onClick?: (e: React.MouseEvent) => void }
+  /** Height cap of the numeral. Any CSS length; it also shrinks to fit the width. */
+  numberSize?: string
+  /** Font stack for text. Pass your own, e.g. "var(--font-sans)". */
+  uiFont?: string
+  /** Font stack for the faint backdrop word. */
+  wordFont?: string
+  showGrain?: boolean
+  onStepChange?: (index: number) => void
+  className?: string
+  style?: React.CSSProperties
+}
+
+const PRESETS: { [k: string]: StagePalette } = {
+  signal: { field: "#D3261C", ink: "#FFFFFF", fieldDark: "#A81C14" },
+  cobalt: { field: "#1C3ED4", ink: "#FFFFFF", fieldDark: "#1430A8" },
+  forest: { field: "#0E4A32", ink: "#E6F5C4", fieldDark: "#0A3825" },
+  ink: { field: "#151515", ink: "#F3F3F3", fieldDark: "#0C0C0C" },
+  saffron: { field: "#F2B705", ink: "#141414", fieldDark: "#DCA500" },
+}
+
+const DEFAULT_STATS: Stat[] = [
+  {
+    value: "96",
+    label: "brands launched since 2014",
+    word: "Brands",
+    story:
+      "From a two-table ramen counter to a regional rail line. Every one of them started as a single page of words, before anyone picked a colour.",
+    source: "Studio records, January 2026",
+  },
+  {
+    value: "38",
+    label: "of them still work with us",
+    word: "Clients",
+    story:
+      "Most identities are finished the day they launch. Ours keep a desk here: menus, signage, the third shop, the rebrand of the rebrand.",
+    source: "Active retainers, January 2026",
+  },
+  {
+    value: "4.2×",
+    label: "more direct bookings in the year after a relaunch",
+    word: "Lift",
+    story:
+      "Median across the eleven hospitality clients who shared their numbers with us. Measured against the twelve months before the new name went up.",
+    source: "Client-reported, 2019 to 2025",
+  },
+  {
+    value: "1",
+    label: "studio, one floor, no subcontractors",
+    word: "Studio",
+    story:
+      "Strategy, naming, type and the website are made by the same nine people around the same table. You meet all of them in the first week.",
+  },
+]
+
+const UI_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+const WORD_FONT =
+  '"Bebas Neue", "Oswald", "Antonio", Impact, Haettenschweiler, "Arial Narrow Bold", "Roboto Condensed", "Helvetica Neue", sans-serif'
+
+const GRAIN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")"
+
+/*
+ * Glyphs are stroked skeletons: cap height 200 units, a 34-unit stroke, butt
+ * caps and mitred joins, which gives a heavy engineered condensed figure. Each
+ * one sits in a box 240 units tall (the extra 40 is for the comma's tail), and
+ * the box clips anything that pokes past the cap line.
+ */
+type Glyph = { w: number; d: string; s?: number; d2?: string; s2?: number; rot?: boolean }
+
+const BOWL_SIX = "M17 117A35 35 0 0 1 87 117V148A35 35 0 0 1 17 148ZM84.9 40A35 35 0 0 0 17 52V148"
+
+const GLYPHS: { [k: string]: Glyph } = {
+  "0": { w: 104, d: "M17 52A35 35 0 0 1 87 52V148A35 35 0 0 1 17 148Z" },
+  "1": { w: 84, d: "M58 0V200M14 48L58 8" },
+  "2": { w: 104, d: "M18 56A35 35 0 0 1 87 52C87 92 17 132 17 183H104" },
+  "3": { w: 104, d: "M17 50A35 35 0 0 1 87 50V62A34 34 0 0 1 53 96H40M53 96A35 35 0 0 1 87 131V148A35 35 0 0 1 17 148" },
+  "4": { w: 108, d: "M74 0V200M70 0L17 136V140H108" },
+  "5": { w: 104, d: "M100 17H21V98M21 98C30 87 40 82 52 82A35 35 0 0 1 87 117V148A35 35 0 0 1 17 148" },
+  "6": { w: 104, d: BOWL_SIX },
+  "7": { w: 100, d: "M6 17H85L42 200" },
+  "8": { w: 104, d: "M20 49A32 32 0 0 1 84 49V64A32 32 0 0 1 20 64ZM17 131A35 35 0 0 1 87 131V148A35 35 0 0 1 17 148Z" },
+  "9": { w: 104, d: BOWL_SIX, rot: true },
+  ".": { w: 40, d: "M20 166V200" },
+  ",": { w: 40, d: "M22 166V194L10 226" },
+  "%": { w: 168, s: 26, d: "M13 40A22 22 0 0 1 57 40V66A22 22 0 0 1 13 66ZM111 134A22 22 0 0 1 155 134V160A22 22 0 0 1 111 160ZM132 2L36 198" },
+  "+": { w: 112, s: 30, d: "M56 50V150M8 100H104" },
+  "×": { w: 104, s: 30, d: "M16 62L88 146M88 62L16 146" },
+  "-": { w: 84, s: 32, d: "M8 108H76" },
+  "/": { w: 92, s: 30, d: "M80 0L12 200" },
+  K: { w: 110, d: "M17 0V200M96 0L28 116M52 82L106 200" },
+  M: { w: 140, d: "M17 200V10L70 140L123 10V200" },
+  B: { w: 114, d: "M17 0V200M0 17H56A39.5 39.5 0 0 1 56 96H17M17 96H57A43.5 43.5 0 0 1 57 183H0" },
+  $: {
+    w: 104,
+    s: 30,
+    d: "M84 58A33 30 0 0 0 19 64C19 98 85 102 85 136A33 30 0 0 1 20 142",
+    d2: "M52 4V196",
+    s2: 14,
+  },
+}
+
+// #region logic
+const ALIASES: { [k: string]: string } = { x: "×", X: "×", "*": "×", k: "K", m: "M", b: "B", "−": "-", "–": "-" }
+
+/** Split a figure into glyph keys. Known glyphs map to the SVG set; anything else is kept for the text fallback. */
+export function parseValue(value: string): string[] {
+  const out: string[] = []
+  for (const raw of Array.from(String(value))) {
+    const ch = ALIASES[raw] || raw
+    out.push(ch)
+  }
+  return out
+}
+
+export function isDrawn(ch: string): boolean {
+  return Object.prototype.hasOwnProperty.call(GLYPHS, ch)
+}
+
+/** Width of one glyph cell in ems of the cap height (spaces and fallbacks get a fixed width). */
+export function glyphEm(ch: string): number {
+  if (ch === " ") return 0.28
+  return isDrawn(ch) ? GLYPHS[ch].w / 200 : 0.62
+}
+
+export const GAP_EM = 0.06
+
+/** Total width of a figure in ems of its cap height. Drives the fit-to-width font size. */
+export function figureEm(chars: string[]): number {
+  if (!chars.length) return 0.5
+  let w = 0
+  for (const ch of chars) w += glyphEm(ch)
+  return w + GAP_EM * (chars.length - 1)
+}
+
+export function clamp01(n: number): number {
+  return n < 0 ? 0 : n > 1 ? 1 : n
+}
+
+/** Which stat a scroll progress (0..1 through the section) shows. Every stat gets an equal stretch. */
+export function stepFromProgress(p: number, n: number): number {
+  if (n <= 1) return 0
+  return Math.min(n - 1, Math.floor(clamp01(p) * n))
+}
+
+/** How far through its own stretch the current stat is (0..1), for the segment bar. */
+export function progressWithin(p: number, n: number): number {
+  if (n <= 0) return 0
+  const x = clamp01(p) * n
+  const i = stepFromProgress(p, n)
+  return clamp01(x - i)
+}
+
+/** Where to scroll so stat i is on stage: a little past the start of its stretch, so it never sits on a boundary. */
+export function anchorFraction(i: number, n: number): number {
+  if (n <= 1) return 0
+  if (i <= 0) return 0
+  return (i + 0.18) / n
+}
+
+export function wrap(i: number, n: number): number {
+  return n ? ((i % n) + n) % n : 0
+}
+
+export function pad2(n: number): string {
+  return n < 10 ? "0" + n : String(n)
+}
+
+/**
+ * The digits a cell spins through before it lands on its own. Digits pass
+ * two or three neighbours (longer for cells further right, so the figure
+ * settles left to right); anything else just slides in.
+ */
+export function rollStrip(target: string, position: number): string[] {
+  if (!/^[0-9]$/.test(target)) return [target]
+  const t = Number(target)
+  const spins = 2 + (position % 2)
+  const out: string[] = []
+  for (let k = spins; k >= 1; k--) out.push(String((t + k * 3) % 10))
+  out.push(target)
+  return out
+}
+
+/** The faint backdrop word: the stat's own, else the first word of its label. */
+export function backdropWord(stat: { label: string; word?: string }): string {
+  if (typeof stat.word === "string") return stat.word
+  const first = String(stat.label || "").trim().split(/\s+/)[0] || ""
+  return first.replace(/[^\p{L}\p{N}]/gu, "")
+}
+
+/** One sentence a screen reader hears for a stat. */
+export function spoken(stat: { value: string; label: string }): string {
+  return (stat.value + " " + stat.label).trim()
+}
+// #endregion logic
+
+function GlyphSvg({ ch }: { ch: string }) {
+  const g = GLYPHS[ch]
+  if (!g) return <span className="ost-fallback">{ch === " " ? " " : ch}</span>
+  return (
+    <svg
+      className="ost-glyph"
+      viewBox={"0 0 " + g.w + " 240"}
+      width={g.w}
+      height={240}
+      style={{ width: g.w / 200 + "em", height: "1.2em", maxWidth: "none" }}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g transform={g.rot ? "rotate(180 " + g.w / 2 + " 100)" : undefined}>
+        <path d={g.d} fill="none" stroke="currentColor" strokeWidth={g.s || 34} strokeLinejoin="miter" strokeMiterlimit={3} />
+        {g.d2 ? <path d={g.d2} fill="none" stroke="currentColor" strokeWidth={g.s2 || 34} /> : null}
+      </g>
+    </svg>
+  )
+}
+
+type Phase = "from" | "to" | "out"
+
+function Figure({
+  value,
+  phase,
+  dir,
+  order,
+  maxSize,
+}: {
+  value: string
+  phase: Phase
+  /** Which way this step moves: 1 rolls up, -1 rolls down. */
+  dir: 1 | -1
+  /** Which way the figure was stacked when it came in (it keeps that stack on the way out). */
+  order: 1 | -1
+  maxSize: string
+}) {
+  const chars = parseValue(value)
+  const em = figureEm(chars)
+  const fit = "calc(var(--ost-fitw, 88cqw) / " + em.toFixed(3) + ")"
+  return (
+    <span
+      className="ost-figure"
+      data-phase={phase}
+      data-dir={dir === 1 ? "up" : "down"}
+      style={{ fontSize: "min(" + maxSize + ", " + fit + ")" }}
+      aria-hidden="true"
+    >
+      {chars.map((ch, i) => {
+        const strip = rollStrip(ch, chars.length - 1 - i)
+        const ordered = order === 1 ? strip : strip.slice().reverse()
+        const len = ordered.length
+        const target = order === 1 ? len - 1 : 0
+        // Up: the strip starts one cell below and travels until its last glyph is in the cell.
+        // Down: it starts above and travels until its first glyph is.
+        const start = order === 1 ? 1.2 : -1.2 * len
+        const end = -1.2 * target
+        // Leaving, the landed glyph carries on one more cell in the step's direction.
+        const y = phase === "from" ? start : phase === "to" ? end : end + (dir === 1 ? -1.2 : 1.2)
+        return (
+          <span
+            key={i}
+            className="ost-cell"
+            data-tail={ch === "," ? "" : undefined}
+            style={{ width: glyphEm(ch) + "em", marginRight: i < chars.length - 1 ? GAP_EM + "em" : 0 }}
+          >
+            <span
+              className="ost-strip"
+              style={{
+                transform: "translate3d(0," + y + "em,0)",
+                // The new figure waits for the old one to clear its cells, then lands left to right.
+                transitionDelay: (phase === "out" ? i * 28 : 150 + i * 70) + "ms",
+              }}
+            >
+              {ordered.map((g, k) => (
+                <span className="ost-slot" key={k} data-target={k === target ? "" : undefined}>
+                  <GlyphSvg ch={g} />
+                </span>
+              ))}
+            </span>
+          </span>
+        )
+      })}
+    </span>
+  )
+}
+
+function Arrow({ dir, axis }: { dir: "prev" | "next"; axis: "x" | "y" }) {
+  const d =
+    axis === "y"
+      ? dir === "next"
+        ? "M9 3v11M4.5 10 9 14.5 13.5 10"
+        : "M9 15V4M4.5 8 9 3.5 13.5 8"
+      : dir === "next"
+        ? "M3 9h11M10 4.5 14.5 9 10 13.5"
+        : "M15 9H4M8 4.5 3.5 9 8 13.5"
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path
+        d={d}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function PlayPause({ playing }: { playing: boolean }) {
+  return playing ? (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <rect x="3" y="2.5" width="2.6" height="9" fill="currentColor" />
+      <rect x="8.4" y="2.5" width="2.6" height="9" fill="currentColor" />
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M4 2.4v9.2L11.6 7Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+const css = `
+.ost { position: relative; display: block; width: 100%; isolation: isolate; color: var(--ost-ink); --ost-field-now: var(--ost-field); }
+.dark .ost { --ost-field-now: var(--ost-field-dark); }
+.ost *, .ost *::before, .ost *::after { box-sizing: border-box; }
+.ost svg { max-width: none; }
+.ost-anchor { position: absolute; left: 0; width: 1px; height: 1px; pointer-events: none; }
+.ost-stage { position: relative; width: 100%; overflow: hidden; background-color: var(--ost-field-now); color: var(--ost-ink); container-type: size; font-family: var(--ost-ui); transition: background-color 400ms ease; }
+.ost[data-mode="scroll"] .ost-stage { position: sticky; }
+.ost-grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.22; mix-blend-mode: overlay; background-size: 220px 220px; }
+.ost-word { position: absolute; left: clamp(12px, 2.4cqw, 40px); bottom: 0; margin: 0; font-family: var(--ost-word); font-weight: 900; font-stretch: condensed; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.74; font-size: clamp(88px, 21cqw, 380px); white-space: nowrap; color: var(--ost-ink); opacity: 0.1; transform: translate3d(0, 9%, 0); pointer-events: none; user-select: none; transition: opacity 420ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-word[data-state="from"] { opacity: 0; transform: translate3d(0, 34%, 0); transition: none; }
+.ost-word[data-state="out"] { opacity: 0; transform: translate3d(0, -18%, 0); transition-duration: 220ms; }
+.ost-top { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: clamp(18px, 2.6cqw, 36px) clamp(18px, 3cqw, 48px); }
+.ost-title { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 600; letter-spacing: 0.005em; max-width: 30ch; }
+.ost-nav { display: flex; align-items: center; gap: 10px; }
+.ost-count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; margin-right: 6px; white-space: nowrap; }
+.ost-count span { opacity: 0.7; }
+.ost-btn { appearance: none; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 999px; border: 1.5px solid var(--ost-ink); background: transparent; color: var(--ost-ink); cursor: pointer; transition: background-color 160ms ease, color 160ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-btn:hover { background: var(--ost-ink); color: var(--ost-field-now); }
+.ost-btn:active { transform: scale(0.94); }
+.ost-btn:disabled { opacity: 0.35; cursor: default; background: transparent; color: var(--ost-ink); transform: none; }
+.ost-btn svg { transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost[data-mode="scroll"] .ost-btn[data-dir="next"]:hover:not(:disabled) svg { transform: translateY(2px); }
+.ost[data-mode="scroll"] .ost-btn[data-dir="prev"]:hover:not(:disabled) svg { transform: translateY(-2px); }
+.ost[data-mode="click"] .ost-btn[data-dir="next"]:hover:not(:disabled) svg { transform: translateX(2px); }
+.ost[data-mode="click"] .ost-btn[data-dir="prev"]:hover:not(:disabled) svg { transform: translateX(-2px); }
+.ost-btn:focus-visible, .ost-seg:focus-visible, .ost-cta:focus-visible { outline: 2px solid var(--ost-ink); outline-offset: 3px; }
+.ost-center { position: absolute; z-index: 1; left: 0; right: 0; top: 44%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 clamp(16px, 3cqw, 48px); }
+.ost-figwrap { display: grid; justify-items: center; align-items: end; }
+.ost-figwrap > * { grid-area: 1 / 1; }
+.ost-figure { display: inline-flex; align-items: flex-start; line-height: 1; height: 1em; color: var(--ost-ink); }
+.ost-cell { position: relative; display: block; flex: none; height: 1em; overflow: hidden; }
+.ost-cell[data-tail] { overflow: visible; clip-path: inset(0 -0.1em -0.2em -0.1em); }
+.ost-strip { display: flex; flex-direction: column; will-change: transform; transition-property: transform; transition-duration: 1050ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+.ost-figure[data-phase="from"] .ost-strip { transition: none; }
+.ost-figure[data-phase="out"] .ost-strip { transition-duration: 340ms; transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+.ost-figure[data-phase="out"] .ost-slot:not([data-target]) { visibility: hidden; }
+.ost-slot { display: block; height: 1.2em; }
+.ost-glyph { display: block; overflow: hidden; }
+.ost-fallback { display: block; height: 1em; font-size: 1em; line-height: 1; font-weight: 800; font-family: var(--ost-ui); letter-spacing: -0.04em; }
+.ost-label { margin: clamp(10px, 2.2cqh, 26px) 0 0; font-size: clamp(17px, 1.55cqw, 23px); line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; max-width: 30ch; text-wrap: balance; transition: opacity 380ms ease, transform 520ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-label[data-state="from"] { opacity: 0; transform: translateY(10px); transition: none; }
+.ost-cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 48px; padding: 0 24px; border-radius: 999px; background: var(--ost-ink); color: var(--ost-field-now); font-size: 15px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity 380ms ease; }
+.ost-cta svg { transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-cta:hover svg { transform: translateX(4px); }
+.ost-cta:active { transform: scale(0.97); }
+.ost-cta[data-state="from"] { opacity: 0; transition: none; }
+.ost-story { position: absolute; z-index: 1; width: min(340px, 27cqw); margin: 0; font-size: 15px; line-height: 1.55; transition: opacity 420ms ease, transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-story[data-side="start"] { left: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
+.ost-story[data-side="end"] { right: clamp(18px, 3cqw, 48px); bottom: clamp(72px, 13cqh, 140px); }
+.ost-story[data-state="from"] { opacity: 0; transition: none; }
+.ost-story[data-state="from"][data-side="start"] { transform: translateX(-16px); }
+.ost-story[data-state="from"][data-side="end"] { transform: translateX(16px); }
+.ost-mark { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.ost-source { display: block; margin-top: 12px; font-size: 12.5px; line-height: 1.4; font-weight: 500; }
+.ost-bar { position: absolute; z-index: 2; left: clamp(18px, 3cqw, 48px); right: clamp(18px, 3cqw, 48px); bottom: clamp(14px, 2cqw, 26px); display: flex; gap: 8px; }
+.ost-seg { position: relative; flex: 1 1 0; height: 28px; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; color: var(--ost-ink); }
+.ost-seg::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: currentColor; opacity: 0.28; transition: opacity 160ms ease, height 160ms ease; }
+.ost-seg:hover::before { opacity: 0.5; }
+.ost-fill { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: currentColor; transform-origin: 0 50%; transition: transform 240ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost[data-mode="click"] .ost-fill { transition: transform 360ms cubic-bezier(0.23, 1, 0.32, 1); }
+.ost-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ost-strip, .ost-word, .ost-label, .ost-story, .ost-cta, .ost-fill, .ost-btn, .ost-btn svg, .ost-stage { transition: none !important; }
+}
+`
+
+/* Container queries: one stacked composition for a narrow stage. Kept apart so the test can read them. */
+const narrowCss = `
+@container (max-width: 1180px) {
+  .ost-label { max-width: 24ch; }
+  .ost-story { width: min(300px, 28cqw); }
+}
+@container (max-width: 760px) {
+  .ost-center { top: 40%; --ost-fitw: 84cqw; }
+  .ost-label { max-width: 30ch; }
+  .ost-story { position: absolute; left: clamp(18px, 5cqw, 32px) !important; right: clamp(18px, 5cqw, 32px) !important; top: auto !important; bottom: 64px; width: auto; max-width: 46ch; font-size: 14.5px; }
+  .ost-story[data-state="from"] { transform: translateY(10px) !important; }
+  .ost-word { font-size: 30cqw; }
+  .ost-title { font-size: 14px; max-width: 18ch; }
+  .ost-count { display: none; }
+  .ost-btn { width: 40px; height: 40px; }
+}
+@container (max-height: 620px) {
+  .ost-story { display: none; }
+  .ost-center { top: 50%; }
+}
+`
+
+export default function OdometerStageStats({
+  stats = DEFAULT_STATS,
+  title = "Halden Studio, eleven years in figures",
+  preset = "signal",
+  palette,
+  mode = "scroll",
+  height = "100svh",
+  step = "80svh",
+  stickyTop = 0,
+  autoplay = 5200,
+  cta,
+  numberSize = "min(44cqh, 560px)",
+  uiFont = UI_FONT,
+  wordFont = WORD_FONT,
+  showGrain = true,
+  onStepChange,
+  className,
+  style,
+}: OdometerStageStatsProps) {
+  const list = stats.length ? stats : DEFAULT_STATS
+  const n = list.length
+  const base = PRESETS[preset] || PRESETS.signal
+  const colors = {
+    field: (palette && palette.field) || base.field,
+    ink: (palette && palette.ink) || base.ink,
+    fieldDark: (palette && (palette.fieldDark || palette.field)) || base.fieldDark || base.field,
+  }
+
+  const rootRef = React.useRef<HTMLElement | null>(null)
+  const stageRef = React.useRef<HTMLDivElement | null>(null)
+  const anchorsRef = React.useRef<(HTMLSpanElement | null)[]>([])
+  const [index, setIndex] = React.useState(0)
+  const [within, setWithin] = React.useState(0)
+  const [view, setView] = React.useState({ cur: 0, prev: -1, dir: 1 as 1 | -1, prevDir: 1 as 1 | -1, phase: "to" as Phase, key: 0 })
+  const [reduced, setReduced] = React.useState(false)
+  const [playing, setPlaying] = React.useState(true)
+  const [held, setHeld] = React.useState(false)
+  const [announce, setAnnounce] = React.useState("")
+  const lockRef = React.useRef<{ target: number; until: number } | null>(null)
+  const firstRef = React.useRef(true)
+  const headingId = React.useId()
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const on = () => setReduced(mq.matches)
+    on()
+    mq.addEventListener("change", on)
+    return () => mq.removeEventListener("change", on)
+  }, [])
+
+  // A stat change starts the roll: the new figure mounts below its cells ("from"),
+  // then two frames later it is released to travel ("to"); the old one leaves ("out").
+  React.useEffect(() => {
+    if (firstRef.current) {
+      firstRef.current = false
+      return
+    }
+    setView((v) => {
+      if (v.cur === index) return v
+      const dir: 1 | -1 = index > v.cur ? 1 : -1
+      return { cur: index, prev: v.cur, dir, prevDir: v.dir, phase: reduced ? "to" : "from", key: v.key + 1 }
+    })
+    setAnnounce("Stat " + (index + 1) + " of " + n + ": " + spoken(list[index] || list[0]))
+    if (onStepChange) onStepChange(index)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index])
+
+  React.useEffect(() => {
+    if (view.phase !== "from") return
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => setView((v) => (v.phase === "from" ? { ...v, phase: "to" } : v)))
+    })
+    return () => {
+      cancelAnimationFrame(r1)
+      cancelAnimationFrame(r2)
+    }
+  }, [view.phase, view.key])
+
+  React.useEffect(() => {
+    if (view.prev < 0) return
+    const t = window.setTimeout(() => setView((v) => (v.key === view.key ? { ...v, prev: -1 } : v)), reduced ? 0 : 700)
+    return () => window.clearTimeout(t)
+  }, [view.key, view.prev, reduced])
+
+  // Scroll mode: the section's own scroll progress picks the stat. Listening in the
+  // capture phase catches whichever element actually scrolls, window or not.
+  React.useEffect(() => {
+    if (mode !== "scroll") return
+    let raf = 0
+    const read = () => {
+      raf = 0
+      const root = rootRef.current
+      const stage = stageRef.current
+      if (!root || !stage) return
+      const rect = root.getBoundingClientRect()
+      const travel = rect.height - stage.offsetHeight
+      const p = travel > 0 ? clamp01((stickyTop - rect.top) / travel) : 0
+      const i = stepFromProgress(p, n)
+      const lock = lockRef.current
+      if (lock) {
+        if (i === lock.target || performance.now() > lock.until) lockRef.current = null
+        else return
+      }
+      setIndex(i)
+      setWithin(progressWithin(p, n))
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(read)
+    }
+    read()
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      document.removeEventListener("scroll", onScroll, { capture: true })
+      window.removeEventListener("resize", onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [mode, n, stickyTop])
+
+  const go = React.useCallback(
+    (to: number) => {
+      const i = Math.max(0, Math.min(n - 1, to))
+      if (mode === "scroll") {
+        const a = anchorsRef.current[i]
+        if (a) {
+          lockRef.current = { target: i, until: performance.now() + 1400 }
+          a.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" })
+        }
+        setWithin(0.18)
+      } else {
+        setWithin(1)
+      }
+      setIndex(i)
+    },
+    [mode, n, reduced],
+  )
+
+  // Click mode autoplay: pauses on hover, keyboard focus, a hidden tab and the pause button.
+  const autoplayOn = mode === "click" && autoplay > 0 && !reduced && n > 1
+  React.useEffect(() => {
+    if (!autoplayOn || !playing || held) return
+    const t = window.setTimeout(() => {
+      if (document.visibilityState === "hidden") return
+      setIndex((i) => wrap(i + 1, n))
+    }, autoplay)
+    return () => window.clearTimeout(t)
+  }, [autoplayOn, playing, held, autoplay, index, n])
+
+  React.useEffect(() => {
+    if (mode === "click") setWithin(1)
+  }, [mode, index])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const t = e.target as HTMLElement
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return
+    if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") {
+      if (index < n - 1) {
+        e.preventDefault()
+        go(index + 1)
+      }
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
+      if (index > 0) {
+        e.preventDefault()
+        go(index - 1)
+      }
+    } else if (e.key === "Home") {
+      e.preventDefault()
+      go(0)
+    } else if (e.key === "End") {
+      e.preventDefault()
+      go(n - 1)
+    }
+  }
+
+  const cur = list[view.cur] || list[0]
+  const prev = view.prev >= 0 ? list[view.prev] : null
+  const enter: "from" | "to" = view.phase === "from" ? "from" : "to"
+  const side = view.cur % 2 === 0 ? "start" : "end"
+  const word = backdropWord(cur)
+  const prevWord = prev ? backdropWord(prev) : ""
+  const isLast = view.cur === n - 1
+  const totalHeight = mode === "scroll" && n > 1 ? "calc(" + height + " + " + (n - 1) + " * " + step + ")" : height
+
+  const rootStyle = {
+    "--ost-field": colors.field,
+    "--ost-field-dark": colors.fieldDark,
+    "--ost-ink": colors.ink,
+    "--ost-ui": uiFont,
+    "--ost-word": wordFont,
+    height: totalHeight,
+    ...style,
+  } as React.CSSProperties
+
+  return (
+    <section
+      ref={rootRef as React.RefObject<HTMLElement>}
+      className={"ost" + (className ? " " + className : "")}
+      data-mode={mode}
+      style={rootStyle}
+      aria-labelledby={headingId}
+      onKeyDown={onKeyDown}
+      onPointerEnter={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setHeld(false)
+      }}
+    >
+      <style>{css + narrowCss}</style>
+
+      {mode === "scroll" && n > 1
+        ? list.map((_, i) => (
+            <span
+              key={i}
+              ref={(el) => {
+                anchorsRef.current[i] = el
+              }}
+              className="ost-anchor"
+              aria-hidden="true"
+              style={{
+                top: "calc((100% - " + height + ") * " + anchorFraction(i, n).toFixed(4) + ")",
+                scrollMarginTop: stickyTop + "px",
+              }}
+            />
+          ))
+        : null}
+
+      <div ref={stageRef} className="ost-stage" style={{ height, top: stickyTop }}>
+        {showGrain ? <div className="ost-grain" style={{ backgroundImage: GRAIN }} aria-hidden="true" /> : null}
+
+        {prev && prevWord ? (
+          <p key={"w" + (view.key - 1)} className="ost-word" data-state="out" aria-hidden="true">
+            {prevWord}
+          </p>
+        ) : null}
+        {word ? (
+          <p key={"w" + view.key} className="ost-word" data-state={enter} aria-hidden="true">
+            {word}
+          </p>
+        ) : null}
+
+        <div className="ost-top">
+          <h2 id={headingId} className="ost-title">
+            {title}
+          </h2>
+          <div className="ost-nav">
+            <span className="ost-count" aria-hidden="true">
+              {pad2(view.cur + 1)} <span>/ {pad2(n)}</span>
+            </span>
+            {autoplayOn ? (
+              <button
+                type="button"
+                className="ost-btn"
+                onClick={() => setPlaying((p) => !p)}
+                aria-label={playing ? "Pause stats" : "Play stats"}
+              >
+                <PlayPause playing={playing} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="ost-btn"
+              data-dir="prev"
+              onClick={() => go(index - 1)}
+              disabled={index <= 0}
+              aria-label="Previous stat"
+            >
+              <Arrow dir="prev" axis={mode === "scroll" ? "y" : "x"} />
+            </button>
+            <button
+              type="button"
+              className="ost-btn"
+              data-dir="next"
+              onClick={() => go(index + 1)}
+              disabled={index >= n - 1}
+              aria-label="Next stat"
+            >
+              <Arrow dir="next" axis={mode === "scroll" ? "y" : "x"} />
+            </button>
+          </div>
+        </div>
+
+        <div className="ost-center">
+          <div className="ost-figwrap">
+            {prev ? (
+              <Figure key={"n" + (view.key - 1)} value={prev.value} phase="out" dir={view.dir} order={view.prevDir} maxSize={numberSize} />
+            ) : null}
+            <Figure key={"n" + view.key} value={cur.value} phase={enter} dir={view.dir} order={view.dir} maxSize={numberSize} />
+          </div>
+          <p key={"l" + view.key} className="ost-label" data-state={enter} aria-hidden="true">
+            {cur.label}
+          </p>
+          {isLast && cta ? (
+            cta.href ? (
+              <a key={"c" + view.key} className="ost-cta" data-state={enter} href={cta.href} onClick={cta.onClick}>
+                {cta.label}
+                <CtaArrow />
+              </a>
+            ) : (
+              <button key={"c" + view.key} type="button" className="ost-cta" data-state={enter} onClick={cta.onClick}>
+                {cta.label}
+                <CtaArrow />
+              </button>
+            )
+          ) : null}
+        </div>
+
+        {cur.story || cur.source ? (
+          <p key={"s" + view.key} className="ost-story" data-side={side} data-state={enter} aria-hidden="true">
+            <span className="ost-mark">[ {pad2(view.cur + 1)} ]</span>
+            {cur.story}
+            {cur.source ? <span className="ost-source">Source: {cur.source}</span> : null}
+          </p>
+        ) : null}
+
+        <div className="ost-bar">
+          {list.map((s, i) => {
+            const fill = i < index ? 1 : i > index ? 0 : mode === "scroll" ? Math.max(0.06, within) : within
+            return (
+              <button
+                key={i}
+                type="button"
+                className="ost-seg"
+                onClick={() => go(i)}
+                aria-label={"Stat " + (i + 1) + ": " + spoken(s)}
+                aria-current={i === index ? "step" : undefined}
+              >
+                <span className="ost-fill" style={{ transform: "scaleX(" + fill.toFixed(3) + ")" }} aria-hidden="true" />
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="ost-sr" aria-live="polite" aria-atomic="true">
+          {announce}
+        </div>
+      </div>
+
+      <dl className="ost-sr">
+        {list.map((s, i) => (
+          <div key={i}>
+            <dt>{s.value}</dt>
+            <dd>
+              {s.label}
+              {s.story ? ". " + s.story : ""}
+              {s.source ? " Source: " + s.source + "." : ""}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function CtaArrow() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2.5 8h10M8.5 3.5 13 8l-4.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export type StagePaletteInput = Partial<StagePalette>
