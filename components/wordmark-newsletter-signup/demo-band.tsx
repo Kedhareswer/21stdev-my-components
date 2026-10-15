@@ -15,6 +15,7 @@ export default function WordmarkNewsletterSignupBandDemo() {
         proof="4,312 members"
         successTitle="You're a member"
         successCopy="The next jar list goes out on the 1st."
+        successAction={{ label: "See this month's jars", href: "#jars" }}
       />
     </div>
   )

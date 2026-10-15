@@ -18,12 +18,12 @@ export default function WordmarkNewsletterSignupModalDemo() {
         onOpenChange={setOpen}
         preset="pickle"
         brand="Brine House"
-        successWord="Welcome in"
+        successWord="In the brine"
         headline="Get first dibs on the monthly pickle drop"
         description="Twelve jars a month, gone by lunch. Subscribers hear about them a day early."
         buttonLabel="Count me in"
         consent="Send me the drop email and nothing else."
-        successTitle="You're in the brine"
+        successTitle="You're on the drop list"
         successCopy={(email) => (
           <>
             Next drop is the first Friday of the month. Watch <strong>{email}</strong> the day before.
