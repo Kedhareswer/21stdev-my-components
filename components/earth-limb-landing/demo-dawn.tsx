@@ -50,7 +50,7 @@ export default function DemoDawn() {
       }}
       swath={{ kind: "coast", caption: "Barrier beach, 34.2°N 77.8°W, 40 cm" }}
       footer={{
-        band: { kind: "harbor", caption: "51.95°N 4.05°E" },
+        band: { kind: "coast", caption: "51.95°N 4.05°E" },
         columns: [
           { title: "Product", links: [{ label: "Port reports" }, { label: "Spill alerts" }, { label: "Archive" }, { label: "Pricing" }] },
           { title: "Coverage", links: [{ label: "Europe" }, { label: "Asia" }, { label: "Americas" }, { label: "Africa" }] },

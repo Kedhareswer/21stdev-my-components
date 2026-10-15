@@ -113,6 +113,8 @@ export type ElxBand = { kind: ElxTileKind; image?: string; caption?: string }
 export type EarthLimbLandingProps = {
   brand?: string
   tagline?: string
+  /** Your mark, shown in the header, the footer and the success state. Defaults to a drawn orbit mark. */
+  logo?: React.ReactNode
   /** "dawn": the dawn-dusk radar plane riding the terminator. "day": a morning optical plane over a sunlit ocean. */
   preset?: "dawn" | "day"
   /** The one accent colour (buttons, kicker, ground track). */
@@ -1041,7 +1043,7 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
       const b = fbm2(X * 0.0035 + 4, Y * 0.0035, s + 2, 4) * 0.9 + 0.55 * Math.exp(-(dxs * dxs + dys * dys))
       const road = Math.abs(Y - (140 + 70 * Math.sin(X * 0.008 + s))) < 1.6
       const water = Math.abs(Y - (470 + 35 * Math.sin(X * 0.011 + 2))) < 6
-      const cut = hash2(Math.floor(X / 92), Math.floor(Y / 64), s + 3) < 0.07 && b < 0.72
+      const cut = false
       if (water) {
         put(o, 0, 0.05, 0.08, 0.09)
         put(o, 3, 0.02, 0.03, 0.07)
@@ -1324,21 +1326,17 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
   }
 }
 
-/** Render a tile: `a` is true colour, `b` the other view. `span` is the ground width in tile units. */
-function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span = 900, cloudy = false) {
-  const fn = makeKind(kind, seed, accent)
-  const a = new Uint8ClampedArray(w * h * 4)
-  const b = new Uint8ClampedArray(w * h * 4)
+/** Fill rows y0..y1 of a tile. `a` is true colour, `b` the other view. */
+function fillRows(fn: PixelFn, a: Uint8ClampedArray, b: Uint8ClampedArray, w: number, y0: number, y1: number, k: number, seed: number, cloudy: boolean) {
   const o = new Float32Array(6)
-  const k = span / w
-  for (let y = 0; y < h; y++)
+  for (let y = y0; y < y1; y++)
     for (let x = 0; x < w; x++) {
       o[3] = o[4] = o[5] = 0
-      fn(x * k, y * k, o)
+      const X = x * k
+      const Y = y * k
+      fn(X, Y, o)
       if (cloudy) {
         // a broken cloud deck over the optical view only: the reason radar exists
-        const X = x * k
-        const Y = y * k
         const cover = smooth(0.5, 0.6, fbm2(X * 0.005 + 3, Y * 0.005, seed + 77, 5))
         const shadowed = smooth(0.5, 0.6, fbm2((X - 12) * 0.005 + 3, (Y - 16) * 0.005, seed + 77, 5))
         const sh = 1 - 0.5 * shadowed * (1 - cover)
@@ -1357,6 +1355,13 @@ function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accen
       b[i + 2] = o[5] * 255
       b[i + 3] = 255
     }
+}
+
+/** Render a whole tile at once. `span` is the ground width in tile units. */
+function renderTile(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span = 900, cloudy = false) {
+  const a = new Uint8ClampedArray(w * h * 4)
+  const b = new Uint8ClampedArray(w * h * 4)
+  fillRows(makeKind(kind, seed, accent), a, b, w, 0, h, span / w, seed, cloudy)
   return { a, b }
 }
 // #endregion imagery
@@ -1397,7 +1402,7 @@ const LIMB_FS = [
   "float day=smoothstep(-0.06,0.14,ndl);float fres=pow(1.0-z,4.0);",
   "col+=vec3(0.18,0.32,0.6)*fres*day*0.75;",
   "vec3 H=normalize(S+vec3(0.0,0.0,1.0));float nh=max(dot(n,H),0.0);",
-  "float rough=0.6+0.8*fbm4(w*90.0);float glint=pow(nh,2600.0)*1.4*rough+pow(nh,500.0)*0.05*rough;col+=mix(vec3(0.55,0.72,0.9),vec3(1.0,0.94,0.84),pow(nh,2600.0))*glint*day*(1.0-cv);",
+  "float rough=0.6+0.8*fbm4(w*90.0);float glint=pow(nh,4000.0)*0.9*rough;col+=mix(vec3(0.55,0.72,0.9),vec3(1.0,0.94,0.84),pow(nh,2600.0))*glint*day*(1.0-cv);",
   "float cl=max(ndl+0.14,0.0)/1.14;vec3 sunC=mix(amber*1.45+vec3(0.08,0.02,0.04),vec3(1.0,0.98,0.95),smoothstep(0.02,0.34,ndl));",
   "vec3 cloud=sunC*(0.52+0.48*thick)*(0.74+0.36*det)*(0.05+1.05*cl);",
   "col=mix(col,cloud,cv);",
@@ -1525,6 +1530,26 @@ function useInView(ref: { current: Element | null }, margin = "300px") {
   return seen
 }
 
+/** The same tile in slices of rows that yield to the browser every ~8 ms, so a tab switch never freezes the page. */
+function renderTileAsync(kind: ElxTileKind, w: number, h: number, seed: number, accent: string, span: number, cloudy: boolean) {
+  return new Promise((done: (v: { a: Uint8ClampedArray; b: Uint8ClampedArray }) => void) => {
+    const fn = makeKind(kind, seed, accent)
+    const a = new Uint8ClampedArray(w * h * 4)
+    const b = new Uint8ClampedArray(w * h * 4)
+    let y = 0
+    const step = () => {
+      const t0 = performance.now()
+      while (y < h && performance.now() - t0 < 8) {
+        fillRows(fn, a, b, w, y, Math.min(h, y + 4), span / w, seed, cloudy)
+        y += 4
+      }
+      if (y < h) setTimeout(step, 0)
+      else done({ a, b })
+    }
+    step()
+  })
+}
+
 // Tiles are generated one at a time off the critical path and cached by kind, size, seed and accent.
 const TILE_CACHE = new Map()
 let tileQueue = Promise.resolve()
@@ -1536,9 +1561,14 @@ function tileFor(kind: ElxTileKind, w: number, h: number, seed: number, accent: 
     () =>
       new Promise((done: (v: { a: Uint8ClampedArray; b: Uint8ClampedArray }) => void) => {
         setTimeout(() => {
-          const t = TILE_CACHE.get(key) || renderTile(kind, w, h, seed, accent, span, cloudy)
-          TILE_CACHE.set(key, t)
-          done(t)
+          const hit2 = TILE_CACHE.get(key)
+          if (hit2) return done(hit2)
+          renderTileAsync(kind, w, h, seed, accent, span, cloudy).then((t) => {
+            TILE_CACHE.set(key, t)
+            // keep the eight most recent tiles: a few MB, not dozens
+            while (TILE_CACHE.size > 8) TILE_CACHE.delete(TILE_CACHE.keys().next().value)
+            done(t)
+          })
         }, 0)
       }),
   )
@@ -2114,7 +2144,7 @@ function TrackMap(props: { sats: SatView[]; now: number; city: ElxCity; cities: 
     return order.map((c) => {
       const q = mapXY(c.lat, c.lon, W, H)
       const here = c.name === city.name
-      const wd = c.name.length * 7 + 4
+      const wd = c.name.length * 7 + (c.name === city.name ? 9 : 4)
       let side = 0
       for (const sd of q.x > W - wd - 20 ? [-1, 1] : [1, -1]) {
         const b = sd > 0 ? [q.x + 6, q.y - 8, q.x + 8 + wd, q.y + 8] : [q.x - 8 - wd, q.y - 8, q.x - 6, q.y + 8]
@@ -2149,7 +2179,7 @@ function TrackMap(props: { sats: SatView[]; now: number; city: ElxCity; cities: 
             {here ? <circle className="elx-ring" cx={q.x} cy={q.y} r={7} /> : null}
             <circle cx={q.x} cy={q.y} r={here ? 3 : 2.2} />
             {side ? (
-              <text x={q.x + (side > 0 ? 8 : -8)} y={q.y + 4} textAnchor={side > 0 ? "start" : "end"}>
+              <text x={q.x + (side > 0 ? 1 : -1) * (here ? 13 : 8)} y={q.y + 4} textAnchor={side > 0 ? "start" : "end"}>
                 {c.name}
               </text>
             ) : null}
@@ -2208,6 +2238,7 @@ const asHash = (href?: string) => (href && href.charAt(0) === "#" ? href.slice(1
 export default function EarthLimbLanding({
   brand = "Kestrel",
   tagline = "Earth imaging",
+  logo,
   preset = "day",
   accent = "#ffa23a",
   theme = "dark",
@@ -2264,7 +2295,7 @@ export default function EarthLimbLanding({
   const footer: NonNullable<EarthLimbLandingProps["footer"]> = footerProp || {
     ...DEFAULT_FOOTER,
     columns: DEFAULT_FOOTER.columns.map((c) => (c.title === "Solutions" ? { ...c, links: uses.map((u) => ({ label: u.label, href: "#solutions" })) } : c)),
-    note: brand + ". Oakland and Rotterdam.",
+    note: brand + ".",
   }
   const root = React.useRef(null as HTMLDivElement | null)
   const copyRef = React.useRef(null as HTMLDivElement | null)
@@ -2509,7 +2540,7 @@ export default function EarthLimbLanding({
             e.preventDefault()
             window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" })
           }}>
-            <Mark size={30} />
+            {logo || <Mark size={30} />}
             <span>
               <b>{brand}</b>
               <small>{tagline}</small>
@@ -2853,11 +2884,31 @@ export default function EarthLimbLanding({
             <div className="elx-formwrap">
               {sent === "done" ? (
                 <div className="elx-done" role="status">
-                  <Mark size={36} />
+                  {logo || <Mark size={36} />}
                   <h3>Request received</h3>
                   <p>
                     We will put it on {earliest ? earliest.sat.id + "'s pass" : "the next suitable pass"} and email <b className="elx-nowrap">{form.email.trim()}</b> when the imagery lands.
                   </p>
+                  <dl className="elx-summary">
+                    <div>
+                      <dt>Area</dt>
+                      <dd>{form.area === "custom" ? fmtLat(target ? target.lat : 0) + " " + fmtLon(target ? target.lon : 0) : form.area || city.name}</dd>
+                    </div>
+                    <div>
+                      <dt>Window</dt>
+                      <dd>
+                        {form.from || today} to {form.to || untilDefault}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Product</dt>
+                      <dd>{product ? product.label : ""}</dd>
+                    </div>
+                    <div>
+                      <dt>Earliest collection</dt>
+                      <dd className="elx-mono">{earliest ? earliest.sat.id + " in " + clock((earliest.at - now) / 1000) : "Next suitable pass"}</dd>
+                    </div>
+                  </dl>
                   <button
                     type="button"
                     className="elx-btn elx-line"
@@ -2980,7 +3031,7 @@ export default function EarthLimbLanding({
               e.preventDefault()
               window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" })
             }}>
-              <Mark size={30} />
+              {logo || <Mark size={30} />}
               <span>
                 <b>{brand}</b>
                 <small>{tagline}</small>
@@ -3058,7 +3109,7 @@ export default function EarthLimbLanding({
 }
 
 const ELX_CSS = `
-.elx-root{--elx-space:#04060a;--elx-navy:#061429;--elx-gut:clamp(16px,4vw,48px);--elx-headh:98px;--elx-sans:"Helvetica Neue","Inter Display",Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--elx-monof:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;--elx-ease:cubic-bezier(.23,1,.32,1);--elx-bg:#f1f3f6;--elx-sheet:#ffffff;--elx-ink:#0a101b;--elx-soft:#273142;--elx-muted:#4b5566;--elx-rule:rgba(10,16,27,.13);--elx-rule2:rgba(10,16,27,.28);--elx-faint:rgba(10,16,27,.045);--elx-face2:#e4e8ee;--elx-face3:#d3d9e2;--elx-panel:#1f2f4d;--elx-err:#b4332a;--elx-mapbg:#e7ebf0;--elx-nightfill:rgba(10,16,27,.09);position:relative;min-height:var(--elx-h);overflow-x:clip;background:var(--elx-bg);color:var(--elx-ink);font-family:var(--elx-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.elx-root{--elx-space:#04060a;--elx-navy:#061429;--elx-gut:clamp(16px,4vw,48px);--elx-headh:98px;--elx-sans:"Helvetica Neue","Inter Display",Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--elx-monof:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;--elx-ease:cubic-bezier(.23,1,.32,1);--elx-bg:#f1f3f6;--elx-sheet:#ffffff;--elx-ink:#0a101b;--elx-soft:#273142;--elx-muted:#4b5566;--elx-rule:rgba(10,16,27,.13);--elx-rule2:rgba(10,16,27,.28);--elx-faint:rgba(10,16,27,.045);--elx-face2:#e4e8ee;--elx-face3:#d3d9e2;--elx-panel:#1f2f4d;--elx-err:#b4332a;--elx-mapbg:#e7ebf0;--elx-nightfill:rgba(10,16,27,.05);position:relative;min-height:var(--elx-h);overflow-x:clip;background:var(--elx-bg);color:var(--elx-ink);font-family:var(--elx-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .elx-root[data-theme="dark"]{--elx-bg:#05070b;--elx-sheet:#0b1017;--elx-ink:#e8edf4;--elx-soft:#c4ccd8;--elx-muted:#97a2b2;--elx-rule:rgba(232,237,244,.12);--elx-rule2:rgba(232,237,244,.3);--elx-faint:rgba(232,237,244,.045);--elx-face2:#131a24;--elx-face3:#192230;--elx-panel:#1b2944;--elx-err:#ff8f80;--elx-mapbg:#08101b;--elx-nightfill:rgba(0,0,0,.45);color-scheme:dark}
 .elx-root :where(*,*::before,*::after){box-sizing:border-box}
 .elx-root :where(h1,h2,h3,p,ul,ol,dl,dd,figure){margin:0;padding:0}
@@ -3281,7 +3332,7 @@ const ELX_CSS = `
 .elx-tk-next{fill:none;stroke:var(--elx-soft);stroke-width:1;stroke-dasharray:3 4;opacity:.75;vector-effect:non-scaling-stroke}
 .elx-tk-next.elx-on{stroke:var(--elx-accent);stroke-width:1.5;opacity:1}
 .elx-city circle{fill:var(--elx-soft)}
-.elx-city text{font:500 11px var(--elx-monof);fill:var(--elx-muted)}
+.elx-city text{font:500 11px var(--elx-monof);fill:var(--elx-muted);paint-order:stroke;stroke:var(--elx-mapbg);stroke-width:3px;stroke-linejoin:round}
 .elx-city.elx-here circle{fill:var(--elx-accent-ink)}
 .elx-city.elx-here .elx-ring{fill:none;stroke:var(--elx-accent-ink);stroke-width:1.2;vector-effect:non-scaling-stroke}
 .elx-city.elx-here text{fill:var(--elx-ink);font-weight:700}
@@ -3349,12 +3400,16 @@ const ELX_CSS = `
 .elx-done p{color:var(--elx-soft);max-width:46ch}
 .elx-done .elx-btn{margin-top:14px}
 .elx-nowrap{white-space:nowrap}
+.elx-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;width:100%;margin-top:8px}
+.elx-summary>div{box-shadow:inset 0 1px 0 var(--elx-rule);padding:12px 0}
+.elx-summary dt{font-size:12.5px;color:var(--elx-muted)}
+.elx-summary dd{font-size:15.5px;font-weight:650;margin-top:3px}
 .elx-done .elx-mark{color:var(--elx-ink)}
 
 .elx-foot{background:var(--elx-navy);color:#c3cede}
 .elx-band{position:relative;overflow:hidden}
 .elx-band .elx-tile{width:max(100%,1000px);background:#8a6a48}
-.elx-band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,41,0) 30%,var(--elx-navy) 100%)}
+.elx-band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--elx-sheet) 0,rgba(6,20,41,0) 22%,rgba(6,20,41,0) 30%,var(--elx-navy) 100%)}
 .elx-swath::after{background:linear-gradient(180deg,var(--elx-bg) 0,rgba(0,0,0,0) 28%,rgba(0,0,0,0) 72%,var(--elx-sheet) 100%)}
 .elx-swath .elx-bandtag{top:auto;bottom:16px}
 .elx-bandtag{position:absolute;left:var(--elx-gut);top:14px;z-index:1;font-size:11px;color:#fff;background:rgba(6,20,41,.6);padding:4px 7px}

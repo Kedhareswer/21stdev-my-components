@@ -91,3 +91,39 @@ smudge behind the headline; the phone newsletter input collapsed; the tab focus 
 letters; the maritime compare showed no ships on the radar side; the stats row mixed mono
 and grotesk at display size; a hard-coded footer band, no hero photo option, un-namespaced
 tooltip ids; soft CG clouds; tasking step copy promised field IDs the form lacks.
+
+## Round 3 (new critic, final round)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 7 |
+| Install safety | 9 |
+| Template | 8 |
+
+Awwwards lens: Design 7, Usability 7, Creativity 7, Content 8 = 7.1.
+Verdict: **REDO** (average 7.33, craft below 7 for the third round). The piece moves to
+`claude/review-earth-limb-landing` for the owner to judge.
+
+What the critic still saw: generated imagery that reads as toy-like in places (the
+suburb grid around the logistics park, cotton-ball clouds on the maritime optical
+side, the forest's rectangular clearings, a uniform-speckle radar card); a round sun
+glint that read as a smudge; tile generation blocking the main thread with an unbounded
+cache; a map with no land and labels colliding with satellites; no logo prop; footer
+and spacecraft defaults that invented facts for any brand; an empty done state; a hard
+top edge on the dune band in light mode.
+
+Fixed after the final round (not re-scored): tiles render in 8 ms slices with an
+eight-entry cache; the broad glint is gone (only a small specular core is left); map
+labels carry a halo and the chosen city's label clears its ring; light-mode night is
+lighter; `logo` prop for header, footer and success state; the footer note defaults to
+the brand alone; the done state summarises area, window, product and the earliest
+pass; the footer band fades in from the page; the forest's rectangular clearings are
+gone; the dawn demo's footer band is a coast.
+
+Left for the owner: a coastline layer on the map (no accurate dataset ships in one
+file), a non-grid suburb and industrial edge for the site tile, and thinner cloud decks
+over the maritime optical view. Real photos through the `image` / `compareImage` /
+`photo` props remove most of the imagery critique at once.
