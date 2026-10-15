@@ -52,7 +52,7 @@ export type ElxSat = { id: string; plane: string; phase: number }
 
 export type ElxCity = { name: string; lat: number; lon: number; tz?: string }
 
-export type ElxTileKind = "fields" | "flood" | "forest" | "harbor" | "site" | "dunes" | "ponds"
+export type ElxTileKind = "fields" | "flood" | "forest" | "harbor" | "site" | "coast" | "dunes" | "ponds"
 
 /** What the right-hand side of a compare shows. */
 export type ElxMode = "ndvi" | "radar" | "swir" | "change"
@@ -143,6 +143,8 @@ export type EarthLimbLandingProps = {
     archive?: string
   }
   statement?: string
+  /** A short row of facts under the statement, e.g. the pass times. */
+  rhythm?: ElxFact[]
   card?: { kicker: string; title: string; body: string; link: ElxLink; kind?: ElxTileKind; image?: string }
   usesTitle?: string
   uses?: ElxUse[]
@@ -174,9 +176,13 @@ export type EarthLimbLandingProps = {
     legal: ElxLink[]
   }
   onSubscribe?: (email: string) => unknown
+  /** Which sections to render below the hero, in this order of the page. Defaults to all of them. */
+  sections?: ElxSection[]
   /** Seeds the clouds and every generated image. */
   seed?: number
 }
+
+export type ElxSection = "stats" | "intro" | "uses" | "fleet" | "archive" | "tasking" | "footer"
 
 // #region content
 const DEFAULT_PLANES: ElxPlane[] = [
@@ -305,6 +311,12 @@ const DEFAULT_USES: ElxUse[] = [
   },
 ]
 
+const DEFAULT_RHYTHM: ElxFact[] = [
+  { label: "Morning pass", value: "10:30 local" },
+  { label: "Afternoon pass", value: "13:30 local" },
+  { label: "In your bucket", value: "Within 3 hours" },
+]
+
 const DEFAULT_ARCHIVE: ElxStory[] = [
   { category: "Agriculture", title: "Centre-pivot farms at the start of the growing season", date: "12 Oct 2026", kind: "fields" },
   { category: "Industry", title: "Evaporation ponds turn pink as the brine concentrates", date: "08 Oct 2026", kind: "ponds" },
@@ -355,7 +367,7 @@ const DEFAULT_FOOTER = {
     { title: "Company", links: [{ label: "About" }, { label: "Careers" }, { label: "Press" }, { label: "Open data" }, { label: "Contact" }] },
   ],
   newsletter: { title: "Image of the month", body: "One picture from the archive and what it shows. Once a month, nothing else." },
-  note: "Kestrel Orbital, Oakland and Rotterdam.",
+  note: "Kestrel. Oakland and Rotterdam.",
   legal: [{ label: "Privacy" }, { label: "Terms" }, { label: "Imagery licence" }, { label: "Export compliance" }],
 }
 
@@ -579,7 +591,7 @@ function validateTask(f: { area: string; lat: string; lon: string; from: string;
   if (!f.from) e.from = "Pick the first day you need it."
   if (!f.to) e.to = "Pick the last day that is still useful."
   if (f.from && f.to && f.to < f.from) e.to = "The window ends before it starts."
-  if (!isEmail(f.email)) e.email = "We send the imagery link to this address."
+  if (!isEmail(f.email)) e.email = "Enter a full work email, like name@company.com."
   return e
 }
 
@@ -607,7 +619,7 @@ function heroGeometry(ms: number, w: number, h: number, preset: "dawn" | "day", 
   const a2 = norm([ah[0] - dot(ah, a1) * a1[0], ah[1] - dot(ah, a1) * a1[1], ah[2] - dot(ah, a1) * a1[2]])
   const a3 = cross(a1, a2)
   let lx = (P.at[0] * w - disk.cx) / disk.r
-  let ly = (disk.cy - P.at[1] * h) / disk.r
+  let ly = (disk.cy - (w < 640 ? Math.min(P.at[1], 0.22) : P.at[1]) * h) / disk.r
   const l2 = lx * lx + ly * ly
   if (l2 > 0.98) {
     lx *= Math.sqrt(0.98 / l2)
@@ -660,7 +672,7 @@ function project(p: V3, disk: { cx: number; cy: number; r: number }) {
 }
 
 /** The ground track (a great circle around `normal`) as SVG path data, front side only. */
-function trackPath(normal: V3, disk: { cx: number; cy: number; r: number }, w: number, h: number) {
+function trackPath(normal: V3, disk: { cx: number; cy: number; r: number }, w: number, h: number, avoid?: { l: number; t: number; r: number; b: number } | null) {
   const n = norm(normal)
   const a = norm(Math.abs(n[0]) < 0.9 ? cross(n, [1, 0, 0]) : cross(n, [0, 1, 0]))
   const b = cross(n, a)
@@ -671,7 +683,8 @@ function trackPath(normal: V3, disk: { cx: number; cy: number; r: number }, w: n
     const p = [a[0] * Math.cos(u) + b[0] * Math.sin(u), a[1] * Math.cos(u) + b[1] * Math.sin(u), a[2] * Math.cos(u) + b[2] * Math.sin(u)]
     const x = disk.cx + p[0] * disk.r
     const y = disk.cy - p[1] * disk.r
-    const ok = p[2] > 0 && x > -40 && x < w + 40 && y > -40 && y < h + 40
+    const hidden = !!avoid && x > avoid.l && x < avoid.r && y > avoid.t && y < avoid.b
+    const ok = p[2] > 0 && x > -40 && x < w + 40 && y > -40 && y < h + 40 && !hidden
     if (ok) {
       d += (pen ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1)
       pen = true
@@ -847,6 +860,73 @@ function farm(X: number, Y: number, s: number, o: Float32Array) {
   o[3] = nd
 }
 
+/** Radar brightness from backscatter: four-look speckle (mean 1), so texture reads as surface, not static. */
+function sar(back: number, X: number, Y: number, s: number) {
+  const a = Math.floor(X * 1.6)
+  const b = Math.floor(Y * 1.6)
+  let t = 0
+  for (let k = 0; k < 4; k++) t += -Math.log(hash2(a, b, s + 9 + k * 31) + 1e-4)
+  return clamp(Math.pow(back * (0.35 + 0.65 * (t / 4)), 0.85), 0, 1)
+}
+
+/** A suburban lot grid seen from above: varied roofs with ridges and shadows, yards, trees, pools. */
+function suburb(X: number, Y: number, s: number, o: Float32Array) {
+  const t = fbm2(X * 0.06, Y * 0.06, s + 1, 3)
+  const bx = X % 96
+  const by = Y % 64
+  if (bx < 9 || by < 8) {
+    const r = 0.4 + t * 0.05 + (Math.abs(bx - 4.5) < 0.4 || Math.abs(by - 4) < 0.4 ? 0.12 : 0)
+    put(o, 0, r, r, r * 0.98)
+    return 0.28
+  }
+  const lot = Math.min(2, Math.floor((bx - 9) / 29))
+  const row = Math.min(1, Math.floor((by - 8) / 28))
+  const lx = bx - 9 - lot * 29
+  const ly = by - 8 - row * 28
+  const id = [Math.floor(X / 96) * 3 + lot, Math.floor(Y / 64) * 2 + row]
+  const h = (k: number) => hash2(id[0], id[1], s + k)
+  const hw = 10 + h(1) * 7
+  const hh = 8 + h(2) * 6
+  const hx = 3 + h(3) * (26 - hw - 4)
+  const hy = row === 0 ? 3 + h(4) * 4 : 26 - hh - 3 - h(4) * 4
+  const inHouse = (x: number, y: number) => x > hx && x < hx + hw && y > hy && y < hy + hh
+  const yard = 0.82 + 0.3 * t
+  put(o, 0, 0.3 * yard, 0.35 * yard, 0.22 * yard)
+  let back = 0.36
+  const pool = h(5) < 0.32
+  const px = hx + hw * 0.2
+  const py = row === 0 ? hy + hh + 3 : hy - 7
+  if (pool && lx > px && lx < px + 6 && ly > py && ly < py + 4) {
+    put(o, 0, 0.36, 0.63, 0.7)
+    back = 0.06
+  }
+  const dx = hx + hw * 0.65
+  if (lx > dx && lx < dx + 4 && (row === 0 ? ly < hy : ly > hy + hh)) put(o, 0, 0.55, 0.54, 0.52)
+  const tr = vnoise(X * 0.22, Y * 0.22, s + 2)
+  if (tr > 0.66 && !inHouse(lx, ly)) {
+    put(o, 0, 0.11 + tr * 0.05, 0.2 + tr * 0.05, 0.1)
+    back = 0.45
+  } else if (vnoise((X - 2.5) * 0.22, (Y - 2.5) * 0.22, s + 2) > 0.66) mix3(o, 0, [0, 0, 0], 0.4)
+  if (inHouse(lx, ly)) {
+    const R = [
+      [0.47, 0.45, 0.43],
+      [0.52, 0.42, 0.36],
+      [0.6, 0.58, 0.55],
+      [0.5, 0.38, 0.32],
+      [0.36, 0.37, 0.39],
+    ][Math.floor(h(6) * 5)]
+    const vert = h(7) < 0.4
+    const side = vert ? lx - (hx + hw / 2) : ly - (hy + hh / 2)
+    const k = Math.abs(side) < 0.5 ? 0.8 : side < 0 ? 1.08 : 0.9
+    put(o, 0, R[0] * k, R[1] * k, R[2] * k)
+    back = 0.9
+  } else if (inHouse(lx - 2.5, ly - 2.5)) {
+    mix3(o, 0, [0, 0, 0], 0.45)
+    back = 0.12
+  }
+  return back
+}
+
 type PixelFn = (X: number, Y: number, o: Float32Array) => void
 
 function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
@@ -901,8 +981,7 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
         mix3(o, 0, [0.3, 0.27, 0.2], 0.55)
         back *= 0.75
       }
-      const speckle = -Math.log(hash2(Math.floor(X * 1.6), Math.floor(Y * 1.6), s + 9) + 1e-4)
-      const v = clamp(back * (0.45 + 0.55 * speckle), 0, 1)
+      const v = sar(back, X, Y, s)
       put(o, 3, v * 0.95, v * 0.97, v)
     }
 
@@ -965,16 +1044,21 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
       const y = 40 + hash2(i, 2, s) * 500
       if (fbm2(x * 0.004, y * 0.004, s, 4) * 0.7 + (x / 900) * 0.75 > 0.6) continue
       if (ships.some((p) => Math.hypot(p[0] - x, p[1] - y) < 64)) continue
-      const len = 16 + hash2(i, 3, s) * 18
-      ships.push([x, y, len, len * 0.2, 0.35 + hash2(i, 4, s) * 0.4])
+      const len = 12 + Math.pow(hash2(i, 3, s), 1.6) * 30
+      ships.push([x, y, len, len * (0.14 + hash2(i, 5, s) * 0.06), 0.35 + hash2(i, 4, s) * 0.4, Math.floor(hash2(i, 6, s) * 3), hash2(i, 7, s) < 0.6 ? 1 : 0])
     }
-    for (let k = 0; k < 5; k++) ships.push([700, 92 + k * 104 + 22, 30, 6, 0])
+    for (let k = 0; k < 5; k++) ships.push([700, 92 + k * 104 + 22, 26 + (k % 3) * 6, 5.5, 0, k % 3, 0])
     const PAL = [
       [0.62, 0.22, 0.18],
       [0.18, 0.3, 0.5],
       [0.84, 0.84, 0.81],
       [0.74, 0.42, 0.2],
       [0.24, 0.42, 0.3],
+    ]
+    const HULL = [
+      [0.42, 0.14, 0.12],
+      [0.1, 0.12, 0.15],
+      [0.16, 0.25, 0.4],
     ]
     return (X, Y, o) => {
       const lv = fbm2(X * 0.004, Y * 0.004, s, 4) * 0.7 + (X / 900) * 0.75
@@ -985,91 +1069,126 @@ function makeKind(kind: ElxTileKind, s: number, accent: string): PixelFn {
       if (!land) {
         const shallow = smooth(0.5, 0.72, lv)
         put(o, 0, 0.03 + 0.07 * shallow + wn * 0.012, 0.1 + 0.17 * shallow + wn * 0.015, 0.16 + 0.13 * shallow + wn * 0.015)
-        let r = 0.05 + 0.05 * vnoise(X * 0.02, Y * 0.2, s + 3)
+        let back = 0.035 + 0.03 * vnoise(X * 0.01, Y * 0.04, s + 3)
+        let pt = false
         for (const p of ships) {
           const dx = X - p[0]
           const dy = Y - p[1]
-          if (dx * dx + dy * dy > 3600) continue
+          if (dx * dx + dy * dy > 6400) continue
           const c = Math.cos(p[4])
           const sn = Math.sin(p[4])
           const u = dx * c + dy * sn
           const v = -dx * sn + dy * c
           const halfL = p[2] / 2
-          const w = p[3] / 2 * (u > halfL * 0.6 ? 1 - (u - halfL * 0.6) / (halfL * 0.4) : 1)
+          const w = (p[3] / 2) * (u > halfL * 0.62 ? Math.max(0, 1 - (u - halfL * 0.62) / (halfL * 0.38)) : 1)
           if (Math.abs(u) < halfL && Math.abs(v) < w) {
-            const deck = Math.abs(v) < w * 0.55 && Math.abs(u) < halfL * 0.8
-            const t = deck ? 0.72 : 0.9
-            put(o, 0, t, t, t * 0.98)
-            r = 1
-          } else if (u < -halfL && u > -halfL - 70 && p[4] !== 0 && Math.abs(v) < (-u - halfL) * 0.22 + 1) {
-            const f = 1 - (-u - halfL) / 70
-            mix3(o, 0, [0.5, 0.58, 0.6], 0.25 * f)
-          } else if ((Math.abs(u) < 0.7 && Math.abs(v) < 16) || (Math.abs(v) < 0.7 && Math.abs(u) < halfL + 12)) {
-            r = Math.max(r, 0.55)
+            const hull = HULL[p[5]]
+            if (u < -halfL * 0.62) put(o, 0, 0.88, 0.88, 0.86)
+            else if (Math.abs(v) > w - 0.9) put(o, 0, hull[0], hull[1], hull[2])
+            else if (p[5] === 1 && Math.abs(v) < w - 1) {
+              const c2 = PAL[Math.floor(hash2(Math.floor(u / 2.6), Math.floor(v / 1.6), s + 8) * 5)]
+              put(o, 0, c2[0] * 0.9, c2[1] * 0.9, c2[2] * 0.9)
+            } else put(o, 0, hull[0] * 1.3 + 0.05, hull[1] * 1.3 + 0.05, hull[2] * 1.3 + 0.05)
+            back = 1
+            pt = true
+          } else if (p[6] && u < -halfL && u > -halfL - 80) {
+            const d = -u - halfL
+            const fade = 1 - d / 80
+            if (Math.abs(Math.abs(v) - d * 0.35) < 0.7) mix3(o, 0, [0.55, 0.62, 0.64], 0.32 * fade)
+            if (Math.abs(v) < 1.1 && d < 34) mix3(o, 0, [0.62, 0.7, 0.72], 0.5 * (1 - d / 34))
+          } else if ((Math.abs(u) < 0.6 && Math.abs(v) < 14) || (Math.abs(v) < 0.6 && Math.abs(u) < halfL + 10)) {
+            back = Math.max(back, 0.5)
           }
         }
-        const sp = -Math.log(hash2(Math.floor(X * 1.6), Math.floor(Y * 1.6), s + 9) + 1e-4)
-        const val = clamp(r * (r > 0.9 ? 1 : 0.4 + 0.6 * sp), 0, 1)
+        const su = (X - 230) * 0.92 + (Y - 330) * 0.39
+        const sv = -(X - 230) * 0.39 + (Y - 330) * 0.92
+        const slick = (su / 150) * (su / 150) + (sv / 34) * (sv / 34) + (fbm2(X * 0.02, Y * 0.02, s + 11, 3) - 0.5) * 1.6
+        if (slick < 1 && !pt) {
+          back *= 0.22
+          mix3(o, 0, [0.07, 0.11, 0.14], 0.35)
+        }
+        const val = pt ? 1 : sar(back, X, Y, s)
         put(o, 3, val * 0.95, val * 0.97, val)
         return
       }
       const t = fbm2(X * 0.05, Y * 0.05, s + 4, 3)
       let back = 0.3
+      const edge = (pier && (pierBand < 2.2 || pierBand > 23.8)) || (lv > 0.72 && lv < 0.727 && !pier)
       if (pier || X > 640) {
-        put(o, 0, 0.6 + t * 0.06, 0.6 + t * 0.06, 0.58 + t * 0.06)
-        back = 0.7
-        if (X > 790 && X < 880) {
-          const cx = Math.floor((X - 790) / 10)
-          const cy = Math.floor(Y / 5)
-          if ((X - 790) % 10 < 8 && Y % 5 < 4) {
-            const c = PAL[Math.floor(hash2(cx, cy, s + 5) * 5)]
-            put(o, 0, c[0], c[1], c[2])
-            back = 0.85
+        put(o, 0, 0.56 + t * 0.06, 0.56 + t * 0.06, 0.54 + t * 0.06)
+        back = 0.45
+        const yx = (X - 652) % 48
+        const yy = (Y + 6) % 26
+        if (X > 652 && !pier && yx < 40 && yy < 19) {
+          const bay = Math.floor(yx / 3.3)
+          const tier = Math.floor(yy / 6.4)
+          const filled = hash2(Math.floor((X - 652) / 48) * 13 + bay, Math.floor((Y + 6) / 26) * 3 + tier, s + 5)
+          if (filled < 0.82 && yx % 3.3 < 2.9 && yy % 6.4 < 5.8) {
+            const c = PAL[Math.floor(filled * 6.1) % 5]
+            const k = 0.78 + 0.18 * hash2(Math.floor(X / 3.3), Math.floor(Y / 6.4), s + 6)
+            put(o, 0, c[0] * k, c[1] * k, c[2] * k)
+            back = 0.95
           }
         }
-      } else {
-        const veg = fbm2(X * 0.012, Y * 0.012, s + 6, 3) > 0.55
-        const bx = X % 30
-        const by = Y % 22
-        const hb = hash2(Math.floor(X / 30), Math.floor(Y / 22), s + 7)
-        if (veg) put(o, 0, 0.16 + t * 0.06, 0.26 + t * 0.06, 0.13 + t * 0.04)
-        else if (bx < 3 || by < 3) put(o, 0, 0.4, 0.4, 0.39)
-        else if (bx > 6 && bx < 26 && by > 6 && by < 19 && hb < 0.8) {
-          const r = hb < 0.3 ? [0.62, 0.6, 0.57] : hb < 0.55 ? [0.5, 0.36, 0.3] : [0.36, 0.37, 0.4]
-          put(o, 0, r[0] + t * 0.05, r[1] + t * 0.05, r[2] + t * 0.05)
-        } else put(o, 0, 0.47 + t * 0.08, 0.46 + t * 0.08, 0.42 + t * 0.07)
-        back = veg ? 0.36 : 0.5
-      }
-      const sp = -Math.log(hash2(Math.floor(X * 1.6), Math.floor(Y * 1.6), s + 9) + 1e-4)
-      const val = clamp(back * (0.45 + 0.55 * sp), 0, 1)
+      } else back = suburb(X + 13, Y + 7, s + 20, o)
+      if (edge) back = 1
+      const val = sar(back, X, Y, s)
       put(o, 3, val * 0.95, val * 0.97, val)
+    }
+  }
+
+  if (kind === "coast") {
+    const tmp = new Float32Array(6)
+    return (X, Y, o) => {
+      const shore = 200 + 34 * Math.sin(X * 0.004 + s) + 22 * (fbm2(X * 0.006, 2, s + 1, 3) - 0.5)
+      const loss = 34 * Math.exp(-Math.pow((X - 470) / 170, 2))
+      const draw = (sh: number, at: number, later: boolean) => {
+        const d = Y - sh
+        if (d < 0) {
+          const deep = smooth(-160, -10, d)
+          const wv = vnoise(X * 0.5, Y * 0.12, s + 2)
+          put(o, at, 0.04 + 0.12 * deep + wv * 0.015, 0.14 + 0.22 * deep + wv * 0.015, 0.2 + 0.16 * deep + wv * 0.01)
+          const surf = d > -28 && Math.sin(d * 0.55 + X * 0.012 + fbm2(X * 0.02, Y * 0.02, s + 3, 2) * 6) > 0.72
+          if (surf) {
+            const k = 0.5 * (1 + d / 28)
+            o[at] += (0.86 - o[at]) * k
+            o[at + 1] += (0.9 - o[at + 1]) * k
+            o[at + 2] += (0.9 - o[at + 2]) * k
+          }
+          return
+        }
+        const g = 0.92 + 0.12 * fbm2(X * 0.08, Y * 0.08, s + 4, 2)
+        if (d < 44) {
+          const wet = 1 - smooth(0, 9, d) * 0.22
+          put(o, at, 0.84 * g * (1 - wet * 0.2), 0.77 * g * (1 - wet * 0.18), 0.62 * g * (1 - wet * 0.12))
+          return
+        }
+        if (d < 84) {
+          const grass = vnoise(X * 0.15, Y * 0.15, s + 5) > 0.45 + (84 - d) / 110
+          if (grass) put(o, at, 0.36 * g, 0.42 * g, 0.26 * g)
+          else put(o, at, 0.8 * g, 0.73 * g, 0.58 * g)
+          if (later && loss > 18 && vnoise(X * 0.04, Y * 0.3, s + 6) > 0.4) put(o, at, 0.82 * g, 0.75 * g, 0.6 * g)
+          return
+        }
+        if (d < 96) {
+          const r = 0.4 + (Math.abs(d - 90) < 0.4 ? 0.14 : 0)
+          put(o, at, r, r, r * 0.98)
+          if (later && loss > 22 && vnoise(X * 0.05, Y * 0.5, s + 7) > 0.35) put(o, at, 0.78 * g, 0.71 * g, 0.57 * g)
+          return
+        }
+        suburb(X + 5, Y - sh - 96, s + 30, tmp)
+        put(o, at, tmp[0], tmp[1], tmp[2])
+      }
+      draw(shore, 0, false)
+      draw(shore + loss, 3, true)
+      if (Math.abs(Y - shore) < 1.3 && loss > 4) put(o, 3, acc[0], acc[1], acc[2])
     }
   }
 
   if (kind === "site")
     return (X, Y, o) => {
       const t = fbm2(X * 0.06, Y * 0.06, s + 1, 3)
-      const bx = X % 96
-      const by = Y % 64
-      const road = bx < 9 || by < 8
-      if (road) put(o, 0, 0.42 + t * 0.05, 0.42 + t * 0.05, 0.41 + t * 0.05)
-      else {
-        const lot = Math.floor(bx / 29.5)
-        const lr = Math.floor(by / 28)
-        const lx = bx - 9 - lot * 29
-        const ly = by - 8 - lr * 28
-        const hb = hash2(Math.floor(X / 96) * 4 + lot, Math.floor(Y / 64) * 2 + lr, s)
-        const house = lx > 5 && lx < 22 && ly > 5 && ly < 20
-        if (house) {
-          const roof = hb < 0.4 ? [0.56, 0.36, 0.28] : hb < 0.75 ? [0.5, 0.5, 0.5] : [0.33, 0.33, 0.35]
-          const ridge = Math.abs(ly - 12.5) < 0.6 ? 0.85 : ly < 12.5 ? 1.05 : 0.92
-          put(o, 0, roof[0] * ridge, roof[1] * ridge, roof[2] * ridge)
-        } else {
-          const tree = vnoise(X * 0.2, Y * 0.2, s + 2) > 0.62
-          if (tree) put(o, 0, 0.1, 0.19, 0.09)
-          else put(o, 0, 0.27 + t * 0.06, 0.37 + t * 0.06, 0.19 + t * 0.04)
-        }
-      }
+      suburb(X, Y, s, o)
       o[3] = o[0]
       o[4] = o[1]
       o[5] = o[2]
@@ -1223,14 +1342,14 @@ const LIMB_FS = [
   "col+=vec3(0.18,0.32,0.6)*fres*day*0.75;",
   "vec3 H=normalize(S+vec3(0.0,0.0,1.0));float nh=max(dot(n,H),0.0);",
   "float glint=pow(nh,700.0)*2.2+pow(nh,70.0)*0.3;col+=vec3(1.0,0.92,0.8)*glint*day*(1.0-cv);",
-  "float cl=max(ndl+0.07,0.0)/1.07;vec3 sunC=mix(amber*1.15,vec3(1.0,0.98,0.95),smoothstep(0.0,0.3,ndl));",
+  "float cl=max(ndl+0.14,0.0)/1.14;vec3 sunC=mix(amber*1.45+vec3(0.08,0.02,0.04),vec3(1.0,0.98,0.95),smoothstep(0.02,0.34,ndl));",
   "vec3 cloud=sunC*(0.52+0.48*thick)*(0.74+0.36*det)*(0.05+1.05*cl);",
   "col=mix(col,cloud,cv);",
   "col+=amber*exp(-pow((ndl-0.01)/0.07,2.0))*0.08*(0.3+cv);",
   "float haze=pow(1.0-z,2.3);vec3 hz=mix(amber,blue*0.85,smoothstep(-0.02,0.25,ndl))*smoothstep(-0.12,0.1,ndl);",
   "col=mix(col,hz*0.8,clamp(haze*0.75,0.0,0.7));",
-  "vec3 night=vec3(0.003,0.006,0.013)+cv*vec3(0.01,0.012,0.018);",
-  "inC=mix(night,col,smoothstep(-0.13,0.04,ndl));}",
+  "vec3 night=vec3(0.004,0.008,0.018)+cv*thick*vec3(0.03,0.036,0.05)*(0.75+0.5*det);",
+  "inC=mix(night,col,smoothstep(-0.16+0.06*cv,0.04,ndl));}",
   "vec3 col=mix(inC,outC,smoothstep(1.0-aa,1.0+aa,r));",
   "if(r<1.0){float d=1.0-r;col+=blue*exp(-d/0.004)*dayRim*0.35*fwd;}",
   "col=1.0-exp(-col*1.4);col=pow(col,vec3(0.4545));",
@@ -1501,7 +1620,6 @@ function OrbitHero(props: {
       flip.current = g.flip
       return g
     }
-    setTrack(trackPath(geoAt(Date.now()).track, heroDisk(size.w, size.h), size.w, size.h))
 
     const paint = (geo: ReturnType<typeof heroGeometry>) => {
       if (!L) return
@@ -1546,6 +1664,7 @@ function OrbitHero(props: {
     }
     let qz = zone()
     let qAt = performance.now()
+    setTrack(trackPath(geoAt(Date.now()).track, heroDisk(size.w, size.h), size.w, size.h, qz))
 
     const place = (ms: number, geo: ReturnType<typeof heroGeometry>) => {
       if (performance.now() - qAt > 2000) {
@@ -1560,7 +1679,7 @@ function OrbitHero(props: {
         const k = 1 + v.plane.altitude / RE
         const at = project([gv[0] * k, gv[1] * k, gv[2] * k], geo.disk)
         const ground = project(gv, geo.disk)
-        const inFrame = at.front && at.x > -20 && at.x < size.w + 20 && at.y > -20 && at.y < size.h + 20
+        const inFrame = at.front && (v.featured || gv[2] > 0) && at.x > -20 && at.x < size.w + 20 && at.y > -20 && at.y < size.h + 20
         el.style.transform = "translate(" + at.x.toFixed(1) + "px," + at.y.toFixed(1) + "px)"
         el.style.visibility = inFrame ? "visible" : "hidden"
         const hush = (!!qz && at.x > qz.l && at.x < qz.r && at.y > qz.t && at.y < qz.b) || at.y < 104
@@ -1903,10 +2022,10 @@ const asHash = (href?: string) => (href && href.charAt(0) === "#" ? href.slice(1
 export default function EarthLimbLanding({
   brand = "Kestrel",
   tagline = "Earth imaging",
-  preset = "dawn",
+  preset = "day",
   accent = "#ffa23a",
   theme = "system",
-  themeToggle = true,
+  themeToggle = false,
   height = "100svh",
   className = "",
   utility = [{ label: "Developers" }, { label: "System status" }, { label: "Careers" }, { label: "Sign in" }],
@@ -1939,17 +2058,26 @@ export default function EarthLimbLanding({
   },
   usesTitle = "Watch what changes",
   uses = DEFAULT_USES,
-  spacecraft = DEFAULT_SPACECRAFT,
+  spacecraft: spacecraftProp,
   rosterTitle = "Where the fleet is now",
   archiveTitle = "From the archive",
   archive = DEFAULT_ARCHIVE,
   tasking = DEFAULT_TASKING,
   onTask,
-  footer = DEFAULT_FOOTER,
+  footer: footerProp,
+  sections,
+  rhythm = DEFAULT_RHYTHM,
   onSubscribe,
   seed = 7,
 }: EarthLimbLandingProps) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  const has = (k: ElxSection) => !sections || sections.indexOf(k) > -1
+  const spacecraft = spacecraftProp || { ...DEFAULT_SPACECRAFT, name: brand + " Block 2" }
+  const footer: NonNullable<EarthLimbLandingProps["footer"]> = footerProp || {
+    ...DEFAULT_FOOTER,
+    columns: DEFAULT_FOOTER.columns.map((c) => (c.title === "Solutions" ? { ...c, links: uses.map((u) => ({ label: u.label, href: "#solutions" })) } : c)),
+    note: brand + ". Oakland and Rotterdam.",
+  }
   const root = React.useRef(null as HTMLDivElement | null)
   const copyRef = React.useRef(null as HTMLDivElement | null)
   const reduced = usePrefersReduced()
@@ -2184,7 +2312,7 @@ export default function EarthLimbLanding({
           </nav>
           {themeToggle ? (
             <button type="button" className="elx-themebtn" onClick={() => setDark(!dark)} aria-pressed={dark}>
-              {dark ? "Dark" : "Light"} pages
+              Dark pages
             </button>
           ) : null}
         </div>
@@ -2268,7 +2396,8 @@ export default function EarthLimbLanding({
           </ul>
         </section>
 
-        <section className="elx-live" aria-label="Fleet status">
+        {has("stats") ? (
+<section className="elx-live" aria-label="Fleet status">
           <div className="elx-wrap elx-livegrid">
             <div className="elx-cell">
               <h2 className="elx-label">{L.fleet}</h2>
@@ -2313,10 +2442,24 @@ export default function EarthLimbLanding({
             </div>
           </div>
         </section>
+        ) : null}
 
-        <section className="elx-intro" aria-label="About">
+        {has("intro") ? (
+<section className="elx-intro" aria-label="About">
           <div className="elx-wrap elx-introgrid">
-            <p className="elx-statement">{statement}</p>
+            <div className="elx-statewrap">
+              <p className="elx-statement">{statement}</p>
+              {rhythm.length ? (
+                <dl className="elx-rhythm">
+                  {rhythm.map((f) => (
+                    <div key={f.label}>
+                      <dt>{f.label}</dt>
+                      <dd>{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </div>
             {card ? (
               <aside className="elx-card">
                 <div className="elx-cardimg">
@@ -2333,8 +2476,10 @@ export default function EarthLimbLanding({
             ) : null}
           </div>
         </section>
+        ) : null}
 
-        <section className="elx-uses" data-sec="solutions" aria-labelledby={uid + "-uses"}>
+        {has("uses") ? (
+<section className="elx-uses" data-sec="solutions" aria-labelledby={uid + "-uses"}>
           <div className="elx-wrap">
             <div className="elx-useshead">
               <h2 id={uid + "-uses"} className="elx-h2">
@@ -2383,8 +2528,10 @@ export default function EarthLimbLanding({
             ) : null}
           </div>
         </section>
+        ) : null}
 
-        <section className="elx-fleet" data-sec="fleet" aria-labelledby={uid + "-craft"}>
+        {has("fleet") ? (
+<section className="elx-fleet" data-sec="fleet" aria-labelledby={uid + "-craft"}>
           <div className="elx-wrap elx-fleetgrid">
             <div className="elx-plate">
               <Spacecraft parts={spacecraft.parts} />
@@ -2443,8 +2590,10 @@ export default function EarthLimbLanding({
             ) : null}
           </div>
         </section>
+        ) : null}
 
-        <section className="elx-archive" data-sec="archive" aria-labelledby={uid + "-arch"}>
+        {has("archive") ? (
+<section className="elx-archive" data-sec="archive" aria-labelledby={uid + "-arch"}>
           <div className="elx-wrap">
             <div className="elx-archhead">
               <h2 id={uid + "-arch"} className="elx-h2">
@@ -2475,8 +2624,10 @@ export default function EarthLimbLanding({
             ))}
           </div>
         </section>
+        ) : null}
 
-        <section className="elx-task" data-sec="tasking" aria-labelledby={uid + "-task"}>
+        {has("tasking") ? (
+<section className="elx-task" data-sec="tasking" aria-labelledby={uid + "-task"}>
           <div className="elx-wrap elx-taskgrid">
             <div className="elx-taskcopy">
               <h2 id={uid + "-task"} className="elx-h2">
@@ -2498,7 +2649,7 @@ export default function EarthLimbLanding({
                   <Mark size={36} />
                   <h3>Request received</h3>
                   <p>
-                    We will put it on {earliest ? earliest.sat.id + "'s pass" : "the next suitable pass"} and email {form.email.trim()} when the imagery lands.
+                    We will put it on {earliest ? earliest.sat.id + "'s pass" : "the next suitable pass"} and email <b className="elx-nowrap">{form.email.trim()}</b> when the imagery lands.
                   </p>
                   <button
                     type="button"
@@ -2605,8 +2756,10 @@ export default function EarthLimbLanding({
             </div>
           </div>
         </section>
+        ) : null}
       </main>
 
+      {has("footer") ? (
       <footer className="elx-foot">
         <div className="elx-band" aria-hidden="true">
           <Tile kind="dunes" which="a" seed={seed + 90} accent={accent} w={1600} h={220} span={2400} />
@@ -2690,6 +2843,7 @@ export default function EarthLimbLanding({
           </nav>
         </div>
       </footer>
+      ) : null}
     </div>
   )
 }
@@ -2828,6 +2982,12 @@ const ELX_CSS = `
 .elx-intro{padding:clamp(72px,10vw,150px) 0}
 .elx-introgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:clamp(32px,6vw,110px);align-items:start}
 .elx-statement{font-size:clamp(1.55rem,1.05rem + 1.6vw,2.6rem);line-height:1.2;letter-spacing:-.028em;font-weight:520;text-wrap:pretty;max-width:30ch}
+.elx-statewrap{display:grid;gap:clamp(36px,5vw,72px)}
+.elx-rhythm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;max-width:720px}
+@media (max-width:640px){.elx-rhythm{grid-template-columns:minmax(0,1fr)}}
+.elx-rhythm>div{box-shadow:inset 0 1px 0 var(--elx-rule2);padding-top:14px}
+.elx-rhythm dt{font-size:13px;color:var(--elx-muted)}
+.elx-rhythm dd{font-size:clamp(1.15rem,.95rem + .6vw,1.5rem);font-weight:620;letter-spacing:-.02em;margin-top:4px}
 .elx-card{background:var(--elx-sheet);box-shadow:inset 0 0 0 1px var(--elx-rule);padding:0 0 26px}
 .elx-cardimg{overflow:hidden;margin-bottom:22px}
 .elx-card>*:not(.elx-cardimg){margin-left:24px;margin-right:24px}
@@ -2842,6 +3002,7 @@ const ELX_CSS = `
 .elx-tabs button{position:relative;flex:none;white-space:nowrap;padding:12px 0 14px;font-size:15.5px;font-weight:600;color:var(--elx-muted);transition:color .2s}
 .elx-tabs button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--elx-accent);transform:scaleX(0);transform-origin:left;transition:transform .25s var(--elx-ease)}
 .elx-tabs button:hover{color:var(--elx-ink)}
+.elx-tabs button:focus-visible{outline-offset:-3px}
 .elx-tabs button[aria-selected="true"]{color:var(--elx-ink)}
 .elx-tabs button[aria-selected="true"]::after{transform:none}
 .elx-usegrid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:clamp(28px,4.5vw,72px);align-items:center}
@@ -2941,9 +3102,11 @@ const ELX_CSS = `
 .elx-earliest{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;padding:14px 0 2px;box-shadow:inset 0 1px 0 var(--elx-rule);font-family:var(--elx-monof);font-size:13.5px}
 .elx-earliest .elx-label{font-family:var(--elx-sans)}
 .elx-formfoot{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-top:4px}
-.elx-done{display:grid;justify-items:start;gap:12px;padding:20px 0;animation:elx-rise .5s var(--elx-ease) both}
+.elx-done{display:grid;justify-items:start;align-content:center;gap:12px;min-height:440px;padding:20px 0;animation:elx-rise .5s var(--elx-ease) both}
 .elx-done h3{font-size:26px;letter-spacing:-.025em;font-weight:620}
 .elx-done p{color:var(--elx-soft);max-width:46ch}
+.elx-done .elx-btn{margin-top:14px}
+.elx-nowrap{white-space:nowrap}
 .elx-done .elx-mark{color:var(--elx-ink)}
 
 .elx-foot{background:var(--elx-navy);color:#c3cede}
@@ -2951,14 +3114,15 @@ const ELX_CSS = `
 .elx-band .elx-tile{width:max(100%,1000px);background:#8a6a48}
 .elx-band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,41,0) 30%,var(--elx-navy) 100%)}
 .elx-bandtag{position:absolute;left:var(--elx-gut);top:14px;z-index:1;font-size:11px;color:#fff;background:rgba(6,20,41,.6);padding:4px 7px}
-.elx-footgrid{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(4,minmax(0,1fr));gap:40px 32px;padding-top:44px;padding-bottom:56px}
+.elx-footgrid{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(4,minmax(0,1fr));gap:40px clamp(24px,3vw,48px);padding-top:44px;padding-bottom:56px}
 .elx-footbrand .elx-brand{margin-bottom:30px}
-.elx-news{display:grid;gap:12px;max-width:400px}
+.elx-news{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;max-width:min(400px,100%)}
+.elx-footbrand,.elx-footcol{min-width:0}
 .elx-news label{display:grid;gap:4px}
 .elx-news label b{color:#fff;font-size:17px;font-weight:650}
 .elx-news label span{font-size:14px;color:#a9b6c9}
 .elx-newsrow{display:flex;gap:8px}
-.elx-newsrow input{flex:1;min-width:0;height:48px;padding:0 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);border-radius:2px;color:#fff}
+.elx-newsrow input{flex:1 1 0;width:100%;min-width:0;height:48px;padding:0 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);border-radius:2px;color:#fff}
 .elx-newsrow input::placeholder{color:#93a2b8}
 .elx-newsrow input:focus{outline:none;border-color:var(--elx-accent)}
 .elx-newsrow .elx-btn{height:48px}

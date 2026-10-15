@@ -46,3 +46,26 @@ like satellite imagery with a true-colour against NDVI / radar compare that work
 pointer, touch and keys; a working tasking form; the orbital language carried through
 every section; the spacecraft as a technical line drawing in the spotlight only; our own
 brand; props and two presets; a designed phone layout.
+
+## Round 1 (fresh critic: brief, screenshots, source)
+
+| | Score |
+|---|---|
+| Usability | 7 |
+| Idea | 7 |
+| Craft | 6 |
+| Originality | 7 |
+| Install safety | 9 |
+| Template | 7 |
+
+Awwwards lens: Design 6.5, Usability 7.5, Creativity 7, Content 8 = 7.05.
+Verdict: **REDO** (average 7.17, craft below 7).
+
+Changes asked for, most important first: the footer newsletter covered a sitemap column;
+brand and fleet defaults leaked into the second demo (Kestrel spacecraft and footer, 18
+satellites against a lede of twelve, a coastline use showing houses); radar tiles read as TV
+static; toy imagery (identical houses, flashlight wakes); the dawn hero's lower half was a
+dark smear; the ground track ran through the hero copy, worst on phones; the tab focus ring
+was clipped; the form's email error read as a hint and the done state collapsed the panel;
+dead space under the statement; no way to drop sections; the theme toggle sat in product
+chrome; a stray satellite floated in empty space.

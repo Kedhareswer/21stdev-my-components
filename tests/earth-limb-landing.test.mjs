@@ -76,9 +76,9 @@ assert.match(src, /const live = !!L && !L\.soft && !reduced/, "only a real GPU r
 assert.match(src, /data-nogl/, "no WebGL still draws a limb")
 assert.ok(read("demo.tsx").includes("<EarthLimbLanding />"), "default demo is the component, full bleed")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
-assert.match(read("demo-day.tsx"), /preset="day"/, "the second demo shows the day view")
-assert.match(read("demo-day.tsx"), /accent="#/, "with its own accent")
-assert.doesNotMatch(read("demo-day.tsx"), /https?:\/\//, "and stays capture-safe")
+assert.match(read("demo-dawn.tsx"), /preset="dawn"/, "the second demo shows the dawn view")
+assert.match(read("demo-dawn.tsx"), /accent="#/, "with its own accent")
+assert.doesNotMatch(read("demo-dawn.tsx"), /https?:\/\//, "and stays capture-safe")
 
 /* ---------- logic, executed ---------- */
 
@@ -209,7 +209,7 @@ for (const s of L.DEFAULT_FLEET) assert.ok(L.DEFAULT_PLANES.some((p) => p.id ===
 for (const u of L.DEFAULT_USES) assert.ok(u.title && u.body && u.facts.length >= 2 && u.before && u.after, `${u.id} is complete`)
 
 // imagery: bounded, deterministic, and the other view really differs where it should
-for (const kind of ["fields", "flood", "forest", "harbor", "site", "dunes", "ponds"]) {
+for (const kind of ["fields", "flood", "forest", "harbor", "site", "coast", "dunes", "ponds"]) {
   const a = L.renderTile(kind, 48, 30, 7, "#ffa23a")
   const b = L.renderTile(kind, 48, 30, 7, "#ffa23a")
   assert.deepEqual(a.a, b.a, `${kind} is deterministic`)
@@ -223,7 +223,7 @@ const diff = (kind) => {
   for (let i = 0; i < t.a.length; i++) d += Math.abs(t.a[i] - t.b[i])
   return d / t.a.length
 }
-for (const kind of ["fields", "flood", "forest", "harbor", "site"]) assert.ok(diff(kind) > 6, `${kind} has a second view`)
+for (const kind of ["fields", "flood", "forest", "harbor", "site", "coast"]) assert.ok(diff(kind) > 6, `${kind} has a second view`)
 assert.equal(diff("dunes"), 0, "dunes are true colour only")
 
 console.log("earth-limb-landing: all checks passed")

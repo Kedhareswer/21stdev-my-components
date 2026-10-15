@@ -48,23 +48,31 @@ export default function Page() {
 
 Everything is a prop with a working default: `brand`, `tagline`, `kicker`,
 `headline`, `lede`, `cta`, `secondaryCta`, `nav`, `utility`, `accent`, `preset`
-(`"dawn"` rides the dawn-dusk radar plane along the terminator, `"day"` rides a
-morning optical plane over sunlit ocean), `theme` (`"system" | "light" | "dark"`, for
-the pages below the hero; the hero is always space), `themeToggle`, `planes`, `fleet`,
-`featuredPlane`, `cities`, `imagesPerDay`, `archiveStat`, `labels`, `statement`,
-`card`, `uses`, `usesTitle`, `spacecraft`, `rosterTitle`, `archive`, `archiveTitle`,
-`tasking`, `footer`, `seed` and `height` (a definite length, default `100svh`).
+(`"day"`, the default, rides a morning optical plane over sunlit ocean; `"dawn"` rides
+the dawn-dusk radar plane along the terminator), `theme` (`"system" | "light" |
+"dark"`, for the pages below the hero; the hero is always space), `themeToggle` (off by
+default), `planes`, `fleet`, `featuredPlane`, `cities`, `imagesPerDay`, `archiveStat`,
+`labels`, `statement`, `rhythm` (the facts under the statement), `card`, `uses`,
+`usesTitle`, `spacecraft`, `rosterTitle`, `archive`, `archiveTitle`, `tasking`,
+`footer`, `seed` and `height` (a definite length, default `100svh`).
+
+The spacecraft name and the footer default to your `brand`, and the footer's
+Solutions column lists your `uses`. `sections` picks what renders below the hero,
+for example `sections={["stats", "uses", "tasking", "footer"]}`. The full list is
+`stats`, `intro`, `uses`, `fleet`, `archive`, `tasking` and `footer`.
 
 `onTask(request)` and `onSubscribe(email)` receive the form data. Return `false`,
 throw, or reject to show the error state.
 
 Images are generated (farmland and NDVI, a flood in radar, a burn scar in
-short-wave infrared, a harbour with ships, a construction site before and after,
-dunes, salt ponds). Pass `image` / `compareImage` on a use case, `image` on an
+short-wave infrared, a container port with ships in optical and radar, a
+construction site before and after, a beach before and after a storm, dunes, salt
+ponds). Pass `image` / `compareImage` on a use case, `image` on an
 archive story, or `card.image` to use your own pictures instead.
 
-`demo-day.tsx` shows the same page as a maritime imaging company: the day view, a
-coral accent, light pages, port cities and its own use cases.
+`demo-dawn.tsx` shows the same page as a maritime imaging company: the dawn view, a
+coral accent, dark pages, its own fleet of twelve, port cities, use cases, spacecraft
+and footer.
 
 ## Notes
 
