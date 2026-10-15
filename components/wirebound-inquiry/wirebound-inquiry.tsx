@@ -114,7 +114,9 @@ export type WireboundInquiryProps = {
   detailsTitle?: string
   detailsHint?: string
   nameLabel?: string
+  namePlaceholder?: string
   emailFieldLabel?: string
+  emailPlaceholder?: string
   messageLabel?: string
   messagePlaceholder?: string
   /** Require the note as well as name and email. */
@@ -271,7 +273,7 @@ const DEFAULT_SOCIALS: WireboundLink[] = [
   { label: "Are.na", href: "https://are.na" },
 ]
 
-const DEFAULT_NEXT = ["We read it together.", "You get a plan and a price.", "A 30-minute call if it fits."]
+const DEFAULT_NEXT = ["We read it together.", "You get a plan and price.", "A short call if it fits."]
 
 // #region logic
 export type WireboundLayout = {
@@ -307,7 +309,7 @@ export function layoutFor(width: number): WireboundLayout {
     return { mode: "stacked", pad, tab, gap, pageW, pageH, rule: ruleFor(pageH), textW: Math.min(680, w - pad * 2) }
   }
   const pad = 16
-  const tab = 22
+  const tab = 24
   const gap = 24
   const pageW = Math.floor(Math.min(440, w - pad * 2 - gap - tab))
   const pageH = Math.max(Math.round(pageW * 1.62), 520)
@@ -685,6 +687,7 @@ const CSS = `
   gap: 10px;
   font-family: var(--wbi-mono);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   line-height: var(--rule);
   color: color-mix(in srgb, var(--ink) 62%, transparent);
 }
@@ -695,6 +698,7 @@ const CSS = `
   font-size: max(20px, calc(26px * var(--u)));
   line-height: var(--rule);
   letter-spacing: -0.02em;
+  text-wrap: balance;
   outline: none;
 }
 .wbi-q:focus, .wbi-q:focus-visible { outline: none; }
@@ -714,6 +718,7 @@ const CSS = `
   transition: transform 150ms var(--ease-out), color 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
 .wbi-chip:hover { background: color-mix(in srgb, var(--highlight) 55%, transparent); border-color: transparent; }
+.wbi-chip::before { content: ""; position: absolute; inset: -5px -4px; }
 .wbi-chip:active { transform: scale(0.96); }
 .wbi-chip:focus-visible { outline: 2px solid var(--pen); outline-offset: 3px; }
 .wbi-chip[aria-checked="true"] { color: var(--pen); border-color: transparent; }
@@ -849,7 +854,7 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
 .wbi-sumrow .wbi-sv { font-family: var(--wbi-mono); font-size: 14px; font-weight: 600; color: var(--pen); overflow-wrap: anywhere; }
 .wbi-sumrow .wbi-sv.wbi-empty { color: color-mix(in srgb, var(--ink) 45%, transparent); font-weight: 500; }
 .wbi-note { margin: 0; font-family: var(--wbi-mono); font-size: max(13px, calc(14px * var(--u))); line-height: var(--rule); }
-.wbi-toc { margin: 0; padding: 0; list-style: none; font-family: var(--wbi-mono); font-size: 14px; line-height: var(--rule); }
+.wbi-toc { margin: 0; padding: 0; list-style: none; font-family: var(--wbi-mono); font-size: 13px; line-height: var(--rule); }
 .wbi-toc li { display: flex; gap: 10px; }
 .wbi-toc li span:first-child { width: 2ch; opacity: 0.6; }
 .wbi-closebtn { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 2px; border-radius: 2px; }
@@ -899,6 +904,7 @@ button.wbi-sumrow:hover { background: color-mix(in srgb, var(--highlight) 40%, t
 .wbi-tab[data-side="l"] { border-radius: 6px 0 0 6px; transform: rotateY(180deg); }
 .wbi-tab[data-side="l"] span { transform: rotate(180deg); }
 .wbi-tab:hover { background: var(--highlight); }
+.wbi-tab:active { filter: brightness(0.94); }
 .wbi-tab[aria-current="step"] { background: var(--highlight); color: var(--onHighlight); }
 .wbi-tab[data-done] span::after { content: " \\2713"; }
 
@@ -1007,7 +1013,9 @@ export default function WireboundInquiry({
   detailsTitle = "Last page. Who's writing?",
   detailsHint = "We reply to this address, nowhere else.",
   nameLabel = "Name",
+  namePlaceholder = "Your name",
   emailFieldLabel = "Email",
+  emailPlaceholder = "you@company.com",
   messageLabel = "Notes",
   messagePlaceholder = "Links, deadlines, anything we should read first",
   requireMessage = false,
@@ -1115,7 +1123,9 @@ export default function WireboundInquiry({
         const el = titleRefs.current[i]
         let natural = 0
         try {
-          natural = el ? el.getComputedTextLength() : 0
+          // Measured at whatever size is on screen now; normalise to the base size.
+          const at = el ? parseFloat(el.getAttribute("font-size") || "") || baseSize : baseSize
+          natural = el ? (el.getComputedTextLength() * baseSize) / at : 0
         } catch {
           natural = 0
         }
@@ -1132,7 +1142,7 @@ export default function WireboundInquiry({
   React.useEffect(() => {
     if (focusAfter.current < 0) return
     const target = focusAfter.current
-    const wait = reduced ? 30 : 640
+    const wait = reduced ? 30 : 600
     const t = window.setTimeout(() => {
       focusAfter.current = -1
       const sheet = sheetRefs.current[target]
@@ -1152,8 +1162,8 @@ export default function WireboundInquiry({
     const hi = Math.max(from, target)
     const forward = target > from
     const count = hi - lo
-    const each = count > 2 ? 46 : 70
-    const dur = forward ? 640 : 480
+    const each = 45
+    const dur = forward ? 580 : 420
     const next: { [i: number]: { dur: number; delay: number } } = {}
     for (let i = lo; i < hi; i++) {
       const order = forward ? i - lo : hi - 1 - i
@@ -1627,6 +1637,7 @@ export default function WireboundInquiry({
               data-field="name"
               className="wbi-input"
               autoComplete="name"
+              placeholder={namePlaceholder}
               value={name}
               aria-invalid={fErrors.name ? true : undefined}
               aria-describedby={fErrors.name ? uid + "-ferr" : undefined}
@@ -1646,6 +1657,7 @@ export default function WireboundInquiry({
               inputMode="email"
               autoComplete="email"
               spellCheck={false}
+              placeholder={emailPlaceholder}
               value={mail}
               aria-invalid={fErrors.email ? true : undefined}
               aria-describedby={fErrors.email ? uid + "-ferr" : undefined}
