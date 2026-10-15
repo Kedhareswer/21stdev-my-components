@@ -14,6 +14,7 @@ export default function DemoCoast() {
       place={["Praiano", "Amalfi coast"]}
       stamp="Est. 1962"
       preset="coast"
+      demoAvailability
       clock="24h"
       currency="€"
       memo={{ text: "Marea opens for the season on 1 April. Stay four nights in May and the boat to Capri is on us.", link: "See May dates", href: "#book" }}

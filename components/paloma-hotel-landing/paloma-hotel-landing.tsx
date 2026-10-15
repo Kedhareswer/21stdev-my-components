@@ -82,6 +82,9 @@ export type CplVisit = {
   address: string[]
   phone?: string
   email?: string
+  /** The highway sign's header plate (defaults to the brand) and its exit line. */
+  sign?: string
+  exit?: string
   /** Defaults to a map search for the address. Pass "" to hide the button. */
   directionsHref?: string
   drives?: CplDrive[]
@@ -140,7 +143,13 @@ export interface PalomaHotelLandingProps {
   currency?: string
   booking?: { title?: string; text?: string; maxGuests?: number; perks?: string[] } | null
   /** Called on "Check availability". Return false to block, or numbers to override the shown result. */
-  onSearch?: (q: CplBookingQuery) => void | false | { left?: number; total?: number }
+  /**
+   * Called on "Check availability". Return (or resolve) false to block, or `{ left, total }` from
+   * your inventory. Rooms-left and sold-out messages appear only when `left` comes back.
+   */
+  onSearch?: (q: CplBookingQuery) => CplSearchReturn
+  /** Show made-up rooms-left and sold-out states when there is no `onSearch` (for demos). */
+  demoAvailability?: boolean
   /** Called on "Hold this room". */
   onBook?: (q: CplBookingQuery) => void
   rooms?: { title?: string; text?: string; items?: CplRoom[] } | null
@@ -149,10 +158,13 @@ export interface PalomaHotelLandingProps {
   guestbook?: { title?: string; items?: CplQuote[] } | null
   visit?: CplVisit | null
   newsletter?: { title?: string; text?: string; button?: string } | null
-  onSubscribe?: (email: string) => void | false
+  /** Return (or resolve) false to refuse; a rejected promise shows an error line. */
+  onSubscribe?: (email: string) => CplSubscribeReturn
   /** `links` default to the page links; `social` and `legal` rows appear when given. */
   footer?: { note?: string; links?: CplLink[]; social?: CplLink[]; legal?: CplLink[] }
   preset?: CplPresetName
+  /** Turn parts of the poster on or off, or switch its architecture, whatever the preset. */
+  scene?: CplSceneOptions
   /** Override any colour of the light page. */
   colors?: CplColors
   /** Override any colour of the dark page. */
@@ -183,7 +195,7 @@ const GLYPHS: { [k: string]: [number, string] } = {
   J: [70, "M70 0V76A24 24 0 0 1 46 100H0"],
   K: [80, "M0 0V100M0 50H28L80 0M28 50L80 100"],
   L: [70, "M0 0V100H70"],
-  M: [104, "M0 100V24A24 24 0 0 1 24 0H80A24 24 0 0 1 104 24V100M52 0V72"],
+  M: [104, "M0 100V24A24 24 0 0 1 24 0H80A24 24 0 0 1 104 24V100M52 0V100"],
   N: [84, "M0 100V0L84 100V0"],
   O: [84, "M0 24A24 24 0 0 1 24 0H60A24 24 0 0 1 84 24V76A24 24 0 0 1 60 100H24A24 24 0 0 1 0 76Z"],
   P: [80, "M0 100V0H56A24 24 0 0 1 80 24V32A24 24 0 0 1 56 56H0"],
@@ -193,7 +205,7 @@ const GLYPHS: { [k: string]: [number, string] } = {
   T: [84, "M0 0H84M42 0V100"],
   U: [84, "M0 0V76A24 24 0 0 0 24 100H60A24 24 0 0 0 84 76V0"],
   V: [88, "M0 0L44 100L88 0"],
-  W: [104, "M0 0V76A24 24 0 0 0 24 100H80A24 24 0 0 0 104 76V0M52 100V28"],
+  W: [104, "M0 0V76A24 24 0 0 0 24 100H80A24 24 0 0 0 104 76V0M52 100V0"],
   X: [84, "M0 0L84 100M84 0L0 100"],
   Y: [84, "M0 0L42 50L84 0M42 50V100"],
   Z: [80, "M0 0H80L0 100H80"],
@@ -247,8 +259,19 @@ const SKY: CplSkyStop[] = [
   { h: 24, skyTop: "#0a0f2e", skyMid: "#18204e", skyLow: "#363266", sun: "#fff2c6", cloud: "#2a2e5c", far: "#28295a", near: "#1c1e42", shade: "#121433", ground: "#383150", wall: "#5d5f8a", palm: "#0b0d22", pool: "#1fd8ea", poolDeep: "#0a6a8c", deck: "#463f66", lights: 1, stars: 1, shadow: 0 },
 ]
 
+/** What stands in the poster besides the hotel. Presets set these; the `scene` prop overrides them. */
+export type CplSceneOptions = {
+  /** The roadside pylon with the brand's initial. */
+  pylon?: boolean
+  /** The clay courts on the right (the coast puts a lemon pergola there instead). */
+  court?: boolean
+  /** "midcentury": flat roofs, coloured doors, breeze blocks. "terrace": arches, shutters, a tiled dome. */
+  architecture?: "midcentury" | "terrace"
+}
+
 export type CplPreset = {
   landscape: "desert" | "coast"
+  scene: CplSceneOptions
   /** Door colours along the ground floor. */
   doors: string[]
   /** Umbrella and awning stripe. */
@@ -260,6 +283,7 @@ export type CplPreset = {
 const PRESETS: { [k: string]: CplPreset } = {
   desert: {
     landscape: "desert",
+    scene: { pylon: true, court: true, architecture: "midcentury" },
     doors: ["#14a3b3", "#ffb52e", "#e2525c", "#1d2a6b"],
     stripe: "#e2525c",
     light: { paper: "#f6c3bf", card: "#fbe2de", ink: "#191d3a", muted: "#4a4262", pool: "#0b6d7e", sun: "#ffb52e", coral: "#d6404d", night: "#111634" },
@@ -267,6 +291,7 @@ const PRESETS: { [k: string]: CplPreset } = {
   },
   coast: {
     landscape: "coast",
+    scene: { pylon: false, court: false, architecture: "terrace" },
     doors: ["#1f5fa8", "#f2c014", "#e2432c", "#1f5fa8"],
     stripe: "#1f5fa8",
     light: { paper: "#cfe4ee", card: "#e8f3f8", ink: "#0c2742", muted: "#33506b", pool: "#174f8c", sun: "#f2c014", coral: "#d93b27", night: "#0b1d33" },
@@ -629,19 +654,6 @@ function useReduced() {
   return reduced
 }
 
-function useNarrow() {
-  const [narrow, setNarrow] = React.useState(false)
-  React.useEffect(() => {
-    if (typeof matchMedia !== "function") return
-    const mq = matchMedia("(max-width: 700px)")
-    const read = () => setNarrow(mq.matches)
-    read()
-    mq.addEventListener("change", read)
-    return () => mq.removeEventListener("change", read)
-  }, [])
-  return narrow
-}
-
 function useTheme(pref: "system" | "light" | "dark") {
   const [dark, setDark] = React.useState(pref === "dark")
   React.useEffect(() => {
@@ -696,7 +708,7 @@ function useReveal(root: { current: HTMLElement | null }, reduced: boolean) {
 
 /* ---------------- the chrome wordmark ---------------- */
 
-function Wordmark({ text, pal, uid, className, rim = "#100c26" }: { text: string; pal: CplPalette; uid: string; className?: string; rim?: string }) {
+function Wordmark({ text, pal, uid, className, rim = "#100c26", deep = ["#2a2350", "#0d0b22"] }: { text: string; pal: CplPalette; uid: string; className?: string; rim?: string; deep?: string[] }) {
   const { glyphs, width } = React.useMemo(() => layoutWord(text), [text])
   const pad = STROKE / 2 + 6
   const ext = 12
@@ -727,8 +739,8 @@ function Wordmark({ text, pal, uid, className, rim = "#100c26" }: { text: string
           <stop offset="1" stopColor={c[6]} />
         </linearGradient>
         <linearGradient id={id + "x"} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2a2350" />
-          <stop offset="1" stopColor="#0d0b22" />
+          <stop offset="0" stopColor={deep[0]} />
+          <stop offset="1" stopColor={deep[1]} />
         </linearGradient>
         <clipPath id={id + "k"}>
           <rect {...band(STROKE + 8)} />
@@ -844,14 +856,14 @@ function PalmTree({ p, fill, ring, i }: { p: Palm; fill: string; ring: string; i
   )
 }
 
-function Umbrella({ x, y, r, stripe, white, pole }: { x: number; y: number; r: number; stripe: string; white: string; pole: string }) {
+function Umbrella({ x, y, r, stripe, white, pole, fringe }: { x: number; y: number; r: number; stripe: string; white: string; pole: string; fringe?: boolean }) {
   const wedges: React.ReactNode[] = []
   const n = 6
   for (let k = 0; k < n; k++) {
     const a0 = Math.PI + (k / n) * Math.PI
     const a1 = Math.PI + ((k + 1) / n) * Math.PI
     const d = "M" + x + " " + y + "L" + (x + Math.cos(a0) * r) + " " + (y + Math.sin(a0) * r * 0.55) + "A" + r + " " + r * 0.55 + " 0 0 1 " + (x + Math.cos(a1) * r) + " " + (y + Math.sin(a1) * r * 0.55) + "Z"
-    wedges.push(<path key={k} d={d} fill={k % 2 ? white : stripe} />)
+    wedges.push(<path key={k} d={d} fill={fringe ? (k % 2 ? mix(stripe, "#ffffff", 0.2) : stripe) : k % 2 ? white : stripe} />)
   }
   let scallop = "M" + (x - r) + " " + y
   for (let k = 0; k < n; k++) scallop += "a" + r / n + " " + r / n / 1.6 + " 0 0 0 " + (2 * r) / n + " 0"
@@ -859,7 +871,7 @@ function Umbrella({ x, y, r, stripe, white, pole }: { x: number; y: number; r: n
     <g>
       <path d={"M" + x + " " + (y - r * 0.5) + "V" + (y + r * 1.25)} stroke={pole} strokeWidth={4} />
       {wedges}
-      <path d={scallop + "Z"} fill={stripe} />
+      <path d={scallop + "Z"} fill={fringe ? white : stripe} />
     </g>
   )
 }
@@ -905,6 +917,7 @@ export function PosterScene({
   const id = (s: string) => uid + s
   const ref = (s: string) => "url(#" + uid + s + ")"
   const coast = preset.landscape === "coast"
+  const terrace = preset.scene.architecture === "terrace"
   const white = mix(p.wall, "#ffffff", 0.35)
   const wallShade = mix(p.wall, p.shade, 0.4)
   const ink = mix("#141836", p.shade, 0.3)
@@ -967,6 +980,11 @@ export function PosterScene({
         </radialGradient>
         <pattern id={id("dots")} width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
           <circle cx="4.5" cy="4.5" r="1.7" fill={ink} />
+        </pattern>
+        <pattern id={id("majolica")} width="28" height="28" patternUnits="userSpaceOnUse">
+          <rect width="28" height="28" fill="#f4d24a" />
+          <path d="M14 2L26 14L14 26L2 14Z" fill={preset.stripe} />
+          <circle cx="14" cy="14" r="4" fill="#ffffff" />
         </pattern>
         <pattern id={id("breeze")} width="28" height="28" patternUnits="userSpaceOnUse">
           <rect width="28" height="28" fill={p.wall} />
@@ -1071,11 +1089,35 @@ export function PosterScene({
       <Agave x={470} y={706} s={1.1} fill={mix(p.palm, p.ground, 0.25)} />
       <Agave x={1370} y={708} s={0.9} fill={mix(p.palm, p.ground, 0.25)} />
       <Agave x={-40} y={712} s={1.3} fill={mix(p.palm, p.ground, 0.25)} />
-      {/* the clay courts */}
-      <path d="M1586 708H1800V776H1552Z" fill={coast ? mix("#c9643f", p.wall, 0.15) : mix("#cf6a43", p.ground, 0.25)} />
-      <path d="M1600 714H1800M1572 768H1800M1594 714L1566 768M1690 714L1680 768M1580 741H1800" stroke={white} strokeWidth="2.5" fill="none" opacity="0.85" />
-      <path d="M1586 708H1800" stroke={ink} strokeWidth="2" opacity="0.4" />
-      <path d="M1574 744H1800" stroke={ink} strokeWidth="3" opacity="0.55" strokeDasharray="3 3" />
+      {preset.scene.court ? (
+        <g>
+          {/* the clay courts */}
+          <path d="M1586 708H1800V776H1552Z" fill={mix("#cf6a43", p.ground, 0.25)} />
+          <path d="M1600 714H1800M1572 768H1800M1594 714L1566 768M1690 714L1680 768M1580 741H1800" stroke={white} strokeWidth="2.5" fill="none" opacity="0.85" />
+          <path d="M1586 708H1800" stroke={ink} strokeWidth="2" opacity="0.4" />
+          <path d="M1574 744H1800" stroke={ink} strokeWidth="3" opacity="0.55" strokeDasharray="3 3" />
+        </g>
+      ) : (
+        <g>
+          {/* a lemon pergola over a long table */}
+          {[1580, 1660, 1740].map((x) => (
+            <rect key={x} x={x} y="640" width="10" height="138" fill={white} />
+          ))}
+          <rect x="1560" y="634" width="250" height="10" fill={white} />
+          <g fill={mix(p.palm, "#3f8a3a", 0.4)}>
+            {Array.from({ length: 9 }, (_, k) => (
+              <ellipse key={k} cx={1570 + k * 28} cy={630 + (k % 2) * 8} rx="22" ry="14" />
+            ))}
+          </g>
+          <g fill="#f6d23c">
+            {[1584, 1612, 1646, 1676, 1706, 1736, 1768].map((x, k) => (
+              <ellipse key={x} cx={x} cy={650 + (k % 3) * 6} rx="5" ry="6.5" />
+            ))}
+          </g>
+          <rect x="1590" y="740" width="200" height="8" fill={mix("#b8733f", p.shade, 0.2)} />
+          <path d="M1600 748V776M1780 748V776" stroke={ink} strokeWidth="4" />
+        </g>
+      )}
 
       {BACK_PALMS.filter((pp) => !coast || (pp.x > 520 && pp.x < 1420)).map((pp, i) => (
         <PalmTree key={i} p={pp} i={i + 4} fill={mix(p.palm, p.far, 0.18)} ring={mix(p.palm, "#000000", 0.35)} />
@@ -1084,23 +1126,53 @@ export function PosterScene({
       {/* the hotel */}
       <g>
         <rect x="600" y="520" width="740" height="82" fill={p.wall} />
-        {Array.from({ length: 8 }, (_, k) => (
-          <g key={k}>
-            <rect x={612 + k * 91} y="534" width="60" height="58" fill={k === 2 || k === 5 ? p.lit : mix(p.glass, p.lit, p.lights * 0.7)} />
-            <rect x={612 + k * 91} y="534" width="60" height="10" fill={wallShade} opacity="0.7" />
-            <rect x={680 + k * 91} y="524" width="8" height="78" fill={wallShade} />
+        {terrace
+          ? Array.from({ length: 8 }, (_, k) => {
+              const x = 622 + k * 91
+              return (
+                <g key={k}>
+                  <rect x={x - 14} y="540" width="10" height="52" fill={preset.stripe} />
+                  <rect x={x + 44} y="540" width="10" height="52" fill={preset.stripe} />
+                  <path d={"M" + x + " 592V560a20 20 0 0 1 40 0V592Z"} fill={k === 2 || k === 5 ? p.lit : mix(p.glass, p.lit, p.lights * 0.7)} />
+                </g>
+              )
+            })
+          : Array.from({ length: 8 }, (_, k) => (
+              <g key={k}>
+                <rect x={612 + k * 91} y="534" width="60" height="58" fill={k === 2 || k === 5 ? p.lit : mix(p.glass, p.lit, p.lights * 0.7)} />
+                <rect x={612 + k * 91} y="534" width="60" height="10" fill={wallShade} opacity="0.7" />
+                <rect x={680 + k * 91} y="524" width="8" height="78" fill={wallShade} />
+              </g>
+            ))}
+        {terrace && (
+          <g>
+            {/* a tiled dome on the corner, Amalfi style */}
+            <rect x="1226" y="474" width="76" height="34" fill={p.wall} />
+            <path d="M1222 474a42 42 0 0 1 84 0Z" fill="#f4d24a" />
+            {[-30, -15, 0, 15, 30].map((a, k) => (
+              <path key={k} d={"M1264 432Q" + (1264 + a * 1.25) + " 450 " + (1264 + a * 1.35) + " 474"} stroke={k % 2 ? "#2f8f5b" : preset.stripe} strokeWidth="7" fill="none" />
+            ))}
+            <path d="M1264 432V418M1258 424H1270" stroke={ink} strokeWidth="3" />
+            <rect x="1222" y="472" width="84" height="6" fill={white} />
           </g>
-        ))}
+        )}
         <rect x="578" y="506" width="784" height="16" fill={white} />
         <rect x="578" y="520" width="784" height="5" fill={ink} opacity="0.35" />
         <rect x="560" y="602" width="820" height="100" fill={p.wall} />
-        <rect x="560" y="602" width="140" height="100" fill={ref("breeze")} />
-        {Array.from({ length: 9 }, (_, k) => (
-          <g key={k}>
-            <rect x={716 + k * 72} y="628" width="32" height="74" fill={doors[k % doors.length]} />
-            <rect x={754 + k * 72} y="640" width="26" height="32" fill={k % 3 === 1 ? p.lit : mix(p.glass, p.lit, p.lights * 0.8)} />
-          </g>
-        ))}
+        <rect x="560" y="602" width="140" height="100" fill={ref(terrace ? "majolica" : "breeze")} />
+        {terrace
+          ? Array.from({ length: 9 }, (_, k) => (
+              <g key={k}>
+                <path d={"M" + (712 + k * 72) + " 702V648a26 26 0 0 1 52 0V702Z"} fill={k % 3 === 1 ? p.lit : mix(p.glass, p.lit, p.lights * 0.8)} />
+                <path d={"M" + (712 + k * 72) + " 648a26 26 0 0 1 52 0"} fill="none" stroke={white} strokeWidth="5" />
+              </g>
+            ))
+          : Array.from({ length: 9 }, (_, k) => (
+              <g key={k}>
+                <rect x={716 + k * 72} y="628" width="32" height="74" fill={doors[k % doors.length]} />
+                <rect x={754 + k * 72} y="640" width="26" height="32" fill={k % 3 === 1 ? p.lit : mix(p.glass, p.lit, p.lights * 0.8)} />
+              </g>
+            ))}
         <rect x="540" y="592" width="860" height="14" fill={white} />
         <rect x="540" y="606" width="860" height="16" fill={p.shade} opacity={0.35 + shadowA * 0.4} />
         <rect x="540" y="606" width="860" height="16" fill={ref("dots")} opacity="0.35" />
@@ -1111,13 +1183,17 @@ export function PosterScene({
         <rect x="1404" y="664" width="134" height="30" fill={p.lit} />
         <path d="M1370 638L1471 664L1572 638L1572 648L1471 676L1370 648Z" fill={white} />
         <path d="M1370 648L1471 676L1572 648" stroke={ink} strokeWidth="3" fill="none" opacity="0.5" />
-        {/* pylon sign */}
-        <rect x="490" y="440" width="30" height="262" fill={preset.stripe} />
-        <rect x="490" y="440" width="10" height="262" fill={ink} opacity="0.18" />
-        <circle cx="505" cy="420" r="44" fill={mix(white, "#ffe7a0", p.lights)} stroke={ink} strokeWidth="5" />
-        <g transform="translate(486.5 397) scale(0.44)">
-          <path d={(GLYPHS[initial] || GLYPHS.P)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square" transform={"translate(" + (42 - (GLYPHS[initial] || GLYPHS.P)[0] / 2) + " 0)"} />
-        </g>
+        {preset.scene.pylon && (
+          <g>
+            {/* pylon sign */}
+            <rect x="490" y="440" width="30" height="262" fill={preset.stripe} />
+            <rect x="490" y="440" width="10" height="262" fill={ink} opacity="0.18" />
+            <circle cx="505" cy="420" r="44" fill={mix(white, "#ffe7a0", p.lights)} stroke={ink} strokeWidth="5" />
+            <g transform="translate(486.5 397) scale(0.44)">
+              <path d={(GLYPHS[initial] || GLYPHS.P)[1]} fill="none" stroke={ink} strokeWidth={STROKE} strokeLinejoin="miter" strokeMiterlimit={2.2} strokeLinecap="square" transform={"translate(" + (42 - (GLYPHS[initial] || GLYPHS.P)[0] / 2) + " 0)"} />
+            </g>
+          </g>
+        )}
       </g>
 
       {/* deck */}
@@ -1156,9 +1232,9 @@ export function PosterScene({
           </g>
         ))}
       </g>
-      <Umbrella x={460} y={700} r={66} stripe={preset.stripe} white={white} pole={ink} />
-      <Umbrella x={800} y={696} r={70} stripe={preset.stripe} white={white} pole={ink} />
-      <Umbrella x={1150} y={700} r={66} stripe={preset.stripe} white={white} pole={ink} />
+      <Umbrella x={460} y={700} r={66} stripe={preset.stripe} white={white} pole={ink} fringe={terrace} />
+      <Umbrella x={800} y={696} r={70} stripe={preset.stripe} white={white} pole={ink} fringe={terrace} />
+      <Umbrella x={1150} y={700} r={66} stripe={preset.stripe} white={white} pole={ink} fringe={terrace} />
 
       {/* the long pool */}
       <path d="M360 790H1240L1400 952H200Z" fill={ref("water")} />
@@ -1187,8 +1263,9 @@ export function PosterScene({
 }
 
 /** The stamp on the first guestbook letter: a striped sun going down behind two palms. */
-function StampArt({ uid, preset }: { uid: string; preset: CplPreset }) {
-  const p = samplePalette(18.4)
+function StampArt({ uid, preset, hour = 18.4 }: { uid: string; preset: CplPreset; hour?: number }) {
+  const p = samplePalette(hour)
+  const up = sunPosition(hour).up
   return (
     <svg viewBox="0 0 160 120" width="88" height="66" aria-hidden="true">
       <defs>
@@ -1204,7 +1281,7 @@ function StampArt({ uid, preset }: { uid: string; preset: CplPreset }) {
         </mask>
       </defs>
       <rect width="160" height="120" fill={"url(#" + uid + "sg)"} />
-      <circle cx="84" cy="82" r="38" fill={p.sun} mask={"url(#" + uid + "sb)"} />
+      {up ? <circle cx="84" cy="82" r="38" fill={p.sun} mask={"url(#" + uid + "sb)"} /> : <circle cx="108" cy="34" r="12" fill="#fff4cf" />}
       <rect y="92" width="160" height="28" fill={preset.landscape === "coast" ? p.sea : p.near} />
       <rect y="104" width="160" height="16" fill={p.poolDeep} />
       <g transform="translate(-6 18) scale(0.3)">
@@ -1815,6 +1892,7 @@ export default function PalomaHotelLanding({
   currency = "$",
   booking = {},
   onSearch,
+  demoAvailability = false,
   onBook,
   rooms = {},
   programme = {},
@@ -1825,6 +1903,7 @@ export default function PalomaHotelLanding({
   onSubscribe,
   footer = {},
   preset: presetName = "desert",
+  scene: sceneProp,
   colors,
   darkColors,
   heroImage,
@@ -1834,7 +1913,8 @@ export default function PalomaHotelLanding({
   className,
 }: PalomaHotelLandingProps) {
   const uid = "cpl" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
-  const preset = PRESETS[presetName] || PRESETS.desert
+  const base = PRESETS[presetName] || PRESETS.desert
+  const preset = React.useMemo(() => ({ ...base, scene: { ...base.scene, ...sceneProp } }), [base, sceneProp])
   const [dark, setDark] = useTheme(theme)
   const reduced = useReduced()
   const root = React.useRef(null as HTMLDivElement | null)
@@ -1887,7 +1967,8 @@ export default function PalomaHotelLanding({
   const [today, setToday] = React.useState("")
   const [guests, setGuests] = React.useState(2)
   const [roomId, setRoomId] = React.useState(roomList[0] ? roomList[0].id : "")
-  const [result, setResult] = React.useState(null as null | { q: CplBookingQuery; left: number; total: number; alt?: CplRoom })
+  const [result, setResult] = React.useState(null as null | { q: CplBookingQuery; left: number | null; total: number; alt?: CplRoom })
+  const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState("")
   const [held, setHeld] = React.useState(false)
   React.useEffect(() => {
@@ -1898,8 +1979,9 @@ export default function PalomaHotelLanding({
   }, [])
   const room = roomList.find((r) => r.id === roomId) || roomList[0]
   const maxGuests = (booking && booking.maxGuests) || 6
-  const search = (e: React.FormEvent) => {
+  const search = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (busy) return
     setHeld(false)
     setResult(null)
     const nights = nightsBetween(checkIn, checkOut)
@@ -1913,17 +1995,26 @@ export default function PalomaHotelLanding({
     }
     setError("")
     const q: CplBookingQuery = { room, checkIn, checkOut, nights, guests }
-    let left = roomsLeft(room.id, checkIn, nights)
+    // Without inventory we only know the price; scarcity is shown only when it is real (or a demo).
+    let left: number | null = !onSearch && demoAvailability ? roomsLeft(room.id, checkIn, nights) : null
     let total = room.rate * nights
     if (onSearch) {
-      const res = onSearch(q)
-      if (res === false) return
-      if (res && typeof res === "object") {
-        if (typeof res.left === "number") left = res.left
-        if (typeof res.total === "number") total = res.total
+      setBusy(true)
+      try {
+        const res = await onSearch(q)
+        if (res === false) return
+        if (res && typeof res === "object") {
+          if (typeof res.left === "number") left = res.left
+          if (typeof res.total === "number") total = res.total
+        }
+      } catch {
+        return setError("We couldn't check those dates just now. Try again, or call the front desk.")
+      } finally {
+        setBusy(false)
       }
     }
-    const alt = left === 0 ? roomList.find((r) => r.id !== room.id && r.sleeps >= guests && roomsLeft(r.id, checkIn, nights) > 0) : undefined
+    const fits = roomList.filter((r) => r.id !== room.id && r.sleeps >= guests)
+    const alt = left === 0 ? (onSearch ? fits[0] : fits.find((r) => roomsLeft(r.id, checkIn, nights) > 0)) : undefined
     setResult({ q, left, total, alt })
   }
   /** Scroll to the registration card and put the cursor in "Check in". */
@@ -1944,14 +2035,13 @@ export default function PalomaHotelLanding({
 
   /* newsletter */
   const [email, setEmail] = React.useState("")
-  const [sub, setSub] = React.useState("idle" as "idle" | "bad" | "ok")
+  const [sub, setSub] = React.useState("idle" as "idle" | "bad" | "busy" | "fail" | "ok")
 
   /* pill nav visibility and the phone menu */
   const [pill, setPill] = React.useState(false)
-  // On phones the pill is docked from the first screen, so the menu and "Book" are always one tap away.
-  const narrow = useNarrow()
-  const docked = pill || narrow
-  const [menu, setMenu] = React.useState(false)
+  const docked = pill
+  /** Which menu is open: the one under the phone header, the one over the pill, or none. */
+  const [menu, setMenu] = React.useState("" as "" | "head" | "pill")
   const heroRef = React.useRef(null as HTMLElement | null)
   React.useEffect(() => {
     const el = heroRef.current
@@ -1966,7 +2056,7 @@ export default function PalomaHotelLanding({
     const first = root.current && (root.current.querySelector(".cpl-menu a") as HTMLElement | null)
     if (first) first.focus()
     const k = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenu(false)
+      if (e.key === "Escape") setMenu("")
     }
     addEventListener("keydown", k)
     return () => removeEventListener("keydown", k)
@@ -2040,6 +2130,9 @@ export default function PalomaHotelLanding({
             <span>{place[1]}</span>
           </span>
           <Parasol />
+          <button type="button" className="cpl-headmenu" aria-expanded={menu === "head"} aria-controls={uid + "menu"} onClick={() => setMenu(menu === "head" ? "" : "head")}>
+            Menu
+          </button>
           <button
             type="button"
             className="cpl-theme"
@@ -2064,12 +2157,42 @@ export default function PalomaHotelLanding({
             </svg>
           </button>
         </div>
+        {menu === "head" && (
+          <div className="cpl-headmenu-pop">
+          <ul className="cpl-menu" id={uid + "menu"}>
+            {links.map((l) => (
+              <li key={l.href}>
+                <a
+                  href={l.href}
+                  onClick={(e) => {
+                    setMenu("")
+                    onLink(e, l.href)
+                  }}
+                >
+                  {l.label}
+                </a>
+              </li>
+            ))}
+            <li>
+              <a
+                href="#book"
+                onClick={(e) => {
+                  setMenu("")
+                  onLink(e, "#book")
+                }}
+              >
+                {h.cta}
+              </a>
+            </li>
+          </ul>
+          </div>
+        )}
       </header>
 
       {/* hero */}
       <section ref={heroRef} className="cpl-hero" data-sec="top" aria-labelledby={uid + "h1"}>
         <p className="cpl-presents">{presents}</p>
-        <Wordmark text={wordmark} pal={pal} uid={uid} rim={dark ? "#565aa6" : "#100c26"} />
+        <Wordmark text={wordmark} pal={pal} uid={uid} rim={dark ? "#6b6fc0" : "#100c26"} deep={dark ? ["#5a5eb0", "#2c2f70"] : undefined} />
         <div className="cpl-frame">
           <div className="cpl-poster">
             {heroImage ? (
@@ -2164,8 +2287,8 @@ export default function PalomaHotelLanding({
               </select>
             </label>
             <div className="cpl-form-foot">
-              <button type="submit" className="cpl-btn cpl-solid cpl-go">
-                Check availability
+              <button type="submit" className="cpl-btn cpl-solid cpl-go" disabled={busy} aria-busy={busy}>
+                {busy ? "Checking dates…" : "Check availability"}
                 <Arrow />
               </button>
               <span>No card needed to hold a room.</span>
@@ -2178,21 +2301,22 @@ export default function PalomaHotelLanding({
                 {result.left === 0 ? (
                   <p>
                     <b>The {result.q.room.name} is sold out on those dates.</b>{" "}
-                    {result.alt ? "The " + result.alt.name + " is free from " + formatMoney(result.alt.rate, currency) + " a night." : "Try moving your dates by a day or two."}
+                    {result.alt ? "Try the " + result.alt.name + ", from " + formatMoney(result.alt.rate, currency) + " a night." : "Try moving your dates by a day or two."}
                   </p>
                 ) : (
                   <p>
                     <b>
                       {result.q.nights} {result.q.nights === 1 ? "night" : "nights"} in the {result.q.room.name}: {formatMoney(result.total, currency)}
                     </b>{" "}
-                    before tax, for {result.q.guests} {result.q.guests === 1 ? "guest" : "guests"}. {result.left === 1 ? "Last room at this rate." : result.left + " left at this rate."}
+                    before tax, for {result.q.guests} {result.q.guests === 1 ? "guest" : "guests"}.
+                    {result.left == null ? "" : result.left === 1 ? " Last room at this rate." : " " + result.left + " left at this rate."}
                   </p>
                 )}
                 {result.left === 0 && result.alt ? (
                   <button type="button" className="cpl-btn cpl-ghost" onClick={() => (setRoomId(result.alt!.id), setResult(null))}>
                     Switch to the {result.alt.name}
                   </button>
-                ) : result.left > 0 ? (
+                ) : result.left !== 0 ? (
                   <button
                     type="button"
                     className="cpl-btn cpl-solid"
@@ -2316,33 +2440,35 @@ export default function PalomaHotelLanding({
               {quotes.map((q, i) => (
                 <figure key={i} className={"cpl-quote cpl-rv" + (i === 0 ? " cpl-quote-big" : "")}>
                   <div className="cpl-letter">
-                    <div className="cpl-letter-head" aria-hidden="true">
-                    <span className="cpl-pm">
-                      <svg viewBox="0 0 150 80" width="150" height="80">
-                        <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="2.5" />
-                        <circle cx="40" cy="40" r="26" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                        <path d="M80 22q9 -6 18 0t18 0t18 0t16 0M80 34q9 -6 18 0t18 0t18 0t16 0M80 46q9 -6 18 0t18 0t18 0t16 0M80 58q9 -6 18 0t18 0t18 0t16 0" fill="none" stroke="currentColor" strokeWidth="2.2" />
-                        <text x="40" y="36" textAnchor="middle" fontSize="8" fontWeight="800" fill="currentColor" textLength="40" lengthAdjust="spacingAndGlyphs">
-                          {place[0].toUpperCase().slice(0, 13)}
-                        </text>
-                        <text x="40" y="50" textAnchor="middle" fontSize="9" fontWeight="700" fill="currentColor">
-                          {postDate(q).slice(0, 9)}
-                        </text>
-                      </svg>
-                    </span>
-                    {i === 0 && (
-                      <span className="cpl-lstamp">
-                        <StampArt uid={uid + "st"} preset={preset} />
-                      </span>
-                    )}
-                    </div>
                     <blockquote>
                       <p>“{q.quote}”</p>
                     </blockquote>
-                    <figcaption>
-                      <b>{q.name}</b>
-                      <span>{q.stay}</span>
-                    </figcaption>
+                    <div className="cpl-letter-foot">
+                      <figcaption>
+                        <b>{q.name}</b>
+                        <span>{q.stay}</span>
+                      </figcaption>
+                    <div className="cpl-letter-head" aria-hidden="true">
+                      <span className="cpl-pm">
+                        <svg viewBox="0 0 150 80" width="150" height="80">
+                          <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                          <circle cx="40" cy="40" r="26" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                          <path d="M80 22q9 -6 18 0t18 0t18 0t16 0M80 34q9 -6 18 0t18 0t18 0t16 0M80 46q9 -6 18 0t18 0t18 0t16 0M80 58q9 -6 18 0t18 0t18 0t16 0" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                          <text x="40" y="36" textAnchor="middle" fontSize="8" fontWeight="800" fill="currentColor" textLength="40" lengthAdjust="spacingAndGlyphs">
+                            {place[0].toUpperCase().slice(0, 13)}
+                          </text>
+                          <text x="40" y="50" textAnchor="middle" fontSize="9" fontWeight="700" fill="currentColor">
+                            {postDate(q).slice(0, 9)}
+                          </text>
+                        </svg>
+                      </span>
+                      {i === 0 && (
+                        <span className="cpl-lstamp">
+                          <StampArt uid={uid + "st"} preset={preset} />
+                        </span>
+                      )}
+                      </div>
+                    </div>
                   </div>
                 </figure>
               ))}
@@ -2359,81 +2485,123 @@ export default function PalomaHotelLanding({
               <div className="cpl-visit-l cpl-rv">
                 <h2 id={uid + "vs"}>{visit.title}</h2>
                 {visit.text && <p>{visit.text}</p>}
-                <address>
-                  {visit.address.map((l) => (
-                    <span key={l}>{l}</span>
-                  ))}
-                  {visit.phone && <a href={"tel:" + visit.phone.replace(/[^\d+]/g, "")}>{visit.phone}</a>}
-                  {visit.email && <a href={"mailto:" + visit.email}>{visit.email}</a>}
-                </address>
-                {visit.directionsHref !== "" && (
-                  <a
-                    className="cpl-btn cpl-ghost"
-                    href={visit.directionsHref || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(visit.address.join(", "))}
-                    onClick={(e) => onLink(e, visit.directionsHref || "")}
-                    target={visit.directionsHref && visit.directionsHref.startsWith("#") ? undefined : "_blank"}
-                    rel="noreferrer"
-                  >
-                    Get directions
-                    <Arrow />
-                  </a>
-                )}
               </div>
-              {visit.drives && visit.drives.length > 0 && (
-                <ul className="cpl-sign cpl-rv" aria-label="Drive times">
-                  {visit.drives.map((d) => (
-                    <li key={d.from}>
-                      <SignArrow dir={d.dir || "up"} />
-                      <span>{d.from}</span>
-                      <b>{d.time}</b>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className="cpl-visit-r cpl-rv">
+                {visit.drives && visit.drives.length > 0 && (
+                  <div className="cpl-sign">
+                    <p className="cpl-sign-plate">
+                      <span>{(visit.sign ?? brand).toUpperCase()}</span>
+                      <span>{visit.exit ?? "Next right"}</span>
+                    </p>
+                    <ul aria-label="Drive times">
+                      {visit.drives.map((d) => (
+                        <li key={d.from}>
+                          <SignArrow dir={d.dir || "up"} />
+                          <span>{d.from}</span>
+                          <b>{d.time}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="cpl-visit-addr">
+                <address>
+                    {visit.address.map((l) => (
+                      <span key={l}>{l}</span>
+                    ))}
+                    {visit.phone && <a href={"tel:" + visit.phone.replace(/[^\d+]/g, "")}>{visit.phone}</a>}
+                    {visit.email && <a href={"mailto:" + visit.email}>{visit.email}</a>}
+                  </address>
+                  {visit.directionsHref !== "" && (
+                    <a
+                      className="cpl-btn cpl-ghost"
+                      href={visit.directionsHref || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(visit.address.join(", "))}
+                      onClick={(e) => onLink(e, visit.directionsHref || "")}
+                      target={visit.directionsHref && visit.directionsHref.startsWith("#") ? undefined : "_blank"}
+                      rel="noreferrer"
+                    >
+                      Get directions
+                      <Arrow />
+                    </a>
+                  )}
+                </div>
+              </div>
             </>
           )}
           {newsletter && (
             <form
               className="cpl-news cpl-rv"
               noValidate
-              onSubmit={(e) => {
+              aria-labelledby={uid + "nl"}
+              onSubmit={async (e) => {
                 e.preventDefault()
+                if (sub === "busy") return
                 if (!isEmail(email)) return setSub("bad")
-                if (onSubscribe && onSubscribe(email.trim()) === false) return
+                if (onSubscribe) {
+                  setSub("busy")
+                  try {
+                    if ((await onSubscribe(email.trim())) === false) return setSub("idle")
+                  } catch {
+                    return setSub("fail")
+                  }
+                }
                 setSub("ok")
               }}
             >
-              <h3>{newsletter.title ?? "Postcards from Paloma."}</h3>
-              <p>{newsletter.text ?? "One email a month: rate drops, the summer heat specials and what the bar is pouring."}</p>
-              {sub === "ok" ? (
-                <p className="cpl-ok" role="status">
-                  You are on the list. The first postcard goes out on the first of the month.
-                </p>
-              ) : (
-                <div className="cpl-news-row">
-                  <label className="cpl-sr" htmlFor={uid + "em"}>
-                    Email address
-                  </label>
-                  <input
-                    id={uid + "em"}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    aria-invalid={sub === "bad"}
-                    aria-describedby={sub === "bad" ? uid + "eme" : undefined}
-                    onChange={(e) => (setEmail(e.target.value), sub === "bad" && setSub("idle"))}
-                  />
-                  <button type="submit" className="cpl-btn cpl-solid">
-                    {newsletter.button ?? "Send me postcards"}
-                  </button>
+              <div className="cpl-news-l">
+                <h3 id={uid + "nl"}>{newsletter.title ?? "Postcards from Paloma."}</h3>
+                <p>{newsletter.text ?? "One email a month: rate drops, the summer heat specials and what the bar is pouring."}</p>
+              </div>
+              <div className="cpl-news-r">
+                <div className="cpl-news-marks" aria-hidden="true">
+                  <span className="cpl-pm cpl-pm-live">
+                    <svg viewBox="0 0 150 80" width="150" height="80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                      <circle cx="40" cy="40" r="26" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M80 22q9 -6 18 0t18 0t18 0t16 0M80 34q9 -6 18 0t18 0t18 0t16 0M80 46q9 -6 18 0t18 0t18 0t16 0M80 58q9 -6 18 0t18 0t18 0t16 0" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                      <text x="40" y="36" textAnchor="middle" fontSize="8" fontWeight="800" fill="currentColor" textLength="40" lengthAdjust="spacingAndGlyphs">
+                        {place[0].toUpperCase().slice(0, 13)}
+                      </text>
+                      <text x="40" y="50" textAnchor="middle" fontSize="9" fontWeight="700" fill="currentColor">
+                        {formatHour(hour, clock).toUpperCase()}
+                      </text>
+                    </svg>
+                  </span>
+                  <span className="cpl-lstamp">
+                    <StampArt uid={uid + "nst"} preset={preset} hour={hour} />
+                  </span>
                 </div>
-              )}
-              {sub === "bad" && (
-                <p className="cpl-err" id={uid + "eme"} role="alert">
-                  That address is missing something. Check the part after the @.
-                </p>
-              )}
+                {sub === "ok" ? (
+                  <p className="cpl-ok" role="status">
+                    You are on the list. The first postcard goes out on the first of the month.
+                  </p>
+                ) : (
+                  <div className="cpl-news-row">
+                    <label className="cpl-news-to" htmlFor={uid + "em"}>
+                      To
+                    </label>
+                    <input
+                      id={uid + "em"}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      aria-invalid={sub === "bad"}
+                      aria-describedby={sub === "bad" || sub === "fail" ? uid + "eme" : undefined}
+                      onChange={(e) => (setEmail(e.target.value), (sub === "bad" || sub === "fail") && setSub("idle"))}
+                    />
+                    <span className="cpl-news-line" aria-hidden="true" />
+                    <button type="submit" className="cpl-btn cpl-solid" disabled={sub === "busy"} aria-busy={sub === "busy"}>
+                      {sub === "busy" ? "Sending…" : newsletter.button ?? "Send me postcards"}
+                    </button>
+                  </div>
+                )}
+                {(sub === "bad" || sub === "fail") && (
+                  <p className="cpl-err" id={uid + "eme"} role="alert">
+                    {sub === "bad" ? "That address is missing something. Check the part after the @." : "That didn't go through. Try again in a minute."}
+                  </p>
+                )}
+              </div>
             </form>
           )}
         </section>
@@ -2442,11 +2610,22 @@ export default function PalomaHotelLanding({
       {/* footer */}
       <footer className="cpl-foot">
         <div className="cpl-foot-band">
-          <PosterScene initial={initial} hour={22.4} preset={preset} uid={uid + "ft"} view="200 560 1300 440" align="xMidYMid slice" />
+          <svg className="cpl-awning cpl-awning-foot" width="100%" height="52" aria-hidden="true">
+            <defs>
+              <pattern id={uid + "aw2"} width="96" height="52" patternUnits="userSpaceOnUse">
+                <rect width="48" height="30" fill={tokens.coral} />
+                <rect x="48" width="48" height="30" fill="#fff6f2" />
+                <path d="M0 30a24 18 0 0 0 48 0Z" fill={tokens.coral} />
+                <path d="M48 30a24 18 0 0 0 48 0Z" fill="#fff6f2" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="52" fill={"url(#" + uid + "aw2)"} />
+          </svg>
+          <PosterScene initial={initial} hour={22.4} preset={preset} uid={uid + "ft"} view="-200 380 2000 620" align="xMidYMax slice" />
         </div>
         <div className="cpl-foot-in">
           <div className="cpl-foot-brand">
-            <Wordmark text={wordmark} pal={samplePalette(17.2)} uid={uid + "f"} className="cpl-wordmark-sm" rim="#565aa6" />
+            <Wordmark text={wordmark} pal={samplePalette(17.2)} uid={uid + "f"} className="cpl-wordmark-sm" rim="#6b6fc0" deep={["#5a5eb0", "#2c2f70"]} />
             <p>{footer.note ?? brand + ". A long pool, a short drive."}</p>
           </div>
           <nav aria-label="Footer">
@@ -2496,21 +2675,21 @@ export default function PalomaHotelLanding({
           <span className="cpl-pill-hour" aria-hidden="true">
             {formatHour(hour, clock)}
           </span>
-          <button type="button" className="cpl-pill-menu" aria-expanded={menu} aria-controls={uid + "menu"} onClick={() => setMenu(!menu)} tabIndex={docked ? 0 : -1}>
+          <button type="button" className="cpl-pill-menu" aria-expanded={menu === "pill"} aria-controls={uid + "menu"} onClick={() => setMenu(menu === "pill" ? "" : "pill")} tabIndex={docked ? 0 : -1}>
             Menu
           </button>
           <a className="cpl-btn cpl-solid cpl-pill-cta" href="#book" onClick={(e) => onLink(e, "#book")} tabIndex={docked ? 0 : -1}>
             {h.cta}
           </a>
         </nav>
-        {menu && (
+        {menu === "pill" && (
           <ul className="cpl-menu" id={uid + "menu"}>
             {links.map((l) => (
               <li key={l.href}>
                 <a
                   href={l.href}
                   onClick={(e) => {
-                    setMenu(false)
+                    setMenu("")
                     onLink(e, l.href)
                   }}
                 >
@@ -2518,6 +2697,17 @@ export default function PalomaHotelLanding({
                 </a>
               </li>
             ))}
+            <li>
+              <a
+                href="#book"
+                onClick={(e) => {
+                  setMenu("")
+                  onLink(e, "#book")
+                }}
+              >
+                {h.cta}
+              </a>
+            </li>
           </ul>
         )}
       </div>
@@ -2544,7 +2734,7 @@ const CPL_CSS = `
 .cpl-memo a{text-underline-offset:3px;text-decoration-thickness:1.5px;font-weight:700}
 .cpl-memo a:hover{text-decoration-style:wavy}
 
-.cpl-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;padding:1rem clamp(16px,3vw,40px) .2rem}
+.cpl-head{position:relative;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;padding:1rem clamp(16px,3vw,40px) .2rem}
 .cpl-logo{display:flex;align-items:center;gap:.8rem;text-decoration:none;justify-self:start}
 .cpl-logo-txt{display:flex;flex-direction:column;font-family:var(--cpl-display);font-weight:800;text-transform:uppercase;letter-spacing:.02em;line-height:.92;font-size:15px}
 .cpl-oval{display:inline-grid;place-items:center;padding:.3rem .7rem;border:1.5px solid currentColor;border-radius:50%;font-family:var(--cpl-type);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;transform:rotate(-6deg);transition:transform .35s var(--cpl-ease)}
@@ -2590,6 +2780,7 @@ const CPL_CSS = `
 .cpl-solid{background:var(--cpl-pool);color:var(--cpl-on-pool);box-shadow:3px 4px 0 var(--cpl-ink)}
 .cpl-solid:hover{transform:translate(-2px,-2px);box-shadow:5px 6px 0 var(--cpl-ink)}
 .cpl-solid:active{transform:translate(2px,3px);box-shadow:0 0 0 var(--cpl-ink)}
+.cpl-btn:disabled{cursor:progress;opacity:.75;transform:none}
 .cpl-ghost{background:transparent;color:var(--cpl-ink)}
 .cpl-ghost:hover{background:var(--cpl-ink);color:var(--cpl-paper)}
 .cpl-ghost:active{transform:scale(.97)}
@@ -2625,7 +2816,8 @@ const CPL_CSS = `
 .cpl-root h2{font-family:var(--cpl-display);font-weight:800;font-size:clamp(2.1rem,1.2rem + 3.4vw,4.4rem);line-height:.98;letter-spacing:-.035em;text-wrap:balance}
 .cpl-sec-head p{color:var(--cpl-muted);font-size:17px;max-width:36ch}
 
-.cpl-book{padding-bottom:clamp(40px,6vw,80px)}
+.cpl-book{padding-bottom:clamp(32px,4vw,56px)}
+.cpl-rooms{padding-top:clamp(48px,6vw,88px)}
 .cpl-book{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);align-items:start}
 .cpl-book-l{display:flex;flex-direction:column;gap:1.1rem}
 .cpl-book-l>p{color:var(--cpl-muted);font-size:17px;max-width:34ch}
@@ -2686,7 +2878,8 @@ const CPL_CSS = `
 .cpl-turn:active{transform:scale(.96)}
 .cpl-back-l p{font-size:14px;margin-top:.5rem;color:#3c3552;line-height:1.45}
 .cpl-back-l ul{margin-top:.6rem;display:grid;gap:.2rem;font-size:13.5px}
-.cpl-back-l li::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--cpl-coral);margin-right:.5rem;vertical-align:.1em}
+.cpl-back-l li{position:relative;padding-left:1rem}
+.cpl-back-l li::before{content:"";position:absolute;left:0;top:.5em;width:7px;height:7px;border-radius:50%;background:var(--cpl-coral)}
 .cpl-back-r{border-left:1.5px dashed rgba(25,29,58,.4);padding-left:1rem;display:flex;flex-direction:column;align-items:flex-end;gap:.8rem}
 .cpl-postmark{display:grid;place-items:center;width:62px;height:62px;border-radius:50%;border:2px solid var(--cpl-coral);color:var(--cpl-coral);font-family:var(--cpl-display);font-weight:800;font-size:14px;transform:rotate(-12deg);filter:brightness(.85)}
 .cpl-back-r dl{display:grid;gap:.4rem;font-size:13px;text-align:right}
@@ -2695,7 +2888,7 @@ const CPL_CSS = `
 .cpl-back-act{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
 .cpl-back-act .cpl-solid{--cpl-ink:#191d3a;min-height:40px;font-size:14px}
 
-.cpl-day{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);background:linear-gradient(180deg,var(--cpl-paper),color-mix(in srgb,var(--cpl-sky-low) 30%,var(--cpl-paper)));border-top:1.5px solid var(--cpl-rule);transition:background-color .4s}
+.cpl-day{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);background:linear-gradient(180deg,var(--cpl-paper),color-mix(in srgb,var(--cpl-sky-low) 12%,var(--cpl-paper)));border-top:1.5px solid var(--cpl-rule);transition:background-color .4s}
 .cpl-day-sticky{position:sticky;top:24px;display:flex;flex-direction:column;gap:1.1rem}
 .cpl-day-sticky>p{color:var(--cpl-muted);font-size:17px;max-width:38ch}
 .cpl-window{position:relative;aspect-ratio:10/7;border:1.5px solid var(--cpl-ink);border-radius:22px;overflow:hidden;box-shadow:6px 7px 0 var(--cpl-ink)}
@@ -2726,17 +2919,21 @@ const CPL_CSS = `
 
 .cpl-guest{position:relative}
 .cpl-awning{display:block;filter:drop-shadow(0 6px 0 rgba(25,29,58,.18))}
+.cpl-awning-foot{position:absolute;left:0;top:0;z-index:1;filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
 .cpl-guest-in{padding-top:clamp(40px,6vw,88px)}
 .cpl-quotes{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,2.6vw,40px);align-items:start;margin-top:clamp(28px,4vw,56px)}
 .cpl-quote{padding:9px;border-radius:16px;border:1.5px solid var(--cpl-ink);background:repeating-linear-gradient(135deg,var(--cpl-coral) 0 14px,#fffaf6 14px 22px,var(--cpl-pool) 22px 36px,#fffaf6 36px 44px);box-shadow:6px 7px 0 var(--cpl-ink);transition:transform .45s var(--cpl-ease)}
 .cpl-quote:nth-child(2){transform:rotate(1.2deg)}
 .cpl-quote:nth-child(3){transform:rotate(-.8deg)}
 .cpl-quote:hover{transform:rotate(0) translateY(-3px)}
-.cpl-letter{position:relative;display:flex;flex-direction:column;gap:1rem;padding:clamp(.9rem,1.6vw,1.3rem) clamp(1.1rem,2vw,1.7rem) clamp(1.1rem,2vw,1.6rem);background:#fffaf6;color:#191d3a;border-radius:9px}
-.cpl-letter-head{display:flex;justify-content:flex-end;align-items:center;min-height:76px;margin-right:-.5rem}
+.cpl-letter{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:.6rem;padding:clamp(.9rem,1.6vw,1.3rem) clamp(1.1rem,2vw,1.7rem) clamp(1.1rem,2vw,1.6rem);background:#fffaf6;color:#191d3a;border-radius:9px}
+.cpl-letter-head{display:flex;align-items:center;flex:none;margin:0 -.8rem -.4rem 0}
+.cpl-letter-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:.6rem;margin-top:.4rem}
+.cpl-letter blockquote{padding-top:.4rem}
 .cpl-lstamp{display:block;width:96px;height:74px;padding:4px;background:#fffaf6;outline:2px dashed rgba(25,29,58,.45);outline-offset:-1px;transform:rotate(3deg);overflow:hidden;flex:none}
-.cpl-quote-big .cpl-pm{margin-right:-46px;position:relative;z-index:1}
-.cpl-pm{display:block;color:var(--cpl-coral);opacity:.85;transform:rotate(-8deg);filter:brightness(.82)}
+.cpl-quote-big .cpl-pm{margin-right:-40px;position:relative;z-index:1}
+.cpl-pm svg{width:100%;height:auto}
+.cpl-pm{display:block;width:118px;color:var(--cpl-coral);opacity:.85;transform:rotate(-8deg);filter:brightness(.82)}
 .cpl-quote:nth-child(2){margin-top:clamp(0px,4vw,60px)}
 .cpl-quote:nth-child(3){margin-top:clamp(0px,2vw,24px)}
 .cpl-quote p{font-family:var(--cpl-display);font-weight:700;font-size:clamp(1.15rem,1rem + .5vw,1.45rem);line-height:1.3;letter-spacing:-.01em;text-wrap:pretty}
@@ -2749,27 +2946,39 @@ const CPL_CSS = `
 .cpl-visit-l>p{color:var(--cpl-muted);font-size:17px;max-width:44ch}
 .cpl-visit address{font-style:normal;display:flex;flex-direction:column;font-size:16px;line-height:1.5}
 .cpl-visit address a{text-underline-offset:3px;width:max-content}
-.cpl-sign{align-self:start;background:#1d5f43;color:#ffffff;border-radius:18px;padding:.6rem;box-shadow:0 0 0 3px #ffffff inset,6px 7px 0 var(--cpl-ink);border:1.5px solid var(--cpl-ink)}
+.cpl-visit-r{display:flex;flex-direction:column;gap:1.6rem}
+.cpl-visit-addr{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem 2rem}
+.cpl-sign{background:#1d5f43;color:#ffffff;border-radius:18px;padding:.6rem;box-shadow:0 0 0 3px #ffffff inset,6px 7px 0 var(--cpl-ink);border:1.5px solid var(--cpl-ink)}
+.cpl-sign-plate{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin:.2rem .2rem .3rem;padding:.65rem .9rem;border:2.5px solid #ffffff;border-radius:12px;font-family:var(--cpl-display);font-weight:800;letter-spacing:.06em;font-size:clamp(1rem,.9rem + .5vw,1.35rem)}
+.cpl-sign-plate span+span{font-size:.72em;letter-spacing:.08em;text-transform:uppercase;background:#ffffff;color:#1d5f43;padding:.15rem .5rem;border-radius:6px;white-space:nowrap}
 .cpl-sign li{display:flex;gap:.9rem;align-items:center;padding:.85rem 1rem;border-bottom:2px solid rgba(255,255,255,.35);font-family:var(--cpl-display);font-weight:700;font-size:clamp(1rem,.9rem + .4vw,1.25rem)}
 .cpl-sign li:last-child{border-bottom:0}
 .cpl-sign li span{flex:1}
 .cpl-sign b{font-variant-numeric:tabular-nums;white-space:nowrap}
 .cpl-sign-arrow{flex:none}
-.cpl-news{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:.4rem clamp(28px,5vw,80px);align-items:center;padding:clamp(22px,3vw,36px);background:var(--cpl-card);border:1.5px solid var(--cpl-ink);border-radius:26px}
-.cpl-news h3{font-family:var(--cpl-display);font-weight:800;font-size:clamp(1.5rem,1.1rem + 1.4vw,2.3rem);line-height:1.02;letter-spacing:-.03em}
-.cpl-news>p{grid-column:1;color:var(--cpl-muted);font-size:15px}
-.cpl-news-row,.cpl-news .cpl-ok,.cpl-news .cpl-err{grid-column:2;grid-row:1/3}
-.cpl-news .cpl-err{grid-row:3}
-.cpl-news-row{display:flex;gap:.6rem}
-.cpl-news input{flex:1;min-width:0;min-height:48px;padding:0 1.1rem;border-radius:999px;border:1.5px solid var(--cpl-ink);background:var(--cpl-paper);font-size:16px}
-.cpl-news input::placeholder{color:var(--cpl-muted);opacity:1}
+.cpl-news{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);padding:clamp(22px,3vw,40px);background:#fffaf6;color:#191d3a;border:1.5px solid var(--cpl-ink);border-radius:12px;box-shadow:6px 7px 0 var(--cpl-ink)}
+.cpl-news-l{display:flex;flex-direction:column;justify-content:center;gap:1rem;padding-right:clamp(20px,3vw,48px);border-right:1.5px dashed rgba(25,29,58,.4)}
+.cpl-news h3{font-family:var(--cpl-display);font-weight:800;font-size:clamp(1.6rem,1.1rem + 1.6vw,2.6rem);line-height:1.02;letter-spacing:-.03em}
+.cpl-news-l p{color:#4a4262;font-size:15px;max-width:34ch}
+.cpl-news-r{display:flex;flex-direction:column;gap:.9rem;padding-left:clamp(20px,3vw,48px)}
+.cpl-news-marks{display:flex;justify-content:flex-end;align-items:center}
+.cpl-pm-live{margin-right:-40px;position:relative;z-index:1}
+.cpl-news-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:.2rem .8rem}
+.cpl-news-to{font-family:var(--cpl-type);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.08em;padding-bottom:.55rem}
+.cpl-news input{min-width:0;min-height:44px;padding:0 .2rem;border:0;border-bottom:1.5px solid #191d3a;border-radius:0;background:transparent;font-size:17px;font-weight:600;color:#191d3a}
+.cpl-news input:focus-visible{outline-offset:4px}
+.cpl-news input::placeholder{color:#6a6280;opacity:1}
+.cpl-news-line{grid-column:1/-1;height:1.5px;background:rgba(25,29,58,.35);margin:1.4rem 0 .6rem}
+.cpl-news-row .cpl-btn{grid-column:1/-1;justify-self:start;--cpl-ink:#191d3a}
+.cpl-news .cpl-ok{font-weight:700;color:#191d3a}
+.cpl-news .cpl-err{filter:brightness(.8)}
 .cpl-news input[aria-invalid="true"]{border-color:var(--cpl-coral);animation:cpl-shake .4s}
 @keyframes cpl-shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
 .cpl-ok{font-weight:700}
 
 .cpl-foot{background:var(--cpl-night);color:#fde7e2}
-.cpl-foot-band{height:clamp(180px,22vw,320px);border-bottom:1.5px solid rgba(253,231,226,.25)}
-.cpl-foot-in{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:2rem clamp(28px,5vw,80px);padding:clamp(40px,5vw,72px) clamp(16px,4vw,64px) clamp(110px,10vw,140px)}
+.cpl-foot-band{position:relative;height:clamp(200px,30vw,440px);border-bottom:1.5px solid rgba(253,231,226,.25)}
+.cpl-foot-in{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:2rem clamp(28px,5vw,80px);padding:clamp(40px,5vw,72px) clamp(16px,4vw,64px) 96px}
 .cpl-wordmark-sm{width:min(100%,360px);margin:0}
 .cpl-foot-brand p{margin-top:1rem;color:#cfc6dc;max-width:34ch}
 .cpl-foot nav ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem 2rem;font-family:var(--cpl-display);font-weight:700;font-size:clamp(1.05rem,.95rem + .5vw,1.4rem)}
@@ -2791,6 +3000,10 @@ const CPL_CSS = `
 .cpl-menu{position:absolute;bottom:64px;pointer-events:auto;display:flex;flex-direction:column;min-width:220px;padding:.5rem;background:var(--cpl-paper);border:1.5px solid var(--cpl-ink);border-radius:22px;box-shadow:4px 5px 0 var(--cpl-ink);animation:cpl-pop .25s var(--cpl-ease)}
 .cpl-menu a{display:block;padding:.75rem 1rem;border-radius:14px;text-decoration:none;font-family:var(--cpl-display);font-weight:800;font-size:18px}
 .cpl-menu a:hover{background:var(--cpl-card)}
+.cpl-headmenu{display:none;min-height:40px;padding:0 1rem;border-radius:999px;border:1.5px solid var(--cpl-ink);background:transparent;font-weight:700;font-size:14px;cursor:pointer;transition:background-color .2s,color .2s}
+.cpl-headmenu:hover,.cpl-headmenu[aria-expanded="true"]{background:var(--cpl-ink);color:var(--cpl-paper)}
+.cpl-headmenu-pop{position:absolute;right:clamp(16px,3vw,40px);top:calc(100% + 6px)}
+.cpl-headmenu-pop .cpl-menu{position:static}
 
 .cpl-rv.cpl-arm{opacity:0;transform:translateY(12px);transition:opacity .5s var(--cpl-ease),transform .5s var(--cpl-ease)}
 .cpl-card.cpl-rv.cpl-arm{transform:translateY(16px)}
@@ -2801,7 +3014,7 @@ const CPL_CSS = `
 .cpl-place{display:none}
 .cpl-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cpl-book{grid-template-columns:1fr}
-.cpl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cpl-facts{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:52px}
 .cpl-quotes{grid-template-columns:1fr 1fr}
 .cpl-quote-big{grid-column:1/-1}
 .cpl-quote:nth-child(2){margin-top:0}
@@ -2829,12 +3042,14 @@ const CPL_CSS = `
 .cpl-quote:nth-child(n){margin-top:0}
 
 .cpl-visit{grid-template-columns:1fr}
-.cpl-news{grid-template-columns:1fr}
-.cpl-news-row,.cpl-news .cpl-ok,.cpl-news .cpl-err,.cpl-news>p{grid-column:1;grid-row:auto}
+.cpl-news{grid-template-columns:1fr;gap:1.2rem}
+.cpl-news-l{padding:0 0 1.2rem;border-right:0;border-bottom:1.5px dashed rgba(25,29,58,.4)}
+.cpl-news-r{padding:0}
 .cpl-foot-in{grid-template-columns:1fr}
 }
 @media (max-width:700px){
 .cpl-headnav{display:none}
+.cpl-headmenu{display:inline-flex;align-items:center}
 .cpl-head{grid-template-columns:1fr auto}
 .cpl-pill-links{display:none}
 .cpl-pill-menu{display:inline-flex;align-items:center}
@@ -2856,7 +3071,6 @@ const CPL_CSS = `
 .cpl-card:nth-child(even){margin-top:0}
 .cpl-form{grid-template-columns:1fr}
 .cpl-field-l{border-right:0}
-.cpl-news-row{flex-direction:column}
 .cpl-facts{grid-template-columns:1fr;gap:20px}
 .cpl-fact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:16px}
 .cpl-tileval{width:min(100%,calc(54px * var(--cpl-ar)))}
@@ -2878,3 +3092,8 @@ const CPL_CSS = `
 .cpl-rv.cpl-arm{opacity:1;transform:none}
 }
 `
+
+/* Declared after the JSX on purpose: the 21st CLI's tokenizer stalls on generics near the top. */
+export type CplSearchResult = { left?: number; total?: number }
+export type CplSearchReturn = void | false | CplSearchResult | Promise<void | false | CplSearchResult>
+export type CplSubscribeReturn = void | false | Promise<void | false>
