@@ -44,7 +44,7 @@ for (const gone of [
 const start = src.indexOf("// #region screen")
 const end = src.indexOf("// #endregion", start)
 assert.ok(start > -1 && end > start, "screen region markers missing")
-const names = "COLS, ROWS, bayer, ditherTone, normalizeText, textWidth, hexToRgb, toneRamp, layoutScene, codeScale, composeScene, applySignal, staticEnvelope, osdLabel"
+const names = "COLS, ROWS, gridSize, messageChars, bayer, ditherTone, normalizeText, textWidth, hexToRgb, toneRamp, layoutScene, codeScale, composeScene, applySignal, staticEnvelope, osdLabel"
 const m = await import(
   "data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end)).replace(/^export /gm, "") + "\nexport { " + names + " }")
 )
@@ -155,6 +155,39 @@ assert.equal(m.staticEnvelope(1), 0)
 assert.equal(m.staticEnvelope(0.15), 1)
 assert.ok(m.staticEnvelope(0.05) < m.staticEnvelope(0.1))
 assert.ok(m.staticEnvelope(0.6) > m.staticEnvelope(0.9))
+
+// The grid fits the screen's shape: 150 rows and more columns when wide,
+// about 200 columns and more rows when tall. Never smaller than the design.
+for (const [w, h] of [[1440, 900], [2560, 1080], [1024, 768], [1024, 900], [375, 812], [320, 900], [800, 800], [10000, 100], [0, 0]]) {
+  const [c, r] = m.gridSize(w, h)
+  assert.ok(Number.isInteger(c) && Number.isInteger(r), `${w}x${h}: whole cells`)
+  assert.ok(c >= 176 && c <= 420 && r >= 150 && r <= 560, `${w}x${h}: ${c}x${r} out of bounds`)
+  if (w && h && w / h >= 4 / 3 && w / h < 2.8) assert.equal(r, 150, "landscape keeps 150 rows")
+  if (w && h && w / h < 4 / 3 && w / h > 0.32) assert.ok(Math.abs(c / r - w / h) < 0.02, `${w}x${h}: aspect drifts`)
+}
+assert.deepEqual(m.gridSize(0, 0), [200, 150])
+assert.equal(m.messageChars(200), 24)
+assert.ok(m.messageChars(176) * 6 + 30 <= 176, "the message and its hearts fit a narrow grid")
+
+// Every grid: the ground sits on the bottom edge, the upper group above it,
+// and a full frame paints without going out of range.
+for (const [w, h] of [[1440, 900], [2560, 1080], [375, 812], [1024, 900]]) {
+  const [c, r] = m.gridSize(w, h)
+  const L = m.layoutScene("TAKE ME HOME", c, r)
+  assert.equal(L.mountain.baseY, r - 2, "the pyramid stands on the bottom edge")
+  assert.ok(L.dy + 92 < L.mountain.topY, "the message clears the pyramid")
+  assert.ok(L.hit.y + L.hit.h <= r && L.hit.x >= 0 && L.hit.x + L.hit.w <= c, "hit area stays on the grid")
+  const buf = new Uint8Array(c * r)
+  m.composeScene(buf, scene(), L)
+  assert.ok(buf.every((v) => v <= 4))
+  const lit = buf.filter((v) => v > 0).length / buf.length
+  assert.ok(lit > 0.12 && lit < 0.7, `${w}x${h}: odd amount of light ${lit}`)
+  // Both bottom corners have something in them on every shape (clouds).
+  assert.ok(buf[(r - 2) * c + 2] > 0 && buf[(r - 2) * c + c - 3] > 0, `${w}x${h}: bare bottom corner`)
+  const out = new Uint8Array(c * r)
+  m.applySignal(buf, out, 0, 1, 3, c, r)
+  assert.deepEqual(out, buf)
+}
 
 assert.equal(m.osdLabel(4), "CH 04")
 assert.equal(m.osdLabel(104), "CH 04", "channels wrap at 100")

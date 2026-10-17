@@ -7,18 +7,21 @@ import * as React from "react"
  * television. The picture is a 200 × 150 pixel scene (an eyebrow between
  * double rules, a chunky extruded error code, music notes, a heart-framed
  * message, and a pyramid between palm trees and clouds) lit up as round
- * phosphor dots with a soft bloom, set in a dark plastic set.
+ * phosphor dots with a soft bloom, filling the whole component like the
+ * glass of a tube. The grid sizes itself to the screen: 150 rows with more
+ * columns on wide screens, about 200 columns with more rows on tall ones,
+ * where a striped sun rises into the extra sky.
  *
  * Nothing is downloaded and no web fonts are used. Every glyph and sprite is
  * a bitmap in this file. Each frame is built into a small tone buffer, pushed
  * to a 200 × 150 canvas, scaled up with nearest-neighbour and masked by a
- * round-dot pattern. That 200 × 150 canvas is also the bloom layer.
+ * round-dot pattern. That small canvas is also the bloom layer.
  *
  * Interaction:
  * - The pyramid is the way out: hover or focus it and it brightens and its
  *   arrows blink. It is a real link (`homeHref`), so it works from the
  *   keyboard and with assistive tech.
- * - Click the screen, or press the CH button on the set, to change the
+ * - Click the screen, or press CH +, to change the
  *   channel: static, a vertical roll and torn rows, then the next message.
  * - The pointer leaves a phosphor trail, and the layers shift by whole
  *   pixels for parallax.
@@ -31,8 +34,27 @@ import * as React from "react"
  */
 
 // #region screen
+// The design size. The live grid keeps 150 rows and adds columns on wide
+// screens, or keeps about 200 columns and adds rows on tall ones, so the
+// picture fills the screen without cropping or stretching.
 export const COLS = 200
 export const ROWS = 150
+
+// The size of the grid being drawn. composeScene sets it from the layout.
+const G = { w: COLS, h: ROWS }
+
+/** Grid columns and rows for a screen of this size. */
+export function gridSize(width: number, height: number): number[] {
+  const aspect = width > 0 && height > 0 ? width / height : COLS / ROWS
+  if (aspect >= COLS / ROWS) return [Math.min(420, Math.round(ROWS * aspect)), ROWS]
+  const cols = Math.max(176, Math.min(COLS, Math.round(ROWS * aspect * 1.5)))
+  return [cols, Math.min(560, Math.round(cols / aspect))]
+}
+
+/** How many message characters fit between the hearts on a grid this wide. */
+export function messageChars(cols: number): number {
+  return Math.max(8, Math.min(24, Math.floor((cols - 36) / 6)))
+}
 
 // 5 × 7 bitmap font. Each number is one row; bit 4 is the leftmost pixel.
 const FONT: { [k: string]: number[] } = {
@@ -180,7 +202,13 @@ export function toneRamp(phosphor: string): { tones: number[][]; glass: number[]
 
 export type Rect = { x: number; y: number; w: number; h: number }
 export type SceneLayout = {
+  cols: number
+  rows: number
   cx: number
+  /** Rows the upper group (eyebrow, code, message) moves down by. */
+  dy: number
+  /** Rows the ground (pyramid, palms, clouds) moves down by; it sits on the bottom edge. */
+  by: number
   mountain: { topY: number; baseY: number; topW: number; baseW: number }
   label: { x: number; y: number; w: number; h: number; text: string }
   hit: Rect
@@ -190,20 +218,26 @@ const LABEL_Y = 120
 const MOUNTAIN_TOP = 98
 const MOUNTAIN_BASE = 148
 
-/** Where the pyramid and its label sit. The pyramid widens to fit the label. */
-export function layoutScene(label: string): SceneLayout {
-  const cx = COLS / 2
+/** Where everything sits on a grid. The pyramid widens to fit the label. */
+export function layoutScene(label: string, cols = COLS, rows = ROWS): SceneLayout {
+  const cx = Math.round(cols / 2)
+  const by = Math.max(0, rows - ROWS)
+  const dy = Math.round(by * 0.5)
   const w = textWidth(label)
-  const baseW = Math.min(COLS - 4, Math.max(150, w + 60))
+  const baseW = Math.min(cols - 4, Math.max(150, w + 60))
   const frac = (LABEL_Y + 3 - MOUNTAIN_TOP) / (MOUNTAIN_BASE - MOUNTAIN_TOP)
   const need = w + 18
   const topW = Math.max(30, Math.min(baseW - 20, Math.ceil((need - baseW * frac) / (1 - frac))))
   const lx = Math.round(cx - w / 2)
   return {
+    cols,
+    rows,
     cx,
-    mountain: { topY: MOUNTAIN_TOP, baseY: MOUNTAIN_BASE, topW, baseW },
-    label: { x: lx, y: LABEL_Y, w, h: 7, text: label },
-    hit: { x: Math.round(cx - baseW / 2), y: MOUNTAIN_TOP - 2, w: baseW, h: ROWS - MOUNTAIN_TOP + 2 },
+    dy,
+    by,
+    mountain: { topY: MOUNTAIN_TOP + by, baseY: MOUNTAIN_BASE + by, topW, baseW },
+    label: { x: lx, y: LABEL_Y + by, w, h: 7, text: label },
+    hit: { x: Math.round(cx - baseW / 2), y: MOUNTAIN_TOP + by - 2, w: baseW, h: ROWS - MOUNTAIN_TOP + 2 },
   }
 }
 
@@ -226,15 +260,15 @@ export type Scene = {
 function plot(buf: Uint8Array, x: number, y: number, tone: number) {
   x = Math.round(x)
   y = Math.round(y)
-  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return
-  buf[y * COLS + x] = tone
+  if (x < 0 || y < 0 || x >= G.w || y >= G.h) return
+  buf[y * G.w + x] = tone
 }
 
 function brighten(buf: Uint8Array, x: number, y: number, tone: number) {
   x = Math.round(x)
   y = Math.round(y)
-  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return
-  const i = y * COLS + x
+  if (x < 0 || y < 0 || x >= G.w || y >= G.h) return
+  const i = y * G.w + x
   if (buf[i] < tone) buf[i] = tone
 }
 
@@ -386,43 +420,73 @@ function drawPalm(buf: Uint8Array, bx: number, by: number, h: number, dir: numbe
   fillDisc(buf, tx + 1.5, ty + 2.5, 1.2, 2)
 }
 
-// [x, y, r]; mirrored for the right bank.
+// [x, y, r] for the left bank, x relative to the centre. Mirrored for the
+// right bank, and repeated outward on wide screens.
 const CLOUDS = [
-  [4, 144, 7], [13, 139, 7.5], [22, 142, 6], [30, 145, 7], [41, 147, 6], [51, 149, 5],
-  [63, 148, 4], [71, 144, 5], [79, 146, 4], [87, 149, 4],
+  [-96, 144, 7], [-87, 139, 7.5], [-78, 142, 6], [-70, 145, 7], [-59, 147, 6], [-49, 149, 5],
+  [-37, 148, 4], [-29, 144, 5], [-21, 146, 4], [-13, 149, 4],
 ]
 
-function drawClouds(buf: Uint8Array, drift: number[], ox: number, oy: number) {
-  const discs = CLOUDS.map((c, i) => [c[0] + drift[i % drift.length], c[1], c[2]]).concat(
-    CLOUDS.map((c, i) => [COLS - c[0] - drift[(i + 2) % drift.length], c[1] + (i % 2), c[2]]),
-  )
+function drawClouds(buf: Uint8Array, L: SceneLayout, drift: number[], ox: number, oy: number) {
+  // A cloud anchored in each bottom corner, so no shape of screen leaves one bare.
+  const discs: number[][] = [[-1 + drift[0], L.rows - 3, 7], [L.cols + drift[1], L.rows - 4, 7.5]]
+  for (let k = 0; L.cx - 13 - k * 88 >= -10; k++) {
+    CLOUDS.forEach((c, i) => {
+      const lift = k % 2 ? (i % 3) - 1 : 0
+      discs.push([L.cx + c[0] - k * 88 + drift[i % drift.length], c[1] + L.by + lift, c[2]])
+      discs.push([L.cx - c[0] + k * 88 - drift[(i + 2) % drift.length], c[1] + L.by + (i % 2) - lift, c[2]])
+    })
+  }
   for (const [x, y, r] of discs) fillDisc(buf, x + ox + 1, y + oy + 1, r, 2)
   for (const [x, y, r] of discs) fillDisc(buf, x + ox, y + oy, r - 0.6, 3)
   for (const [x, y, r] of discs) fillDisc(buf, x + ox - 0.8, y + oy - 0.8, r - 1.9, 4)
 }
 
+// Palms by distance from the centre: [distance, height, lean]. Lean +1 is
+// toward the centre on the left. More stand outward on wide screens.
+function palmsFor(L: SceneLayout): number[][] {
+  const out = [[64, 46, 1], [81, 27, -1]]
+  for (let k = 1, d = 81 + 46; L.cx - d >= -6; k++, d += 46) out.push([d, k % 2 ? 36 : 27, k % 2 ? 1 : -1])
+  return out
+}
+
+// Normalised: [u, v, phase].
 const STARS = (() => {
   const rnd = mulberry32(404)
   const out: number[][] = []
-  while (out.length < 22) {
-    const x = Math.round(4 + rnd() * (COLS - 8))
-    const y = Math.round(3 + rnd() * 88)
-    if (Math.abs(x - COLS / 2) < 60 && y > 22 && y < 72) continue
-    out.push([x, y, rnd() * 6.28])
-  }
+  for (let i = 0; i < 90; i++) out.push([rnd(), rnd(), rnd() * 6.28])
   return out
 })()
 
+/** A striped sun rising behind the pyramid, for tall screens with sky to spare. */
+function drawSun(buf: Uint8Array, cx: number, cy: number, r: number, t: number) {
+  for (let y = Math.floor(cy - r); y <= cy; y++) {
+    const f = (y - (cy - r)) / r
+    const half = Math.sqrt(Math.max(0, r * r - (cy - y) * (cy - y)))
+    const cut = f > 0.42 && ((((y - t * 3) % 8) + 8) % 8) < (f - 0.42) * 7
+    if (cut) continue
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) plot(buf, x, y, ditherTone(3.5 - f * 1.3, x, y))
+  }
+}
+
 /** Paint one frame of the picture into `buf` (COLS × ROWS tones, 0..4). */
 export function composeScene(buf: Uint8Array, scene: Scene, L: SceneLayout) {
+  G.w = L.cols
+  G.h = L.rows
   buf.fill(0)
   const { t, px, py } = scene
-  const off = (k: number) => [Math.round(px * k), Math.round(py * k * 0.5)]
+  const off = (k: number, down = L.dy) => [Math.round(px * k), Math.round(py * k * 0.5) + down]
+  const skyRows = L.mountain.topY - 4
 
-  // Sky sparkles.
+  // Sky sparkles, about one per 900 pixels of sky, kept off the code.
   {
-    const [ox, oy] = off(0.6)
-    for (const [x, y, ph] of STARS) {
+    const [ox, oy] = off(0.6, 0)
+    const n = Math.min(STARS.length, Math.round((L.cols * skyRows) / 840))
+    for (let i = 0; i < n; i++) {
+      const [u, v, ph] = STARS[i]
+      const x = Math.round(4 + u * (L.cols - 8))
+      const y = Math.round(3 + v * (skyRows - 3))
+      if (Math.abs(x - L.cx) < 84 && y > L.dy + 8 && y < L.dy + 92) continue
       const tw = Math.sin(t * 1.7 + ph * 3)
       if (tw > 0.72) {
         plot(buf, x + ox, y + oy, 4)
@@ -450,13 +514,13 @@ export function composeScene(buf: Uint8Array, scene: Scene, L: SceneLayout) {
   {
     const [ox, oy] = off(3.2)
     const notes: [string[], number, number][] = [
-      [CLEF, 40, 25], [NOTE, 22, 46], [NOTES, 32, 63],
-      [NOTE, 164, 24], [NOTES, 168, 43], [CLEF, 156, 58],
+      [CLEF, -60, 25], [NOTE, -78, 46], [NOTES, -68, 63],
+      [NOTE, 64, 24], [NOTES, 68, 43], [CLEF, 56, 58],
     ]
     notes.forEach(([sprite, x, y], i) => {
       const bob = Math.round(Math.sin(t * 2.1 + i * 1.3) * 1.6)
       const lit = Math.sin(t * 1.3 + i * 2.1) > 0.55 ? 4 : 3
-      drawSprite(buf, sprite, x + ox, y + oy + bob, lit)
+      drawSprite(buf, sprite, L.cx + x + ox, y + oy + bob, lit)
     })
   }
 
@@ -481,9 +545,18 @@ export function composeScene(buf: Uint8Array, scene: Scene, L: SceneLayout) {
     drawSprite(buf, heart, x + w + 7 - Math.floor(hw / 2) + 3, hy, 4)
   }
 
+  // On tall screens, a sun fills the sky between the message and the pyramid.
+  {
+    const room = L.mountain.topY - (L.dy + 92)
+    if (room >= 34) {
+      const [ox, oy] = off(0.8, 0)
+      drawSun(buf, L.cx + ox, L.mountain.topY + 8 + oy, Math.min(L.cols * 0.34, room + 4), t)
+    }
+  }
+
   // Pyramid — the link home.
   {
-    const [ox, oy] = off(1)
+    const [ox, oy] = off(1, 0)
     drawMountain(buf, L, scene.hover, ox, oy)
     if (scene.hover > 0.5 && (t * 2.4) % 1 < 0.62) {
       drawSprite(buf, ARROW_R, L.label.x - 7 + ox, L.label.y + 1 + oy, 0)
@@ -493,18 +566,19 @@ export function composeScene(buf: Uint8Array, scene: Scene, L: SceneLayout) {
 
   // Palms.
   {
-    const [ox, oy] = off(2.2)
-    drawPalm(buf, 36 + ox, 149 + oy, 46, 1, t * 0.9)
-    drawPalm(buf, 19 + ox, 150 + oy, 27, -1, t * 0.9 + 1.7)
-    drawPalm(buf, COLS - 36 + ox, 149 + oy, 46, -1, t * 0.9 + 0.8)
-    drawPalm(buf, COLS - 19 + ox, 150 + oy, 27, 1, t * 0.9 + 2.6)
+    const [ox, oy] = off(2.2, 0)
+    palmsFor(L).forEach(([d, h, lean], i) => {
+      const base = L.rows - (h > 40 ? 1 : 0)
+      drawPalm(buf, L.cx - d + ox, base + oy, h, lean, t * 0.9 + i * 1.7)
+      drawPalm(buf, L.cx + d + ox, base + oy, h, -lean, t * 0.9 + i * 1.7 + 0.8)
+    })
   }
 
   // Cloud banks drift a little in front of everything.
   {
-    const [ox, oy] = off(3.6)
+    const [ox, oy] = off(3.6, 0)
     const drift = [0, 1, 2].map((i) => Math.round(Math.sin(t * 0.32 + i * 2) * 2))
-    drawClouds(buf, drift, ox, oy)
+    drawClouds(buf, L, drift, ox, oy)
   }
 
   // Channel display, top left, the way a set shows it after you press CH.
@@ -519,27 +593,27 @@ export function composeScene(buf: Uint8Array, scene: Scene, L: SceneLayout) {
  * exactly. Toward 1 it rolls the frame, tears rows sideways and buries it in
  * snow.
  */
-export function applySignal(src: Uint8Array, dst: Uint8Array, strength: number, t: number, seed: number) {
+export function applySignal(src: Uint8Array, dst: Uint8Array, strength: number, t: number, seed: number, cols = G.w, rows = G.h) {
   if (strength <= 0) {
     dst.set(src)
     return
   }
   const rnd = mulberry32(seed)
-  const roll = Math.round(strength * strength * ROWS * 0.35)
-  for (let y = 0; y < ROWS; y++) {
+  const roll = Math.round(strength * strength * rows * 0.35)
+  for (let y = 0; y < rows; y++) {
     let tear = Math.round(Math.sin(y * 0.21 + t * 37) * strength * 7)
     if (rnd() < strength * 0.14) tear += Math.round((rnd() - 0.5) * 34 * strength)
-    const sy = (y + roll) % ROWS
-    const bar = Math.abs(((t * 3) % 1) * ROWS - y) < 3 && strength > 0.3
-    for (let x = 0; x < COLS; x++) {
-      const sx = (((x - tear) % COLS) + COLS) % COLS
-      let v = src[sy * COLS + sx]
+    const sy = (y + roll) % rows
+    const bar = Math.abs(((t * 3) % 1) * rows - y) < 3 && strength > 0.3
+    for (let x = 0; x < cols; x++) {
+      const sx = (((x - tear) % cols) + cols) % cols
+      let v = src[sy * cols + sx]
       if (rnd() < strength * 0.85) {
         const r = rnd()
         v = r < 0.45 ? 0 : r < 0.7 ? 1 : r < 0.86 ? 2 : r < 0.95 ? 3 : 4
       }
       if (bar && v < 4) v++
-      dst[y * COLS + x] = v
+      dst[y * cols + x] = v
     }
   }
 }
@@ -649,25 +723,25 @@ export default function PhosphorCrt404({
   className = "",
   style,
 }: PhosphorCrt404Props) {
-  const screenRef = React.useRef(null as HTMLDivElement | null)
+  const screenRef = React.useRef(null as HTMLElement | null)
   const fitRef = React.useRef(null as HTMLDivElement | null)
   const dotRef = React.useRef(null as HTMLCanvasElement | null)
   const lowRef = React.useRef(null as HTMLCanvasElement | null)
-  const linkRef = React.useRef(null as HTMLAnchorElement | null)
-  const rootRef = React.useRef(null as HTMLElement | null)
 
   const [msgIndex, setMsgIndex] = React.useState(0)
   const [ch, setCh] = React.useState(channel)
   const [power, setPower] = React.useState(true)
   const [busy, setBusy] = React.useState(0)
+  const [dims, setDims] = React.useState([COLS, ROWS])
+  const [cols, rows] = dims
 
   const cleanCode = normalizeText(code, 5).replace(/ /g, "") || "404"
   const cleanEyebrow = normalizeText(eyebrow, 24)
   const cleanLabel = normalizeText(homeLabel, 18) || "HOME"
-  const list = (messages && messages.length ? messages : DEFAULT_MESSAGES).map((m) => normalizeText(m, 24))
-  const layout = React.useMemo(() => layoutScene(cleanLabel), [cleanLabel])
-  const titleId = React.useId()
+  const list = (messages && messages.length ? messages : DEFAULT_MESSAGES).map((m) => normalizeText(m, messageChars(cols)))
+  const layout = React.useMemo(() => layoutScene(cleanLabel, cols, rows), [cleanLabel, cols, rows])
   const ramp = React.useMemo(() => toneRamp(phosphor), [phosphor])
+  const titleId = React.useId()
 
   // Everything the frame loop reads, refreshed every render.
   const live = React.useRef({
@@ -679,8 +753,7 @@ export default function PhosphorCrt404({
   // Mutable animation state.
   const st = React.useRef({
     hover: 0, hoverTarget: 0, px: 0, py: 0, tpx: 0, tpy: 0,
-    retuneAt: -1, swapped: true, bootAt: 0, osdUntil: 0, offAt: -1,
-    trail: new Float32Array(COLS * ROWS), reduced: false, start: 0,
+    retuneAt: -1, swapped: true, bootAt: 0, osdUntil: 0, offAt: -1, reduced: false, start: 0,
   })
 
   const retune = React.useCallback(() => {
@@ -732,11 +805,14 @@ export default function PhosphorCrt404({
     const onMotion = () => (s.reduced = mq.matches)
     mq.addEventListener("change", onMotion)
 
-    low.width = COLS
-    low.height = ROWS
-    const image = lctx.createImageData(COLS, ROWS)
-    const scene = new Uint8Array(COLS * ROWS)
-    const out = new Uint8Array(COLS * ROWS)
+    // Buffers follow the grid, which follows the screen's shape.
+    let gw = 0
+    let gh = 0
+    let image = lctx.createImageData(1, 1)
+    let scene = new Uint8Array(0)
+    let out = new Uint8Array(0)
+    let trail = new Float32Array(0)
+
     // The dot mask is drawn once per size at device resolution, one dot per
     // picture pixel, so the dots stay crisp at any (fractional) cell size.
     const mask = document.createElement("canvas")
@@ -745,22 +821,34 @@ export default function PhosphorCrt404({
     const resize = () => {
       const r = screen.getBoundingClientRect()
       if (r.width < 4 || r.height < 4 || !mctx) return
+      const [c, h] = gridSize(r.width, r.height)
+      if (c !== gw || h !== gh) {
+        gw = c
+        gh = h
+        low.width = gw
+        low.height = gh
+        image = lctx.createImageData(gw, gh)
+        scene = new Uint8Array(gw * gh)
+        out = new Uint8Array(gw * gh)
+        trail = new Float32Array(gw * gh)
+        setDims([gw, gh])
+      }
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      // Fill the glass: the picture runs a hair past the tube, like overscan.
-      const scale = Math.max(r.width / COLS, r.height / ROWS) * 1.015
-      fit.style.width = COLS * scale + "px"
-      fit.style.height = ROWS * scale + "px"
-      dot.width = mask.width = Math.max(COLS, Math.round(COLS * scale * dpr))
-      dot.height = mask.height = Math.max(ROWS, Math.round(ROWS * scale * dpr))
-      const cw = dot.width / COLS
-      const chh = dot.height / ROWS
+      // Fill the glass: the picture runs a hair past the edges, like overscan.
+      const scale = Math.max(r.width / gw, r.height / gh) * 1.01
+      fit.style.width = gw * scale + "px"
+      fit.style.height = gh * scale + "px"
+      dot.width = mask.width = Math.max(gw, Math.round(gw * scale * dpr))
+      dot.height = mask.height = Math.max(gh, Math.round(gh * scale * dpr))
+      const cw = dot.width / gw
+      const chh = dot.height / gh
       mctx.clearRect(0, 0, mask.width, mask.height)
       mctx.fillStyle = "#fff"
       if (cw >= 3) {
         const rad = Math.min(cw, chh) * 0.45
         mctx.beginPath()
-        for (let y = 0; y < ROWS; y++) {
-          for (let x = 0; x < COLS; x++) {
+        for (let y = 0; y < gh; y++) {
+          for (let x = 0; x < gw; x++) {
             const cx = (x + 0.5) * cw
             const cy = (y + 0.5) * chh
             mctx.moveTo(cx + rad, cy)
@@ -769,7 +857,7 @@ export default function PhosphorCrt404({
         }
         mctx.fill()
       } else {
-        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) mctx.fillRect(x * cw, y * chh, cw * 0.7, chh * 0.7)
+        for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) mctx.fillRect(x * cw, y * chh, cw * 0.7, chh * 0.7)
       }
     }
     resize()
@@ -782,18 +870,18 @@ export default function PhosphorCrt404({
 
     const onMove = (e: PointerEvent) => {
       const fr = fit.getBoundingClientRect()
-      const gx = ((e.clientX - fr.left) / fr.width) * COLS
-      const gy = ((e.clientY - fr.top) / fr.height) * ROWS
+      const gx = ((e.clientX - fr.left) / fr.width) * gw
+      const gy = ((e.clientY - fr.top) / fr.height) * gh
       const R = 6
       for (let y = Math.floor(gy - R); y <= gy + R; y++) {
         for (let x = Math.floor(gx - R); x <= gx + R; x++) {
-          if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue
+          if (x < 0 || y < 0 || x >= gw || y >= gh) continue
           const v = 1 - Math.hypot(x - gx, y - gy) / R
-          const i = y * COLS + x
-          if (v > s.trail[i]) s.trail[i] = v
+          const i = y * gw + x
+          if (v > trail[i]) trail[i] = v
         }
       }
-      const rr = (rootRef.current || screen).getBoundingClientRect()
+      const rr = screen.getBoundingClientRect()
       s.tpx = Math.max(-1, Math.min(1, ((e.clientX - rr.left) / rr.width) * 2 - 1))
       s.tpy = Math.max(-1, Math.min(1, ((e.clientY - rr.top) / rr.height) * 2 - 1))
     }
@@ -801,9 +889,8 @@ export default function PhosphorCrt404({
       s.tpx = 0
       s.tpy = 0
     }
-    const root = rootRef.current || screen
-    root.addEventListener("pointermove", onMove)
-    root.addEventListener("pointerleave", onLeave)
+    screen.addEventListener("pointermove", onMove)
+    screen.addEventListener("pointerleave", onLeave)
 
     s.start = performance.now() / 1000
     s.bootAt = s.start
@@ -815,13 +902,13 @@ export default function PhosphorCrt404({
     const frame = (ms: number) => {
       raf = requestAnimationFrame(frame)
       if (!visible || document.hidden || ms - last < 1000 / 30 - 2) return
+      const l = live.current
+      // A resize lands a render later than the buffers; skip until the layout catches up.
+      if (l.layout.cols !== gw || l.layout.rows !== gh) return
       last = ms
       frameNo++
       const now = ms / 1000
-      const l = live.current
-      if (!l.power) {
-        if (s.offAt > 0 && now - s.offAt > 0.7) return
-      }
+      if (!l.power && s.offAt > 0 && now - s.offAt > 0.7) return
       const reduced = s.reduced
       const t = reduced ? 1.3 : now - s.start
 
@@ -860,18 +947,17 @@ export default function PhosphorCrt404({
         },
         l.layout,
       )
-      applySignal(scene, out, reduced ? 0 : strength, t, frameNo * 7919 + 1)
+      applySignal(scene, out, reduced ? 0 : strength, t, frameNo * 7919 + 1, gw, gh)
 
       // Phosphor trail, and a faint idle shimmer.
-      const tr = s.trail
       const shimmer = reduced ? null : mulberry32(frameNo)
       for (let i = 0; i < out.length; i++) {
-        const v = tr[i]
+        const v = trail[i]
         if (v > 0.01) {
           if (v > 0.7 && out[i] < 2) out[i] = 2
           else if (v > 0.2 && out[i] < 4) out[i]++
-          tr[i] = v * 0.86
-        } else if (v) tr[i] = 0
+          trail[i] = v * 0.86
+        } else if (v) trail[i] = 0
         if (shimmer && out[i] && out[i] < 4 && shimmer() < 0.003) out[i]++
       }
 
@@ -900,24 +986,35 @@ export default function PhosphorCrt404({
       ro.disconnect()
       io.disconnect()
       mq.removeEventListener("change", onMotion)
-      root.removeEventListener("pointermove", onMove)
-      root.removeEventListener("pointerleave", onLeave)
+      screen.removeEventListener("pointermove", onMove)
+      screen.removeEventListener("pointerleave", onLeave)
     }
   }, [])
 
   const hit = layout.hit
-  const glow = rgb(hexToRgb(phosphor))
-  const glass = rgb(ramp.glass)
+  const ink = hexToRgb(phosphor)
+  const glow = rgb(ink)
   const message = list[msgIndex % list.length] || ""
+  const pill =
+    "p4c-knob inline-flex h-8 select-none items-center justify-center rounded-full font-mono text-[11px] font-semibold tracking-[0.2em] backdrop-blur-md disabled:opacity-40"
+  const pillStyle = {
+    color: rgb(ink, 0.85),
+    background: "rgba(20,10,13,.55)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px " + rgb(ink, 0.28) + ", 0 6px 18px rgba(0,0,0,.45)",
+  }
 
   return (
     <section
-      ref={rootRef}
-      className={"p4c-root relative flex w-full items-center justify-center overflow-hidden " + className}
+      ref={screenRef}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a, button")) return
+        retune()
+      }}
+      className={"p4c-root relative w-full cursor-pointer overflow-hidden " + className}
       style={{
         height,
-        background:
-          "radial-gradient(120% 85% at 50% 38%, #2a2326 0%, #151214 58%, #0b0a0b 100%)",
+        background: rgb(ramp.glass),
+        isolation: "isolate",
         ["--p4c-glow" as string]: glow,
         ...style,
       }}
@@ -931,227 +1028,130 @@ export default function PhosphorCrt404({
         {power ? osdLabel(ch) + ": " + message.toLowerCase() : "Screen off"}
       </p>
 
-      {/* Light the screen throws into the room. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-700"
-        style={{
-          width: "90%",
-          height: "80%",
-          background: "radial-gradient(closest-side, " + rgb(hexToRgb(phosphor), 0.14) + ", transparent)",
-          opacity: power ? 1 : 0.15,
-        }}
-      />
-
-      <div
-        className="relative"
-        style={{
-          width: "min(92%, 1080px, calc(" + height + " * 0.86 * 1.233))",
-          aspectRatio: "735 / 596",
-          containerType: "inline-size",
-        }}
-      >
-        {/* Shadow on the floor. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-[6%] right-[6%]"
-          style={{ bottom: "-5%", height: "9%", background: "radial-gradient(closest-side, rgba(0,0,0,.75), transparent)", filter: "blur(6px)" }}
-        />
-
-        {/* The set. */}
-        <div
-          className="absolute inset-0"
-          style={{
-            borderRadius: "5.4% / 6.6%",
-            background: "linear-gradient(180deg, #3b3538 0%, #2a2427 38%, #1d191b 100%)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,.14), inset 0 -3px 0 rgba(0,0,0,.45), inset 2px 0 0 rgba(255,255,255,.03), 0 40px 70px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.65)",
-          }}
-        >
-          {/* Recessed bezel, tinted by the tube. */}
-          <div
-            className="absolute"
+      {/* The picture. */}
+      <div className="p4c-pic absolute inset-0 flex items-center justify-center" data-power={power ? "on" : "off"}>
+        <div className="p4c-flicker relative shrink-0" ref={fitRef}>
+          <canvas
+            ref={dotRef}
+            aria-hidden
+            className="absolute left-0 top-0 block"
+            style={{ width: "100%", height: "100%", maxWidth: "none" }}
+          />
+          <canvas
+            ref={lowRef}
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 block"
             style={{
-              inset: "3.1% 3% 10.5% 3%",
-              borderRadius: "4.4% / 5.6%",
-              background:
-                "linear-gradient(180deg, color-mix(in srgb, " + glow + " 9%, #1a1416) 0%, #110d0f 55%, color-mix(in srgb, " + glow + " 7%, #120e10) 100%)",
-              boxShadow:
-                "inset 0 0 0 1px rgba(0,0,0,.7), inset 0 8px 18px rgba(0,0,0,.75), 0 1px 0 rgba(255,255,255,.08)",
+              width: "100%",
+              height: "100%",
+              maxWidth: "none",
+              filter: "blur(5px) saturate(1.25) contrast(1.35)",
+              mixBlendMode: "screen",
+              opacity: 0.6,
+            }}
+          />
+          <a
+            href={homeHref}
+            onClick={(e) => onHome?.(e)}
+            onPointerEnter={() => (st.current.hoverTarget = 1)}
+            onPointerLeave={() => (st.current.hoverTarget = 0)}
+            onFocus={() => (st.current.hoverTarget = 1)}
+            onBlur={() => (st.current.hoverTarget = 0)}
+            className="p4c-link absolute block rounded-sm"
+            style={{
+              left: (hit.x / cols) * 100 + "%",
+              top: (hit.y / rows) * 100 + "%",
+              width: (hit.w / cols) * 100 + "%",
+              height: (hit.h / rows) * 100 + "%",
+              clipPath:
+                "polygon(" + (50 - (layout.mountain.topW / hit.w) * 50) + "% 0, " + (50 + (layout.mountain.topW / hit.w) * 50) + "% 0, 100% 100%, 0 100%)",
             }}
           >
-            {/* The tube. */}
-            <div
-              ref={screenRef}
-              onClick={(e) => {
-                if ((e.target as HTMLElement).closest("a, button")) return
-                retune()
-              }}
-              className="absolute cursor-pointer overflow-hidden"
-              style={{
-                inset: "4.2% 3.6%",
-                borderRadius: "5% / 7%",
-                background: glass,
-                isolation: "isolate",
-                boxShadow: "0 0 0 1px rgba(0,0,0,.85), 0 0 28px " + rgb(hexToRgb(phosphor), power ? 0.22 : 0),
-              }}
-            >
-              <div className="p4c-pic absolute inset-0 flex items-center justify-center" data-power={power ? "on" : "off"}>
-                <div className={"p4c-flicker relative shrink-0"} ref={fitRef}>
-                  <canvas
-                    ref={dotRef}
-                    aria-hidden
-                    className="absolute left-0 top-0 block"
-                    style={{ width: "100%", height: "100%", maxWidth: "none" }}
-                  />
-                  <canvas
-                    ref={lowRef}
-                    aria-hidden
-                    className="pointer-events-none absolute left-0 top-0 block"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      maxWidth: "none",
-                      filter: "blur(5px) saturate(1.25) contrast(1.35)",
-                      mixBlendMode: "screen",
-                      opacity: 0.6,
-                    }}
-                  />
-                  <a
-                    ref={linkRef}
-                    href={homeHref}
-                    onClick={(e) => onHome?.(e)}
-                    onPointerEnter={() => (st.current.hoverTarget = 1)}
-                    onPointerLeave={() => (st.current.hoverTarget = 0)}
-                    onFocus={() => (st.current.hoverTarget = 1)}
-                    onBlur={() => (st.current.hoverTarget = 0)}
-                    className="p4c-link absolute block rounded-sm"
-                    style={{
-                      left: (hit.x / COLS) * 100 + "%",
-                      top: (hit.y / ROWS) * 100 + "%",
-                      width: (hit.w / COLS) * 100 + "%",
-                      height: (hit.h / ROWS) * 100 + "%",
-                      clipPath: "polygon(" + (50 - (layout.mountain.topW / hit.w) * 50) + "% 0, " + (50 + (layout.mountain.topW / hit.w) * 50) + "% 0, 100% 100%, 0 100%)",
-                    }}
-                  >
-                    <span className="sr-only">{homeLabel}</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Afterglow when the set is switched off. */}
-              <div
-                aria-hidden
-                className="p4c-dot pointer-events-none absolute left-1/2 top-1/2 -ml-[2%] -mt-[2%] aspect-square w-[4%] rounded-full"
-                data-power={power ? "on" : "off"}
-                style={{ background: "radial-gradient(closest-side, #fff, " + glow + " 40%, transparent)" }}
-              />
-
-              {/* Glass: rolling refresh band, vignette, reflection. */}
-              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div
-                  className="p4c-roll absolute inset-x-0 top-0 h-[22%] motion-reduce:hidden"
-                  style={{ background: "linear-gradient(180deg, transparent, " + rgb(hexToRgb(phosphor), power ? 0.05 : 0) + ", transparent)" }}
-                />
-              </div>
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(120% 120% at 50% 50%, transparent 52%, rgba(0,0,0,.42) 78%, rgba(0,0,0,.82) 100%)",
-                  borderRadius: "inherit",
-                }}
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(162deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,.025) 22%, transparent 38%), radial-gradient(60% 30% at 30% 6%, rgba(255,255,255,.06), transparent 70%)",
-                  borderRadius: "inherit",
-                  boxShadow: "inset 0 0 40px rgba(0,0,0,.8), inset 0 0 6px rgba(0,0,0,.9)",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Chin: badge, LED, CH and power. */}
-          <div
-            className="absolute flex items-center justify-between"
-            style={{ left: "5.2%", right: "5.2%", bottom: "2.6%", height: "6.4%" }}
-          >
-            <span
-              className="select-none font-mono font-semibold uppercase"
-              style={{
-                fontSize: "clamp(6px, 1.25cqw, 12px)",
-                letterSpacing: "0.32em",
-                color: "rgba(255,255,255,.2)",
-                textShadow: "0 1px 0 rgba(0,0,0,.6), 0 -1px 0 rgba(255,255,255,.05)",
-              }}
-            >
-              {brand}
-            </span>
-            <div className="flex items-center" style={{ gap: "clamp(6px, 1.6cqw, 16px)" }}>
-              <span
-                key={busy}
-                aria-hidden
-                className="p4c-led block rounded-full transition-[background,box-shadow] duration-300"
-                data-busy={busy > 0 ? "true" : "false"}
-                style={{
-                  width: "clamp(4px, .8cqw, 8px)",
-                  height: "clamp(4px, .8cqw, 8px)",
-                  background: power ? glow : "#3a2a2e",
-                  boxShadow: power ? "0 0 8px " + glow + ", 0 0 2px #fff inset" : "inset 0 1px 1px rgba(0,0,0,.6)",
-                }}
-              />
-              <button
-                type="button"
-                onClick={retune}
-                disabled={!power}
-                aria-label="Change channel"
-                className="p4c-knob select-none rounded-full font-mono font-semibold text-white/55 enabled:hover:text-white/85 disabled:opacity-40"
-                style={{
-                  fontSize: "clamp(6px, 1.05cqw, 11px)",
-                  letterSpacing: "0.18em",
-                  padding: "clamp(2px, .45cqw, 5px) clamp(6px, 1.2cqw, 12px)",
-                  background: "linear-gradient(180deg, #3d373a, #252023)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.55)",
-                }}
-              >
-                CH +
-              </button>
-              <button
-                type="button"
-                onClick={togglePower}
-                aria-label={power ? "Turn the screen off" : "Turn the screen on"}
-                aria-pressed={power}
-                className="p4c-knob grid place-items-center rounded-full"
-                style={{
-                  width: "clamp(14px, 2.5cqw, 26px)",
-                  height: "clamp(14px, 2.5cqw, 26px)",
-                  background: "radial-gradient(circle at 40% 35%, #4a4346, #1f1b1d 70%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,.16), 0 1px 3px rgba(0,0,0,.8), 0 0 0 1px rgba(0,0,0,.6)",
-                }}
-              >
-                <svg viewBox="0 0 16 16" width="55%" height="55%" aria-hidden fill="none" stroke={power ? glow : "rgba(255,255,255,.45)"} strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M5 4.2a5 5 0 1 0 6 0" />
-                  <path d="M8 2.2v5.2" />
-                </svg>
-              </button>
-            </div>
-          </div>
+            <span className="sr-only">{homeLabel}</span>
+          </a>
         </div>
       </div>
 
-      {hint ? (
-        <p
-          className="pointer-events-none absolute inset-x-0 select-none text-center font-mono uppercase"
-          style={{ bottom: "max(14px, 3.2%)", fontSize: 10, letterSpacing: "0.28em", color: rgb(hexToRgb(phosphor), 0.55) }}
-        >
-          {hint}
-        </p>
-      ) : null}
+      {/* Afterglow when the screen is switched off. */}
+      <div
+        aria-hidden
+        className="p4c-dot pointer-events-none absolute left-1/2 top-1/2 -ml-[1.5vmin] -mt-[1.5vmin] h-[3vmin] w-[3vmin] rounded-full"
+        data-power={power ? "on" : "off"}
+        style={{ background: "radial-gradient(closest-side, #fff, " + glow + " 40%, transparent)" }}
+      />
+
+      {/* Glass: rolling refresh band, tube vignette, reflection. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="p4c-roll absolute inset-x-0 top-0 h-[22%] motion-reduce:hidden"
+          style={{ background: "linear-gradient(180deg, transparent, " + rgb(ink, power ? 0.045 : 0) + ", transparent)" }}
+        />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(130% 125% at 50% 50%, transparent 50%, rgba(0,0,0,.38) 76%, rgba(0,0,0,.78) 100%)",
+          boxShadow: "inset 0 0 90px rgba(0,0,0,.65), inset 0 0 14px rgba(0,0,0,.8)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(165deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.02) 20%, transparent 36%), radial-gradient(55% 28% at 28% 4%, rgba(255,255,255,.05), transparent 70%)",
+        }}
+      />
+
+      {/* Controls in the top-right corner, over dark sky; the channel display has the top-left. */}
+      <div className="absolute right-0 top-0 z-10 flex flex-col items-end gap-2 p-4 sm:p-6">
+        <div className="flex items-center gap-2.5">
+          {brand ? (
+            <span
+              className="mr-2 hidden select-none font-mono text-[10px] font-semibold uppercase tracking-[0.32em] sm:inline"
+              style={{ color: rgb(ink, 0.5) }}
+            >
+              {brand}
+            </span>
+          ) : null}
+          <span
+            key={busy}
+            aria-hidden
+            className="p4c-led mr-1 block h-[7px] w-[7px] rounded-full transition-[background,box-shadow] duration-300"
+            data-busy={busy > 0 ? "true" : "false"}
+            style={{
+              background: power ? glow : "#3a2a2e",
+              boxShadow: power ? "0 0 8px " + glow + ", 0 0 2px #fff inset" : "inset 0 1px 1px rgba(0,0,0,.6)",
+            }}
+          />
+          <button type="button" onClick={retune} disabled={!power} aria-label="Change channel" className={pill + " px-3.5"} style={pillStyle}>
+            CH +
+          </button>
+          <button
+            type="button"
+            onClick={togglePower}
+            aria-label={power ? "Turn the screen off" : "Turn the screen on"}
+            aria-pressed={power}
+            className={pill + " w-8"}
+            style={pillStyle}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M5 4.2a5 5 0 1 0 6 0" />
+              <path d="M8 2.2v5.2" />
+            </svg>
+          </button>
+        </div>
+        {hint ? (
+          <span
+            className="pointer-events-none hidden select-none font-mono text-[10px] uppercase tracking-[0.24em] md:block"
+            style={{ color: rgb(ink, 0.5) }}
+          >
+            {hint}
+          </span>
+        ) : null}
+      </div>
     </section>
   )
 }
