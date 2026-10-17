@@ -159,7 +159,8 @@
       "@/components/ui/wirebound-inquiry": ["./components/wirebound-inquiry/wirebound-inquiry.tsx"],
       "@/components/ui/glass-fan-testimonials": ["./components/glass-fan-testimonials/glass-fan-testimonials.tsx"],
       "@/components/ui/kamm-trek-landing": ["./components/kamm-trek-landing/kamm-trek-landing.tsx"],
-      "@/components/ui/earth-limb-landing": ["./components/earth-limb-landing/earth-limb-landing.tsx"]
+      "@/components/ui/earth-limb-landing": ["./components/earth-limb-landing/earth-limb-landing.tsx"],
+      "@/components/ui/split-horizon-travel-template": ["./components/split-horizon-travel-template/split-horizon-travel-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
