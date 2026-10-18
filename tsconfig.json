@@ -163,7 +163,10 @@
       "@/components/ui/phosphor-crt-404": ["./components/phosphor-crt-404/phosphor-crt-404.tsx"],
       "@/components/ui/animator-title-preloader": ["./components/animator-title-preloader/animator-title-preloader.tsx"],
       "@/components/ui/type-remix-preloader": ["./components/type-remix-preloader/type-remix-preloader.tsx"],
-      "@/components/ui/vinyl-halftone-preloader": ["./components/vinyl-halftone-preloader/vinyl-halftone-preloader.tsx"]
+      "@/components/ui/vinyl-halftone-preloader": ["./components/vinyl-halftone-preloader/vinyl-halftone-preloader.tsx"],
+      "@/components/ui/florilegium-template": ["./components/florilegium-template/florilegium-template.tsx"],
+      "@/components/ui/blossom-dusk-template": ["./components/blossom-dusk-template/blossom-dusk-template.tsx"],
+      "@/components/ui/longhand-notes-landing": ["./components/longhand-notes-landing/longhand-notes-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
