@@ -166,6 +166,7 @@
       "@/components/ui/vinyl-halftone-preloader": ["./components/vinyl-halftone-preloader/vinyl-halftone-preloader.tsx"],
       "@/components/ui/florilegium-template": ["./components/florilegium-template/florilegium-template.tsx"],
       "@/components/ui/blossom-dusk-template": ["./components/blossom-dusk-template/blossom-dusk-template.tsx"],
+      "@/components/ui/aqua-story-profile-template": ["./components/aqua-story-profile-template/aqua-story-profile-template.tsx"],
       "@/components/ui/longhand-notes-landing": ["./components/longhand-notes-landing/longhand-notes-landing.tsx"]
     }
   },
