@@ -1,40 +1,37 @@
 "use client"
 
 // Meadow Journal Template: a personal diary site for someone who lives
-// outdoors. One frosted board floats over a painted farm landscape, built from
-// widgets like a phone home screen, and the rest of the page follows in the
-// same language: periwinkle panels, olive and bark-dark cards, gold sticker
-// stars and a pill scrubber.
+// outdoors. One frosted board floats over a full-bleed landscape photograph,
+// built from widgets like a phone home screen, and the rest of the page
+// follows in the same language: periwinkle panels, olive and bark-dark cards,
+// gold sticker stars and a pill scrubber.
 //
 // - Hero board: "Hello, Nia!" and a live clock. Below them, nav pills that
 //   follow the scroll, a status pill and a "more" menu. Diary entries rotate
-//   with timed dots, and each entry repaints the sky behind the page and the
-//   two photo cards. A music card plays a small music box, synthesised live.
-//   A messages card lets you reply in place. The stars are draggable stickers.
+//   with timed dots, and each entry crossfades the photograph behind the page
+//   and the two photo cards. A music card with album art plays a small music
+//   box, synthesised live. A messages card lets you reply in place. The stars
+//   are draggable stickers.
 // - The pill under the board is the page's scrollbar: drag it, click it, or
 //   use the arrow keys.
 // - Profile, a filterable photo wall with a lightbox, a searchable archive
 //   grouped by month (pin any day back to the top), and a guestbook where
 //   notes are pinned to a board.
 //
-// Every picture is painted here on canvas from a seed: meadows, a ridge with
-// a lone tree, red island cliffs, lavender rows, a barn and a lake, each by
-// day, at golden hour and at night. Night mode paints them at night. Pass
-// `image` anywhere to use your own photos. Nothing loads at runtime.
+// The default photographs are from Unsplash (Unsplash License), served by its
+// CDN at the width each slot needs, with a blur-up while they load. Every
+// picture is a prop: pass your own URLs.
 import * as React from "react"
 
-export type MjtSceneName = "meadow" | "ridge" | "coast" | "lavender" | "barn" | "lake"
-export type MjtMood = "day" | "golden" | "night"
-
-/** A picture: a painted scene, or your own image. */
+/** A photograph. */
 export type MjtShot = {
-  scene?: MjtSceneName
-  mood?: MjtMood
-  /** Changes the hills, clouds and sheep of a painted scene. */
-  seed?: number
-  /** Your own photo (any URL). Replaces the painted scene. */
-  image?: string
+  /** Any image URL. Unsplash URLs get a responsive srcset automatically. */
+  src: string
   alt?: string
+  /** Shown while it loads, and if it fails. */
+  tone?: string
+  /** CSS object-position, "50% 30%". */
+  focus?: string
 }
 
 export type MjtEntry = {
@@ -45,10 +42,8 @@ export type MjtEntry = {
   /** Wrap words in **double stars** to set them in bold ink. */
   text: string
   likes: number
-  /** The sky behind the page while this entry is up. */
-  scene?: MjtSceneName
-  mood?: MjtMood
-  image?: string
+  /** The photograph behind the page while this entry is up. */
+  image: MjtShot
   /** The two photo cards under the post. */
   shots?: MjtShot[]
   /** The removable tag on the first photo. */
@@ -75,13 +70,15 @@ export type MjtSong = {
   album: string
   /** Seconds. */
   duration: number
+  /** Album art. */
+  cover?: string
   /** An audio file. Without it, a music box plays a tune made from the title. */
   src?: string
   /** Music box key, 0 = C. */
   key?: number
 }
 
-export type MjtMessage = { from: string; text: string; time: string }
+export type MjtMessage = { from: string; text: string; time: string; avatar?: string }
 export type MjtNote = { name: string; text: string }
 export type MjtLink = { label: string; href?: string }
 
@@ -187,7 +184,7 @@ export type MeadowJournalTemplateProps = {
   /** BCP 47 locale for dates, months and the clock. */
   locale?: string
   hour12?: boolean
-  /** IANA zone for the clock, "America/Toronto". Defaults to the visitor's. */
+  /** IANA zone for the clock, "Europe/London". Defaults to the visitor's. */
   timeZone?: string
   entries?: MjtEntry[]
   songs?: MjtSong[]
@@ -202,6 +199,8 @@ export type MeadowJournalTemplateProps = {
   labels?: MjtLabels
   palette?: MjtPaletteName | MjtPalette
   theme?: "system" | "light" | "dark"
+  /** A stylesheet for the display face (Outfit from Google Fonts by default). `null` uses the system stack. */
+  fontHref?: string | null
   /** The gold sticker stars. */
   stickers?: boolean
   /** Seconds each entry stays up. 0 stops the rotation. */
@@ -212,91 +211,95 @@ export type MeadowJournalTemplateProps = {
   onFollow?: (following: boolean) => unknown
   onNote?: (note: MjtNote) => unknown
   onStatus?: (status: string) => unknown
-  /** A definite floor for the hero and the painted sky. */
+  /** A definite floor for the hero and the backdrop. */
   height?: string
   className?: string
 }
 
 // #region content
+const UNSPLASH = "https://images.unsplash.com/photo-"
+const pic = (id: string, alt: string, tone: string, focus?: string) => ({ src: UNSPLASH + id, alt, tone, focus }) as MjtShot
+
 const DEFAULT_ENTRIES = [
   {
-    id: "farm",
+    id: "glen",
     date: "2026-10-12",
-    place: "Kawartha Lakes, Ontario",
-    text: "Today I'm spending the day on **a little farm** in Canada, feeding the animals and soaking up everything **mother nature** gives us. Be happy, all of you.",
+    place: "Glen Etive, Scottish Highlands",
+    text: "Today I'm spending the day on **a little farm** in the glen, feeding the animals and soaking up everything **mother nature** gives us. Be happy, all of you.",
     likes: 25400,
-    scene: "meadow",
-    shots: [{ scene: "ridge", seed: 4, alt: "A fence running up a green ridge under big clouds" }, { scene: "barn", seed: 2, alt: "A red barn on a hill with sheep" }],
+    image: pic("1438786657495-640937046d18", "A green glen under big summer clouds", "#7f9a5a", "50% 60%"),
+    shots: [pic("1503185912284-5271ff81b9a8", "Nia in a straw hat by the barn door", "#7a4a32", "50% 25%"), pic("1484557985045-edf25e08da73", "A curious sheep at the front of the flock", "#9a9a86", "50% 40%")],
     tag: "Farm-girl era",
     camera: "Canon AE-1",
   },
   {
-    id: "cliffs",
-    date: "2026-10-04",
-    place: "North Cape, Prince Edward Island",
-    text: "Woke up before the gulls. The **red cliffs** were glowing and the sea kept every promise it made last summer. Coffee tastes better **with salt in the air**.",
-    likes: 18200,
-    scene: "coast",
-    shots: [{ scene: "coast", seed: 9, alt: "Red cliffs dropping into a blue sea" }, { scene: "coast", mood: "golden", seed: 3, alt: "The same cliffs at sunset" }],
-    tag: "Salt hair",
-    camera: "Olympus mju II",
-  },
-  {
     id: "lavender",
     date: "2026-09-21",
-    place: "Lavender rows, Quebec",
+    place: "Valensole, Provence",
     text: "Lost a whole afternoon between **purple rows** and the hum of bees. My bag still smells like **August**, and I am not washing it.",
     likes: 31900,
-    scene: "lavender",
-    mood: "golden",
-    shots: [{ scene: "lavender", mood: "golden", seed: 6, alt: "Lavender rows at golden hour" }, { scene: "meadow", mood: "golden", seed: 12, alt: "A meadow fence in warm light" }],
+    image: pic("1499002238440-d264edd596ec", "Lavender rows at sunset", "#8a6aa8", "50% 70%"),
+    shots: [pic("1532274402911-5a369e4c4bb5", "Lavender down to a lake at dusk", "#7a5a9a", "50% 60%"), pic("1465146344425-f00d5f5c8f07", "Red poppies in long grass", "#c9b48a")],
     tag: "Bee whisperer",
     camera: "Pentax K1000",
   },
   {
+    id: "coast",
+    date: "2026-09-08",
+    place: "The dunes, Northumberland",
+    text: "Woke up before the gulls and ran down the **boardwalk** barefoot. The sea kept every promise it made last summer. Coffee tastes better **with salt in the air**.",
+    likes: 18200,
+    image: pic("1495954484750-af469f2f9be5", "A wooden boardwalk over the dunes to the sea", "#7aa0b0", "50% 55%"),
+    shots: [pic("1523264653568-d3d4032d1476", "Splashing through cold water", "#6a7a7a", "50% 30%"), pic("1507525428034-b723cf961d3e", "Soft waves on an empty beach", "#9ac0c8")],
+    tag: "Salt hair",
+    camera: "Olympus mju II",
+  },
+  {
     id: "barn",
-    date: "2026-09-14",
+    date: "2026-08-30",
     place: "Back at the barn",
-    text: "Fed the goats, fixed a gate, watched **the first stars** come out over the barn roof. Small days are **the good ones**.",
+    text: "Fed the cows, fixed a gate, watched **the sun go down** behind the old barn. Small days are **the good ones**.",
     likes: 22700,
-    scene: "barn",
-    mood: "golden",
-    shots: [{ scene: "barn", mood: "night", seed: 5, alt: "The barn at night with a lit window" }, { scene: "lake", mood: "golden", seed: 8, alt: "A still lake at sunset" }],
-    tag: "Goat mum",
+    image: pic("1500076656116-558758c991c1", "An old barn and silo at sunset", "#b07a4a", "50% 60%"),
+    shots: [pic("1500595046743-cd271d694d30", "Cows grazing at golden hour", "#a87a4a"), pic("1524024973431-2ad916746881", "A white goat in the paddock", "#5a7a3a", "50% 30%")],
+    tag: "Cow mum",
     camera: "Canon AE-1",
   },
 ] as MjtEntry[]
 
 const DEFAULT_ARCHIVE = [
-  { id: "lake", date: "2026-09-02", place: "Pigeon Lake", text: "Borrowed a canoe and paddled until the dock was a **matchstick**. The lake was so still it held **two skies**.", likes: 14100, scene: "lake", tag: "Paddle", camera: "Olympus mju II" },
-  { id: "hay", date: "2026-08-25", place: "Hay day, Peterborough", text: "Three hundred bales, one sunburn, **zero regrets**. Ate peaches on the tailgate like **a country song**.", likes: 19800, scene: "meadow", mood: "golden", tag: "Hay day", camera: "Pentax K1000" },
-  { id: "storm", date: "2026-08-11", place: "Ridge road", text: "Watched a storm roll over the ridge and **made it home** with one minute to spare. The fence posts smelled of **wet cedar**.", likes: 9600, scene: "ridge", tag: "Weather", camera: "Canon AE-1" },
-  { id: "fireflies", date: "2026-07-30", place: "North pasture", text: "Lay in the grass until the **fireflies** came out. Counted forty-one and then **lost count** on purpose.", likes: 27300, scene: "meadow", mood: "night", tag: "Night shift", camera: "Olympus mju II" },
-  { id: "arrival", date: "2026-07-18", place: "Day one, Kawartha", text: "New farm, new boots, **six goats** who already know my name. This is going to be **the summer**.", likes: 12500, scene: "barn", tag: "Day one", camera: "Canon AE-1" },
+  { id: "lake", date: "2026-08-18", place: "Lake Bohinj", text: "Sat at the end of the dock until the mountains turned **pink**. The lake was so still it held **two skies**.", likes: 14100, image: pic("1508672019048-805c876b67e2", "A dock reaching into a mountain lake", "#6a9ab0"), tag: "Still water", camera: "Olympus mju II" },
+  { id: "hay", date: "2026-08-04", place: "Hay day, Cotswolds", text: "Three hundred bales, one sunburn, **zero regrets**. Ate peaches on the tailgate like **a country song**.", likes: 19800, image: pic("1500382017468-9049fed747ef", "A wheat field at sunset", "#c8a050"), tag: "Hay day", camera: "Pentax K1000" },
+  { id: "tree", date: "2026-07-26", place: "The lone oak", text: "Walked out to the **old oak** in the middle of the field and read until the light went **gold**.", likes: 9600, image: pic("1502082553048-f009c37129b9", "A lone tree in a green field", "#5a8a3a"), tag: "Reading spot", camera: "Canon AE-1" },
+  { id: "piglet", date: "2026-07-15", place: "New arrivals", text: "Six piglets born overnight. I named the smallest one **Biscuit** and nobody can **stop me**.", likes: 27300, image: pic("1516467508483-a7212febe31a", "A tiny pink piglet in the straw", "#9a5a3a"), tag: "Biscuit", camera: "Olympus mju II" },
+  { id: "arrival", date: "2026-07-02", place: "Day one", text: "New farm, new boots, **a field of cows** who already know my name. This is going to be **the summer**.", likes: 12500, image: pic("1570042225831-d98fa7577f1e", "A black and white cow on a green field", "#5a8a3a"), tag: "Day one", camera: "Canon AE-1" },
 ] as MjtEntry[]
 
 const DEFAULT_SONGS = [
-  { title: "Clover Hours", artist: "June Arbor", album: "Fieldnotes", duration: 183, key: 2 },
-  { title: "Paper Moons", artist: "The Wexford Lanes", album: "Low Tide Radio", duration: 214, key: 7 },
-  { title: "Hay Bale Heart", artist: "Odessa Fern", album: "County Fair", duration: 168, key: 0 },
+  { title: "Clover Hours", artist: "June Arbor", album: "Fieldnotes", duration: 183, key: 2, cover: UNSPLASH + "1458560871784-56d23406c091" },
+  { title: "Paper Moons", artist: "The Wexford Lanes", album: "Low Tide Radio", duration: 214, key: 7, cover: UNSPLASH + "1470252649378-9c29740c9fa8" },
+  { title: "Hay Bale Heart", artist: "Odessa Fern", album: "County Fair", duration: 168, key: 0, cover: UNSPLASH + "1471478331149-c72f17e33c73" },
 ] as MjtSong[]
 
 const DEFAULT_MESSAGES = [
-  { from: "Mara", text: "Friend, we lost you! Where are you? Call us.", time: "14:30" },
-  { from: "Theo", text: "Ferry leaves at nine tomorrow. Save me a window seat?", time: "16:05" },
-  { from: "Grandma Ruth", text: "Bring back some of that lavender honey, sweetheart.", time: "18:42" },
+  { from: "Mara", text: "Friend, we lost you! Where are you? Call us.", time: "14:30", avatar: UNSPLASH + "1494790108377-be9c29b29330" },
+  { from: "Theo", text: "Ferry leaves at nine tomorrow. Save me a window seat?", time: "16:05", avatar: UNSPLASH + "1497551060073-4c5ab6435f12" },
+  { from: "Aunt Ruth", text: "Bring back some of that lavender honey, sweetheart.", time: "18:42", avatar: UNSPLASH + "1508214751196-bcfd4ca60f91" },
 ] as MjtMessage[]
 
 const DEFAULT_PHOTOS = [
-  { id: "p1", scene: "meadow", seed: 21, caption: "The north pasture", category: "Fields", tags: ["sheep", "fence"], camera: "Canon AE-1", likes: 1840, tall: true, alt: "Sheep in a green meadow behind a fence" },
-  { id: "p2", scene: "coast", seed: 14, caption: "Red cliffs at six", category: "Water", tags: ["island", "sunrise"], camera: "Olympus mju II", likes: 2210, alt: "Red cliffs over the sea" },
-  { id: "p3", scene: "lavender", mood: "golden", seed: 2, caption: "Rows for days", category: "Golden hour", tags: ["lavender", "bees"], camera: "Pentax K1000", likes: 3120, alt: "Lavender rows at golden hour" },
-  { id: "p4", scene: "ridge", seed: 7, caption: "The fence I keep coming back to", category: "Fields", tags: ["ridge", "clouds"], camera: "Canon AE-1", likes: 1530, tall: true, alt: "A fence climbing a ridge with a lone tree" },
-  { id: "p5", scene: "lake", seed: 3, caption: "Still water, Kawartha", category: "Water", tags: ["canoe"], camera: "Olympus mju II", likes: 990, alt: "A still lake with a far shore of trees" },
-  { id: "p6", scene: "barn", seed: 11, caption: "Home for six goats", category: "Fields", tags: ["barn", "goats"], camera: "Canon AE-1", likes: 2675, alt: "A red barn on a green hill" },
-  { id: "p7", scene: "meadow", mood: "night", seed: 5, caption: "Fireflies over the hay", category: "Night", tags: ["fireflies"], camera: "Pentax K1000", likes: 4012, tall: true, alt: "A meadow at night full of fireflies" },
-  { id: "p8", scene: "coast", mood: "golden", seed: 8, caption: "Last light on the bay", category: "Golden hour", tags: ["sunset"], camera: "Olympus mju II", likes: 2380, alt: "Cliffs and sea at sunset" },
-  { id: "p9", scene: "lake", mood: "night", seed: 6, caption: "Moon on the lake", category: "Night", tags: ["moon", "canoe"], camera: "Canon AE-1", likes: 1766, alt: "A lake under the moon" },
+  { id: "p1", ...pic("1503185912284-5271ff81b9a8", "Nia in a straw hat", "#7a4a32", "50% 25%"), caption: "Straw hat season", category: "Portraits", tags: ["barn", "summer"], camera: "Canon AE-1", likes: 4012, tall: true },
+  { id: "p2", ...pic("1502082553048-f009c37129b9", "A lone tree in a green field", "#5a8a3a"), caption: "The oak I keep coming back to", category: "Fields", tags: ["oak", "blue sky"], camera: "Canon AE-1", likes: 1530 },
+  { id: "p3", ...pic("1484557985045-edf25e08da73", "Sheep in a meadow", "#9a9a86"), caption: "The welcoming committee", category: "Animals", tags: ["sheep"], camera: "Pentax K1000", likes: 2675 },
+  { id: "p4", ...pic("1499002238440-d264edd596ec", "Lavender rows at sunset", "#8a6aa8"), caption: "Rows for days", category: "Golden hour", tags: ["lavender", "bees"], camera: "Pentax K1000", likes: 3120 },
+  { id: "p5", ...pic("1523264653568-d3d4032d1476", "Splashing through a lake", "#6a7a7a", "50% 30%"), caption: "Too cold, worth it", category: "Portraits", tags: ["lake"], camera: "Olympus mju II", likes: 2210, tall: true },
+  { id: "p6", ...pic("1501854140801-50d01698950b", "Rolling green hills from above", "#5a8a3a"), caption: "Hills like folded velvet", category: "Fields", tags: ["drone"], camera: "Borrowed drone", likes: 1840 },
+  { id: "p7", ...pic("1516467508483-a7212febe31a", "A piglet in the straw", "#9a5a3a"), caption: "Biscuit, day two", category: "Animals", tags: ["piglet"], camera: "Olympus mju II", likes: 5320 },
+  { id: "p8", ...pic("1474552226712-ac0f0961a954", "Two friends on bikes at sunset", "#b06a4a"), caption: "Racing the sun home", category: "Golden hour", tags: ["bikes", "friends"], camera: "Canon AE-1", likes: 2380 },
+  { id: "p9", ...pic("1524024973431-2ad916746881", "A white goat", "#5a7a3a", "50% 30%"), caption: "Gertrude, unimpressed", category: "Animals", tags: ["goat"], camera: "Pentax K1000", likes: 3766, tall: true },
+  { id: "p10", ...pic("1508672019048-805c876b67e2", "A dock on a mountain lake", "#6a9ab0"), caption: "Still water", category: "Fields", tags: ["lake", "dock"], camera: "Olympus mju II", likes: 990 },
+  { id: "p11", ...pic("1470252649378-9c29740c9fa8", "A meadow at sunrise", "#c88a4a"), caption: "Five in the morning", category: "Golden hour", tags: ["sunrise"], camera: "Canon AE-1", likes: 1766 },
+  { id: "p12", ...pic("1500595046743-cd271d694d30", "Cows grazing at golden hour", "#a87a4a"), caption: "Dinner with the herd", category: "Animals", tags: ["cows"], camera: "Pentax K1000", likes: 2950 },
 ] as MjtPhoto[]
 
 const DEFAULT_PROFILE = {
@@ -304,8 +307,8 @@ const DEFAULT_PROFILE = {
   handle: "@nia.fieldnotes",
   role: "Farm-sitter, film photographer and slow traveller",
   bio: "Swapping city noise for **barn doors and back roads**. I look after farms while their families travel, and shoot everything on **35 mm film**.",
-  location: "Ontario, Canada",
-  avatar: { scene: "meadow", mood: "golden", seed: 31 },
+  location: "Somewhere with a fence and a view",
+  avatar: pic("1503185912284-5271ff81b9a8", "Portrait of Nia", "#7a4a32", "50% 18%"),
   stats: [
     { label: "Posts", value: 248 },
     { label: "Followers", value: 25400 },
@@ -315,7 +318,7 @@ const DEFAULT_PROFILE = {
     { label: "Reading", value: "Anne of Green Gables" },
     { label: "Wearing", value: "Wool socks, always" },
     { label: "Weather", value: "14 degrees and sunny" },
-    { label: "Next stop", value: "Cape Breton" },
+    { label: "Next stop", value: "Isle of Skye" },
   ],
   links: [{ label: "Instagram", href: "#" }, { label: "Letterboxd", href: "#" }, { label: "Newsletter", href: "#" }],
 } as MjtProfile
@@ -365,7 +368,7 @@ const DEFAULT_LABELS = {
   postcard: "Wish you were here",
   photosTitle: "My **photos**",
   all: "All",
-  photoCount: "{count} frames, all on film",
+  photoCount: "{count} frames from the road",
   archiveTitle: "The **archive**",
   search: "Search the archive",
   noResults: "Nothing here yet. Try another word.",
@@ -395,780 +398,12 @@ const DEFAULT_LABELS = {
 
 const DEFAULT_FOOTER = {
   title: "See you in **the fields**.",
-  note: "Field notes by Nia Olsen. Every picture here is painted, every day was real.",
+  note: "Field notes by Nia Olsen. Photographs from Unsplash.",
   links: [{ label: "Instagram", href: "#" }, { label: "Newsletter", href: "#" }, { label: "Contact", href: "#" }],
 }
+
+const DEFAULT_FONT = "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
 // #endregion content
-
-// #region painter
-type Layer = {
-  /** baseline, as a fraction of the land below the horizon */
-  y: number
-  /** ridge height, as a fraction of the picture height */
-  amp: number
-  color: string
-  trees?: boolean
-  sheep?: number
-  grass?: boolean
-  flowers?: number
-  barn?: number
-  tree?: number
-  tilt?: number
-}
-
-type SceneDef = {
-  horizon: number
-  sky: string[]
-  clouds: number
-  cloudY: number
-  mountains?: string
-  layers: Layer[]
-  fence?: number[]
-  sea?: boolean
-  rows?: boolean
-  lake?: boolean
-}
-
-const SCENES = {
-  meadow: {
-    horizon: 0.5,
-    sky: ["#5f93d6", "#9ec2ea", "#e6eff6"],
-    clouds: 5,
-    cloudY: 0.3,
-    mountains: "#93aac6",
-    layers: [
-      { y: 0.04, amp: 0.035, color: "#9cb98a", trees: true },
-      { y: 0.2, amp: 0.08, color: "#8cb862", tilt: -0.04 },
-      { y: 0.42, amp: 0.09, color: "#6ea443", sheep: 4 },
-      { y: 0.72, amp: 0.07, color: "#5a9136", grass: true, flowers: 0.6 },
-    ],
-    fence: [-0.06, 0.95, 0.62, 0.66],
-  },
-  ridge: {
-    horizon: 0.64,
-    sky: ["#4f86cf", "#8fb9e8", "#dbe9f4"],
-    clouds: 6,
-    cloudY: 0.42,
-    layers: [
-      { y: 0.0, amp: 0.04, color: "#a1bb8f", trees: true },
-      { y: 0.18, amp: 0.13, color: "#79a84d", tree: 0.72 },
-      { y: 0.62, amp: 0.07, color: "#5d933a", grass: true, flowers: 0.35 },
-    ],
-    fence: [0.18, 1.04, 1.08, 0.7],
-  },
-  coast: {
-    horizon: 0.44,
-    sky: ["#6a9ad6", "#a7c9ea", "#eef3f4"],
-    clouds: 3,
-    cloudY: 0.26,
-    sea: true,
-    layers: [
-      { y: 0.5, amp: 0.05, color: "#7aab4c", grass: true, flowers: 0.5 },
-    ],
-  },
-  lavender: {
-    horizon: 0.46,
-    sky: ["#7e9fd4", "#c5cde6", "#f6e4d0"],
-    clouds: 3,
-    cloudY: 0.24,
-    mountains: "#a7aecb",
-    rows: true,
-    layers: [
-      { y: 0.03, amp: 0.03, color: "#8ea47c", trees: true },
-    ],
-  },
-  barn: {
-    horizon: 0.5,
-    sky: ["#628fd2", "#a3c4e8", "#eaf0f3"],
-    clouds: 4,
-    cloudY: 0.28,
-    mountains: "#9fb2c9",
-    layers: [
-      { y: 0.05, amp: 0.04, color: "#9db98b", trees: true },
-      { y: 0.26, amp: 0.1, color: "#86b45e", barn: 0.66, tilt: 0.05 },
-      { y: 0.6, amp: 0.07, color: "#62993c", sheep: 3, grass: true, flowers: 0.4 },
-    ],
-    fence: [-0.04, 0.88, 0.5, 0.7],
-  },
-  lake: {
-    horizon: 0.42,
-    sky: ["#5b8fd3", "#9cc2ea", "#e4eef4"],
-    clouds: 4,
-    cloudY: 0.24,
-    mountains: "#8ea6c4",
-    lake: true,
-    layers: [
-      { y: 0.06, amp: 0.05, color: "#7f9f72", trees: true },
-      { y: 0.74, amp: 0.05, color: "#5f9139", grass: true, flowers: 0.25 },
-    ],
-  },
-} as { [k: string]: SceneDef }
-
-const SCENE_NAMES = ["meadow", "ridge", "coast", "lavender", "barn", "lake"]
-
-/** mulberry32: a tiny seeded generator, so a scene paints the same every time */
-function rng(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-function hexRgb(hex: string) {
-  const h = hex.replace("#", "")
-  const f = h.length === 3 ? h.split("").map((c) => c + c).join("") : h
-  const n = parseInt(f, 16)
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
-}
-
-function mixRgb(a: string, b: string, t: number) {
-  const x = hexRgb(a)
-  const y = hexRgb(b)
-  return [0, 1, 2].map((i) => Math.round(x[i] + (y[i] - x[i]) * t))
-}
-
-function mix(a: string, b: string, t: number) {
-  const c = mixRgb(a, b, t)
-  return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("")
-}
-
-function rgba(hex: string, a: number) {
-  const c = hexRgb(hex)
-  return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")"
-}
-
-/** Relight a daylight colour for the mood: warm at golden hour, moonlit blue at night. */
-function tone(hex: string, mood: MjtMood) {
-  if (mood === "golden") return mix(hex, "#e8a25e", 0.2)
-  if (mood === "night") {
-    const c = hexRgb(hex)
-    const g = Math.round(c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11)
-    const grey = "#" + [g, g, g].map((v) => v.toString(16).padStart(2, "0")).join("")
-    return mix(mix(hex, grey, 0.45), "#0d1730", 0.68)
-  }
-  return hex
-}
-
-function skyStops(def: SceneDef, mood: MjtMood) {
-  if (mood === "golden") return ["#6f86c4", "#e9a9a0", "#fbd29a"]
-  if (mood === "night") return ["#070d22", "#16264d", "#34466f"]
-  return def.sky
-}
-
-function ridgeY(x: number, W: number, base: number, amp: number, ph: number[], tilt: number) {
-  const k = x / W
-  return base - amp * (0.55 * Math.sin(k * 2.1 + ph[0]) + 0.3 * Math.sin(k * 5.3 + ph[1]) + 0.15 * Math.sin(k * 11.7 + ph[2])) + tilt * (k - 0.5)
-}
-
-type Paint = { ctx: CanvasRenderingContext2D; W: number; H: number; u: number; R: () => number; mood: MjtMood; hy: number }
-
-function puff(p: Paint, x: number, y: number, r: number, inner: string, a: number) {
-  const g = p.ctx.createRadialGradient(x, y, r * 0.15, x, y, r)
-  g.addColorStop(0, rgba(inner, a))
-  g.addColorStop(0.55, rgba(inner, a * 0.8))
-  g.addColorStop(1, rgba(inner, 0))
-  p.ctx.fillStyle = g
-  p.ctx.beginPath()
-  p.ctx.arc(x, y, r, 0, Math.PI * 2)
-  p.ctx.fill()
-}
-
-/** A cumulus: a flat-bottomed heap of soft puffs, lit from above, shaded underneath. */
-function cloud(p: Paint, cx: number, cy: number, size: number) {
-  const { R, mood } = p
-  const lit = mood === "night" ? "#8d9cc0" : mood === "golden" ? "#fff1e2" : "#ffffff"
-  const shade = mood === "night" ? "#2a3964" : mood === "golden" ? "#c99aa6" : "#b9c8dc"
-  const n = 7 + Math.floor(R() * 6)
-  const pts = [] as number[][]
-  for (let i = 0; i < n; i++) {
-    const t = i / (n - 1) - 0.5
-    const r = size * (0.28 + 0.38 * (1 - Math.abs(t) * 1.6) * (0.7 + R() * 0.5))
-    pts.push([cx + t * size * 2.1 + (R() - 0.5) * size * 0.2, cy - r * (0.35 + R() * 0.45), Math.max(r, size * 0.12)])
-  }
-  for (const q of pts) puff(p, q[0], q[1] + q[2] * 0.42, q[2] * 1.05, shade, 0.55)
-  for (const q of pts) puff(p, q[0], q[1], q[2], lit, 0.92)
-  for (const q of pts) puff(p, q[0] - q[2] * 0.18, q[1] - q[2] * 0.22, q[2] * 0.62, lit, 0.7)
-  // flatten the base with a thin shaded band
-  const g = p.ctx.createLinearGradient(0, cy - size * 0.1, 0, cy + size * 0.22)
-  g.addColorStop(0, rgba(shade, 0))
-  g.addColorStop(1, rgba(shade, 0.35))
-  p.ctx.fillStyle = g
-  p.ctx.beginPath()
-  p.ctx.ellipse(cx, cy + size * 0.05, size * 1.05, size * 0.16, 0, 0, Math.PI * 2)
-  p.ctx.fill()
-}
-
-function wisp(p: Paint, cx: number, cy: number, w: number) {
-  const col = p.mood === "night" ? "#6c7ba3" : p.mood === "golden" ? "#ffe2c8" : "#ffffff"
-  for (let i = 0; i < 6; i++) {
-    const g = p.ctx.createRadialGradient(0, 0, 0, 0, 0, 1)
-    g.addColorStop(0, rgba(col, 0.35))
-    g.addColorStop(1, rgba(col, 0))
-    p.ctx.save()
-    p.ctx.translate(cx + (p.R() - 0.5) * w, cy + (p.R() - 0.5) * w * 0.06)
-    p.ctx.scale(w * (0.25 + p.R() * 0.3), w * 0.035)
-    p.ctx.fillStyle = g
-    p.ctx.beginPath()
-    p.ctx.arc(0, 0, 1, 0, Math.PI * 2)
-    p.ctx.fill()
-    p.ctx.restore()
-  }
-}
-
-function paintSky(p: Paint, def: SceneDef) {
-  const { ctx, W, H, hy, mood, R, u } = p
-  const s = skyStops(def, mood)
-  const g = ctx.createLinearGradient(0, 0, 0, hy * 1.05)
-  g.addColorStop(0, s[0])
-  g.addColorStop(0.55, s[1])
-  g.addColorStop(1, s[2])
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, W, H)
-  if (mood === "night") {
-    for (let i = 0; i < (W * H) / 900; i++) {
-      const x = R() * W
-      const y = R() * hy * 0.95
-      const r = R() < 0.06 ? u * 0.0035 : u * 0.0016
-      ctx.fillStyle = rgba("#ffffff", 0.25 + R() * 0.6 * (1 - y / hy))
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    const mx = W * (0.68 + R() * 0.12)
-    const my = hy * 0.26
-    const halo = ctx.createRadialGradient(mx, my, 0, mx, my, u * 0.32)
-    halo.addColorStop(0, rgba("#dfe6ff", 0.35))
-    halo.addColorStop(1, rgba("#dfe6ff", 0))
-    ctx.fillStyle = halo
-    ctx.fillRect(0, 0, W, H)
-    ctx.fillStyle = "#f4f1e4"
-    ctx.beginPath()
-    ctx.arc(mx, my, u * 0.04, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.fillStyle = rgba("#c9c3ad", 0.35)
-    ctx.beginPath()
-    ctx.arc(mx - u * 0.012, my - u * 0.008, u * 0.009, 0, Math.PI * 2)
-    ctx.arc(mx + u * 0.014, my + u * 0.012, u * 0.006, 0, Math.PI * 2)
-    ctx.fill()
-  } else {
-    const sx = W * (mood === "golden" ? 0.36 : 0.82)
-    const sy = mood === "golden" ? hy * 0.92 : hy * 0.08
-    const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, u * (mood === "golden" ? 0.75 : 0.6))
-    glow.addColorStop(0, rgba(mood === "golden" ? "#fff2c4" : "#ffffff", mood === "golden" ? 0.9 : 0.45))
-    glow.addColorStop(1, rgba("#ffffff", 0))
-    ctx.fillStyle = glow
-    ctx.fillRect(0, 0, W, H)
-    if (mood === "golden") {
-      ctx.fillStyle = "#fff6dc"
-      ctx.beginPath()
-      ctx.arc(sx, sy, u * 0.045, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-  const n = def.clouds
-  for (let i = 0; i < 4; i++) wisp(p, R() * W, hy * (0.12 + R() * 0.5), u * (0.6 + R() * 0.6))
-  for (let i = 0; i < n; i++) {
-    const t = (i + 0.2 + R() * 0.6) / n
-    const size = u * (0.07 + R() * 0.09) * (i % 2 ? 1 : 1.25)
-    cloud(p, t * W * 1.1 - W * 0.05, hy * (def.cloudY + (R() - 0.5) * 0.36), size)
-  }
-  // haze at the horizon
-  const hz = ctx.createLinearGradient(0, hy - H * 0.12, 0, hy + H * 0.04)
-  hz.addColorStop(0, rgba(s[2], 0))
-  hz.addColorStop(1, rgba(s[2], 0.6))
-  ctx.fillStyle = hz
-  ctx.fillRect(0, hy - H * 0.12, W, H * 0.16)
-}
-
-function fillRidge(p: Paint, base: number, amp: number, tilt: number, top: string, bottom: string, ph: number[]) {
-  const { ctx, W, H } = p
-  ctx.beginPath()
-  ctx.moveTo(0, H)
-  for (let x = 0; x <= W; x += Math.max(2, W / 160)) ctx.lineTo(x, ridgeY(x, W, base, amp, ph, tilt))
-  ctx.lineTo(W, ridgeY(W, W, base, amp, ph, tilt))
-  ctx.lineTo(W, H)
-  ctx.closePath()
-  const g = ctx.createLinearGradient(0, base - amp, 0, Math.min(H, base + H * 0.35))
-  g.addColorStop(0, top)
-  g.addColorStop(1, bottom)
-  ctx.fillStyle = g
-  ctx.fill()
-}
-
-function treeBlob(p: Paint, x: number, y: number, r: number, col: string) {
-  const { ctx, R } = p
-  ctx.fillStyle = col
-  ctx.beginPath()
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI - Math.PI
-    ctx.moveTo(x + Math.cos(a) * r * 0.6 + r * 0.55, y + Math.sin(a) * r * 0.5)
-    ctx.arc(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.5, r * (0.45 + R() * 0.2), 0, Math.PI * 2)
-  }
-  ctx.fill()
-}
-
-function loneTree(p: Paint, x: number, y: number, s: number) {
-  const { ctx, mood, R } = p
-  ctx.strokeStyle = tone("#4b3b2c", mood)
-  ctx.lineCap = "round"
-  ctx.lineWidth = s * 0.07
-  ctx.beginPath()
-  ctx.moveTo(x, y)
-  ctx.quadraticCurveTo(x + s * 0.03, y - s * 0.4, x - s * 0.02, y - s * 0.7)
-  ctx.moveTo(x + s * 0.01, y - s * 0.42)
-  ctx.lineTo(x + s * 0.2, y - s * 0.62)
-  ctx.stroke()
-  const dark = tone("#3f6b2c", mood)
-  const lite = tone("#6d9a45", mood)
-  for (let i = 0; i < 14; i++) {
-    const a = R() * Math.PI * 2
-    const d = R() * s * 0.32
-    const cx = x + Math.cos(a) * d * 1.2
-    const cy = y - s * 0.78 + Math.sin(a) * d * 0.7
-    const r = s * (0.16 + R() * 0.1)
-    const g = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.5, r * 0.1, cx, cy, r)
-    g.addColorStop(0, lite)
-    g.addColorStop(1, dark)
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
-function sheep(p: Paint, x: number, y: number, s: number, flip: boolean) {
-  const { ctx, mood, R } = p
-  const wool = tone("#f4f1e8", mood)
-  const shade = tone("#c9c2b2", mood)
-  const face = tone("#2f2a26", mood)
-  const d = flip ? -1 : 1
-  ctx.fillStyle = rgba("#000000", 0.14)
-  ctx.beginPath()
-  ctx.ellipse(x, y + s * 0.02, s * 0.62, s * 0.1, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = face
-  ctx.lineWidth = s * 0.08
-  ctx.lineCap = "round"
-  ctx.beginPath()
-  for (const lx of [-0.3, -0.12, 0.14, 0.3]) {
-    ctx.moveTo(x + lx * s, y - s * 0.25)
-    ctx.lineTo(x + lx * s, y)
-  }
-  ctx.stroke()
-  for (let i = 0; i < 7; i++) {
-    const cx = x + (R() - 0.5) * s * 0.7
-    const cy = y - s * 0.42 + (R() - 0.5) * s * 0.22
-    const r = s * (0.2 + R() * 0.08)
-    const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.4, r * 0.1, cx, cy, r)
-    g.addColorStop(0, wool)
-    g.addColorStop(1, shade)
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.fillStyle = face
-  ctx.beginPath()
-  ctx.ellipse(x + d * s * 0.46, y - s * 0.46, s * 0.12, s * 0.16, d * 0.5, 0, Math.PI * 2)
-  ctx.fill()
-}
-
-function barn(p: Paint, x: number, y: number, s: number) {
-  const { ctx, mood } = p
-  const red = tone("#a63a2b", mood)
-  const redDark = tone("#7d2a21", mood)
-  const roof = tone("#4a4038", mood)
-  const trim = tone("#f1ece2", mood)
-  const w = s
-  const h = s * 0.62
-  ctx.fillStyle = redDark
-  ctx.fillRect(x + w * 0.5, y - h * 0.82, w * 0.55, h * 0.82)
-  ctx.fillStyle = red
-  ctx.beginPath()
-  ctx.moveTo(x, y)
-  ctx.lineTo(x, y - h)
-  ctx.lineTo(x + w * 0.12, y - h * 1.45)
-  ctx.lineTo(x + w * 0.25, y - h * 1.62)
-  ctx.lineTo(x + w * 0.38, y - h * 1.45)
-  ctx.lineTo(x + w * 0.5, y - h)
-  ctx.lineTo(x + w * 0.5, y)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillStyle = roof
-  ctx.beginPath()
-  ctx.moveTo(x + w * 0.25, y - h * 1.62)
-  ctx.lineTo(x + w * 0.38, y - h * 1.45)
-  ctx.lineTo(x + w * 0.5, y - h)
-  ctx.lineTo(x + w * 1.08, y - h * 0.84)
-  ctx.lineTo(x + w * 0.95, y - h * 1.3)
-  ctx.lineTo(x + w * 0.78, y - h * 1.5)
-  ctx.closePath()
-  ctx.fill()
-  ctx.strokeStyle = trim
-  ctx.lineWidth = Math.max(1, s * 0.025)
-  ctx.strokeRect(x + w * 0.14, y - h * 0.62, w * 0.22, h * 0.62)
-  ctx.beginPath()
-  ctx.moveTo(x + w * 0.14, y - h * 0.62)
-  ctx.lineTo(x + w * 0.36, y)
-  ctx.moveTo(x + w * 0.36, y - h * 0.62)
-  ctx.lineTo(x + w * 0.14, y)
-  ctx.stroke()
-  ctx.fillStyle = mood === "night" ? "#ffd27a" : trim
-  ctx.fillRect(x + w * 0.2, y - h * 1.2, w * 0.1, h * 0.16)
-  if (mood === "night") {
-    const g = ctx.createRadialGradient(x + w * 0.25, y - h * 1.12, 0, x + w * 0.25, y - h * 1.12, s * 0.5)
-    g.addColorStop(0, rgba("#ffcf73", 0.35))
-    g.addColorStop(1, rgba("#ffcf73", 0))
-    ctx.fillStyle = g
-    ctx.fillRect(x - s * 0.3, y - h * 1.7, s * 1.2, h * 1.6)
-  }
-}
-
-/** Weathered posts receding toward the horizon, two sagging rails between them. */
-function fence(p: Paint, f: number[]) {
-  const { ctx, W, H, mood, u } = p
-  const x0 = f[0] * W
-  const y0 = f[1] * H
-  const x1 = f[2] * W
-  const y1 = f[3] * H
-  const n = 11
-  const posts = [] as number[][]
-  for (let i = 0; i < n; i++) {
-    // geometric spacing: posts crowd together as they recede
-    const t = (1 - Math.pow(0.78, i)) / (1 - Math.pow(0.78, n - 1))
-    const s = 1 - t * 0.82
-    posts.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, s])
-  }
-  const wood = tone("#7a6753", mood)
-  const dark = tone("#4c3f33", mood)
-  const lite = tone("#a8957b", mood)
-  const ph = u * 0.2
-  for (const rail of [0.38, 0.72]) {
-    ctx.strokeStyle = dark
-    ctx.lineCap = "round"
-    for (let i = 0; i < n - 1; i++) {
-      const a = posts[i]
-      const b = posts[i + 1]
-      ctx.lineWidth = Math.max(1, u * 0.012 * a[2])
-      ctx.beginPath()
-      ctx.moveTo(a[0], a[1] - ph * rail * a[2])
-      ctx.quadraticCurveTo((a[0] + b[0]) / 2, (a[1] - ph * rail * a[2] + b[1] - ph * rail * b[2]) / 2 + u * 0.01 * a[2], b[0], b[1] - ph * rail * b[2])
-      ctx.stroke()
-    }
-  }
-  for (const q of posts) {
-    const w = u * 0.028 * q[2]
-    const h = ph * q[2]
-    const g = ctx.createLinearGradient(q[0] - w / 2, 0, q[0] + w / 2, 0)
-    g.addColorStop(0, lite)
-    g.addColorStop(0.45, wood)
-    g.addColorStop(1, dark)
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.moveTo(q[0] - w / 2, q[1] + w * 0.3)
-    ctx.lineTo(q[0] - w / 2, q[1] - h)
-    ctx.lineTo(q[0], q[1] - h - w * 0.35)
-    ctx.lineTo(q[0] + w / 2, q[1] - h)
-    ctx.lineTo(q[0] + w / 2, q[1] + w * 0.3)
-    ctx.closePath()
-    ctx.fill()
-  }
-}
-
-/** Short curved blades in four shades, batched into one path per shade. */
-function grass(p: Paint, base: number, amp: number, tilt: number, ph: number[], col: string, flowers: number) {
-  const { ctx, W, H, R, u, hy, mood } = p
-  const shades = [tone(mix(col, "#1f3d12", 0.35), mood), tone(mix(col, "#2b4d17", 0.15), mood), tone(mix(col, "#c9dc8a", 0.25), mood), tone(mix(col, "#e9e7a4", 0.4), mood)]
-  const count = Math.min(9000, Math.floor((W * (H - base)) / 70))
-  const paths = shades.map(() => [] as number[])
-  for (let i = 0; i < count; i++) {
-    const x = R() * W
-    const top = ridgeY(x, W, base, amp, ph, tilt)
-    const y = top + Math.pow(R(), 0.8) * (H - top + u * 0.02)
-    const depth = (y - hy) / (H - hy)
-    const len = u * (0.008 + 0.05 * depth * depth) * (0.6 + R() * 0.7)
-    const lean = (R() - 0.45) * len * 0.6
-    const k = R() < 0.18 + 0.2 * (1 - depth) ? 3 : Math.floor(R() * 3)
-    paths[k].push(x, y, x + lean, y - len)
-  }
-  ctx.lineCap = "round"
-  for (let k = 0; k < shades.length; k++) {
-    ctx.strokeStyle = rgba(shades[k], k === 3 ? 0.55 : 0.75)
-    const segs = paths[k]
-    for (let pass = 0; pass < 2; pass++) {
-      ctx.lineWidth = Math.max(0.6, u * (pass ? 0.0018 : 0.0032))
-      ctx.beginPath()
-      for (let i = pass; i < segs.length / 4; i += 2) {
-        const j = i * 4
-        ctx.moveTo(segs[j], segs[j + 1])
-        ctx.quadraticCurveTo(segs[j] + (segs[j + 2] - segs[j]) * 0.2, segs[j + 1] - (segs[j + 1] - segs[j + 3]) * 0.6, segs[j + 2], segs[j + 3])
-      }
-      ctx.stroke()
-    }
-  }
-  if (flowers > 0) {
-    const cols = mood === "night" ? ["#c7d2f0"] : ["#ffffff", "#fff3a8", "#f6c6d6", "#ffffff"]
-    for (let i = 0; i < count * 0.05 * flowers; i++) {
-      const x = R() * W
-      const top = ridgeY(x, W, base, amp, ph, tilt)
-      const y = top + R() * (H - top)
-      const depth = (y - hy) / (H - hy)
-      ctx.fillStyle = rgba(cols[i % cols.length], 0.9)
-      ctx.beginPath()
-      ctx.arc(x, y, u * (0.002 + 0.006 * depth), 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-}
-
-function sea(p: Paint) {
-  const { ctx, W, H, hy, mood, R, u } = p
-  const g = ctx.createLinearGradient(0, hy, 0, H)
-  g.addColorStop(0, tone("#86b3d6", mood))
-  g.addColorStop(0.4, tone("#4f8cbc", mood))
-  g.addColorStop(1, tone("#2f6a9a", mood))
-  ctx.fillStyle = g
-  ctx.fillRect(0, hy, W, H - hy)
-  ctx.strokeStyle = rgba(mood === "night" ? "#c9d4ff" : "#ffffff", mood === "night" ? 0.3 : 0.45)
-  ctx.lineCap = "round"
-  for (let i = 0; i < 260; i++) {
-    const y = hy + Math.pow(R(), 1.6) * (H - hy)
-    const d = (y - hy) / (H - hy)
-    const x = R() * W
-    const w = u * (0.006 + d * 0.05)
-    ctx.lineWidth = Math.max(0.6, u * 0.0015 * (1 + d * 3))
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(x + w, y)
-    ctx.stroke()
-  }
-}
-
-/** A headland in the style of the red island cliffs: grass on top, a red face dropping to the sea. */
-function headland(p: Paint, layer: Layer, ph: number[]) {
-  const { ctx, W, H, hy, mood, u } = p
-  const land = H - hy
-  const edge = W * 0.6
-  const top = (x: number) => hy + land * (0.12 + 0.3 * Math.pow(x / edge, 1.6)) + Math.sin((x / W) * 9 + ph[0]) * u * 0.006
-  const yB = top(edge)
-  // the cliff face: a red wedge on the seaward side
-  ctx.beginPath()
-  ctx.moveTo(edge - u * 0.02, yB - u * 0.004)
-  ctx.quadraticCurveTo(edge + u * 0.05, yB + land * 0.05, edge + u * 0.07, yB + land * 0.22)
-  ctx.lineTo(edge + u * 0.12, H)
-  ctx.lineTo(edge - u * 0.05, H)
-  ctx.closePath()
-  const c = ctx.createLinearGradient(edge, yB, edge + u * 0.1, H)
-  c.addColorStop(0, tone("#c25a3a", mood))
-  c.addColorStop(1, tone("#7a2f1d", mood))
-  ctx.fillStyle = c
-  ctx.fill()
-  ctx.strokeStyle = rgba(tone("#5c2416", mood), 0.4)
-  ctx.lineWidth = Math.max(1, u * 0.002)
-  for (let i = 1; i < 6; i++) {
-    ctx.beginPath()
-    ctx.moveTo(edge + u * 0.012 * i, yB + land * 0.03 * i)
-    ctx.lineTo(edge + u * (0.012 * i + 0.03), H)
-    ctx.stroke()
-  }
-  // surf where the face meets the water
-  ctx.strokeStyle = rgba("#ffffff", mood === "night" ? 0.25 : 0.6)
-  ctx.lineWidth = Math.max(1, u * 0.004)
-  ctx.beginPath()
-  ctx.moveTo(edge + u * 0.075, yB + land * 0.3)
-  ctx.quadraticCurveTo(edge + u * 0.14, yB + land * 0.36, edge + u * 0.11, H)
-  ctx.stroke()
-  // the grass top
-  ctx.beginPath()
-  ctx.moveTo(0, H)
-  ctx.lineTo(0, top(0))
-  for (let x = 0; x <= edge; x += 4) ctx.lineTo(x, top(x))
-  ctx.quadraticCurveTo(edge + u * 0.03, yB + u * 0.01, edge, H)
-  ctx.closePath()
-  const g = ctx.createLinearGradient(0, top(0), 0, H)
-  g.addColorStop(0, tone(mix(layer.color, "#d9e59a", 0.3), mood))
-  g.addColorStop(1, tone(mix(layer.color, "#2c5418", 0.3), mood))
-  ctx.fillStyle = g
-  ctx.fill()
-  // wind-combed texture on the headland
-  ctx.lineCap = "round"
-  for (let k = 0; k < 2; k++) {
-    ctx.strokeStyle = rgba(tone(k ? "#e4ee9e" : "#3f6d22", mood), k ? 0.35 : 0.3)
-    ctx.lineWidth = Math.max(0.6, u * 0.0022)
-    ctx.beginPath()
-    for (let i = 0; i < 900; i++) {
-      const x = p.R() * edge
-      const y = top(x) + p.R() * (H - top(x))
-      const l = u * (0.004 + 0.02 * ((y - hy) / land))
-      ctx.moveTo(x, y)
-      ctx.lineTo(x + l * 0.4, y - l)
-    }
-    ctx.stroke()
-  }
-  // foreground meadow across the bottom
-  const fb = H - land * 0.2
-  grass(p, fb, u * 0.02, -u * 0.05, ph, layer.color, 0)
-  ctx.beginPath()
-  ctx.moveTo(0, H)
-  for (let x = 0; x <= W; x += 4) ctx.lineTo(x, ridgeY(x, W, fb, u * 0.02, ph, -u * 0.05))
-  ctx.lineTo(W, H)
-  ctx.closePath()
-  ctx.fillStyle = tone(mix(layer.color, "#2c5418", 0.15), mood)
-  ctx.fill()
-  grass(p, fb, u * 0.02, -u * 0.05, ph, layer.color, layer.flowers || 0)
-}
-
-function lavenderRows(p: Paint) {
-  const { ctx, W, H, hy, mood, R, u } = p
-  const vy = hy + (H - hy) * 0.06
-  const vx = W * 0.56
-  const soil = ctx.createLinearGradient(0, vy, 0, H)
-  soil.addColorStop(0, tone("#8a8f6a", mood))
-  soil.addColorStop(1, tone("#5d6a3a", mood))
-  ctx.fillStyle = soil
-  ctx.fillRect(0, vy, W, H - vy)
-  const purples = ["#7d6bb8", "#9a86cf", "#6a57a6", "#b4a0dc", "#8a74c2"].map((c) => tone(c, mood))
-  const rows = 22
-  for (let r = -rows; r <= rows; r++) {
-    const bx = vx + r * W * 0.11
-    const steps = 140
-    for (let i = 0; i < steps; i++) {
-      const t = Math.pow(i / steps, 1.7)
-      const x = vx + (bx - vx) * t + (R() - 0.5) * u * 0.03 * t
-      const y = vy + (H - vy + u * 0.05) * t
-      const rad = u * (0.0015 + 0.03 * t * t) * (0.7 + R() * 0.5)
-      if (x < -rad * 2 || x > W + rad * 2) continue
-      ctx.fillStyle = rgba(tone("#4d6a35", mood), 0.6)
-      ctx.beginPath()
-      ctx.arc(x, y + rad * 0.5, rad * 1.05, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = purples[Math.floor(R() * purples.length)]
-      ctx.beginPath()
-      ctx.arc(x, y, rad, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-}
-
-function lake(p: Paint, ph: number[]) {
-  const { ctx, W, H, hy, mood, R, u } = p
-  const top = hy + (H - hy) * 0.08
-  const bot = hy + (H - hy) * 0.72
-  const s = skyStops(SCENES.lake, mood)
-  const g = ctx.createLinearGradient(0, top, 0, bot)
-  g.addColorStop(0, s[2])
-  g.addColorStop(0.5, s[1])
-  g.addColorStop(1, s[0])
-  ctx.fillStyle = g
-  ctx.fillRect(0, top, W, bot - top + u * 0.1)
-  // reflected far shore
-  ctx.fillStyle = rgba(tone("#4f6d4a", mood), 0.55)
-  ctx.beginPath()
-  ctx.moveTo(0, top)
-  for (let x = 0; x <= W; x += 6) ctx.lineTo(x, top + u * (0.03 + 0.02 * Math.sin(x / W * 9 + ph[2])))
-  ctx.lineTo(W, top)
-  ctx.closePath()
-  ctx.fill()
-  ctx.strokeStyle = rgba("#ffffff", mood === "night" ? 0.18 : 0.4)
-  ctx.lineCap = "round"
-  for (let i = 0; i < 180; i++) {
-    const y = top + R() * (bot - top)
-    const d = (y - top) / (bot - top)
-    const x = R() * W
-    ctx.lineWidth = Math.max(0.6, u * 0.0016 * (1 + d * 2))
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(x + u * (0.01 + d * 0.06), y)
-    ctx.stroke()
-  }
-}
-
-function fireflies(p: Paint) {
-  const { ctx, W, H, hy, R, u } = p
-  for (let i = 0; i < 22; i++) {
-    const x = R() * W
-    const y = hy + (H - hy) * (0.25 + R() * 0.7)
-    const r = u * (0.006 + R() * 0.01)
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r)
-    g.addColorStop(0, "rgba(255,236,150,0.95)")
-    g.addColorStop(0.2, "rgba(255,220,110,0.5)")
-    g.addColorStop(1, "rgba(255,220,110,0)")
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
-/** Paints one pastoral scene into a 2D context. Pure apart from the context, and seeded. */
-function paintScene(ctx: CanvasRenderingContext2D, W: number, H: number, name: string, mood: MjtMood, seed: number) {
-  const def = SCENES[name] || SCENES.meadow
-  const u = Math.max(Math.min(W, H), Math.max(W, H) * 0.62)
-  const R = rng(seed * 7919 + SCENE_NAMES.indexOf(name) * 104729 + (mood === "night" ? 31 : mood === "golden" ? 17 : 0))
-  const hy = H * def.horizon
-  const p = { ctx, W, H, u, R, mood, hy } as Paint
-  paintSky(p, def)
-  if (def.mountains) {
-    const ph = [R() * 6, R() * 6, R() * 6]
-    const col = tone(mix(def.mountains, skyStops(def, mood)[2], 0.25), mood)
-    fillRidge(p, hy + H * 0.005, H * 0.07, 0, col, tone(mix(def.mountains, "#7f98b5", 0.3), mood), ph)
-  }
-  if (def.sea) sea(p)
-  def.layers.forEach((L, i) => {
-    const ph = [R() * 6, R() * 6, R() * 6]
-    const base = hy + (H - hy) * L.y
-    const amp = H * L.amp
-    const tilt = (L.tilt || 0) * H
-    if (def.sea) return headland(p, L, ph)
-    const far = 1 - i / Math.max(1, def.layers.length - 1)
-    const haze = skyStops(def, mood)[2]
-    const top = tone(mix(mix(L.color, "#e7efa8", 0.22), haze, far * 0.35), mood)
-    const bottom = tone(mix(mix(L.color, "#2d5419", 0.22), haze, far * 0.25), mood)
-    if (L.trees) {
-      const col = tone(mix("#3f6136", haze, 0.35), mood)
-      for (let x = -20; x < W + 20; x += u * (0.018 + R() * 0.03)) {
-        if (R() < 0.35) continue
-        treeBlob(p, x, ridgeY(x, W, base, amp, ph, tilt) + u * 0.006, u * (0.012 + R() * 0.02), col)
-      }
-    }
-    fillRidge(p, base, amp, tilt, top, bottom, ph)
-    if (i === def.layers.length - 1 && def.lake) {
-      lake(p, ph)
-      fillRidge(p, base, amp, tilt, top, bottom, ph)
-    }
-    if (L.barn !== undefined) {
-      const x = L.barn * W
-      barn(p, x, ridgeY(x + u * 0.08, W, base, amp, ph, tilt) + u * 0.03, u * 0.16)
-    }
-    if (L.tree !== undefined) {
-      const x = L.tree * W
-      loneTree(p, x, ridgeY(x, W, base, amp, ph, tilt) + u * 0.01, u * 0.2)
-    }
-    if (L.sheep) {
-      for (let k = 0; k < L.sheep; k++) {
-        const x = W * (0.12 + R() * 0.76)
-        const y = ridgeY(x, W, base, amp, ph, tilt) + (H - base) * (0.08 + R() * 0.18)
-        const d = (y - hy) / (H - hy)
-        sheep(p, x, y, u * (0.018 + 0.06 * d * d), R() < 0.5)
-      }
-    }
-    if (L.grass) grass(p, base, amp, tilt, ph, L.color, L.flowers || 0)
-  })
-  if (def.rows) lavenderRows(p)
-  if (def.fence) fence(p, def.fence)
-  if (mood === "night" && !def.sea && !def.lake) fireflies(p)
-  const v = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.35, W / 2, H * 0.5, Math.max(W, H) * 0.8)
-  v.addColorStop(0, "rgba(0,0,0,0)")
-  v.addColorStop(1, mood === "night" ? "rgba(0,0,10,0.35)" : "rgba(20,30,10,0.16)")
-  ctx.fillStyle = v
-  ctx.fillRect(0, 0, W, H)
-}
-// #endregion painter
-
 
 // #region logic
 const PALETTES = {
@@ -1375,11 +610,25 @@ function noteAt(step: number, key: number, seed: number) {
   }
   return out
 }
+/** An Unsplash (imgix) URL at a given width; other URLs pass through untouched. */
+function sized(src: string, w: number, h?: number) {
+  if (!/^https:\/\/images\.unsplash\.com\//.test(src)) return src
+  const base = src.split("?")[0]
+  return base + "?auto=format&fit=crop&q=78&w=" + w + (h ? "&h=" + h + "&crop=faces,entropy" : "")
+}
+
+const WIDTHS = [480, 800, 1200, 1600, 2200]
+
+/** A srcset for Unsplash URLs, up to `max` pixels wide; "" for anything else. */
+function srcSet(src: string, max = 2200) {
+  if (!/^https:\/\/images\.unsplash\.com\//.test(src)) return ""
+  return WIDTHS.filter((w) => w <= max).map((w) => sized(src, w) + " " + w + "w").join(", ")
+}
 // #endregion logic
 
 
 const MJT_CSS = `
-.mjt-root{--mjt-font:"Sofia Pro","Gilroy","Avenir Next","Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mjt-glass:rgba(238,241,248,.84);--mjt-glass-line:rgba(255,255,255,.7);--mjt-text:#1d1f2b;--mjt-muted:#555a6e;--mjt-card:#ffffff;--mjt-soft:rgba(29,31,43,.06);--mjt-rule:rgba(29,31,43,.12);--mjt-on:#fbfbf6;--mjt-track:color-mix(in srgb,var(--mjt-panel) 72%,#ffffff);--mjt-wash:rgba(233,238,247,.55);--mjt-shadow:0 1px 1px rgba(30,40,70,.06),0 30px 60px -24px rgba(30,40,70,.45);position:relative;min-height:var(--mjt-h);overflow-x:clip;font-family:var(--mjt-font);color:var(--mjt-text);-webkit-font-smoothing:antialiased;color-scheme:light;isolation:isolate}
+.mjt-root{--mjt-font:"Outfit","Sofia Pro","Gilroy","Avenir Next","Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mjt-glass:rgba(238,241,248,.84);--mjt-glass-line:rgba(255,255,255,.7);--mjt-text:#1d1f2b;--mjt-muted:#555a6e;--mjt-card:#ffffff;--mjt-soft:rgba(29,31,43,.06);--mjt-rule:rgba(29,31,43,.12);--mjt-on:#fbfbf6;--mjt-track:color-mix(in srgb,var(--mjt-panel) 72%,#ffffff);--mjt-wash:rgba(233,238,247,.55);--mjt-shadow:0 1px 1px rgba(30,40,70,.06),0 30px 60px -24px rgba(30,40,70,.45);position:relative;min-height:var(--mjt-h);overflow-x:clip;font-family:var(--mjt-font);color:var(--mjt-text);-webkit-font-smoothing:antialiased;color-scheme:light;isolation:isolate}
 .mjt-root[data-theme="dark"]{--mjt-glass:rgba(20,22,34,.78);--mjt-glass-line:rgba(255,255,255,.08);--mjt-text:#eef0f7;--mjt-muted:#a6abc0;--mjt-card:#22253a;--mjt-soft:rgba(255,255,255,.06);--mjt-rule:rgba(255,255,255,.12);--mjt-track:color-mix(in srgb,var(--mjt-panel) 55%,#14162a);--mjt-wash:rgba(8,12,28,.5);--mjt-shadow:0 1px 1px rgba(0,0,0,.3),0 30px 70px -24px rgba(0,0,0,.8);color-scheme:dark}
 .mjt-root :where(*,*::before,*::after){box-sizing:border-box}
 .mjt-root :where(svg,canvas,img){display:block;max-width:none}
@@ -1427,7 +676,7 @@ const MJT_CSS = `
 .mjt-clock{display:flex;align-items:baseline;gap:.22em;font-size:clamp(36px,6.4vw,78px);line-height:.98;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;border-radius:14px}
 .mjt-clock i{font-style:normal;animation:mjt-blink 2s steps(1) infinite}
 .mjt-clock small{font-size:.72em;font-weight:700;letter-spacing:-.01em}
-@keyframes mjt-blink{50%{opacity:.25}}
+@keyframes mjt-blink{50%{opacity:.55}}
 .mjt-navrow{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
 .mjt-tabs{position:relative;display:flex;align-items:center;gap:2px;font-size:clamp(16px,2.1vw,24px)}
 .mjt-tab{position:relative;z-index:1;padding:.12em .62em;border-radius:999px;font-weight:400;letter-spacing:-.01em;transition:color .3s,font-weight .3s}
@@ -1447,7 +696,8 @@ const MJT_CSS = `
 .mjt-menu svg{width:16px;height:16px;flex:none;opacity:.75}
 @keyframes mjt-pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
 .mjt-meta{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--mjt-ink);display:flex;gap:10px;align-items:center}
-.mjt-meta i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.6}
+.mjt-meta i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.6;flex:none}
+.mjt-meta span:first-child{white-space:nowrap}
 .mjt-post{font-size:clamp(20px,2.35vw,27.5px);line-height:1.3;font-weight:400;letter-spacing:-.012em;min-height:3.9em;max-width:36em;text-wrap:pretty}
 .mjt-post b{font-weight:800;color:var(--mjt-ink)}
 .mjt-root[data-theme="dark"] .mjt-post b,.mjt-root[data-theme="dark"] .mjt-meta,.mjt-root[data-theme="dark"] .mjt-credit,.mjt-root[data-theme="dark"] .mjt-likes,.mjt-root[data-theme="dark"] .mjt-likes b{color:#fff}
@@ -1470,12 +720,18 @@ const MJT_CSS = `
 .mjt-mid{display:grid;grid-template-rows:1fr 1fr;gap:clamp(10px,1.5vw,16px);min-height:0}
 .mjt-photo{position:relative;overflow:hidden;border-radius:clamp(20px,2.6vw,30px);background:var(--mjt-panel);isolation:isolate;min-height:0}
 .mjt-photo-open{position:absolute;inset:0;z-index:1;border-radius:inherit}
-.mjt-photo .mjt-scene{transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
-.mjt-photo:hover .mjt-scene{transform:scale(1.045)}
+.mjt-photo .mjt-photo-box{transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+.mjt-photo:hover .mjt-photo-box{transform:scale(1.045)}
 .mjt-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,14,24,.42),rgba(10,14,24,0) 46%);pointer-events:none}
-.mjt-scene{position:absolute;inset:0;overflow:hidden}
-.mjt-scene[data-new]{animation:mjt-fade .9s ease both}
-.mjt-doodle{position:absolute;z-index:2;left:8%;top:9%;width:58%;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
+.mjt-photo-box{position:absolute;inset:0;overflow:hidden}
+.mjt-photo-box[data-new]{animation:mjt-photo-in 1.1s cubic-bezier(.2,.8,.2,1) both}
+.mjt-blur{filter:blur(18px);transform:scale(1.12);transition:opacity .6s ease}
+.mjt-sharp{opacity:0;transition:opacity .7s ease}
+.mjt-photo-box[data-state="ready"] .mjt-sharp{opacity:1}
+.mjt-photo-box[data-state="ready"] .mjt-blur{opacity:0}
+.mjt-photo-box[data-state="failed"] .mjt-media{display:none}
+@keyframes mjt-photo-in{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:none}}
+.mjt-doodle{position:absolute;z-index:2;right:6%;top:7%;width:44%;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
 .mjt-doodle path{fill:none;stroke:#fff;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:0}
 .mjt-doodle[data-draw] path{animation:mjt-draw 1.5s cubic-bezier(.5,0,.3,1) both}
 .mjt-doodle[data-draw] path+path{animation-delay:.9s}
@@ -1598,8 +854,8 @@ const MJT_CSS = `
 .mjt-wall{columns:3 240px;column-gap:clamp(10px,1.4vw,16px)}
 .mjt-wtile{position:relative;break-inside:avoid;margin-bottom:clamp(10px,1.4vw,16px);border-radius:clamp(18px,2.2vw,26px);overflow:hidden;aspect-ratio:4/3;background:var(--mjt-panel);isolation:isolate;animation:mjt-in .55s cubic-bezier(.2,.8,.2,1) both}
 .mjt-wtile[data-tall]{aspect-ratio:3/4}
-.mjt-wtile .mjt-scene{transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
-.mjt-wtile:hover .mjt-scene{transform:scale(1.05)}
+.mjt-wtile .mjt-photo-box{transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+.mjt-wtile:hover .mjt-photo-box{transform:scale(1.05)}
 .mjt-wtile::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,14,24,.5),rgba(10,14,24,0) 42%);pointer-events:none;opacity:.85}
 .mjt-wcap{position:absolute;z-index:2;left:16px;right:72px;bottom:14px;color:#fff;font-size:14px;font-weight:700;line-height:1.25;text-shadow:0 1px 8px rgba(0,0,0,.35);pointer-events:none}
 .mjt-wcap span{display:block;font-size:11px;font-weight:600;opacity:.8;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
@@ -1669,6 +925,8 @@ const MJT_CSS = `
 .mjt-lb{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:clamp(12px,3vw,40px);background:rgba(12,14,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:mjt-fade .3s ease both}
 .mjt-lb-card{position:relative;width:min(100%,1100px);max-height:calc(100svh - 24px);display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;padding:12px;border-radius:clamp(24px,3vw,36px);background:var(--mjt-glass);border:1px solid var(--mjt-glass-line);box-shadow:var(--mjt-shadow);animation:mjt-pop .4s cubic-bezier(.2,.8,.2,1) both}
 .mjt-lb-img{position:relative;height:min(68svh,640px);border-radius:clamp(18px,2.4vw,26px);overflow:hidden;background:var(--mjt-panel)}
+.mjt-lb-img .mjt-sharp{object-fit:contain}
+.mjt-lb-img .mjt-blur{opacity:1 !important;filter:blur(28px) brightness(.8)}
 .mjt-lb-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:4px 8px 6px}
 .mjt-lb-bar h3{font-size:clamp(18px,2.2vw,24px);font-weight:800;letter-spacing:-.01em}
 .mjt-lb-bar p{font-size:13px;color:var(--mjt-muted);margin-top:3px}
@@ -1682,6 +940,37 @@ const MJT_CSS = `
 
 .mjt-rv[data-armed]{opacity:0;transform:translateY(26px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
 .mjt-rv[data-armed][data-in]{opacity:1;transform:none}
+
+.mjt-song-row{display:flex;align-items:flex-end;gap:12px;min-width:0}
+.mjt-song-text{flex:1;min-width:0}
+.mjt-art{position:relative;flex:none;width:clamp(52px,5.4vw,64px);height:clamp(52px,5.4vw,64px);margin-right:12px}
+.mjt-art img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:0 8px 18px -8px rgba(0,0,0,.6)}
+.mjt-vinyl{position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle,#d9c27a 0 14%,#111 15% 18%,#1b1b1b 19% 30%,#0e0e0e 31% 44%,#1b1b1b 45% 58%,#0c0c0c 59% 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.mjt-art[data-playing] .mjt-vinyl{transform:translateX(38%);animation:mjt-turn 2.4s linear infinite}
+@keyframes mjt-turn{from{rotate:0deg}to{rotate:360deg}}
+.mjt-face{display:inline-block;width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-5px;margin-right:6px;box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+.mjt-root[data-theme="dark"] .mjt-sky .mjt-media{filter:brightness(.42) saturate(.75) contrast(1.05)}
+.mjt-root[data-theme="dark"] .mjt-sky-wash{background:linear-gradient(180deg,rgba(10,14,40,.55),rgba(8,10,28,.35) 50%,rgba(6,8,20,.7))}
+.mjt-root[data-theme="dark"] .mjt-sky::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,24,70,.45),rgba(10,12,30,.2) 60%,rgba(6,8,20,.55));pointer-events:none}
+.mjt-root[data-theme="dark"] .mjt-photo .mjt-media,.mjt-root[data-theme="dark"] .mjt-wtile .mjt-media{filter:brightness(.82) saturate(.9)}
+.mjt-board{animation:mjt-rise 1.1s cubic-bezier(.2,.8,.2,1) both}
+.mjt-panel>*,.mjt-cards>*,.mjt-board>.mjt-scrub{animation:mjt-up .9s cubic-bezier(.2,.8,.2,1) both}
+.mjt-panel>:nth-child(2){animation-delay:.15s}
+.mjt-panel>:nth-child(3){animation-delay:.25s}
+.mjt-panel>:nth-child(4){animation-delay:.35s}
+.mjt-panel>:nth-child(5){animation-delay:.45s}
+.mjt-cards>:nth-child(1){animation-delay:.4s}
+.mjt-cards>:nth-child(2){animation-delay:.5s}
+.mjt-cards>:nth-child(3){animation-delay:.6s}
+.mjt-board>.mjt-scrub{animation-delay:.7s}
+.mjt-board>.mjt-star{animation:mjt-star-in .7s cubic-bezier(.3,1.6,.5,1) backwards}
+.mjt-board>.mjt-star:nth-of-type(1){animation-delay:.9s}
+.mjt-board>.mjt-star:nth-of-type(2){animation-delay:1s}
+.mjt-board>.mjt-star:nth-of-type(3){animation-delay:1.1s}
+.mjt-board>.mjt-star:nth-of-type(4){animation-delay:1.2s}
+@keyframes mjt-rise{from{opacity:0;transform:translateY(40px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes mjt-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes mjt-star-in{from{scale:0;opacity:0}to{opacity:1}}
 
 @media (max-width:860px){
 .mjt-profile,.mjt-gb{grid-template-columns:1fr}
@@ -1711,7 +1000,7 @@ const MJT_CSS = `
 .mjt-board>.mjt-star:nth-of-type(n+3){display:none}
 }
 @media (prefers-reduced-motion:reduce){
-.mjt-root *,.mjt-root *::before,.mjt-root *::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+.mjt-root *,.mjt-root *::before,.mjt-root *::after{animation-duration:.001ms !important;animation-delay:0s !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
 .mjt-sky-layer{animation:none}
 .mjt-clock i{animation:none}
 .mjt-rv[data-armed]{opacity:1;transform:none}
@@ -1827,97 +1116,42 @@ function scrollByPx(el: HTMLElement, dy: number, smooth: boolean) {
   else window.scrollBy(opts)
 }
 
-/* ---------- painted pictures ---------- */
+/* ---------- photographs ---------- */
 
-// one paint per frame, so a page of canvases never stalls a scroll
-const paintQueue = [] as (() => void)[]
-let paintRaf = 0
-function queuePaint(fn: () => void) {
-  paintQueue.push(fn)
-  if (paintRaf || typeof requestAnimationFrame === "undefined") return
-  const step = () => {
-    paintRaf = 0
-    const t0 = performance.now()
-    while (paintQueue.length && performance.now() - t0 < 12) {
-      const job = paintQueue.shift()
-      if (job) job()
-    }
-    if (paintQueue.length) paintRaf = requestAnimationFrame(step)
-  }
-  paintRaf = requestAnimationFrame(step)
-}
+type PhotoProps = { shot: MjtShot; sizes?: string; max?: number; eager?: boolean; label?: string; fresh?: boolean; className?: string; square?: number }
 
-function grain(ctx: CanvasRenderingContext2D, w: number, h: number, seed: number) {
-  if (w * h > 1600000) return
-  try {
-    const img = ctx.getImageData(0, 0, w, h)
-    const d = img.data
-    const R = rng(seed + 99)
-    for (let i = 0; i < d.length; i += 4) {
-      const n = (R() - 0.5) * 9
-      d[i] += n
-      d[i + 1] += n
-      d[i + 2] += n
-    }
-    ctx.putImageData(img, 0, 0)
-  } catch {
-    /* a tainted or lost context: skip the grain */
-  }
-}
-
-type SceneProps = { shot: MjtShot; mood: MjtMood; label?: string; budget?: number; fresh?: boolean; className?: string }
-
-/** A painted scene (or the shot's own image) that fills its positioned parent. */
-function Scene({ shot, mood, label, budget = 1400000, fresh, className }: SceneProps) {
-  const wrap = React.useRef(null as HTMLDivElement | null)
-  const canvas = React.useRef(null as HTMLCanvasElement | null)
-  const seen = useOnScreen(wrap, "200px").seen
-  const [size, setSize] = React.useState([0, 0])
-  const name = shot.scene || "meadow"
-  const seed = shot.seed === undefined ? 1 : shot.seed
+/**
+ * A photograph that fills its positioned parent: a responsive srcset, the
+ * shot's tone underneath, a tiny blurred copy while the real one loads, then
+ * a soft fade in. Preflight is guarded (max-width: none).
+ */
+function Photo({ shot, sizes = "50vw", max = 2200, eager, label, fresh, className, square }: PhotoProps) {
+  const [state, setState] = React.useState("loading" as "loading" | "ready" | "failed")
+  const img = React.useRef(null as HTMLImageElement | null)
   React.useEffect(() => {
-    const el = wrap.current
-    if (!el || shot.image) return
-    const read = () => {
-      const r = el.getBoundingClientRect()
-      setSize((s) => (Math.abs(s[0] - r.width) < s[0] * 0.08 + 1 && Math.abs(s[1] - r.height) < s[1] * 0.08 + 1 ? s : [r.width, r.height]))
-    }
-    read()
-    if (typeof ResizeObserver === "undefined") return
-    const ro = new ResizeObserver(read)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [shot.image])
-  React.useEffect(() => {
-    const c = canvas.current
-    if (!c || !seen || shot.image || size[0] < 2 || size[1] < 2) return
-    let live = true
-    queuePaint(() => {
-      if (!live) return
-      const dpr = Math.min(typeof devicePixelRatio === "number" ? devicePixelRatio : 1, 2)
-      const k = Math.min(dpr, Math.sqrt(budget / (size[0] * size[1])))
-      const w = Math.max(2, Math.round(size[0] * k))
-      const h = Math.max(2, Math.round(size[1] * k))
-      c.width = w
-      c.height = h
-      const ctx = c.getContext("2d")
-      if (!ctx) return
-      paintScene(ctx, w, h, name, mood, seed)
-      grain(ctx, w, h, seed)
-      c.setAttribute("data-painted", "")
-    })
-    return () => {
-      live = false
-    }
-  }, [seen, size, name, mood, seed, budget, shot.image])
-  const aria = label === "" ? { "aria-hidden": true } : { role: "img", "aria-label": label || shot.alt || name }
+    setState("loading")
+    const el = img.current
+    if (el && el.complete && el.naturalWidth) setState("ready")
+  }, [shot.src])
+  const isUnsplash = /^https:\/\/images\.unsplash\.com\//.test(shot.src)
+  const aria = label === "" ? { "aria-hidden": true } : { role: "img", "aria-label": label || shot.alt || "" }
   return (
-    <div ref={wrap} className={"mjt-scene" + (className ? " " + className : "")} data-new={fresh ? "" : undefined} {...aria}>
-      {shot.image ? (
-        <img className="mjt-media" src={shot.image} alt="" draggable={false} loading="lazy" style={{ maxWidth: "none" }} />
-      ) : (
-        <canvas ref={canvas} className="mjt-media" />
-      )}
+    <div className={"mjt-photo-box" + (className ? " " + className : "")} data-state={state} data-new={fresh ? "" : undefined} style={{ background: shot.tone || "var(--mjt-panel)" }} {...aria}>
+      {isUnsplash && !square && <img className="mjt-media mjt-blur" src={sized(shot.src, 32)} alt="" aria-hidden="true" style={{ maxWidth: "none", objectPosition: shot.focus }} />}
+      <img
+        ref={img}
+        className="mjt-media mjt-sharp"
+        src={square ? sized(shot.src, square, square) : sized(shot.src, Math.min(max, 1200))}
+        srcSet={square ? undefined : srcSet(shot.src, max) || undefined}
+        sizes={square ? undefined : sizes}
+        alt=""
+        draggable={false}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onLoad={() => setState("ready")}
+        onError={() => setState("failed")}
+        style={{ maxWidth: "none", objectPosition: shot.focus }}
+      />
     </div>
   )
 }
@@ -2246,7 +1480,8 @@ function MusicCard({ songs, L }: { songs: MjtSong[]; L: typeof DEFAULT_LABELS })
           )}
         </span>
       </div>
-      <div key={si} className="mjt-swap">
+      <div key={si} className="mjt-swap mjt-song-row">
+        <div className="mjt-song-text">
         <p className="mjt-song">{song.title}</p>
         <p className="mjt-song-meta">
           {L.songBy} <b>{song.artist}</b>
@@ -2255,6 +1490,13 @@ function MusicCard({ songs, L }: { songs: MjtSong[]; L: typeof DEFAULT_LABELS })
           <br />
           {L.duration} <b>{playing || t > 0 ? mmss(t) + " / " + mmss(song.duration) : mmss(song.duration)}</b> {L.minutes}
         </p>
+        </div>
+        {song.cover && (
+          <span className="mjt-art" data-playing={playing ? "" : undefined} aria-hidden="true">
+            <span className="mjt-vinyl" />
+            <img src={sized(song.cover, 160, 160)} alt="" draggable={false} style={{ maxWidth: "none" }} />
+          </span>
+        )}
       </div>
       <div
         className="mjt-prog"
@@ -2367,7 +1609,10 @@ function MessagesCard({ messages, L, onReply, toast, replyRef }: { messages: Mjt
       </div>
       {mode === "read" ? (
         <div key={mi} className="mjt-swap">
-          <p className="mjt-quote-from">{msg.from}</p>
+          <p className="mjt-quote-from">
+            {msg.avatar && <img className="mjt-face" src={sized(msg.avatar, 64, 64)} alt="" style={{ maxWidth: "none" }} />}
+            {msg.from}
+          </p>
           <p className="mjt-quote">{"“" + msg.text + "”"}</p>
         </div>
       ) : (
@@ -2467,7 +1712,7 @@ function Lightbox({ items, index, setIndex, onClose, liked, toggleLike, L }: { i
     <div className="mjt-lb" role="dialog" aria-modal="true" aria-label={p.caption} ref={ref} onKeyDown={onKey} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="mjt-lb-card">
         <div className="mjt-lb-img">
-          <Scene key={p.id} shot={p} mood={p.mood || "day"} label={p.alt || p.caption} budget={2400000} fresh />
+          <Photo key={p.id} shot={p} label={p.alt || p.caption} sizes="(max-width: 1100px) 100vw, 1100px" max={1600} eager fresh />
         </div>
         <button type="button" className="mjt-rbtn mjt-lb-close" aria-label={L.close} onClick={onClose}>
           <Icon d={I.x} />
@@ -2706,6 +1951,7 @@ export default function MeadowJournalTemplate({
   palette = "periwinkle",
   theme = "system",
   stickers = true,
+  fontHref = DEFAULT_FONT,
   interval = 8,
   onLike,
   onReply,
@@ -2726,7 +1972,6 @@ export default function MeadowJournalTemplate({
   const L = { ...DEFAULT_LABELS, ...(labels || {}) }
   const P = profile === null ? null : { ...DEFAULT_PROFILE, ...(profile || {}) }
   const F = footer === null ? null : { ...DEFAULT_FOOTER, ...(footer || {}) }
-  const night = dark
   useReveal(rootRef, reduced)
 
   /* entries on the board; the archive can pin more to the top */
@@ -2738,9 +1983,9 @@ export default function MeadowJournalTemplate({
   const allEntries = React.useMemo(() => mergeEntries(list, archive || []), [list, archive])
   const go = (i: number) => setEi((i + list.length) % list.length)
 
-  /* the painted sky crossfades between entries */
-  const skyShot = { scene: entry.scene || "meadow", mood: night ? "night" : entry.mood || "day", seed: hash(entry.id) % 97, image: entry.image } as MjtShot
-  const skyKey = (skyShot.image || skyShot.scene) + ":" + skyShot.mood + ":" + skyShot.seed
+  /* the backdrop photo crossfades between entries */
+  const skyShot = entry.image
+  const skyKey = skyShot.src
   const [sky, setSky] = React.useState([{ key: skyKey, shot: skyShot, fresh: false }])
   React.useEffect(() => {
     setSky((s) => {
@@ -2864,7 +2109,7 @@ export default function MeadowJournalTemplate({
 
   /* lightbox */
   const [lb, setLb] = React.useState(null as { items: MjtPhoto[]; i: number } | null)
-  const heroPhotos = (entry.shots && entry.shots.length ? entry.shots : [{ scene: entry.scene }, { scene: entry.scene, seed: 7 }]).slice(0, 2).map(
+  const heroPhotos = (entry.shots && entry.shots.length ? entry.shots.concat(entry.shots) : [entry.image, entry.image]).slice(0, 2).map(
     (s, k) =>
       ({
         ...s,
@@ -2874,8 +2119,6 @@ export default function MeadowJournalTemplate({
         tags: entry.tag ? [entry.tag] : [],
         camera: entry.camera,
         likes: Math.round(entry.likes / (k ? 9 : 6)),
-        seed: s.seed === undefined ? hash(entry.id + k) % 97 : s.seed,
-        mood: night ? "night" : s.mood,
       }) as MjtPhoto
   )
 
@@ -2960,6 +2203,7 @@ export default function MeadowJournalTemplate({
 
   return (
     <div ref={rootRef} className={"mjt-root" + (className ? " " + className : "")} data-theme={dark ? "dark" : "light"} style={rootStyle}>
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
       <style>{MJT_CSS}</style>
       <svg className="mjt-defs" aria-hidden="true" focusable="false">
         <defs>
@@ -2979,7 +2223,7 @@ export default function MeadowJournalTemplate({
       <div className="mjt-sky" aria-hidden="true">
         {sky.map((s) => (
           <div key={s.key} className="mjt-sky-layer" data-new={s.fresh ? "" : undefined}>
-            <Scene shot={s.shot} mood={s.shot.mood || "day"} label="" budget={2200000} />
+            <Photo shot={s.shot} label="" sizes="100vw" eager />
           </div>
         ))}
         <div className="mjt-sky-wash" />
@@ -2989,7 +2233,7 @@ export default function MeadowJournalTemplate({
         <nav className="mjt-dock" data-on={docked ? "" : undefined} aria-label={name} aria-hidden={docked ? undefined : true}>
           <span className="mjt-dock-me">
             <span className="mjt-dock-av">
-              <Scene shot={P && P.avatar ? P.avatar : { scene: "meadow", mood: "golden" }} mood={(P && P.avatar && P.avatar.mood) || "golden"} label="" budget={20000} />
+              {P && P.avatar && <Photo shot={P.avatar} label="" square={80} />}
             </span>
             {name}
           </span>
@@ -3194,7 +2438,7 @@ export default function MeadowJournalTemplate({
 
           <div className="mjt-cards">
             <figure className="mjt-photo">
-              <Scene key={heroPhotos[0].id + heroPhotos[0].mood} shot={heroPhotos[0]} mood={heroPhotos[0].mood || "day"} label={heroPhotos[0].alt || entry.place} fresh />
+              <Photo key={heroPhotos[0].src} shot={heroPhotos[0]} label={heroPhotos[0].alt || entry.place} sizes="(max-width: 640px) 50vw, 360px" max={1200} eager fresh />
               <button type="button" className="mjt-photo-open" aria-label={heroPhotos[0].alt || entry.place} onClick={() => setLb({ items: heroPhotos, i: 0 })} />
               <svg key={"d" + entry.id} className="mjt-doodle" data-draw={reduced ? undefined : ""} viewBox="0 0 160 110" aria-hidden="true">
                 <path pathLength={1} d="M14 58c-6-14 4-30 18-24 6 3 8 10 6 15 4-9 15-14 22-7 9 9-4 24-24 34-10-6-18-11-22-18Z" />
@@ -3222,7 +2466,7 @@ export default function MeadowJournalTemplate({
             </div>
 
             <figure className="mjt-photo">
-              <Scene key={heroPhotos[1].id + heroPhotos[1].mood} shot={heroPhotos[1]} mood={heroPhotos[1].mood || "day"} label={heroPhotos[1].alt || entry.place} fresh />
+              <Photo key={heroPhotos[1].src} shot={heroPhotos[1]} label={heroPhotos[1].alt || entry.place} sizes="(max-width: 640px) 50vw, 360px" max={1200} eager fresh />
               <button type="button" className="mjt-photo-open" aria-label={heroPhotos[1].alt || entry.place} onClick={() => setLb({ items: heroPhotos, i: 1 })} />
               <button type="button" className="mjt-arch mjt-link" onClick={() => goTo("archive")}>
                 <Rich text={L.fromArchive} />
@@ -3249,7 +2493,7 @@ export default function MeadowJournalTemplate({
               <div className="mjt-pcard">
                 <div className="mjt-who">
                   <span className="mjt-av">
-                    <Scene shot={P.avatar || { scene: "meadow" }} mood={night ? "night" : (P.avatar && P.avatar.mood) || "golden"} label="" budget={120000} />
+                    {P.avatar && <Photo shot={P.avatar} label="" square={240} />}
                   </span>
                   <div>
                     <h3>{P.fullName}</h3>
@@ -3316,7 +2560,7 @@ export default function MeadowJournalTemplate({
                   )}
                   <div className="mjt-post-card">
                     <div className="mjt-pc-img">
-                      <Scene key={skyKey} shot={skyShot} mood={skyShot.mood || "day"} label={entry.place} fresh />
+                      <Photo key={skyKey} shot={skyShot} label={entry.place} sizes="(max-width: 860px) 100vw, 300px" max={1200} fresh />
                     </div>
                     <span className="mjt-stamp" aria-hidden="true">
                       <div>
@@ -3361,7 +2605,7 @@ export default function MeadowJournalTemplate({
             <div className="mjt-wall" key={cat}>
               {shown.map((p, i) => (
                 <figure key={p.id} className="mjt-wtile" data-tall={p.tall ? "" : undefined} style={{ animationDelay: i * 50 + "ms" }}>
-                  <Scene shot={p} mood={p.mood || "day"} label={p.alt || p.caption} />
+                  <Photo shot={p} label={p.alt || p.caption} sizes="(max-width: 640px) 100vw, (max-width: 1000px) 50vw, 380px" max={1200} />
                   <button type="button" className="mjt-photo-open" aria-label={p.caption} onClick={() => setLb({ items: shown, i })} />
                   <figcaption className="mjt-wcap">
                     {p.category && <span>{p.category}</span>}
@@ -3413,7 +2657,7 @@ export default function MeadowJournalTemplate({
                   return (
                     <article key={e.id} className="mjt-item" style={{ animationDelay: i * 40 + "ms" }}>
                       <div className="mjt-thumb">
-                        <Scene shot={{ scene: e.scene || "meadow", mood: e.mood, seed: hash(e.id) % 97, image: e.image }} mood={e.mood || "day"} label="" budget={160000} />
+                        <Photo shot={e.image} label="" sizes="(max-width: 640px) 100vw, 120px" max={800} />
                       </div>
                       <div>
                         <div className="mjt-item-top">

@@ -18,8 +18,11 @@ export default function DemoGranja() {
           place: "Una granjita en Asturias",
           text: "Hoy me encuentro en **una granjita** junto al mar, dando de comer a las cabras y mirando los prados que nos regala **la madre naturaleza**. Sed felices.",
           likes: 25000000,
-          scene: "ridge",
-          shots: [{ scene: "meadow", seed: 8 }, { scene: "barn", seed: 3 }],
+          image: { src: "https://images.unsplash.com/photo-1501854140801-50d01698950b", alt: "Prados verdes y ondulados", tone: "#5a8a3a" },
+          shots: [
+            { src: "https://images.unsplash.com/photo-1496440737103-cd596325d314", alt: "Lucía con chaqueta vaquera entre los árboles", tone: "#5a6a5a", focus: "50% 30%" },
+            { src: "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e", alt: "Una vaca en el prado", tone: "#5a8a3a" },
+          ],
           tag: "Granjera icónica",
           camera: "Canon AE-1",
         },
@@ -29,8 +32,11 @@ export default function DemoGranja() {
           place: "Cabo de Peñas",
           text: "Me desperté antes que las gaviotas. Los **acantilados** brillaban y el café sabe mejor **con sal en el aire**.",
           likes: 1840000,
-          scene: "coast",
-          shots: [{ scene: "coast", seed: 4 }, { scene: "coast", mood: "golden", seed: 9 }],
+          image: { src: "https://images.unsplash.com/photo-1495954484750-af469f2f9be5", alt: "Pasarela de madera hacia el mar", tone: "#7aa0b0" },
+          shots: [
+            { src: "https://images.unsplash.com/photo-1474552226712-ac0f0961a954", alt: "Dos amigas en bici al atardecer", tone: "#b06a4a" },
+            { src: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e", alt: "Olas suaves en la playa", tone: "#9ac0c8" },
+          ],
           tag: "Pelo de sal",
           camera: "Olympus mju II",
         },
@@ -40,24 +46,26 @@ export default function DemoGranja() {
           place: "Brihuega, Guadalajara",
           text: "Perdí la tarde entera entre **filas moradas** y el zumbido de las abejas. Mi bolso todavía huele a **julio**.",
           likes: 3120000,
-          scene: "lavender",
-          mood: "golden",
-          shots: [{ scene: "lavender", mood: "golden", seed: 2 }, { scene: "lake", mood: "golden", seed: 5 }],
+          image: { src: "https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5", alt: "Lavanda junto a un lago al anochecer", tone: "#7a5a9a" },
+          shots: [
+            { src: "https://images.unsplash.com/photo-1499002238440-d264edd596ec", alt: "Filas de lavanda al atardecer", tone: "#8a6aa8" },
+            { src: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07", alt: "Amapolas entre la hierba", tone: "#c9b48a" },
+          ],
           tag: "Abejas",
           camera: "Pentax K1000",
         },
       ]}
       archive={[
-        { id: "lago", date: "2026-09-04", place: "Lago de la Ercina", text: "Remamos hasta que el muelle era **una cerilla**. El lago sostenía **dos cielos**.", likes: 940000, scene: "lake", tag: "Remo" },
-        { id: "luciernagas", date: "2026-08-22", place: "El prado de abajo", text: "Me tumbé en la hierba hasta que salieron **las luciérnagas**.", likes: 2270000, scene: "meadow", mood: "night", tag: "Noche" },
+        { id: "lago", date: "2026-09-04", place: "Lago de la Ercina", text: "Remamos hasta que el muelle era **una cerilla**. El lago sostenía **dos cielos**.", likes: 940000, image: { src: "https://images.unsplash.com/photo-1508672019048-805c876b67e2", alt: "Un muelle en el lago", tone: "#6a9ab0" }, tag: "Remo" },
+        { id: "luciernagas", date: "2026-08-22", place: "El prado de abajo", text: "Me tumbé en la hierba hasta que salieron **las luciérnagas**.", likes: 2270000, image: { src: "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8", alt: "El prado al amanecer", tone: "#c88a4a" }, tag: "Amanecer" },
       ]}
       songs={[
-        { title: "Debe ser amor", artist: "Inés Robledo", album: "El Prado", duration: 183, key: 4 },
-        { title: "Lunas de papel", artist: "Los del Faro", album: "Marea Baja", duration: 201, key: 9 },
+        { title: "Debe ser amor", artist: "Inés Robledo", album: "El Prado", duration: 183, key: 4, cover: "https://images.unsplash.com/photo-1458560871784-56d23406c091" },
+        { title: "Lunas de papel", artist: "Los del Faro", album: "Marea Baja", duration: 201, key: 9, cover: "https://images.unsplash.com/photo-1471478331149-c72f17e33c73" },
       ]}
       messages={[
-        { from: "Marta", text: "¡Amiga, te perdimos! ¿En dónde estás? Llámanos.", time: "14:30" },
-        { from: "Abuela", text: "Tráeme miel de lavanda, cariño.", time: "19:10" },
+        { from: "Marta", text: "¡Amiga, te perdimos! ¿En dónde estás? Llámanos.", time: "14:30", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330" },
+        { from: "Abuela", text: "Tráeme miel de lavanda, cariño.", time: "19:10", avatar: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91" },
       ]}
       profile={{
         fullName: "Lucía Ferrer",
@@ -65,6 +73,7 @@ export default function DemoGranja() {
         role: "Cuidadora de granjas y fotógrafa analógica",
         bio: "Cambié el ruido de la ciudad por **portones de granero y caminos de tierra**. Lo fotografío todo en **carrete de 35 mm**.",
         location: "Asturias, España",
+        avatar: { src: "https://images.unsplash.com/photo-1496440737103-cd596325d314", alt: "Lucía", focus: "50% 20%" },
         stats: [
           { label: "Publicaciones", value: 312 },
           { label: "Seguidores", value: 25000000 },
@@ -148,12 +157,12 @@ export default function DemoGranja() {
         entry: "Entrada {n}",
       }}
       photos={[
-        { id: "f1", scene: "ridge", seed: 3, caption: "La valla de siempre", category: "Campo", tall: true },
-        { id: "f2", scene: "coast", seed: 6, caption: "Acantilados a las seis", category: "Mar" },
-        { id: "f3", scene: "lavender", mood: "golden", seed: 1, caption: "Filas sin fin", category: "Hora dorada" },
-        { id: "f4", scene: "barn", seed: 9, caption: "El granero de las cabras", category: "Campo" },
-        { id: "f5", scene: "lake", mood: "night", seed: 2, caption: "Luna en el lago", category: "Mar", tall: true },
-        { id: "f6", scene: "meadow", mood: "golden", seed: 4, caption: "Último sol en el prado", category: "Hora dorada" },
+        { id: "f1", src: "https://images.unsplash.com/photo-1496440737103-cd596325d314", alt: "Lucía en el bosque", caption: "Domingo sin prisa", category: "Retratos", tall: true },
+        { id: "f2", src: "https://images.unsplash.com/photo-1495954484750-af469f2f9be5", alt: "Pasarela hacia el mar", caption: "Camino a la playa", category: "Mar" },
+        { id: "f3", src: "https://images.unsplash.com/photo-1499002238440-d264edd596ec", alt: "Lavanda al atardecer", caption: "Filas sin fin", category: "Hora dorada" },
+        { id: "f4", src: "https://images.unsplash.com/photo-1500076656116-558758c991c1", alt: "Un granero viejo al atardecer", caption: "El granero de siempre", category: "Campo" },
+        { id: "f5", src: "https://images.unsplash.com/photo-1524024973431-2ad916746881", alt: "Una cabra blanca", caption: "Gertrudis, poco impresionada", category: "Campo", tall: true },
+        { id: "f6", src: "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8", alt: "El prado al amanecer", caption: "Las cinco de la mañana", category: "Hora dorada" },
       ]}
     />
   )

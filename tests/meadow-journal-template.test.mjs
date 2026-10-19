@@ -18,14 +18,15 @@ const region = (name) => {
 
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react"], "react is the only import")
-assert.doesNotMatch(src, /@import|@font-face|<link\b|fetch\(|new Image\(/, "nothing loads at runtime")
-assert.doesNotMatch(src, /https?:\/\//, "no URLs at all, so it renders in the capture sandbox")
+assert.doesNotMatch(src, /@import|@font-face|fetch\(|new Image\(/, "no fetches, no CSS imports")
+assert.equal((src.match(/<link\b/g) || []).length, 1, "the one link is the optional display face")
+for (const m of src.matchAll(/https?:\/\/[^"'`\s)]+/g)) assert.match(m[0], /^https:\/\/(images\.unsplash\.com\/photo-|fonts\.googleapis\.com\/css2)/, "only Unsplash photos and the display face are remote: " + m[0])
 assert.ok(src.includes('height = "100svh"'), "height defaults to a definite length")
 assert.match(src, /"--mjt-h": height/, "the height prop reaches the root")
 assert.match(src, /\.mjt-root\{[^}]*min-height:var\(--mjt-h\)/, "and sets its floor")
 assert.match(src, /\.mjt-hero\{[^}]*min-height:var\(--mjt-h\)/, "the hero has a definite height")
-assert.match(src, /\.mjt-sky\{position:sticky;top:0;height:var\(--mjt-h\);margin-bottom:calc\(var\(--mjt-h\) \* -1\)/, "the painted sky is a sticky backdrop of definite height")
-assert.match(src, /\.mjt-cards\{[^}]*height:clamp\(/, "the photo row has a definite height, so the canvases inside it never collapse")
+assert.match(src, /\.mjt-sky\{position:sticky;top:0;height:var\(--mjt-h\);margin-bottom:calc\(var\(--mjt-h\) \* -1\)/, "the backdrop photo is sticky and of definite height")
+assert.match(src, /\.mjt-cards\{[^}]*height:clamp\(/, "the photo row has a definite height, so the absolutely placed photos never collapse")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 assert.match(src, /React\.useId\(\)\.replace/, "ids are namespaced per instance")
 assert.doesNotMatch(src.slice(0, src.indexOf("</")), /use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<|Map<|React\.[A-Za-z]+<|\[K in /, "no generics before the JSX (21st CLI tokenizer)")
@@ -33,7 +34,9 @@ assert.doesNotMatch(src, /use(State|Ref|Memo|Callback)</, "hooks are typed witho
 assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "reduced motion is read in JS (the rotation, the scrolling)")
 assert.doesNotMatch(src, /[—–]/, "no em or en dashes anywhere")
 assert.doesNotMatch(src, />[^<{]*\\u[0-9a-f]{4}/i, "no \\u escapes inside JSX text (they print literally)")
-assert.match(src, /style=\{\{ maxWidth: "none" \}\}/, "your own images are guarded against Preflight")
+assert.match(src, /style=\{\{ maxWidth: "none", objectPosition: shot\.focus \}\}/, "photos are guarded against Preflight")
+assert.match(src, /onError=\{\(\) => setState\("failed"\)\}/, "a failed photo falls back to its tone")
+assert.match(src, /loading=\{eager \? "eager" : "lazy"\}/, "only the hero loads eagerly")
 
 const css = src.match(/const MJT_CSS = `([\s\S]*?)`/)
 assert.ok(css, "CSS block present")
@@ -46,6 +49,7 @@ for (const m of css[1].replace(/\/\*[\s\S]*?\*\//g, "").replace(/@media[^{]*\{/g
   for (const s of sel.split(/,(?![^(]*\))/)) assert.match(s.trim(), /^\.mjt-/, `selector escapes the component: ${s.trim()}`)
 }
 assert.match(css[1], /\.mjt-root :where\(svg,canvas,img\)\{display:block;max-width:none\}/, "media are guarded against Preflight")
+assert.match(css[1], /\.mjt-root\[data-theme="dark"\] \.mjt-sky \.mjt-media\{filter:/, "night mode grades the photograph")
 assert.match(css[1], /\.mjt-root\{[^}]*overflow-x:clip/, "the root clips sideways without breaking the sticky sky and dock")
 assert.doesNotMatch(css[1], /\.mjt-root\{[^}]*overflow:hidden/, "overflow:hidden on the root would break the sticky sky")
 assert.match(css[1], /\.mjt-dockwrap\{position:sticky/, "the dock sticks")
@@ -60,81 +64,51 @@ assert.match(src, /document\.addEventListener\("scroll", on, \{ capture: true, p
 assert.match(src, /const run = interval > 0 && list\.length > 1 && !reduced/, "entries only rotate without reduced motion")
 assert.match(src, /onAnimationEnd=\{\(\) => run && !prefersReduced\(\) && go\(ei \+ 1\)\}/, "the dot's fill is the timer, so pausing it pauses the rotation")
 assert.match(src, /data-paused=\{hold \|\| menu \|\| lb \|\| !heroSeen\.now/, "and it pauses on hover, focus, menus, the lightbox and off screen")
-assert.match(src, /mood: night \? "night" : entry\.mood/, "night mode paints the sky at night")
 assert.match(src, /if \(res === false\) ok = false/, "onReply and onNote can refuse")
 assert.match(src, /aria-modal="true"/, "the lightbox is a modal dialog")
 assert.match(src, /role="menu"/, "more opens a menu")
 assert.match(src, /e\.key === "Escape"/, "Escape closes")
 assert.match(src, /class MusicBox/, "the music card plays")
 assert.match(src, /if \(this\.ctx\) void this\.ctx\.close\(\)/, "and releases its audio on unmount")
-assert.match(src, /queuePaint\(/, "canvases paint one batch per frame")
-assert.match(src, /useOnScreen\(wrap, "200px"\)\.seen/, "and only when they come near the screen")
+assert.match(src, /srcSet=\{square \? undefined : srcSet\(shot\.src, max\) \|\| undefined\}/, "photos are responsive")
+assert.match(src, /\{fontHref && <link rel="stylesheet" href=\{fontHref\} \/>\}/, "the display face is optional")
 assert.ok(read("demo.tsx").includes("<MeadowJournalTemplate />"), "default demo is the component, full bleed")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
 assert.match(read("demo-granja.tsx"), /locale="es-ES"/, "the second demo reprints the page in Spanish")
 assert.match(read("demo-granja.tsx"), /palette="sage"/, "in another palette")
-assert.doesNotMatch(read("demo-granja.tsx"), /https?:\/\//, "and stays capture-safe")
+for (const m of read("demo-granja.tsx").matchAll(/https?:\/\/[^"\s]+/g)) assert.match(m[0], /^https:\/\/images\.unsplash\.com\/photo-/, "with its own Unsplash photos")
 
 /* ---------- logic, executed ---------- */
 
-const code = region("content") + region("painter") + region("logic") +
-  "\nexport { DEFAULT_ENTRIES, DEFAULT_ARCHIVE, DEFAULT_PHOTOS, DEFAULT_LABELS, SCENES, SCENE_NAMES, PALETTES, paintScene, rng, mix, tone, resolvePalette, richParts, plain, fill, compact, grouped, mmss, clockParts, fmtDate, monthLabel, mergeEntries, months, filterEntries, categories, nextIndex, scrubState, scrubDelta, noteAt, hash }\n"
+const code = region("content") + region("logic") +
+  "\nexport { DEFAULT_ENTRIES, DEFAULT_ARCHIVE, DEFAULT_PHOTOS, DEFAULT_SONGS, DEFAULT_MESSAGES, DEFAULT_PROFILE, DEFAULT_LABELS, PALETTES, resolvePalette, richParts, plain, fill, compact, grouped, mmss, clockParts, fmtDate, monthLabel, mergeEntries, months, filterEntries, categories, nextIndex, scrubState, scrubDelta, noteAt, hash, sized, srcSet }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
-// the painter runs every scene in every mood against a recording context, and stays in the frame
-function fakeCtx() {
-  const calls = { fill: 0, stroke: 0, arc: 0, bad: 0 }
-  const grad = { addColorStop: (o, c) => { if (!(o >= 0 && o <= 1) || typeof c !== "string" || /NaN|undefined/.test(c)) calls.bad++ } }
-  const num = (...a) => { for (const v of a) if (typeof v === "number" && !Number.isFinite(v)) calls.bad++ }
-  const ctx = new Proxy({}, {
-    get(_, k) {
-      if (k === "calls") return calls
-      if (k === "createLinearGradient" || k === "createRadialGradient") return (...a) => (num(...a), grad)
-      if (k === "fill") return () => calls.fill++
-      if (k === "stroke") return () => calls.stroke++
-      if (k === "arc" || k === "ellipse") return (...a) => (num(...a), calls.arc++)
-      return (...a) => num(...a)
-    },
-    set(_, k, v) {
-      if ((k === "fillStyle" || k === "strokeStyle") && typeof v === "string" && /NaN|undefined/.test(v)) calls.bad++
-      if (k === "lineWidth" && !(v > 0)) calls.bad++
-      return true
-    },
-  })
-  return ctx
-}
-for (const name of L.SCENE_NAMES) {
-  for (const mood of ["day", "golden", "night"]) {
-    for (const [w, h] of [[640, 400], [300, 420], [1920, 1080]]) {
-      const ctx = fakeCtx()
-      L.paintScene(ctx, w, h, name, mood, 7)
-      assert.equal(ctx.calls.bad, 0, `${name} ${mood} ${w}x${h} paints only finite values and real colours`)
-      assert.ok(ctx.calls.fill > 40, `${name} ${mood} paints something`)
-    }
-  }
-}
-// the same seed paints the same picture
-const trace = (seed) => {
-  const out = []
-  const ctx = new Proxy({}, { get: (_, k) => (k === "createLinearGradient" || k === "createRadialGradient" ? () => ({ addColorStop() {} }) : (...a) => out.push(k + a.map((v) => (typeof v === "number" ? v.toFixed(2) : "")).join(","))), set: () => true })
-  L.paintScene(ctx, 400, 300, "meadow", "day", seed)
-  return out.join(";")
-}
-assert.equal(trace(3), trace(3), "seeded")
-assert.notEqual(trace(3), trace(4), "and a new seed grows a new meadow")
-const R = L.rng(5)
-for (let i = 0; i < 1000; i++) { const v = R(); assert.ok(v >= 0 && v < 1) }
-assert.equal(L.mix("#000000", "#ffffff", 0.5), "#808080")
-assert.equal(L.tone("#336699", "day"), "#336699", "day is the colour as given")
-assert.notEqual(L.tone("#336699", "night"), "#336699", "night relights it")
-
-// every default picture names a real scene
+// every default picture is a real Unsplash photo with alt text and a loading tone
+const shots = []
 for (const e of L.DEFAULT_ENTRIES.concat(L.DEFAULT_ARCHIVE)) {
-  assert.ok(L.SCENE_NAMES.includes(e.scene), e.id + " scene")
-  for (const s of e.shots || []) assert.ok(L.SCENE_NAMES.includes(s.scene), e.id + " shot")
   assert.match(e.date, /^\d{4}-\d{2}-\d{2}$/)
+  shots.push(e.image, ...(e.shots || []))
 }
-for (const p of L.DEFAULT_PHOTOS) assert.ok(L.SCENE_NAMES.includes(p.scene) && p.caption && p.alt, p.id)
+for (const e of L.DEFAULT_ENTRIES) assert.equal((e.shots || []).length, 2, e.id + " has two photo cards")
+shots.push(...L.DEFAULT_PHOTOS, L.DEFAULT_PROFILE.avatar)
+for (const s of shots) {
+  assert.match(s.src, /^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]{12}$/, "bare Unsplash URL " + s.src)
+  assert.ok(s.alt && s.alt.length > 3, "alt for " + s.src)
+  assert.match(s.tone, /^#[0-9a-f]{6}$/, "tone for " + s.src)
+}
+for (const s of L.DEFAULT_SONGS) assert.match(s.cover, /^https:\/\/images\.unsplash\.com\/photo-/)
+for (const m of L.DEFAULT_MESSAGES) assert.match(m.avatar, /^https:\/\/images\.unsplash\.com\/photo-/)
+assert.equal(new Set(L.DEFAULT_PHOTOS.map((p) => p.id)).size, L.DEFAULT_PHOTOS.length)
+
+// responsive photo URLs
+const u = "https://images.unsplash.com/photo-1438786657495-640937046d18"
+assert.equal(L.sized(u, 800), u + "?auto=format&fit=crop&q=78&w=800")
+assert.equal(L.sized(u + "?w=50&q=1", 800), u + "?auto=format&fit=crop&q=78&w=800", "existing params are replaced")
+assert.match(L.sized(u, 80, 80), /w=80&h=80&crop=faces,entropy$/, "squares crop to faces")
+assert.equal(L.sized("/me.jpg", 800), "/me.jpg", "other URLs pass through")
+assert.equal(L.srcSet("/me.jpg"), "")
+assert.deepEqual(L.srcSet(u, 1200).split(", ").map((x) => x.split(" ")[1]), ["480w", "800w", "1200w"])
 
 // rich text
 assert.deepEqual(L.richParts("on **a little farm** in Canada"), [{ text: "on ", bold: false }, { text: "a little farm", bold: true }, { text: " in Canada", bold: false }])
@@ -166,11 +140,11 @@ for (let i = 1; i < all.length; i++) assert.ok(all[i - 1].date >= all[i].date, "
 const ms = L.months(all)
 assert.equal(ms.reduce((a, m) => a + m.count, 0), all.length)
 assert.equal(ms[0].key, "2026-10")
-assert.equal(L.filterEntries(all, "", "canoe").length, 1)
-assert.equal(L.filterEntries(all, "", "CLIFFS red").length, 1, "every word, any case, any order")
+assert.equal(L.filterEntries(all, "", "dock").length, 1)
+assert.equal(L.filterEntries(all, "", "BOARDWALK salt").length, 1, "every word, any case, any order")
 assert.equal(L.filterEntries(all, "2026-09", "").length, all.filter((e) => e.date.startsWith("2026-09")).length)
 assert.equal(L.filterEntries([{ id: "x", date: "2026-01-01", place: "Peñas", text: "café", likes: 1 }], "", "penas cafe").length, 1, "accents fold")
-assert.deepEqual(L.categories(L.DEFAULT_PHOTOS), ["Fields", "Water", "Golden hour", "Night"])
+assert.deepEqual(L.categories(L.DEFAULT_PHOTOS), ["Portraits", "Fields", "Animals", "Golden hour"])
 
 // palettes and contrast: small text on the cards stays readable
 const lum = (hex) => {
