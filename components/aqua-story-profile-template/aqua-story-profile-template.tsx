@@ -15,9 +15,9 @@
 // quiz.
 //
 // The script lettering is drawn from glyph outlines in this file (Allura, SIL
-// Open Font License), so no web font loads. Photos are Unsplash URLs and every
-// one is a prop; each frame paints its own aqua film still underneath, so a
-// photo that is slow, blocked or missing still leaves a finished frame.
+// Open Font License), so no web font loads. Every photo, sticker included, is
+// a real Unsplash photo and a prop; each one fades in over a blurred 40px copy
+// of itself.
 import * as React from "react"
 
 export type AspStory = {
@@ -51,19 +51,24 @@ export type AspReview = {
   tag?: string
   /** Shown as given, e.g. "06 JUL". */
   date?: string
+  /** A memory photo taped to the top of the card. */
+  photo?: string
 }
 
 export type AspHighlight = { label: string; cover?: string; slides: string[] }
 
 export type AspQuestion = { q: string; options: string[]; answer: number }
 
-export type AspStickerKind = "hibiscus" | "heart" | "sparkle" | "bow" | "cloud" | "butterfly" | "film" | "tape"
+export type AspStickerShape = "circle" | "heart" | "scallop" | "square"
 
-/** x is a fraction of the page width, y is pixels from the top of the page. */
-export type AspSticker = { id?: string; kind: AspStickerKind; x: number; y: number; rotate?: number; size?: number }
+/** A sticker in the decorate tray: a photo die-cut to `shape`, or a printed `text` label. */
+export type AspStickerDef = { id: string; label: string; image?: string; shape?: AspStickerShape; text?: string }
+
+/** A sticker on the page. `kind` is a sticker id; x is a fraction of the page width, y is pixels from the top. */
+export type AspSticker = { id?: string; kind: string; x: number; y: number; rotate?: number; size?: number }
 
 /** A placed sticker, as stored. */
-export type AspPlacedSticker = { id: string; kind: AspStickerKind; x: number; y: number; rotate: number; size: number }
+export type AspPlacedSticker = { id: string; kind: string; x: number; y: number; rotate: number; size: number }
 
 export type AspPaletteName = "aqua" | "blush" | "matcha" | "midnight"
 
@@ -139,6 +144,8 @@ export type AquaStoryProfileTemplateProps = {
   quiz?: AspQuiz | null
   /** Starting count for the hearts. */
   likes?: number
+  /** The decorate tray. */
+  stickers?: AspStickerDef[]
   /** Stickers already on the page. */
   decorations?: AspSticker[]
   /** Keep stickers placed in decorate mode in localStorage, per handle. */
@@ -160,30 +167,35 @@ export type AquaStoryProfileTemplateProps = {
 }
 
 // #region content
+// Every default photo is from Unsplash (Unsplash License), picked by eye for one
+// palette: the stories are one shoot on the Baku seafront, so the profile reads
+// as one person. Credits are in the README.
 const UNSPLASH = "https://images.unsplash.com/photo-"
-const photo = (id: string, w: number, h: number) => UNSPLASH + id + "?auto=format&fit=crop&w=" + w + "&h=" + h + "&q=80"
-const face = (id: string) => UNSPLASH + id + "?auto=format&fit=crop&crop=faces&w=200&h=200&q=80"
+const photo = (id: string, w: number, h: number, crop = "faces") =>
+  UNSPLASH + id + "?auto=format&fit=crop&crop=" + crop + "&w=" + w + "&h=" + h + "&q=80"
+const face = (id: string) => photo(id, 200, 200)
+const thing = (id: string, w = 360, h = 360) => photo(id, w, h, "entropy")
 
 const PALETTES: { [name: string]: AspPalette } = {
   aqua: {
     sky: "#d6eaf1",
     mist: "#8cbdd1",
     deep: "#1e4c5f",
-    glass: "rgba(112, 166, 189, 0.46)",
-    glassEdge: "rgba(255, 255, 255, 0.6)",
+    glass: "rgba(112, 166, 189, 0.42)",
+    glassEdge: "rgba(255, 255, 255, 0.62)",
     ink: "#ffffff",
     paper: "#ffffff",
     paperInk: "#1b3945",
     paperMuted: "#5f7c88",
     field: "#e5ecef",
-    accent: "#4a98bb",
-    wash: "rgba(150, 200, 219, 0.42)",
+    accent: "#3f92b8",
+    wash: "rgba(120, 178, 204, 0.34)",
   },
   blush: {
     sky: "#f7e3e8",
     mist: "#e2a7b7",
     deep: "#5b2a3b",
-    glass: "rgba(204, 140, 160, 0.46)",
+    glass: "rgba(204, 140, 160, 0.42)",
     glassEdge: "rgba(255, 255, 255, 0.62)",
     ink: "#ffffff",
     paper: "#fffafa",
@@ -191,13 +203,13 @@ const PALETTES: { [name: string]: AspPalette } = {
     paperMuted: "#8d6573",
     field: "#f3e6ea",
     accent: "#cf6a8b",
-    wash: "rgba(232, 178, 195, 0.42)",
+    wash: "rgba(226, 160, 182, 0.36)",
   },
   matcha: {
     sky: "#e4eddb",
     mist: "#a3bf8d",
     deep: "#2c4724",
-    glass: "rgba(132, 166, 112, 0.46)",
+    glass: "rgba(132, 166, 112, 0.42)",
     glassEdge: "rgba(255, 255, 255, 0.6)",
     ink: "#ffffff",
     paper: "#fdfdf8",
@@ -205,13 +217,13 @@ const PALETTES: { [name: string]: AspPalette } = {
     paperMuted: "#62785a",
     field: "#e9eee3",
     accent: "#6a9750",
-    wash: "rgba(170, 200, 150, 0.42)",
+    wash: "rgba(150, 186, 128, 0.36)",
   },
   midnight: {
     sky: "#2a3560",
     mist: "#7d8fd6",
     deep: "#0d1330",
-    glass: "rgba(52, 64, 118, 0.5)",
+    glass: "rgba(40, 52, 104, 0.5)",
     glassEdge: "rgba(200, 210, 255, 0.45)",
     ink: "#f3f5ff",
     paper: "#f4f5fb",
@@ -219,146 +231,161 @@ const PALETTES: { [name: string]: AspPalette } = {
     paperMuted: "#626a8f",
     field: "#e4e7f3",
     accent: "#8b9cff",
-    wash: "rgba(16, 22, 52, 0.5)",
+    wash: "rgba(14, 20, 50, 0.52)",
   },
 }
 
 const DEFAULT_PROFILE: AspProfile = {
-  name: "Yuna Han",
-  handle: "yunaa.blue",
-  avatar: face("1517841905240-472988babdf9"),
+  name: "Leyla Hasanova",
+  handle: "leyla.bluehour",
+  avatar: face("1748368541688-e151d388dc35"),
   tagline: "add me to your close friends",
-  bio: "collecting soft summer days on film. leave me a little review and i'll write you one back.",
-  url: "https://instagram.com/yunaa.blue",
+  bio: "sea air, film rolls and long walks on the boulevard. leave me a little review and i'll write you one back.",
+  url: "https://instagram.com/leyla.bluehour",
 }
 
 const DEFAULT_STORIES: AspStory[] = [
   {
-    image: photo("1517841905240-472988babdf9", 1200, 1100),
-    alt: "Yuna outdoors on a bright summer afternoon",
-    caption: "writing proper friend reviews this week… some people deserve to hear it out loud",
+    image: photo("1748371050865-0050c9244d28", 1400, 1280),
+    alt: "Leyla with her arms out on the seafront, towers behind her",
+    caption: "first properly warm day on the boulevard. arms out, sea air, zero plans",
     date: "07 July 2026",
-    location: "Seongsu-dong, Seoul",
+    location: "Baku Boulevard",
   },
   {
-    image: photo("1524504388940-b1c1722653e1", 1200, 1100),
-    alt: "A portrait in soft daylight",
-    caption: "film roll no. 12: every frame a little out of focus, every frame a keeper",
+    image: photo("1748371051343-643da16f160d", 1400, 1280),
+    alt: "Leyla leaning on the railing, looking out to sea",
+    caption: "this railing has heard all of my secrets by now",
     date: "12 July 2026",
-    location: "Hannam-dong, Seoul",
+    location: "Seaside Park, Baku",
   },
   {
-    image: photo("1529626455594-4ff0802cfb7e", 1200, 1100),
-    alt: "A portrait at blue hour",
-    caption: "blue hour, cold americano, the good kind of tired",
+    image: photo("1748371051084-61e46f623295", 1400, 1280),
+    alt: "Leyla smiling against the city skyline",
+    caption: "golden hour came early today, so i stayed out late",
     date: "19 July 2026",
-    location: "Mangwon, Seoul",
+    location: "Crescent Bay",
   },
   {
-    image: photo("1534528741775-53994a69daeb", 1200, 1100),
-    alt: "A close portrait in warm light",
-    caption: "if you can read this you're on the close friends list. leave me a note ♡",
+    image: photo("1748371051351-53142fc14259", 1400, 1280),
+    alt: "Leyla standing by the sea on a sunny day",
+    caption: "if you can read this you're on my close friends list. leave me a note ♡",
     date: "26 July 2026",
-    location: "Aewol, Jeju",
+    location: "Bayil, Baku",
   },
 ]
 
 const DEFAULT_HIGHLIGHTS: AspHighlight[] = [
   {
-    label: "seoul",
-    cover: photo("1477959858617-67f85cf4f1df", 300, 300),
-    slides: [photo("1477959858617-67f85cf4f1df", 900, 1600), photo("1449824913935-59a10b8d2000", 900, 1600)],
+    label: "boulevard",
+    cover: thing("1785608149335-fa1cd223097c"),
+    slides: [photo("1785608149335-fa1cd223097c", 900, 1600, "entropy"), photo("1748369830317-2f5a86b7bf39", 900, 1600), photo("1785608149420-381db669dee4", 900, 1600, "entropy")],
+  },
+  {
+    label: "old city",
+    cover: thing("1622314621630-0d24bcb5aa67"),
+    slides: [photo("1622314621630-0d24bcb5aa67", 900, 1600, "entropy"), photo("1642856761437-5b5efcb36d81", 900, 1600, "entropy"), photo("1614623796638-f6da34cd277c", 900, 1600, "entropy")],
   },
   {
     label: "film",
-    cover: photo("1516035069371-29a1b244cc32", 300, 300),
-    slides: [photo("1516035069371-29a1b244cc32", 900, 1600), photo("1524504388940-b1c1722653e1", 900, 1600)],
+    cover: thing("1767093061114-fca0e996d6cb"),
+    slides: [photo("1767093061114-fca0e996d6cb", 900, 1600, "entropy"), photo("1491796014055-e6835cdcd4c6", 900, 1600, "entropy")],
+  },
+  {
+    label: "café",
+    cover: thing("1764298490445-6add12301888"),
+    slides: [photo("1764298490445-6add12301888", 900, 1600, "entropy"), photo("1767840272154-4eb32b348cdd", 900, 1600, "entropy")],
   },
   {
     label: "sea",
-    cover: photo("1507525428034-b723cf961d3e", 300, 300),
-    slides: [photo("1507525428034-b723cf961d3e", 900, 1600), photo("1505142468610-359e7d316be0", 900, 1600)],
-  },
-  {
-    label: "cafés",
-    cover: photo("1495474472287-4d71bcdd2085", 300, 300),
-    slides: [photo("1495474472287-4d71bcdd2085", 900, 1600), photo("1509042239860-f550ce710b93", 900, 1600)],
-  },
-  {
-    label: "green",
-    cover: photo("1441974231531-c6227db76b6e", 300, 300),
-    slides: [photo("1441974231531-c6227db76b6e", 900, 1600), photo("1470071459604-3b5ec3a7fe05", 900, 1600)],
+    cover: thing("1562841358-e22c0dcb9b95"),
+    slides: [photo("1562841358-e22c0dcb9b95", 900, 1600, "entropy"), photo("1649767647039-c0e46a1012e3", 900, 1600, "entropy"), photo("1637047327854-d9d101d32bd5", 900, 1600, "entropy")],
   },
 ]
 
 const DEFAULT_EXCHANGE: AspExchange = {
   title: "Exchange reviews",
-  image: photo("1441974231531-c6227db76b6e", 1400, 640),
+  image: photo("1633061273937-52843d087274", 1600, 760),
   text: "friends, strangers, mutuals: write one, no hesitation",
   tab: "open to everyone",
-  link: { label: "@ yunaa.blue instagram", url: "https://instagram.com/yunaa.blue", avatar: face("1534528741775-53994a69daeb") },
-  sticker: "@ yunaa.blue",
+  link: { label: "@ leyla.bluehour instagram", url: "https://instagram.com/leyla.bluehour", avatar: face("1748371051173-256e0e227226") },
+  sticker: "@ leyla.bluehour",
   footCenter: "more in my highlights",
   footRight: "new stickers every friday",
 }
 
 const DEFAULT_REVIEWS: AspReview[] = [
   {
-    name: "Seo-yeon",
-    handle: "seoyeon.jpg",
-    avatar: face("1494790108377-be9c29b29330"),
+    name: "Aysel",
+    handle: "aysel.jpg",
+    avatar: face("1762344352930-1e459b3e8c88"),
+    photo: thing("1767840272154-4eb32b348cdd", 600, 420),
     text: "remembers your coffee order, your bad days and your mum's birthday. would get lost in a new city with her again, ten out of ten.",
     hearts: 5,
     tag: "bestie since 2014",
     date: "06 JUL",
   },
   {
-    name: "Daniel Park",
-    handle: "dpark.wav",
-    avatar: face("1507003211169-0a1dd7228f2d"),
+    name: "Rauf",
+    handle: "rauf.wav",
+    avatar: face("1762708546645-65ee9ccedfae"),
+    photo: thing("1767093061114-fca0e996d6cb", 600, 420),
     text: "lent me her film camera for a whole summer and only asked for one print back. the print is on my fridge.",
     hearts: 5,
     tag: "mutual turned friend",
     date: "02 JUL",
   },
   {
-    name: "Mai Tran",
-    handle: "maitran.notes",
-    avatar: face("1438761681033-6461ffad8d80"),
-    text: "explains the hardest lecture better than the professor, then drags you out for tteokbokki after.",
-    hearts: 4,
-    tag: "classmate",
+    name: "Mina Seo",
+    handle: "mina.notes",
+    avatar: face("1668879355609-8bdda74bda53"),
+    photo: thing("1622314621630-0d24bcb5aa67", 600, 420),
+    text: "showed me the old city like she'd built it herself. i still owe her three teas and a postcard.",
+    hearts: 5,
+    tag: "exchange semester",
     date: "28 JUN",
   },
   {
-    name: "Jae Lim",
-    handle: "jae.lim",
-    avatar: face("1500648767791-00dcc994a43e"),
-    text: "met her on a photo walk in mangwon. she kept pointing out light i'd been walking past for years.",
-    hearts: 5,
+    name: "Elvin",
+    handle: "elvin.k",
+    avatar: face("1769159524186-84466da94abd"),
+    photo: thing("1785608149335-fa1cd223097c", 600, 420),
+    text: "met her on a photo walk along the boulevard. she kept pointing out light i'd been walking past for years.",
+    hearts: 4,
     tag: "stranger → friend",
     date: "21 JUN",
   },
   {
-    name: "Aiko Mori",
-    handle: "aiko.mori",
-    avatar: face("1544005313-94ddf0286df2"),
-    text: "her voice notes run four minutes long and i listen to every second of them.",
+    name: "Nigar",
+    handle: "nigar.sea",
+    avatar: face("1723189038268-3ef8fd518ad9"),
+    photo: thing("1562841358-e22c0dcb9b95", 600, 420),
+    text: "her voice notes run four minutes long and i listen to every second. best beach-day planner alive.",
     hearts: 5,
-    tag: "pen pal",
+    tag: "cousin",
     date: "14 JUN",
   },
 ]
 
 const DEFAULT_QUESTIONS: AspQuestion[] = [
-  { q: "my go-to coffee order?", options: ["iced americano", "oat latte", "matcha, always", "hot chocolate"], answer: 0 },
-  { q: "the camera in my bag right now?", options: ["olympus mju II", "canon AE-1", "a disposable", "just my phone"], answer: 0 },
-  { q: "a free saturday, where am i?", options: ["a gallery in hannam", "the beach in jeju", "in bed until 2pm", "a café with a window seat"], answer: 3 },
-  { q: "this summer's comfort playlist?", options: ["k-indie", "frank ocean", "lo-fi beats", "90s city pop"], answer: 3 },
+  { q: "my go-to coffee order?", options: ["iced latte", "flat white", "black tea, always", "hot chocolate"], answer: 0 },
+  { q: "the camera in my bag right now?", options: ["yashica electro", "canon AE-1", "a disposable", "just my phone"], answer: 0 },
+  { q: "a free saturday, where am i?", options: ["a gallery in the old city", "the beach at bilgah", "in bed until 2pm", "the boulevard at sunset"], answer: 3 },
+  { q: "this summer's comfort playlist?", options: ["azeri jazz", "frank ocean", "lo-fi beats", "90s city pop"], answer: 0 },
   { q: "favourite colour, no hints", options: ["sage green", "sky blue", "lilac", "black"], answer: 1 },
 ]
 
-const STICKER_KINDS: AspStickerKind[] = ["hibiscus", "heart", "sparkle", "bow", "cloud", "butterfly", "film", "tape"]
+const DEFAULT_STICKERS: AspStickerDef[] = [
+  { id: "hibiscus", label: "hibiscus", image: thing("1774228871876-b4d02659fc1c"), shape: "scallop" },
+  { id: "latte", label: "iced latte", image: thing("1641659736749-8bbae305e475"), shape: "square" },
+  { id: "sea", label: "sea", image: thing("1637047327854-d9d101d32bd5"), shape: "heart" },
+  { id: "shell", label: "shell", image: thing("1628594052215-5a58da8d82aa"), shape: "circle" },
+  { id: "camera", label: "camera", image: thing("1524135220673-c731600a1a50"), shape: "square" },
+  { id: "towers", label: "flame towers", image: thing("1602485487042-e5e9b528c389"), shape: "circle" },
+  { id: "bestie", label: "bestie", text: "bestie ♡" },
+  { id: "xoxo", label: "xoxo", text: "xoxo" },
+  { id: "date", label: "date", text: "07 · 07" },
+]
 
 const TAGS = ["bestie", "classmate", "mutual", "stranger → friend", "family"]
 
@@ -465,18 +492,46 @@ function placeSticker(x: number, y: number, height: number): { x: number; y: num
   return { x: clamp(x, 0.02, 0.98), y: clamp(y, 24, Math.max(24, height - 24)) }
 }
 
-function readStickers(raw: string | null): AspPlacedSticker[] {
+function readStickers(raw: string | null, kinds: string[]): AspPlacedSticker[] {
   if (!raw) return []
   try {
     const v = JSON.parse(raw)
     if (!Array.isArray(v)) return []
     return v
-      .filter((s) => s && STICKER_KINDS.includes(s.kind) && Number.isFinite(s.x) && Number.isFinite(s.y))
+      .filter((s) => s && kinds.includes(s.kind) && Number.isFinite(s.x) && Number.isFinite(s.y))
       .slice(0, 60)
       .map((s) => ({ id: String(s.id || Math.random()), kind: s.kind, x: s.x, y: s.y, rotate: Number(s.rotate) || 0, size: Number(s.size) || 76 }))
   } catch {
     return []
   }
+}
+/** A 40px copy of an Unsplash photo at the same aspect, for the blurred preview. Other hosts get none. */
+function tinyOf(src: string | undefined): string | null {
+  if (!src || !/^https:\/\/images\.unsplash\.com\//.test(src)) return null
+  const w = Number((src.match(/[?&]w=(\d+)/) || [])[1]) || 0
+  const h = Number((src.match(/[?&]h=(\d+)/) || [])[1]) || 0
+  let out = src.replace(/([?&])q=\d+/, "$1q=30")
+  out = /[?&]w=\d+/.test(out) ? out.replace(/([?&])w=\d+/, "$1w=40") : out + (out.includes("?") ? "&" : "?") + "w=40"
+  if (w && h) out = out.replace(/([?&])h=\d+/, "$1h=" + Math.max(1, Math.round((40 * h) / w)))
+  return out
+}
+
+/** Sticker outlines in a 100 × 100 box. */
+function shapePath(shape: AspStickerShape): string {
+  if (shape === "heart") return "M50 92C20 71 4 53 4 32 4 16 16 6 30 6c9 0 16 4.6 20 12 4-7.4 11-12 20-12 14 0 26 10 26 26 0 21-16 39-46 60z"
+  if (shape === "square") return "M20 4h60a16 16 0 0 1 16 16v60a16 16 0 0 1-16 16H20A16 16 0 0 1 4 80V20A16 16 0 0 1 20 4z"
+  if (shape === "scallop") {
+    const n = 12
+    const p = (r: number, a: number) => (50 + r * Math.cos(a)).toFixed(1) + " " + (50 + r * Math.sin(a)).toFixed(1)
+    let d = "M" + p(40, -Math.PI / 2)
+    for (let i = 0; i < n; i++) {
+      const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / n
+      const a1 = a0 + (2 * Math.PI) / n
+      d += "Q" + p(54, (a0 + a1) / 2) + " " + p(40, a1)
+    }
+    return d + "Z"
+  }
+  return "M50 4a46 46 0 1 1 0 92a46 46 0 1 1 0-92z"
 }
 // #endregion logic
 
@@ -519,91 +574,12 @@ function useInView(ref: { current: Element | null }, once: boolean, threshold = 
 
 /* ---------------------------------------------------------------- art */
 
-/** An aqua film still, painted under every photo so a frame is never empty. */
-function FilmStill({ seed = 0 }: { seed?: number }) {
-  const id = "asp" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
-  const kind = ((seed % 3) + 3) % 3
-  const sky = { stopColor: "var(--asp-sky)" }
-  const mist = { stopColor: "var(--asp-mist)" }
-  return (
-    <svg className="asp-still" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs>
-        <linearGradient id={id + "s"} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={sky} />
-          <stop offset="0.62" style={mist} />
-          <stop offset="1" style={{ stopColor: "var(--asp-deep)" }} />
-        </linearGradient>
-        <radialGradient id={id + "g"} cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.95" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-        <filter id={id + "b"} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="7" />
-        </filter>
-        <filter id={id + "n"}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed={seed + 3} />
-          <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.13 0" />
-        </filter>
-      </defs>
-      <rect width="300" height="400" fill={"url(#" + id + "s)"} />
-      <circle cx={kind === 1 ? 70 : 220} cy={kind === 2 ? 210 : 96} r="120" fill={"url(#" + id + "g)"} />
-      <g filter={"url(#" + id + "b)"}>
-        {kind === 0 && (
-          <g style={{ fill: "var(--asp-deep)" }}>
-            <rect x="-10" y="150" width="70" height="140" opacity="0.32" />
-            <rect x="52" y="180" width="54" height="110" opacity="0.22" />
-            <rect x="196" y="130" width="62" height="160" opacity="0.28" />
-            <rect x="250" y="170" width="70" height="120" opacity="0.36" />
-            <rect x="-10" y="272" width="330" height="140" opacity="0.18" />
-          </g>
-        )}
-        {kind === 1 && (
-          <g style={{ fill: "var(--asp-deep)" }}>
-            <ellipse cx="40" cy="260" rx="110" ry="90" opacity="0.35" />
-            <ellipse cx="250" cy="230" rx="120" ry="110" opacity="0.3" />
-            <ellipse cx="150" cy="380" rx="200" ry="90" opacity="0.4" />
-            <ellipse cx="190" cy="120" rx="60" ry="40" opacity="0.12" />
-          </g>
-        )}
-        {kind === 2 && (
-          <g>
-            <rect x="-10" y="226" width="320" height="200" style={{ fill: "var(--asp-deep)" }} opacity="0.34" />
-            <rect x="-10" y="222" width="320" height="6" fill="#fff" opacity="0.5" />
-            <ellipse cx="150" cy="300" rx="90" ry="10" fill="#fff" opacity="0.28" />
-          </g>
-        )}
-      </g>
-      {kind === 0 && (
-        <g fill="#fff" opacity="0.5">
-          {[0, 1, 2, 3, 4, 5, 6].map((i) => {
-            const t = i - 3
-            return <path key={i} d={`M${150 + t * 22} 300 L${150 + t * 22 + 12} 300 L${150 + t * 62 + 34} 400 L${150 + t * 62} 400Z`} />
-          })}
-        </g>
-      )}
-      {kind === 2 && (
-        <g fill="#fff">
-          {[
-            [60, 250, 1.6],
-            [120, 262, 1.1],
-            [200, 248, 1.4],
-            [240, 290, 1.2],
-            [90, 310, 1],
-          ].map(([x, y, r], i) => (
-            <circle key={i} cx={x} cy={y} r={r} opacity="0.85" />
-          ))}
-        </g>
-      )}
-      <rect width="300" height="400" filter={"url(#" + id + "n)"} />
-    </svg>
-  )
-}
-
-/** A photo with its film still underneath. Fades in when it loads; if it never does, the still stays. */
-function Photo({ src, alt = "", seed = 0, eager = false, className = "" }: { src?: string; alt?: string; seed?: number; eager?: boolean; className?: string }) {
+/** A photo that fades in over a blurred, 40px copy of itself (Unsplash URLs), so a frame is never blank while it loads. */
+function Photo({ src, alt = "", eager = false, className = "" }: { src?: string; alt?: string; eager?: boolean; className?: string }) {
   const ref = React.useRef(null as HTMLImageElement | null)
   const [loaded, setLoaded] = React.useState(false)
   const [failed, setFailed] = React.useState(false)
+  const tiny = React.useMemo(() => tinyOf(src), [src])
   React.useEffect(() => {
     setLoaded(false)
     setFailed(false)
@@ -612,7 +588,7 @@ function Photo({ src, alt = "", seed = 0, eager = false, className = "" }: { src
   }, [src])
   return (
     <span className={"asp-photo " + className}>
-      <FilmStill seed={seed} />
+      {tiny && !loaded ? <img className="asp-photo-lqip" src={tiny} alt="" width={40} height={40} decoding="async" draggable={false} aria-hidden="true" /> : null}
       {src && !failed ? (
         <img
           ref={ref}
@@ -773,114 +749,30 @@ function Script({ text, className = "", label }: { text: string; className?: str
 
 /* ------------------------------------------------------------ stickers */
 
-function StickerArt({ kind }: { kind: AspStickerKind }) {
-  const shapes = stickerShapes(kind)
+/** A die-cut sticker: a photo clipped to a shape with a white vinyl rim and a sheen, or a printed text label. */
+function StickerArt({ def }: { def: AspStickerDef | undefined }) {
+  const id = "asps" + React.useId().replace(/[^a-zA-Z0-9]/g, "")
+  if (!def) return null
+  if (!def.image) return <span className="asp-stk-text">{def.text || def.label}</span>
+  const d = shapePath(def.shape || "circle")
   return (
-    <svg className="asp-stk-svg" viewBox="0 0 100 100" aria-hidden="true">
-      <g className="asp-stk-cut">{shapes}</g>
-      <g>{shapes}</g>
+    <svg className="asp-stk-svg" viewBox="-6 -6 112 112" aria-hidden="true">
+      <defs>
+        <clipPath id={id + "c"}>
+          <path d={d} />
+        </clipPath>
+        <linearGradient id={id + "g"} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
+          <stop offset="0.38" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.7" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0.18" />
+        </linearGradient>
+      </defs>
+      <path d={d} fill="#fff" stroke="#fff" strokeWidth="11" strokeLinejoin="round" />
+      <image href={def.image} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" clipPath={"url(#" + id + "c)"} />
+      <path d={d} fill={"url(#" + id + "g)"} />
     </svg>
   )
-}
-
-function stickerShapes(kind: AspStickerKind) {
-  switch (kind) {
-    case "hibiscus":
-      return (
-        <g>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <path
-              key={i}
-              transform={"rotate(" + (i * 72 - 10) + " 50 52)"}
-              d="M50 51C40 43 28 28 35 17c3.5-5 9-4.2 11.4-1 1.6-3.8 7-5.3 10.8-1.4 3.4-1.9 8-.6 9.8 3.8 4 10.2-6.7 24.2-17 32.6z"
-              fill="#f58aa8"
-            />
-          ))}
-          {[0, 1, 2, 3, 4].map((i) => (
-            <path key={"v" + i} transform={"rotate(" + (i * 72 - 10) + " 50 52)"} d="M50 50c-2-8-2.4-17-.4-26" fill="none" stroke="#e0607f" strokeWidth="1.2" strokeLinecap="round" />
-          ))}
-          <circle cx="50" cy="52" r="7" fill="#d9466c" />
-          <path d="M51 51l13-15" stroke="#f7d36b" strokeWidth="2.4" strokeLinecap="round" />
-          {[
-            [64, 35],
-            [67.5, 37.5],
-            [61.5, 32],
-            [66, 32.5],
-          ].map(([x, y], i) => (
-            <circle key={"s" + i} cx={x} cy={y} r="2" fill="#f2b632" />
-          ))}
-        </g>
-      )
-    case "heart":
-      return (
-        <g>
-          <path d="M50 88S16 66 10 44C5 26 17 12 31 12c9 0 15.6 5 19 12 3.4-7 10-12 19-12 14 0 26 14 21 32-6 22-40 44-40 44z" fill="#5aa6c9" />
-          <path d="M50 82S22 63 17 45c-3.6-13 4-25 15-25 8 0 13 4.6 16 11" fill="none" stroke="#7fc0dd" strokeWidth="5" strokeLinecap="round" opacity="0.6" />
-          <ellipse cx="28" cy="32" rx="7" ry="4.4" transform="rotate(-35 28 32)" fill="#fff" opacity="0.85" />
-          <circle cx="37" cy="26" r="2" fill="#fff" opacity="0.8" />
-        </g>
-      )
-    case "sparkle":
-      return (
-        <g>
-          <path d="M44 6c3 18 13 28 31 31-18 3-28 13-31 31-3-18-13-28-31-31 18-3 28-13 31-31z" fill="#fff1a8" stroke="#e7c64a" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M76 56c1.6 9 6.5 13.9 15.5 15.5-9 1.6-13.9 6.5-15.5 15.5-1.6-9-6.5-13.9-15.5-15.5 9-1.6 13.9-6.5 15.5-15.5z" fill="#cfe9f5" stroke="#86bcd6" strokeWidth="2" strokeLinejoin="round" />
-        </g>
-      )
-    case "bow":
-      return (
-        <g>
-          <path d="M50 48C38 30 14 24 12 38c-2 13 18 22 38 12z" fill="#f6b8c8" stroke="#e48aa3" strokeWidth="2" />
-          <path d="M50 48c12-18 36-24 38-10 2 13-18 22-38 12z" fill="#f6b8c8" stroke="#e48aa3" strokeWidth="2" />
-          <path d="M46 52L30 86l10-3 6 9 5-38zM54 52l16 34-10-3-6 9-5-38z" fill="#f3a3b9" stroke="#e48aa3" strokeWidth="2" strokeLinejoin="round" />
-          <rect x="43" y="42" width="14" height="14" rx="5" fill="#ef93ad" stroke="#e48aa3" strokeWidth="2" />
-          <path d="M22 36c4-3 10-2 16 2" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity="0.8" />
-        </g>
-      )
-    case "cloud":
-      return (
-        <g>
-          <path d="M26 74c-11 0-18-7-18-16 0-9 7-15 15-15 1-12 11-20 23-20 10 0 18 6 21 14 2-1 4-1 6-1 10 0 17 8 17 18s-7 20-18 20z" fill="#fff" stroke="#9cc7da" strokeWidth="2.4" />
-          <path d="M24 64c4 2 10 2 14 0M60 66c4 2 10 2 14 0" fill="none" stroke="#d5e8f0" strokeWidth="3" strokeLinecap="round" />
-        </g>
-      )
-    case "butterfly":
-      return (
-        <g>
-          <path d="M49 50C40 30 22 12 12 22c-9 9 2 30 37 30z" fill="#7cb9d8" stroke="#3f88ad" strokeWidth="2" />
-          <path d="M51 50C60 30 78 12 88 22c9 9-2 30-37 30z" fill="#7cb9d8" stroke="#3f88ad" strokeWidth="2" />
-          <path d="M49 52C30 52 18 64 24 74c6 9 20 2 25-20zM51 52c19 0 31 12 25 22-6 9-20 2-25-20z" fill="#a9d4e8" stroke="#3f88ad" strokeWidth="2" />
-          <circle cx="27" cy="28" r="4" fill="#fff" opacity="0.8" />
-          <circle cx="73" cy="28" r="4" fill="#fff" opacity="0.8" />
-          <rect x="47" y="36" width="6" height="40" rx="3" fill="#2b5e78" />
-          <path d="M49 37c-3-8-8-12-12-13M51 37c3-8 8-12 12-13" fill="none" stroke="#2b5e78" strokeWidth="1.8" strokeLinecap="round" />
-        </g>
-      )
-    case "film":
-      return (
-        <g transform="rotate(-8 50 50)">
-          <rect x="8" y="28" width="84" height="44" rx="4" fill="#222a30" />
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-            <g key={i}>
-              <rect x={13 + i * 10} y="31" width="5" height="4" rx="1" fill="#e8eef0" />
-              <rect x={13 + i * 10} y="65" width="5" height="4" rx="1" fill="#e8eef0" />
-            </g>
-          ))}
-          <rect x="13" y="38" width="22" height="24" rx="1.5" fill="#8cc2d8" />
-          <rect x="39" y="38" width="22" height="24" rx="1.5" fill="#f2b7c6" />
-          <rect x="65" y="38" width="22" height="24" rx="1.5" fill="#cfe1a8" />
-        </g>
-      )
-    case "tape":
-      return (
-        <g transform="rotate(-10 50 50)">
-          <path d="M6 36l4 3-4 3 4 3-4 3 4 3-4 3 4 3-4 3h88l-4-3 4-3-4-3 4-3-4-3 4-3-4-3 4-3-4-3z" fill="#cfe6f0" stroke="#9cc7da" strokeWidth="1.6" strokeLinejoin="round" />
-          <text x="50" y="57" textAnchor="middle" fontSize="15" fontWeight="700" fill="#2e6f8c" fontFamily="Inter, Helvetica, Arial, sans-serif" letterSpacing="0.5">
-            bestie ♡
-          </text>
-        </g>
-      )
-  }
 }
 
 /* ------------------------------------------------------------- dialogs */
@@ -1139,7 +1031,7 @@ function Viewer({
     >
       {slides.map((src, i) => (
         <div key={h + "-" + i} className="asp-vframe" data-on={i === s ? "" : undefined}>
-          <Photo src={src} seed={h * 3 + i} eager={i === s} alt={item.label + " " + (i + 1)} />
+          <Photo src={src} eager={i === s} alt={item.label + " " + (i + 1)} />
         </div>
       ))}
       <div className="asp-vshade" aria-hidden="true" />
@@ -1310,10 +1202,11 @@ export default function AquaStoryProfileTemplate({
   reviews = {},
   quiz = {},
   likes = 248,
+  stickers: stickerDefsProp,
   decorations,
   persistDecorations = true,
   palette = "aqua",
-  tint = 0.35,
+  tint = 0.2,
   storyDuration = 6000,
   height = "100svh",
   className = "",
@@ -1339,8 +1232,12 @@ export default function AquaStoryProfileTemplate({
   const stageSeen = useInView(stageRef, false, 0.2)
   const cur = stories[Math.min(idx, n - 1)]
   const upNext = stories[step(idx, 1, n)]
+  // the story we left stays solid underneath while the next one fades in over it
+  const [prevIdx, setPrevIdx] = React.useState(-1)
   const go = (i: number) => {
-    setIdx(step(i, 0, n))
+    const next = step(i, 0, n)
+    if (next !== idx) setPrevIdx(idx)
+    setIdx(next)
     setCycle((c) => c + 1)
   }
   React.useEffect(() => {
@@ -1414,18 +1311,20 @@ export default function AquaStoryProfileTemplate({
 
   /* decorate */
   const pageRef = React.useRef(null as HTMLDivElement | null)
+  const stickerDefs = stickerDefsProp && stickerDefsProp.length ? stickerDefsProp : DEFAULT_STICKERS
+  const defOf = (kind: string) => stickerDefs.find((d) => d.id === kind)
   const [deco, setDeco] = React.useState(false)
   const [stickers, setStickers] = React.useState(() =>
     (decorations || []).map((s, i): AspPlacedSticker => ({ kind: s.kind, x: s.x, y: s.y, size: s.size || 76, rotate: s.rotate || 0, id: s.id || "d" + i })),
   )
-  const [ghost, setGhost] = React.useState(null as null | { kind: AspStickerKind; x: number; y: number })
-  const drag = React.useRef(null as null | { kind?: AspStickerKind; id?: string; sx: number; sy: number; moved: boolean; ox: number; oy: number })
+  const [ghost, setGhost] = React.useState(null as null | { kind: string; x: number; y: number })
+  const drag = React.useRef(null as null | { kind?: string; id?: string; sx: number; sy: number; moved: boolean; ox: number; oy: number })
   const storeKey = "asp-stickers:" + profile.handle
   const loadedStore = React.useRef(false)
   React.useEffect(() => {
     if (!persistDecorations) return
     try {
-      const saved = readStickers(window.localStorage.getItem(storeKey))
+      const saved = readStickers(window.localStorage.getItem(storeKey), stickerDefs.map((d) => d.id))
       if (saved.length) setStickers(saved)
     } catch {}
     loadedStore.current = true
@@ -1444,14 +1343,14 @@ export default function AquaStoryProfileTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stickers])
 
-  const dropAt = (kind: AspStickerKind, clientX: number, clientY: number) => {
+  const dropAt = (kind: string, clientX: number, clientY: number) => {
     const page = pageRef.current
     if (!page) return
     const r = page.getBoundingClientRect()
     const p = placeSticker((clientX - r.left) / r.width, clientY - r.top, r.height)
     setStickers((list) => [...list, { id: "s" + Date.now().toString(36) + Math.floor(Math.random() * 1e4), kind, x: p.x, y: p.y, rotate: Math.round((Math.random() - 0.5) * 30), size: 76 }].slice(-60))
   }
-  const trayDown = (kind: AspStickerKind) => (e: React.PointerEvent) => {
+  const trayDown = (kind: string) => (e: React.PointerEvent) => {
     if (e.button !== 0) return
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     drag.current = { kind, sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 }
@@ -1479,7 +1378,7 @@ export default function AquaStoryProfileTemplate({
     }
   }
   // a press without a drag (or Enter) drops it somewhere near the middle of the screen
-  const dropNear = (kind: AspStickerKind) =>
+  const dropNear = (kind: string) =>
     dropAt(kind, window.innerWidth * (0.3 + Math.random() * 0.4), window.innerHeight * (0.3 + Math.random() * 0.3))
   const stkDown = (id: string) => (e: React.PointerEvent) => {
     if (!deco || e.button !== 0) return
@@ -1561,11 +1460,6 @@ export default function AquaStoryProfileTemplate({
           />
         ))}
         <span className="asp-bg-wash" />
-        <svg className="asp-bg-zebra" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <rect key={i} x="-200" y={520 + i * 90} width="1400" height="46" transform="rotate(-8 500 500)" fill="#fff" />
-          ))}
-        </svg>
       </div>
 
       <div className="asp-page" ref={pageRef}>
@@ -1650,8 +1544,8 @@ export default function AquaStoryProfileTemplate({
 
                 <div className="asp-main" onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
                   {stories.map((s, i) => (
-                    <div key={i} className="asp-frame" data-on={i === idx ? "" : undefined} aria-hidden={i === idx ? undefined : true}>
-                      <Photo src={s.image} alt={s.alt} seed={i} eager={i < 2} />
+                    <div key={i} className="asp-frame" data-on={i === idx ? "" : undefined} data-prev={i === prevIdx && i !== idx ? "" : undefined} aria-hidden={i === idx ? undefined : true}>
+                      <Photo src={s.image} alt={s.alt} eager={i < 2} />
                     </div>
                   ))}
                   <button type="button" className="asp-tap asp-tap-l" onClick={() => go(idx - 1)} aria-label="Previous story">
@@ -1676,8 +1570,8 @@ export default function AquaStoryProfileTemplate({
                   </p>
                   <button type="button" className="asp-inset" onClick={() => go(idx + 1)} aria-label="Up next: skip to the next story">
                     {stories.map((s, i) => (
-                      <span key={i} className="asp-frame" data-on={s === upNext ? "" : undefined}>
-                        <Photo src={s.image} seed={i} />
+                      <span key={i} className="asp-frame" data-on={s === upNext ? "" : undefined} data-prev={prevIdx >= 0 && i === step(prevIdx, 1, n) && s !== upNext ? "" : undefined}>
+                        <Photo src={s.image} />
                       </span>
                     ))}
                     <span className="asp-inset-tag">up next</span>
@@ -1763,7 +1657,7 @@ export default function AquaStoryProfileTemplate({
                   <button key={i} type="button" className="asp-hl-btn" onClick={() => setViewing(i)} aria-label={"Watch highlight: " + h.label}>
                     <span className="asp-hl-ring">
                       <span className="asp-hl-face">
-                        <Photo src={h.cover || h.slides[0]} seed={i + 1} />
+                        <Photo src={h.cover || h.slides[0]} />
                       </span>
                     </span>
                     <span className="asp-hl-label">{h.label}</span>
@@ -1781,7 +1675,7 @@ export default function AquaStoryProfileTemplate({
                   ✦ {ex.tab} ✦
                 </span>
                 <div className="asp-ex-card">
-                  <Photo src={ex.image} seed={1} />
+                  <Photo src={ex.image} />
                   <span className="asp-ex-shade" aria-hidden="true" />
                   <button type="button" className="asp-ex-plus" onClick={() => setComposing(true)} aria-label="Write a review">
                     <Icon name="plus" />
@@ -1873,8 +1767,14 @@ export default function AquaStoryProfileTemplate({
                     key={r.key}
                     className="asp-rcard"
                     data-new={r.key === fresh ? "" : undefined}
+                    data-photo={r.photo ? "" : undefined}
                     style={{ ["--r" as string]: (i % 2 ? 1.6 : -1.4) + "deg" } as React.CSSProperties}
                   >
+                    {r.photo ? (
+                      <span className="asp-rcard-photo">
+                        <Photo src={r.photo} alt="" />
+                      </span>
+                    ) : null}
                     <header className="asp-rcard-top">
                       <Avatar src={r.avatar} name={r.name} className="asp-rcard-ava" />
                       <span className="asp-rcard-who">
@@ -1926,9 +1826,10 @@ export default function AquaStoryProfileTemplate({
               key={s.id}
               type="button"
               className="asp-stk"
+              data-text={defOf(s.kind)?.image ? undefined : ""}
               style={{ left: s.x * 100 + "%", top: s.y + "px", ["--r" as string]: (s.rotate || 0) + "deg", ["--s" as string]: (s.size || 76) + "px" } as React.CSSProperties}
               tabIndex={deco ? 0 : -1}
-              aria-label={s.kind + " sticker. Drag to move, Delete to remove"}
+              aria-label={(defOf(s.kind)?.label || "a") + " sticker. Drag to move, Delete to remove"}
               onPointerDown={stkDown(s.id as string)}
               onPointerMove={stkMove}
               onPointerUp={stkUp}
@@ -1950,7 +1851,7 @@ export default function AquaStoryProfileTemplate({
                 else if (e.key === "r" || e.key === "R") setStickers((l) => l.map((x) => (x.id === s.id ? { ...x, rotate: ((x.rotate || 0) + 15) % 360 } : x)))
               }}
             >
-              <StickerArt kind={s.kind} />
+              <StickerArt def={defOf(s.kind)} />
             </button>
           ))}
         </div>
@@ -1959,13 +1860,14 @@ export default function AquaStoryProfileTemplate({
       {/* ---------------- overlays ---------------- */}
       {deco ? (
         <div className="asp-tray" role="toolbar" aria-label="Stickers: drag one onto the page, or press it to drop it">
-          {STICKER_KINDS.map((k) => (
+          {stickerDefs.map((def) => (
             <button
-              key={k}
+              key={def.id}
               type="button"
               className="asp-tray-btn"
-              aria-label={"Add " + k + " sticker"}
-              onPointerDown={trayDown(k)}
+              data-text={def.image ? undefined : ""}
+              aria-label={"Add " + def.label + " sticker"}
+              onPointerDown={trayDown(def.id)}
               onPointerMove={trayMove}
               onPointerUp={trayUp}
               onPointerCancel={() => {
@@ -1975,11 +1877,11 @@ export default function AquaStoryProfileTemplate({
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
-                  dropNear(k)
+                  dropNear(def.id)
                 }
               }}
             >
-              <StickerArt kind={k} />
+              <StickerArt def={def} />
             </button>
           ))}
           <span className="asp-tray-sep" aria-hidden="true" />
@@ -1993,7 +1895,7 @@ export default function AquaStoryProfileTemplate({
       ) : null}
       {ghost ? (
         <span className="asp-ghost" style={{ left: ghost.x, top: ghost.y }} aria-hidden="true">
-          <StickerArt kind={ghost.kind} />
+          <StickerArt def={defOf(ghost.kind)} />
         </span>
       ) : null}
 
@@ -2074,23 +1976,22 @@ const ASP_CSS = `
 /* backdrop */
 .asp-bg{position:sticky;top:0;height:100svh;margin-bottom:-100svh;overflow:hidden;z-index:0;pointer-events:none}
 .asp-bg-base{position:absolute;inset:0;background:radial-gradient(120% 80% at 30% 20%,var(--asp-sky),var(--asp-mist) 55%,var(--asp-deep))}
-.asp-bg-img{position:absolute;left:-8%;top:-8%;width:116%;height:116%;max-width:none;object-fit:cover;filter:blur(28px) saturate(1.05);opacity:0;transition:opacity 1.4s ease}
+.asp-bg-img{position:absolute;left:-8%;top:-8%;width:116%;height:116%;max-width:none;object-fit:cover;filter:blur(16px) saturate(1.15) brightness(1.06);opacity:0;transition:opacity 1.4s ease}
 .asp-bg-img[data-on]{opacity:.9}
-.asp-bg-wash{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.12),transparent 40%,rgba(0,0,0,.08)),var(--asp-wash)}
-.asp-bg-zebra{position:absolute;inset:0;width:100%;height:100%;max-width:none;opacity:.1;filter:blur(3px)}
+.asp-bg-wash{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.04) 45%,rgba(10,40,55,.14)),var(--asp-wash)}
 
 .asp-page{position:relative;z-index:1;padding:clamp(16px,2.6vw,32px) 0 40px}
-.asp-col{position:relative;width:min(720px,calc(100% - 32px),calc(100svh * .86));margin:0 auto}
-.asp-flow{width:min(720px,calc(100% - 32px))}
+.asp-col{position:relative;width:min(860px,calc(100% - 32px),calc(100svh - 64px));margin:0 auto}
+.asp-flow{width:min(820px,calc(100% - 32px))}
 
 /* story header */
 .asp-hero{position:relative;min-height:var(--asp-h);display:flex;flex-direction:column;justify-content:center;padding:8px 0 4px}
 .asp-side{display:none}
 @media (max-width:700px){.asp-hero{min-height:0;justify-content:flex-start;padding-top:4px}}
-@media (min-width:1180px){
+@media (min-width:1320px){
 .asp-side{display:block;position:absolute;top:50%;writing-mode:vertical-rl;font-size:11px;font-weight:700;letter-spacing:.32em;text-transform:uppercase;opacity:.75;white-space:nowrap;text-shadow:0 1px 10px rgba(0,0,0,.15)}
-.asp-side-l{left:max(24px,calc(50% - 560px));transform:translateY(-50%) rotate(180deg)}
-.asp-side-r{right:max(24px,calc(50% - 560px));transform:translateY(-50%)}
+.asp-side-l{left:max(24px,calc(50% - 620px));transform:translateY(-50%) rotate(180deg)}
+.asp-side-r{right:max(24px,calc(50% - 620px));transform:translateY(-50%)}
 }
 .asp-stage{position:relative;container-type:inline-size;width:100%}
 .asp-stage-in{position:relative;height:95cqw}
@@ -2119,8 +2020,9 @@ const ASP_CSS = `
 .asp-head-pin .asp-icon{width:58%;height:58%;filter:drop-shadow(0 2px 6px rgba(10,40,55,.25))}
 
 .asp-main{position:absolute;left:16.6%;top:21cqw;width:74.6%;height:68cqw;border:max(2px,.42cqw) solid #fff;border-radius:3.2cqw;overflow:hidden;background:var(--asp-mist);box-shadow:0 2.4cqw 6cqw rgba(10,40,55,.28);z-index:1}
-.asp-frame{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
-.asp-frame[data-on]{opacity:1}
+.asp-frame{position:absolute;inset:0;opacity:0}
+.asp-frame[data-prev]{opacity:1;z-index:1}
+.asp-frame[data-on]{opacity:1;z-index:2;transition:opacity .7s cubic-bezier(.3,.7,.3,1)}
 .asp-main .asp-frame[data-on] .asp-photo-img{animation:asp-ken calc(var(--asp-dur) + 1.2s) ease-out both}
 @keyframes asp-ken{from{transform:scale(1.07)}to{transform:scale(1)}}
 .asp-tap{position:absolute;top:0;bottom:0;z-index:2;display:flex;align-items:center;color:#fff;opacity:0;transition:opacity .25s}
@@ -2133,15 +2035,15 @@ const ASP_CSS = `
 .asp-loc .asp-icon{width:max(13px,2cqw);height:max(13px,2cqw);color:var(--asp-accent)}
 .asp-loc[data-on]{opacity:1;transform:none}
 
-.asp-photo{position:absolute;inset:0;display:block;overflow:hidden;background:var(--asp-mist)}
-.asp-still{position:absolute;inset:0;width:100%;height:100%;max-width:none;display:block}
+.asp-photo{position:absolute;inset:0;display:block;overflow:hidden;background:linear-gradient(160deg,var(--asp-sky),var(--asp-mist))}
+.asp-photo-lqip{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;filter:blur(14px) saturate(1.1);transform:scale(1.12)}
 .asp-photo-img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;display:block;opacity:0;transition:opacity .6s ease}
 .asp-photo-img[data-loaded]{opacity:1}
-.asp-photo::after{content:"";position:absolute;inset:0;background:var(--asp-mist);mix-blend-mode:color;opacity:calc(var(--asp-tint) * .7);pointer-events:none}
+.asp-photo::after{content:"";position:absolute;inset:0;z-index:1;background:var(--asp-mist);mix-blend-mode:color;opacity:calc(var(--asp-tint) * .6);pointer-events:none}
 .asp-photo::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(160deg,rgba(255,255,255,.18),transparent 45%);mix-blend-mode:soft-light;pointer-events:none}
 
 .asp-card{position:absolute;left:3%;top:28.4cqw;width:40%;height:52cqw;padding:4.2cqw 3.2cqw 0;border-radius:3.2cqw;background:var(--asp-glass);border:1px solid var(--asp-glass-edge);box-shadow:0 2cqw 5.6cqw rgba(10,40,55,.24),inset 0 1px 0 rgba(255,255,255,.55);-webkit-backdrop-filter:blur(18px) saturate(1.25);backdrop-filter:blur(18px) saturate(1.25);z-index:3;text-shadow:0 1px 8px rgba(10,40,55,.22)}
-.asp-card-name{display:inline-block;max-width:78%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:max(14px,3.3cqw);font-weight:700;letter-spacing:.01em;text-decoration:underline;text-decoration-thickness:max(1.5px,.3cqw);text-underline-offset:max(3px,.6cqw)}
+.asp-card-name{display:inline-block;max-width:78%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:max(12.5px,3.3cqw);font-weight:700;letter-spacing:.01em;text-decoration:underline;text-decoration-thickness:max(1.5px,.3cqw);text-underline-offset:max(3px,.6cqw)}
 .asp-card-flower{position:absolute;right:3cqw;top:3.4cqw;width:max(22px,5.4cqw);height:max(22px,5.4cqw);filter:drop-shadow(0 2px 6px rgba(10,40,55,.2));transition:transform .9s cubic-bezier(.2,.8,.2,1)}
 .asp-card:hover .asp-card-flower{transform:rotate(72deg) scale(1.06)}
 .asp-card-bio{margin-top:2.2cqw;font-size:max(10.5px,2.05cqw);font-style:italic;font-weight:500;line-height:1.24;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;animation:asp-up .6s cubic-bezier(.2,.8,.2,1) both}
@@ -2177,7 +2079,7 @@ const ASP_CSS = `
 
 /* ribbon */
 .asp-ribbon{position:relative;margin:clamp(20px,3vw,36px) 0 0;padding:clamp(14px,2vw,20px) 0;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.2) 50%,rgba(255,255,255,.06));border-block:1px solid rgba(255,255,255,.65);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);text-shadow:0 1px 10px rgba(10,40,55,.2)}
-.asp-ribbon-in{width:min(720px,calc(100% - 32px));margin:0 auto;display:grid;grid-template-columns:auto minmax(24px,1fr) auto auto;align-items:center;gap:clamp(14px,4vw,48px);font-size:clamp(11px,1.45vw,15px);font-weight:700;line-height:1.1;letter-spacing:.04em;text-transform:uppercase}
+.asp-ribbon-in{width:min(820px,calc(100% - 32px));margin:0 auto;display:grid;grid-template-columns:auto minmax(24px,1fr) auto auto;align-items:center;gap:clamp(14px,4vw,48px);font-size:clamp(11px,1.45vw,15px);font-weight:700;line-height:1.1;letter-spacing:.04em;text-transform:uppercase}
 .asp-ribbon-date{white-space:nowrap}
 .asp-ribbon-line{display:block;height:2px;max-width:150px;border-radius:2px;background:#fff;box-shadow:0 0 10px rgba(255,255,255,.5)}
 .asp-ribbon-credit{text-align:center}
@@ -2199,13 +2101,13 @@ const ASP_CSS = `
 
 /* highlights */
 .asp-hl{margin-top:clamp(36px,6vw,64px)}
-.asp-hl-row{display:flex;gap:clamp(14px,3.2vw,30px);overflow-x:auto;padding:6px 4px 10px;margin:0 -4px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.asp-hl-row{display:flex;gap:clamp(14px,3.2vw,36px);overflow-x:auto;padding:6px 4px 10px;margin:0 -4px;scroll-snap-type:x mandatory;scrollbar-width:none}
 .asp-hl-row::-webkit-scrollbar{display:none}
-.asp-hl-btn{flex:none;width:clamp(68px,12vw,88px);display:flex;flex-direction:column;align-items:center;gap:8px;scroll-snap-align:start;border-radius:12px}
+.asp-hl-btn{flex:none;width:clamp(72px,13vw,108px);display:flex;flex-direction:column;align-items:center;gap:8px;scroll-snap-align:start;border-radius:12px}
 .asp-hl-ring{display:block;width:100%;aspect-ratio:1;padding:3px;border-radius:50%;background:conic-gradient(from 210deg,#fff,var(--asp-mist),#fff,var(--asp-accent),#fff);box-shadow:0 8px 22px rgba(10,40,55,.2);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .asp-hl-btn:hover .asp-hl-ring{transform:translateY(-4px) rotate(-6deg)}
 .asp-hl-face{position:relative;display:block;width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;border:3px solid #fff}
-.asp-hl-label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;text-shadow:0 1px 8px rgba(10,40,55,.25)}
+.asp-hl-label{max-width:100%;font-size:clamp(9.5px,1.1vw,11px);font-weight:700;letter-spacing:.1em;white-space:nowrap;text-transform:uppercase;text-shadow:0 1px 8px rgba(10,40,55,.25)}
 
 /* exchange */
 .asp-ex{position:relative;container-type:inline-size;margin-top:clamp(40px,7vw,76px)}
@@ -2216,8 +2118,8 @@ const ASP_CSS = `
 .asp-ex-card>:not(.asp-photo):not(.asp-ex-shade){z-index:2}
 .asp-ex-plus{position:absolute;left:5%;top:10%;width:max(26px,4.4cqw);height:max(26px,4.4cqw);padding:max(4px,.7cqw);border:max(1.5px,.32cqw) solid #fff;border-radius:50%;transition:transform .3s cubic-bezier(.2,1.4,.4,1),background .2s}
 .asp-ex-plus:hover{transform:rotate(90deg) scale(1.08);background:rgba(255,255,255,.2)}
-.asp-ex-copy{position:absolute;left:4.6%;top:27%;max-width:27%;font-size:max(10px,1.85cqw);line-height:1.18;font-weight:500;text-shadow:0 1px 8px rgba(10,40,55,.4)}
-.asp-ex-title{position:absolute;left:15%;top:42%;width:64%;height:auto;color:#fff;overflow:visible;filter:drop-shadow(0 2px 12px rgba(10,40,55,.35));pointer-events:none}
+.asp-ex-copy{position:absolute;left:4.6%;top:24%;max-width:27%;font-size:max(10px,1.85cqw);line-height:1.18;font-weight:500;text-shadow:0 1px 8px rgba(10,40,55,.4)}
+.asp-ex-title{position:absolute;left:21%;top:47%;width:58%;height:auto;color:#fff;overflow:visible;filter:drop-shadow(0 2px 12px rgba(10,40,55,.35));pointer-events:none}
 .asp-ex-ig{position:absolute;right:9%;top:12%;width:42%;display:flex;align-items:center;gap:1.4cqw;padding:max(4px,1cqw) max(4px,1cqw) max(4px,1cqw) max(10px,2.4cqw);border-radius:99px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.75);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);text-shadow:0 1px 6px rgba(10,40,55,.3);transition:background .2s,transform .3s cubic-bezier(.2,.8,.2,1)}
 .asp-ex-ig:hover{background:rgba(255,255,255,.32);transform:translateY(-2px)}
 .asp-ex-ig-text{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -2256,12 +2158,14 @@ const ASP_CSS = `
 .asp-round{width:40px;height:40px;padding:11px;border-radius:50%;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .2s,transform .2s}
 .asp-round:hover{background:rgba(255,255,255,.36)}
 .asp-round:active{transform:scale(.92)}
-.asp-rev-track{display:flex;gap:18px;overflow-x:auto;--asp-gut:max(16px,calc(50vw - 360px));padding:16px var(--asp-gut) 30px;margin:0 calc(50% - 50vw);scroll-snap-type:x mandatory;scroll-padding-inline:var(--asp-gut);scrollbar-width:none;outline-offset:-4px}
+.asp-rev-track{display:flex;gap:18px;overflow-x:auto;--asp-gut:max(16px,calc(50vw - 410px));padding:16px var(--asp-gut) 30px;margin:0 calc(50% - 50vw);scroll-snap-type:x mandatory;scroll-padding-inline:var(--asp-gut);scrollbar-width:none;outline-offset:-4px}
 .asp-rev-track::-webkit-scrollbar{display:none}
 .asp-rcard{flex:none;width:min(300px,76vw);scroll-snap-align:start;position:relative;display:flex;flex-direction:column;padding:20px 20px 16px;border-radius:24px;background:var(--asp-glass);border:1px solid var(--asp-glass-edge);box-shadow:0 14px 34px rgba(10,40,55,.2),inset 0 1px 0 rgba(255,255,255,.5);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2);transform:rotate(var(--r,0deg));transition:transform .45s cubic-bezier(.2,.8,.2,1);text-shadow:0 1px 8px rgba(10,40,55,.2)}
 .asp-rcard:hover{transform:rotate(0) translateY(-5px)}
 .asp-rcard[data-new]{animation:asp-pop .8s cubic-bezier(.2,1.3,.4,1) both}
 @keyframes asp-pop{from{opacity:0;transform:translateY(24px) scale(.9) rotate(-6deg)}}
+.asp-rcard-photo{position:relative;display:block;height:150px;margin:-6px -6px 16px;border-radius:14px;overflow:hidden;border:4px solid #fff;box-shadow:0 10px 24px rgba(10,40,55,.25);transform:rotate(-1.2deg)}
+.asp-rcard[data-photo]::before{content:"";position:absolute;left:50%;top:6px;z-index:3;width:74px;height:22px;background:rgba(255,255,255,.62);box-shadow:0 1px 4px rgba(10,40,55,.12);transform:translateX(-50%) rotate(-4deg)}
 .asp-rcard-top{display:flex;align-items:center;gap:10px}
 .asp-rcard-ava{width:42px;height:42px;border:2px solid #fff}
 .asp-rcard-who{display:flex;flex-direction:column;min-width:0;line-height:1.2}
@@ -2273,7 +2177,7 @@ const ASP_CSS = `
 .asp-rcard-hearts{display:flex;gap:3px}
 .asp-rcard-hearts .asp-icon{width:16px;height:16px}
 .asp-rcard-date{font-size:11px;font-weight:700;letter-spacing:.14em}
-.asp-rcard-new{align-items:center;justify-content:center;gap:8px;text-align:center;min-height:240px;background:rgba(255,255,255,.1);border:1.5px dashed rgba(255,255,255,.8);box-shadow:none}
+.asp-rcard-new{width:min(200px,46vw);padding-inline:14px;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:240px;background:rgba(255,255,255,.1);border:1.5px dashed rgba(255,255,255,.8);box-shadow:none}
 .asp-rcard-new:hover{background:rgba(255,255,255,.18)}
 .asp-rcard-plus{width:52px;height:52px;padding:14px;margin-bottom:6px;border-radius:50%;background:var(--asp-paper);color:var(--asp-deep);box-shadow:0 8px 20px rgba(10,40,55,.2);transition:transform .35s cubic-bezier(.2,1.4,.4,1)}
 .asp-rcard-new:hover .asp-rcard-plus{transform:rotate(90deg)}
@@ -2305,13 +2209,16 @@ const ASP_CSS = `
 .asp-root[data-deco] .asp-stk{pointer-events:auto;cursor:grab}
 .asp-root[data-deco] .asp-stk:active{cursor:grabbing;filter:brightness(1.04)}
 .asp-root[data-deco] .asp-stk:hover{filter:drop-shadow(0 0 0 #fff) brightness(1.05)}
-.asp-stk-svg{display:block;width:100%;height:100%;max-width:none;overflow:visible;filter:drop-shadow(0 6px 10px rgba(10,30,40,.28))}
-.asp-stk-cut *{fill:#fff !important;stroke:#fff !important;stroke-width:9px;stroke-linejoin:round}
+.asp-stk-svg{display:block;width:100%;height:100%;max-width:none;overflow:visible;filter:drop-shadow(0 8px 14px rgba(10,30,40,.32))}
+.asp-stk[data-text]{width:auto;height:auto}
+.asp-stk-text{display:inline-block;padding:.5em 1.05em;border-radius:99px;background:var(--asp-paper);color:var(--asp-deep);border:2px solid var(--asp-deep);font-size:15px;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;box-shadow:0 0 0 4px #fff,0 10px 20px rgba(10,30,40,.28)}
 .asp-root[data-deco] .asp-col{outline:1.5px dashed rgba(255,255,255,.55);outline-offset:14px;border-radius:14px}
 .asp-tray{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));z-index:90;display:flex;align-items:center;gap:4px;max-width:calc(100vw - 24px);overflow-x:auto;padding:8px;border-radius:24px;background:rgba(255,255,255,.82);color:var(--asp-paper-ink);box-shadow:0 18px 50px rgba(10,40,55,.3);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);transform:translateX(-50%);animation:asp-tray .4s cubic-bezier(.2,.9,.25,1) both;scrollbar-width:none}
 @keyframes asp-tray{from{opacity:0;transform:translate(-50%,20px)}}
-.asp-tray-btn{flex:none;width:52px;height:52px;padding:6px;border-radius:14px;touch-action:none;transition:background .2s,transform .25s cubic-bezier(.2,1.4,.4,1)}
+.asp-tray-btn{flex:none;width:56px;height:56px;padding:6px;border-radius:14px;touch-action:none;transition:background .2s,transform .25s cubic-bezier(.2,1.4,.4,1)}
 .asp-tray-btn:hover{background:var(--asp-field);transform:translateY(-3px) rotate(-6deg)}
+.asp-tray-btn[data-text]{width:auto;padding:6px 8px}
+.asp-tray-btn .asp-stk-text{font-size:11px;padding:.55em .9em;box-shadow:none;border-width:1.5px}
 .asp-tray-sep{flex:none;width:1px;height:30px;margin:0 6px;background:rgba(0,0,0,.12)}
 .asp-tray-txt{flex:none;padding:10px 12px;border-radius:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 .asp-tray-txt:disabled{opacity:.35;cursor:default}

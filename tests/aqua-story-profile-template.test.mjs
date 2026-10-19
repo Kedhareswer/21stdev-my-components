@@ -26,7 +26,7 @@ assert.match(src, /"--asp-h": height/, "the height prop reaches the root")
 assert.match(src, /\.asp-hero\{[^}]*min-height:var\(--asp-h\)/, "and sets the story header's floor")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 for (const m of src.matchAll(/([^{}]+)\{[^}]*\bheight:100%/g))
-  assert.match(m[1].trim(), /^\.asp-(still|photo-img|ava-img|bg-zebra|icon|stk-svg|note-in)$|^\.asp-bg-img$/, `percentage height on ${m[1].trim()}`)
+  assert.match(m[1].trim(), /^\.asp-(photo-lqip|photo-img|ava-img|icon|stk-svg|note-in)$|^\.asp-bg-img$/, `percentage height on ${m[1].trim()}`)
 assert.match(src, /\.asp-bg\{position:sticky;top:0;height:100svh;margin-bottom:-100svh/, "the backdrop is sticky with a definite height")
 assert.match(src, /\.asp-stage-in\{position:relative;height:95cqw\}/, "the story stage sizes from its own width")
 assert.match(src, /\.asp-ex-in\{position:relative;height:52cqw\}/, "so does the exchange card")
@@ -50,12 +50,15 @@ assert.match(css[1], /\.asp-root :where\(button\)\{/, "the reset has no specific
 assert.match(css[1], /\.asp-root :where\(button\)\{[^}]*text-transform:inherit/, "buttons inherit caps (UA sheets reset them)")
 assert.match(css[1], /\.asp-root\{[^}]*overflow-x:clip/, "the root clips sideways without breaking the sticky backdrop")
 assert.doesNotMatch(css[1], /\.asp-root\{[^}]*overflow:hidden/, "overflow:hidden on the root would break sticky")
-for (const k of ["photo-img", "ava-img", "bg-img", "still", "stk-svg"]) assert.match(css[1], new RegExp("\\.asp-" + k + "\\{[^}]*max-width:none"), `.asp-${k} is guarded against Preflight`)
+for (const k of ["photo-img", "photo-lqip", "ava-img", "bg-img", "stk-svg"]) assert.match(css[1], new RegExp("\\.asp-" + k + "\\{[^}]*max-width:none"), `.asp-${k} is guarded against Preflight`)
 assert.match(src, /className="asp-photo-img"[\s\S]{0,120}width=\{1200\}\s+height=\{1100\}/, "photos carry explicit dimensions")
 
 /* ---------- it behaves like a profile page ---------- */
 
-assert.match(src, /<FilmStill seed=\{seed\} \/>/, "every photo has a painted still underneath")
+assert.doesNotMatch(src, /FilmStill|feTurbulence|asp-bg-zebra/, "no painted stand-ins: every picture is a real photo")
+assert.match(src, /const tiny = React\.useMemo\(\(\) => tinyOf\(src\), \[src\]\)/, "photos fade in over a blurred tiny copy of themselves")
+assert.match(src, /<image href=\{def\.image\}/, "stickers are die-cut photos")
+assert.match(src, /data-prev=\{i === prevIdx && i !== idx/, "the outgoing story stays solid under the incoming one")
 assert.match(src, /onError=\{\(\) => setFailed\(true\)\}/, "a broken photo falls back to the still")
 assert.match(src, /e\.animationName === "asp-fill"\) go\(idx \+ 1\)/, "a story advances when its segment fills")
 assert.match(src, /!\(noteFocus && noteText\.trim\(\) !== ""\)/, "typing a note holds the story")
@@ -82,7 +85,7 @@ assert.doesNotMatch(read("demo-custom.tsx"), /="[^"]*\\n/, "no \\n inside a JSX 
 /* ---------- logic, executed ---------- */
 
 const code = region("content") + region("logic") + region("glyphs") +
-  "\nexport { PALETTES, DEFAULT_STORIES, DEFAULT_REVIEWS, DEFAULT_QUESTIONS, DEFAULT_HIGHLIGHTS, STICKER_KINDS, BUBBLES, SCRIPT_GLYPHS, clamp, step, splitDate, formatCount, initials, dayStamp, reviewProblem, rankFor, layoutScript, resolvePalette, placeSticker, readStickers }\n"
+  "\nexport { PALETTES, DEFAULT_PROFILE, DEFAULT_STORIES, DEFAULT_REVIEWS, DEFAULT_QUESTIONS, DEFAULT_HIGHLIGHTS, DEFAULT_EXCHANGE, DEFAULT_STICKERS, BUBBLES, SCRIPT_GLYPHS, clamp, step, splitDate, formatCount, initials, dayStamp, reviewProblem, rankFor, layoutScript, resolvePalette, placeSticker, readStickers, tinyOf, shapePath }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 assert.equal(L.step(3, 1, 4), 0, "wraps forward")
@@ -148,22 +151,37 @@ for (const [name, p] of Object.entries(L.PALETTES)) assert.deepEqual(Object.keys
 assert.deepEqual(L.placeSticker(-1, -50, 2000), { x: 0.02, y: 24 }, "clamped onto the page")
 assert.deepEqual(L.placeSticker(2, 9999, 2000), { x: 0.98, y: 1976 })
 assert.deepEqual(L.placeSticker(0.5, 300, 2000), { x: 0.5, y: 300 })
-assert.deepEqual(L.readStickers(null), [])
-assert.deepEqual(L.readStickers("{bad json"), [], "corrupt storage is ignored")
-assert.deepEqual(L.readStickers('{"kind":"heart"}'), [], "non-arrays are ignored")
-const got = L.readStickers(JSON.stringify([{ id: "a", kind: "heart", x: 0.3, y: 200, rotate: 5 }, { kind: "skull", x: 0, y: 0 }, { kind: "bow", x: "nope", y: 1 }]))
-assert.deepEqual(got, [{ id: "a", kind: "heart", x: 0.3, y: 200, rotate: 5, size: 76 }], "only known, well-formed stickers come back")
-assert.equal(L.STICKER_KINDS.length, 8)
+const ids = L.DEFAULT_STICKERS.map((d) => d.id)
+assert.deepEqual(L.readStickers(null, ids), [])
+assert.deepEqual(L.readStickers("{bad json", ids), [], "corrupt storage is ignored")
+assert.deepEqual(L.readStickers('{"kind":"sea"}', ids), [], "non-arrays are ignored")
+const got = L.readStickers(JSON.stringify([{ id: "a", kind: "sea", x: 0.3, y: 200, rotate: 5 }, { kind: "skull", x: 0, y: 0 }, { kind: "shell", x: "nope", y: 1 }]), ids)
+assert.deepEqual(got, [{ id: "a", kind: "sea", x: 0.3, y: 200, rotate: 5, size: 76 }], "only known, well-formed stickers come back")
+assert.equal(new Set(ids).size, ids.length, "sticker ids are unique")
+for (const d of L.DEFAULT_STICKERS) assert.ok(d.image || d.text, `${d.id} is a photo or a label`)
+assert.ok(L.DEFAULT_STICKERS.filter((d) => d.image).length >= 6, "most stickers are photos")
+
+// blurred previews
+assert.equal(L.tinyOf("https://images.unsplash.com/photo-1?auto=format&fit=crop&crop=faces&w=1400&h=1280&q=80"), "https://images.unsplash.com/photo-1?auto=format&fit=crop&crop=faces&w=40&h=37&q=30", "same crop and aspect, 40px wide")
+assert.equal(L.tinyOf("https://images.unsplash.com/photo-1?q=80"), "https://images.unsplash.com/photo-1?q=30&w=40")
+assert.equal(L.tinyOf("https://example.com/a.jpg"), null, "other hosts get no preview")
+assert.equal(L.tinyOf(undefined), null)
+for (const sh of ["circle", "heart", "scallop", "square"]) assert.match(L.shapePath(sh), /^M[\d.]+ [\d.]+.*z$/i, `${sh} is a closed path`)
+assert.equal((L.shapePath("scallop").match(/Q/g) || []).length, 12, "a scallop has twelve bumps")
 
 // content
 assert.ok(L.DEFAULT_STORIES.length >= 3)
 for (const s of L.DEFAULT_STORIES) {
   assert.match(s.image, /^https:\/\/images\.unsplash\.com\/photo-/)
   assert.equal(L.splitDate(s.date)[1], "2026")
+  assert.ok(s.alt && s.caption && s.location, "stories are fully written")
 }
 for (const q of L.DEFAULT_QUESTIONS) assert.ok(q.answer >= 0 && q.answer < q.options.length, `${q.q} has a valid answer`)
 for (const r of L.DEFAULT_REVIEWS) assert.equal(L.reviewProblem(r.text), null, `${r.name}'s review would pass the composer`)
 for (const h of L.DEFAULT_HIGHLIGHTS) assert.ok(h.slides.length > 0, `${h.label} has slides`)
+const urls = [L.DEFAULT_PROFILE.avatar, L.DEFAULT_EXCHANGE.image, L.DEFAULT_EXCHANGE.link.avatar, ...L.DEFAULT_STORIES.map((s) => s.image), ...L.DEFAULT_HIGHLIGHTS.flatMap((h) => [h.cover, ...h.slides]), ...L.DEFAULT_REVIEWS.flatMap((r) => [r.avatar, r.photo]), ...L.DEFAULT_STICKERS.map((d) => d.image).filter(Boolean)]
+for (const u of urls) assert.match(u, /^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]+\?auto=format&fit=crop&crop=(faces|entropy)&w=\d+&h=\d+&q=80$/, `a real, cropped photo: ${u}`)
+assert.ok(L.DEFAULT_REVIEWS.every((r) => r.photo), "every default review carries a memory photo")
 assert.equal(L.BUBBLES.filter((b) => b.glass).length, 2, "two glass hearts among the paper ones")
 
 console.log("aqua-story-profile-template: ok")
