@@ -3,21 +3,19 @@
 import * as React from "react"
 
 /**
- * Pushpin Tear Footer — an electric-blue poster sheet pinned over plain paper.
- * When the footer scrolls in, the poster's interface assembles, a glossy
- * pushpin drops and stabs the sheet, and the bottom of the poster rips away
- * from the pin outwards: a jagged ridge with a white fibre rim, curled flaps
- * that cast shadows, and the brand printed on the paper underneath.
+ * Pushpin Tear Footer — a site footer made as a torn poster. An electric-blue
+ * sheet carries the footer's chrome: back to top, socials, the KS monogram,
+ * copy-email, a newsletter field, an availability line, a live local clock
+ * and two link columns. Its bottom has been ripped away from a glossy
+ * pushpin, and the brand is printed on the paper underneath with legal links,
+ * the copyright and the handle.
  *
- * Everything is a real footer control: socials, copy link, back to top, a
- * calm-motion switch, a newsletter switch that morphs the contact picker into
- * an email field, a contact picker that drives the handle in the corner, a
- * progress stat, utility links, app links and a colourway swatch pair that
- * swaps the sheet and the paper. Click the pin and it pulls out, the tear
- * re-rips along a new edge, and it stabs back in.
+ * When it scrolls in, the chrome assembles, the pin drops and stabs, and the
+ * sheet rips from the pin outwards: a jagged ridge with a white fibre rim and
+ * curled flaps that cast shadows. Click the pin and it re-rips a new edge.
  *
- * No dependencies and nothing fetched: the tear, flaps, grain and pin are
- * SVG and canvas built from numbers.
+ * No dependencies and nothing fetched: the tear, flaps, grain, pin and icons
+ * are SVG and canvas built from numbers.
  */
 
 // #region tear
@@ -179,82 +177,56 @@ export function mixHex(a: string, b: string, t: number) {
   return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, "0")).join("")
 }
 
-/** "50,5%" → { pre: "", n: 50.5, dec: ",", decimals: 1, group: "", post: "%" }. */
-export function parseStat(v: string) {
-  const m = /^(\D*?)(\d(?:[\d.,\s]*\d)?)(\D*)$/.exec(String(v).trim())
-  if (!m) return null
-  const [, pre, num, post] = m
-  const last = Math.max(num.lastIndexOf("."), num.lastIndexOf(","))
-  const tail = last > -1 ? num.length - last - 1 : 0
-  let dec = ""
-  let frac = ""
-  let int = num
-  if (last > -1 && tail >= 1 && tail <= 2) {
-    dec = num[last]
-    frac = num.slice(last + 1)
-    int = num.slice(0, last)
-  }
-  const group = /[.,\s]/.exec(int)?.[0] ?? ""
-  const n = parseFloat(int.replace(/\D/g, "") + (frac ? "." + frac : ""))
-  return { pre, post, n, dec, decimals: frac.length, group }
-}
-
-/** The stat part-way through counting up, in its own format. */
-export function formatStat(v: string, p: number) {
-  const s = parseStat(v)
-  if (!s || clamp01(p) >= 1) return v
-  const [i, f] = (s.n * clamp01(p)).toFixed(s.decimals).split(".")
-  const int = s.group ? i.replace(/\B(?=(\d{3})+(?!\d))/g, s.group) : i
-  return s.pre + int + (f ? s.dec + f : "") + s.post
-}
 // #endregion
 
 export type IconName =
-  | "chat" | "plane" | "at" | "f" | "x" | "ig" | "link" | "shield" | "apple" | "android" | "globe" | "mail" | "dribbble"
+  | "github" | "21st" | "x" | "ig" | "linkedin" | "dribbble" | "chat" | "globe" | "mail" | "link" | "shield" | "doc"
 
 export type TearLink = { label: string; href?: string }
 export type IconLink = { icon: IconName; label: string; href?: string }
-export type Contact = { name: string; role?: string; handle: string; href?: string }
+export type FooterColumn = { title: string; links: TearLink[]; cta?: TearLink }
 
 export type PushpinTearFooterProps = {
   /** The wordmark printed on the paper. */
   brand?: string
-  /** The small gradient word above it. */
-  eyebrow?: string
-  /** Replaces the loop mark at the top. */
+  /** The full name in gradient over the wordmark. */
+  name?: string
+  /** Replaces the KS monogram at the top. */
   logo?: React.ReactNode
   logoHref?: string
   socials?: IconLink[]
-  /** Labels over the calm-motion and newsletter switches. */
-  switchLabels?: [string, string]
-  /** The two small marks flanking the switches. */
-  edition?: [string, string]
-  contacts?: Contact[]
-  progress?: { label: string; value: string; href?: string }
-  utility?: { label: string; links: IconLink[]; word: TearLink }
-  sideLinks?: [IconLink, IconLink]
-  chat?: TearLink
-  apps?: IconLink[]
-  legal?: TearLink[]
+  /** Copied by the envelope button; also the default "talk." link. */
+  email?: string
+  newsletter?: { label: string; placeholder?: string } | null
+  /** One line about availability, under the newsletter. */
+  status?: { label: string; href?: string } | null
+  /** Small mark left of the newsletter. */
+  mark?: string
+  /** IANA zone for the live clock right of the newsletter. */
+  timeZone?: string
+  timeLabel?: string
+  columns?: FooterColumn[]
+  chat?: TearLink | null
+  /** Two links either side of the wordmark. */
+  sideLinks?: IconLink[]
+  copyright?: string
+  credit?: string
+  handle?: TearLink
   sheet?: string
   paper?: string
   sheetInk?: string
   paperInk?: string
-  /** Starts with the colours swapped: a paper sheet over a blue ground. */
-  defaultInverted?: boolean
   seed?: number
   height?: number | string
   fontSans?: string
   onSubscribe?: (email: string) => void
   onRepin?: (seed: number) => void
-  onContactChange?: (index: number) => void
-  onColorwayChange?: (inverted: boolean) => void
   className?: string
 }
 
 const P = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const
 
-function Icon({ name }: { name: IconName | "chevL" | "chevR" | "copy" | "expand" | "spark" | "squiggle" | "arrow" | "check" }) {
+function Icon({ name }: { name: IconName | "chevL" | "copy" | "squiggle" | "arrow" | "check" }) {
   const svg = (children: React.ReactNode, filled?: boolean) => (
     <svg viewBox="0 0 24 24" className="tpf-ico" aria-hidden="true" {...(filled ? { fill: "currentColor" } : P)}>
       {children}
@@ -262,19 +234,19 @@ function Icon({ name }: { name: IconName | "chevL" | "chevR" | "copy" | "expand"
   )
   switch (name) {
     case "chevL": return svg(<path d="M14.5 5.5 8 12l6.5 6.5" />)
-    case "chevR": return svg(<path d="M9.5 5.5 16 12l-6.5 6.5" />)
     case "arrow": return svg(<path d="M5 12h13M13 6.5 18.5 12 13 17.5" />)
     case "check": return svg(<path d="m5.5 12.5 4 4 9-9.5" />)
     case "copy": return svg(<><path d="M13.5 4.5H7A2.5 2.5 0 0 0 4.5 7v10A2.5 2.5 0 0 0 7 19.5h10a2.5 2.5 0 0 0 2.5-2.5v-6.5" /><circle cx="18.5" cy="5.5" r="2.3" /></>)
-    case "expand": return svg(<path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15M4.5 4.5l5 5M19.5 4.5l-5 5M19.5 19.5l-5-5M4.5 19.5l5-5" />)
-    case "spark": return svg(<><path d="M10 10.5 19 14l-4 1.5L13.5 19.5z" /><path d="M8 3.5v2.5M3.5 8H6M4.6 4.6l1.8 1.8M11.4 4.6 9.6 6.4" /></>)
     case "squiggle": return svg(<path d="M3.5 15c1.8-3.2 3.6-3.2 5.4 0s3.6 3.2 5.4 0 3.6-3.2 5.4 0" />)
+    case "github":
+      return svg(<path fillRule="evenodd" d="M12 2.8a9.3 9.3 0 0 0-2.9 18.1c.5.1.6-.2.6-.5v-1.7c-2.6.6-3.1-1.1-3.1-1.1-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6.9.1 1.4 1 1.4 1 .8 1.4 2.2 1 2.7.8.1-.6.3-1 .6-1.2-2.1-.2-4.2-1-4.2-4.6 0-1 .4-1.8 1-2.5-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a8.8 8.8 0 0 1 4.6 0c1.8-1.2 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.5 1 2.5 0 3.6-2.2 4.4-4.2 4.6.3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A9.3 9.3 0 0 0 12 2.8z" />, true)
+    case "21st":
+      return svg(<><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" /><path d="M7.6 10.2a1.9 1.9 0 0 1 3.7.4c0 1.6-3.7 2.6-3.7 4.6h3.8M14.2 10.4l1.9-1.4v6.4" /></>)
+    case "linkedin":
+      return svg(<path fillRule="evenodd" d="M7 3.5h10A3.5 3.5 0 0 1 20.5 7v10a3.5 3.5 0 0 1-3.5 3.5H7A3.5 3.5 0 0 1 3.5 17V7A3.5 3.5 0 0 1 7 3.5zm.2 6.6v7h2.2v-7zm1.1-3.4a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6zm2.6 3.4v7h2.2v-3.7c0-1 .4-1.6 1.2-1.6s1.1.6 1.1 1.6v3.7h2.2v-4.3c0-2-1-2.9-2.5-2.9-.9 0-1.6.4-2 1v-.8z" />, true)
+    case "doc": return svg(<><path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z" /><path d="M14 3.5V8h4.5M8.8 12.5h6.4M8.8 16h4.2" /></>)
     case "chat":
       return svg(<path fillRule="evenodd" d="M12 3C7 3 3.2 6.6 3.2 11.2c0 2.5 1.1 4.6 2.9 6.1v3.4l3.2-1.8c.8.2 1.8.4 2.7.4 5 0 8.8-3.6 8.8-8.1S17 3 12 3zm-4 9.4a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6z" />, true)
-    case "plane":
-      return svg(<path fillRule="evenodd" d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4zm4.6 5.6-1.6 7.7c-.1.6-.5.7-1 .4l-2.6-1.9-1.3 1.2c-.1.1-.3.3-.6.3l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L8.2 12.6l-2.6-.8c-.6-.2-.6-.6.1-.8l10.1-3.9c.5-.2.9.1.8 1.3z" />, true)
-    case "at": return svg(<><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" /><circle cx="12" cy="12" r="3" /><path d="M15 12v1.2a1.8 1.8 0 0 0 3.6 0V12A6.6 6.6 0 1 0 15.8 17" /></>)
-    case "f": return svg(<path fillRule="evenodd" d="M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-2.6v-6.4h2.2l.4-2.6h-2.6v-1.6c0-.8.3-1.3 1.4-1.3h1.3V6.3a15 15 0 0 0-2-.2c-2 0-3.3 1.2-3.3 3.4v2h-2.2v2.6h2.2v6.4H7.5a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z" />, true)
     case "x": return svg(<path d="M5 4.5h3.6l10.4 15H15.4zM18.6 4.5 13.4 10.4M5.4 19.5l5.4-6.2" />)
     case "ig": return svg(<><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="3.8" /><circle cx="17.1" cy="6.9" r=".6" fill="currentColor" /></>)
     case "dribbble": return svg(<><circle cx="12" cy="12" r="8.5" /><path d="M5.2 7c4.5 2 9.8 2 13 .7M3.6 13c5-1.6 10.4-.4 14 4.6M9 3.9c3 3.6 5.2 9.3 5.7 15.6" /></>)
@@ -283,10 +255,6 @@ function Icon({ name }: { name: IconName | "chevL" | "chevR" | "copy" | "expand"
     case "link": return svg(<path d="M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />)
     case "shield":
       return svg(<path fillRule="evenodd" d="M6.5 2.5h11a4 4 0 0 1 4 4v11a4 4 0 0 1-4 4h-11a4 4 0 0 1-4-4v-11a4 4 0 0 1 4-4zM12 6.2 7.6 7.8v3.6c0 2.9 1.9 5.2 4.4 6.2 2.5-1 4.4-3.3 4.4-6.2V7.8zm-2 5.8 1.4 1.4 2.8-2.9" />, true)
-    case "apple":
-      return svg(<path d="M16.4 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.2.8 1.1 1.7 2.3 2.9 2.3 1.2-.1 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.7zM14.1 5.9c.6-.8 1.1-1.8 1-2.9-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-1 2.8 1 .1 2.1-.5 2.7-1.3z" />, true)
-    case "android":
-      return svg(<path fillRule="evenodd" d="M6.4 9.2a5.6 5.6 0 0 1 11.2 0zm2.9-4.6L8.2 2.8m6.5 1.8 1.1-1.8M9.6 6.6a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6zm4.8 0a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6zM6.4 10.2h11.2v7.1c0 .8-.6 1.4-1.4 1.4h-.8v2.4a1.1 1.1 0 0 1-2.2 0v-2.4h-2.4v2.4a1.1 1.1 0 0 1-2.2 0v-2.4h-.8c-.8 0-1.4-.6-1.4-1.4zm-2.9.2a1.1 1.1 0 0 1 2.2 0v4.9a1.1 1.1 0 0 1-2.2 0zm14.8 0a1.1 1.1 0 0 1 2.2 0v4.9a1.1 1.1 0 0 1-2.2 0z" />, true)
   }
 }
 
@@ -306,11 +274,40 @@ function Seal() {
   )
 }
 
-function LoopMark() {
+/** KS monogram: the K's upper arm ends in a pushpin head, the S is the tear. */
+function KMark() {
   return (
-    <svg viewBox="0 0 40 24" className="tpf-mark" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round">
-      <path d="M20 12c-3.2-4.6-5.6-7-8.6-7C8 5 5.5 8.2 5.5 12.3S8 19 11 19c3.4 0 5.6-3.4 9-7.6S25.6 5 29 5c3 0 5.5 2.9 5.5 7S32 19 28.6 19c-3 0-5.4-2.4-8.6-7z" />
+    <svg viewBox="0 0 44 28" className="tpf-mark" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.5 4.5v19" />
+      <path d="M5.5 15.2 15.6 6.4" />
+      <path d="M10.4 11 17 23.5" />
+      <path d="M37.5 6.6c-1.2-1.4-3-2.1-5-2.1-3 0-5 1.6-5 3.9 0 5.2 10.4 3.5 10.4 9.1 0 2.6-2.3 4.5-5.4 4.5-2.3 0-4.4-.9-5.7-2.5" />
+      <circle cx="17" cy="5" r="3" fill="currentColor" stroke="none" className="tpf-mark-dot" />
     </svg>
+  )
+}
+
+/** Live local time with a blinking colon; empty until mounted so SSR never mismatches. */
+function Clock({ zone, label }: { zone: string; label: string }) {
+  const [t, setT] = React.useState(["--", "--"])
+  React.useEffect(() => {
+    let f: Intl.DateTimeFormat
+    try {
+      f = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: zone })
+    } catch {
+      f = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    }
+    const tick = () => setT(f.format(new Date()).split(":"))
+    tick()
+    const id = window.setInterval(tick, 10000)
+    return () => clearInterval(id)
+  }, [zone])
+  return (
+    <span className="tpf-clock">
+      {label} {t[0]}
+      <i aria-hidden="true">:</i>
+      {t[1]}
+    </span>
   )
 }
 
@@ -378,7 +375,7 @@ function useReducedMotion() {
 }
 
 const CSS =
-  ".tpf{position:relative;overflow:hidden;container-type:size;min-height:620px;background:var(--tpf-sheet);color:var(--tpf-on-sheet);font-family:var(--tpf-sans);isolation:isolate;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;transition:background-color .7s ease;--ease:cubic-bezier(.22,1,.36,1);--fs:max(11px,1.85cqmin)}" +
+  ".tpf{position:relative;overflow:hidden;container-type:size;min-height:620px;background:var(--tpf-sheet);color:var(--tpf-on-sheet);font-family:var(--tpf-sans);isolation:isolate;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;--ease:cubic-bezier(.22,1,.36,1);--fs:max(12px,1.85cqmin)}" +
   ".tpf *,.tpf *::before,.tpf *::after{box-sizing:border-box}" +
   ":where(.tpf) a{color:inherit;text-decoration:none}" +
   ":where(.tpf) button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}" +
@@ -387,16 +384,13 @@ const CSS =
   ".tpf .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}" +
   ".tpf-stage{position:absolute;left:0;top:0;max-width:none;display:block;pointer-events:none;z-index:0}" +
   ".tpf.is-hit .tpf-sheet-g{animation:tpf-hit .32s cubic-bezier(.3,.7,.4,1)}" +
-  ".tpf-sheet{fill:var(--tpf-sheet);transition:fill .7s ease}" +
-  ".tpf-paper{fill:var(--tpf-paper);transition:fill .7s ease .06s}" +
-  ".tpf-rim{fill:var(--tpf-rim)}" +
+  ".tpf-sheet{fill:var(--tpf-sheet)}.tpf-paper{fill:var(--tpf-paper)}.tpf-rim{fill:var(--tpf-rim)}" +
   ".tpf-ico{width:1.35em;height:1.35em;display:block;max-width:none;flex:none}" +
-  ".tpf-mark{width:3.4em;height:2em;display:block;max-width:none}" +
+  ".tpf-mark{width:3.6em;height:2.3em;display:block;max-width:none;overflow:visible}" +
   ".tpf-seal{width:100%;height:100%;display:block;max-width:none}" +
-  ".tpf-s,.tpf-p-ink{color:var(--tpf-on-sheet);transition:color .6s ease}" +
-  ".tpf-p-ink{color:var(--tpf-on-paper)}" +
   ".tpf-z{position:absolute;z-index:2}" +
-  // assembly: the poster interface, then the paper
+  ".tpf-ink{color:var(--tpf-on-paper)}" +
+  // assembly: the sheet's chrome, then the paper's print (translate, so centring transforms survive)
   ".tpf-h{transition:opacity .7s var(--ease),translate .8s var(--ease),filter .7s var(--ease);transition-delay:calc(var(--i,0)*45ms)}" +
   ".tpf:not(.s1) .tpf-h{opacity:0;translate:0 10px;filter:blur(6px)}" +
   ".tpf-p{transition:opacity .8s var(--ease),translate .9s var(--ease),filter .8s var(--ease);transition-delay:calc(480ms + var(--i,0)*70ms)}" +
@@ -408,60 +402,50 @@ const CSS =
   ".tpf-ib:hover{transform:translateY(-2px);background:color-mix(in srgb,currentColor 14%,transparent)}" +
   ".tpf-ib:active{transform:scale(.9)}" +
   ".tpf-up .tpf-ico{transform:rotate(90deg)}" +
-  ".tpf-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;font-size:max(15px,2.6cqmin)}" +
-  ".tpf-logo .tpf-mark path{stroke-dasharray:120;stroke-dashoffset:0;transition:stroke-dashoffset 1.4s var(--ease)}" +
-  ".tpf:not(.s1) .tpf-logo .tpf-mark path{stroke-dashoffset:120}" +
-  ".tpf-logo:hover .tpf-mark{animation:tpf-loop 1.1s var(--ease)}" +
-  ".tpf-toast{position:absolute;top:calc(100% + .6em);right:0;font-size:max(11px,1.6cqmin);letter-spacing:.04em;white-space:nowrap;padding:.35em .8em;border-radius:99px;background:var(--tpf-on-sheet);color:var(--tpf-sheet);opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .35s var(--ease);pointer-events:none}" +
+  ".tpf-logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center}" +
+  ".tpf-logo .tpf-mark path{stroke-dasharray:60;stroke-dashoffset:0;transition:stroke-dashoffset 1.3s var(--ease) .15s}" +
+  ".tpf:not(.s1) .tpf-logo .tpf-mark path{stroke-dashoffset:60}" +
+  ".tpf-mark-dot{transform-box:fill-box;transform-origin:50% 50%;transition:transform .6s cubic-bezier(.5,1.8,.4,1) .9s}" +
+  ".tpf:not(.s1) .tpf-mark-dot{transform:scale(0)}" +
+  ".tpf-logo:hover .tpf-mark-dot{animation:tpf-bob .7s var(--ease)}" +
+  ".tpf-mail{display:flex;align-items:center;gap:.6em;font-size:var(--fs);letter-spacing:.01em;padding:.35em .2em;transition:transform .35s var(--ease)}" +
+  ".tpf-mail:hover{transform:translateY(-2px)}" +
+  ".tpf-mail span{background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size .4s var(--ease)}" +
+  ".tpf-mail:hover span{background-size:100% 1px}" +
+  ".tpf-mail .tpf-ico{width:1.5em;height:1.5em}" +
+  ".tpf-toast{position:absolute;top:calc(100% + .5em);right:0;font-size:max(11px,1.6cqmin);letter-spacing:.04em;white-space:nowrap;padding:.35em .8em;border-radius:99px;background:var(--tpf-on-sheet);color:var(--tpf-sheet);opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .35s var(--ease);pointer-events:none}" +
   ".tpf-toast.on{opacity:1;transform:none}" +
-  // switches
-  ".tpf-sw{left:50%;top:15.6%;transform:translateX(-50%);display:grid;grid-template-columns:auto auto auto;align-items:center;column-gap:max(14px,3.2cqmin);row-gap:max(10px,2.1cqmin);font-size:var(--fs);text-align:center}" +
-  ".tpf-sw-bar{width:1.5px;height:1.4em;background:currentColor;opacity:.9;justify-self:center}" +
-  ".tpf-tg{position:relative;width:max(44px,7.4cqmin);height:max(26px,4.3cqmin);border-radius:99px;background:var(--tpf-on-sheet);transition:background-color .6s,transform .3s var(--ease)}" +
-  ".tpf-tg:active{transform:scale(.95)}" +
-  ".tpf-tg::after{content:'';position:absolute;top:50%;left:12%;width:30%;aspect-ratio:1;border-radius:50%;background:var(--tpf-sheet);transform:translate(0,-50%);transition:left .55s cubic-bezier(.5,1.7,.4,1),width .25s var(--ease),background-color .6s}" +
-  ".tpf-tg:hover::after{width:34%}" +
-  ".tpf-tg[aria-checked=true]::after{left:58%}" +
-  ".tpf-tg[aria-checked=true]:hover::after{left:54%}" +
-  ".tpf-ed{top:24%;transform:translate(-50%,-50%);font-size:var(--fs);letter-spacing:.02em;white-space:nowrap;opacity:.95}" +
-  // contact picker / newsletter
-  ".tpf-pick{left:50%;top:30.6%;transform:translate(-50%,-50%);width:max(240px,38cqmin);height:max(36px,5.6cqmin);font-size:max(14px,2.25cqmin)}" +
-  ".tpf-pick>*{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:opacity .45s var(--ease),transform .55s var(--ease),filter .45s var(--ease)}" +
-  ".tpf-pick>[data-off=true]{opacity:0;transform:translateY(-8px) scale(.98);filter:blur(5px);pointer-events:none}" +
-  ".tpf-names{justify-content:space-between}" +
-  ".tpf-name{position:relative;flex:1;height:100%;overflow:hidden;display:grid;place-items:center;letter-spacing:.01em;text-transform:uppercase;white-space:nowrap}" +
-  ".tpf-name span{grid-area:1/1;animation:tpf-in .55s var(--ease) both}" +
-  ".tpf-name[data-dir='-1'] span{animation-name:tpf-in-l}" +
-  ".tpf-name small{position:absolute;bottom:-1.2em;font-size:.6em;opacity:0;transition:opacity .3s}" +
-  ".tpf-chev{display:grid;place-items:center;width:2em;height:2em;border-radius:50%;transition:transform .35s var(--ease),background-color .25s}" +
-  ".tpf-chev:hover{background:color-mix(in srgb,currentColor 14%,transparent)}" +
-  ".tpf-chev.l:hover{transform:translateX(-3px)}.tpf-chev.r:hover{transform:translateX(3px)}" +
-  ".tpf-form{gap:.4em;border-bottom:1.5px solid currentColor}" +
-  ".tpf-form input{flex:1;min-width:0;height:100%;padding:0 .2em;letter-spacing:.01em}" +
-  ".tpf-form input::placeholder{color:currentColor;opacity:.6}" +
-  ".tpf-form button{display:grid;place-items:center;width:2em;height:2em;border-radius:50%;transition:transform .35s var(--ease),background-color .25s}" +
-  ".tpf-form button:hover{transform:translateX(3px);background:color-mix(in srgb,currentColor 14%,transparent)}" +
-  ".tpf-form[data-sent=true] input{opacity:.0}" +
-  ".tpf-sent{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.4em;pointer-events:none;opacity:0;transition:opacity .4s}" +
-  ".tpf-form[data-sent=true] .tpf-sent{opacity:1}" +
-  ".tpf-badge{left:50%;top:35.4%;transform:translate(-50%,-50%);width:max(15px,2.3cqmin);height:max(15px,2.3cqmin);transition:opacity .4s,transform .5s var(--ease)}" +
-  ".tpf-badge[data-off=true]{opacity:0;transform:translate(-50%,-50%) scale(.4)}" +
-  ".tpf-badge:hover{transform:translate(-50%,-50%) rotate(30deg)}" +
-  // left block: progress
-  ".tpf-prog{left:14%;top:30.5%;display:grid;justify-items:start;gap:max(6px,1.1cqmin);font-size:var(--fs)}" +
-  ".tpf-prog .tpf-ico{width:1.7em;height:1.7em}" +
-  ".tpf-bar{position:relative;width:max(30px,4.8cqmin);height:max(5px,.85cqmin);margin:.5em 0 .7em;background:color-mix(in srgb,currentColor 32%,transparent);overflow:hidden}" +
-  ".tpf-bar i{position:absolute;inset:0;background:currentColor;transform-origin:0 50%}" +
-  ".tpf-lbl{display:flex;align-items:center;gap:1.6em}" +
-  ".tpf-lbl .tpf-ico{width:1.1em;height:1.1em}" +
-  ".tpf-big{font-size:max(26px,4.6cqmin);letter-spacing:-.025em;line-height:1;text-decoration:underline;text-decoration-thickness:max(1.5px,.04em);text-underline-offset:.12em;font-variant-numeric:tabular-nums;transition:text-underline-offset .35s var(--ease)}" +
-  ".tpf a.tpf-big:hover{text-underline-offset:.2em}" +
-  // right block: utilities
-  ".tpf-util{right:14%;top:32%;display:grid;justify-items:end;gap:max(10px,1.9cqmin);font-size:var(--fs)}" +
-  ".tpf-util .tpf-row{gap:max(10px,1.9cqmin)}" +
-  ".tpf-util .tpf-ico{width:1.55em;height:1.55em}" +
-  ".tpf-tile{display:grid;place-items:center;transition:transform .35s var(--ease)}" +
-  ".tpf-tile:hover{transform:translateY(-2px) rotate(-6deg)}" +
+  // newsletter: a white pill whose submit is the blue knob from the poster's switches
+  ".tpf-news{left:50%;top:15%;width:max-content;transform:translateX(-50%);display:grid;justify-items:center;gap:max(10px,1.6cqmin);font-size:var(--fs)}" +
+  ".tpf-pill{position:relative;display:flex;align-items:center;width:max(260px,40cqmin);height:max(40px,5.6cqmin);padding:0 .35em 0 1.2em;border-radius:99px;background:var(--tpf-on-sheet);color:var(--tpf-sheet);transition:box-shadow .3s var(--ease)}" +
+  ".tpf-pill:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--tpf-on-sheet) 35%,transparent)}" +
+  ".tpf-pill input{flex:1;min-width:0;height:100%;font-size:max(13px,2cqmin);transition:opacity .3s}" +
+  ".tpf-pill input::placeholder{color:currentColor;opacity:.55}" +
+  ".tpf-knob{display:grid;place-items:center;flex:none;height:calc(100% - .6em);aspect-ratio:1;border-radius:50%;background:var(--tpf-sheet);color:var(--tpf-on-sheet);box-shadow:inset 0 0 0 .22em color-mix(in srgb,var(--tpf-on-sheet) 30%,var(--tpf-sheet));transition:transform .45s cubic-bezier(.5,1.7,.4,1)}" +
+  ".tpf-knob:hover{transform:translateX(2px) scale(1.06)}" +
+  ".tpf-knob .tpf-ico{width:52%;height:52%}" +
+  ".tpf-pill[data-sent=true] input{opacity:0}" +
+  ".tpf-sent{position:absolute;left:1.2em;right:3em;top:0;bottom:0;display:flex;align-items:center;gap:.4em;font-size:max(13px,2cqmin);pointer-events:none;opacity:0;transition:opacity .4s}" +
+  ".tpf-pill[data-sent=true] .tpf-sent{opacity:1}" +
+  ".tpf-flank{top:22.4%;transform:translate(-50%,-50%);font-size:var(--fs);letter-spacing:.04em;white-space:nowrap;text-transform:uppercase}" +
+  ".tpf-clock{font-variant-numeric:tabular-nums}.tpf-clock i{font-style:normal;animation:tpf-blink 2s steps(1) infinite}" +
+  ".tpf-status{left:50%;top:30.6%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:.6em;font-size:max(14px,2.25cqmin);white-space:nowrap;letter-spacing:.01em}" +
+  ".tpf-live{position:relative;width:.5em;height:.5em;border-radius:50%;background:currentColor}" +
+  ".tpf-live::after{content:'';position:absolute;inset:0;border-radius:50%;border:1.5px solid currentColor;animation:tpf-ping 2.2s var(--ease) infinite}" +
+  ".tpf a.tpf-status:hover span{text-decoration:underline;text-underline-offset:.2em}" +
+  ".tpf-badge{left:50%;top:35.4%;transform:translate(-50%,-50%);width:max(15px,2.3cqmin);height:max(15px,2.3cqmin)}" +
+  // link columns
+  ".tpf-col{top:27.5%;display:grid;gap:max(5px,.9cqmin);font-size:var(--fs)}" +
+  ".tpf-col.l{left:14%;justify-items:start}.tpf-col.r{right:14%;justify-items:end;text-align:right}" +
+  ".tpf-col h3{all:unset;display:flex;align-items:center;gap:1em;margin-bottom:max(4px,.6cqmin);opacity:.75}" +
+  ".tpf-col.r h3{flex-direction:row-reverse}" +
+  ".tpf-col h3 .tpf-ico{width:1.1em;height:1.1em}" +
+  ".tpf-col ul{all:unset;display:grid;gap:max(4px,.7cqmin);justify-items:inherit}" +
+  ".tpf-col li{list-style:none}" +
+  ".tpf-col li a{display:inline-block;transition:transform .35s var(--ease),opacity .25s}" +
+  ".tpf-col.l li a:hover{transform:translateX(4px)}.tpf-col.r li a:hover{transform:translateX(-4px)}" +
+  ".tpf-big{margin-top:max(6px,1cqmin);font-size:max(26px,4.6cqmin);letter-spacing:-.025em;line-height:1;text-decoration:underline;text-decoration-thickness:max(1.5px,.04em);text-underline-offset:.12em;transition:text-underline-offset .35s var(--ease)}" +
+  ".tpf .tpf-big:hover{text-underline-offset:.22em}" +
   // pin
   ".tpf-pin{position:absolute;z-index:3;left:50%;top:64%;width:max(46px,9cqmin);height:max(92px,18cqmin);transform:translate(-50%,-100%);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}" +
   ".tpf-pin:focus-visible{outline-offset:6px}" +
@@ -481,18 +465,18 @@ const CSS =
   ".tpf-pin[data-pin=lift] .tpf-body{transform:translateY(-22%) rotate(-10deg);transition-duration:.3s}" +
   ".tpf-pin[data-pin=lift] .tpf-shadow{transform:rotate(16deg) translateX(-26%) scale(1.25);opacity:.55}" +
   ".tpf-pin[data-pin=stab] .tpf-body{animation:tpf-stab .42s cubic-bezier(.55,0,.8,.2) both}" +
-  // paper side
-  ".tpf-brand{left:50%;top:67%;transform:translateX(-50%);display:grid;justify-items:stretch;gap:0}" +
-  ".tpf-brand-top{display:flex;align-items:center;justify-content:space-between;gap:1em;padding:0 .2em 0 .5em;font-size:max(14px,2.3cqmin)}" +
+  // the paper's print
+  ".tpf-brand{left:50%;top:67%;width:max-content;transform:translateX(-50%);display:grid;justify-items:stretch}" +
+  ".tpf-brand-top{display:flex;align-items:center;justify-content:space-between;gap:1em;padding:0 .2em 0 .5em}" +
   ".tpf-eye{font-size:max(15px,2.6cqmin);letter-spacing:-.02em;background:linear-gradient(90deg,var(--tpf-on-paper),color-mix(in srgb,var(--tpf-on-paper) 35%,var(--tpf-paper)));-webkit-background-clip:text;background-clip:text;color:transparent}" +
-  ".tpf-bub{display:inline-flex;align-items:center;gap:.5em;height:1.7em;padding:0 .55em;border-radius:99px;background:color-mix(in srgb,var(--tpf-on-paper) 11%,var(--tpf-paper));color:var(--tpf-on-paper);font-size:max(11px,1.6cqmin);overflow:hidden;transition:background-color .3s,padding .45s var(--ease)}" +
+  ".tpf-bub{display:inline-flex;align-items:center;gap:.5em;height:1.7em;padding:0 .55em;border-radius:99px;background:color-mix(in srgb,var(--tpf-on-paper) 11%,var(--tpf-paper));font-size:max(11px,1.6cqmin);overflow:hidden;transition:padding .45s var(--ease)}" +
   ".tpf-dots{display:flex;gap:.22em}" +
   ".tpf-dots i{width:.38em;height:.38em;border-radius:50%;background:color-mix(in srgb,var(--tpf-on-paper) 45%,var(--tpf-paper));animation:tpf-dot 1.2s ease-in-out infinite}" +
   ".tpf-dots i:nth-child(2){animation-delay:.15s}.tpf-dots i:nth-child(3){animation-delay:.3s}" +
   ".tpf-bub b{font-weight:500;max-width:0;opacity:0;white-space:nowrap;transition:max-width .5s var(--ease),opacity .3s}" +
   ".tpf-bub:hover,.tpf-bub:focus-visible{padding:0 .8em}" +
   ".tpf-bub:hover b,.tpf-bub:focus-visible b{max-width:8em;opacity:1}" +
-  ".tpf-word{display:block;overflow:hidden;padding:0 .04em .14em;font-size:max(64px,min(12.4cqmin,20cqw));font-weight:500;letter-spacing:-.055em;line-height:.98;white-space:nowrap}" +
+  ".tpf-word{display:block;overflow:hidden;padding:0 .04em .14em;font-size:max(44px,min(12.4cqmin,16cqw));font-weight:500;letter-spacing:-.055em;line-height:.98;white-space:nowrap}" +
   ".tpf-word span{display:block;position:relative;transition:transform 1s var(--ease) .5s}" +
   ".tpf-word span::after{content:'';position:absolute;left:.02em;right:.04em;bottom:-.02em;height:max(2px,.045em);background:currentColor;transform-origin:0 50%;transition:transform .9s var(--ease) 1.05s,height .3s var(--ease)}" +
   ".tpf:not(.s3) .tpf-word span{transform:translateY(125%);transition-delay:0s}" +
@@ -503,107 +487,100 @@ const CSS =
   ".tpf-side:hover .tpf-ico{transform:translateY(-2px) rotate(-8deg)}" +
   ".tpf-side span{background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size .4s var(--ease)}" +
   ".tpf-side:hover span{background-size:100% 1px}" +
-  ".tpf-swatch{left:50%;top:89.4%;transform:translate(-50%,-50%);display:flex;gap:max(10px,1.7cqmin)}" +
-  ".tpf-dot{width:max(28px,4.3cqmin);height:max(28px,4.3cqmin);border-radius:50%;border:1.5px solid color-mix(in srgb,var(--tpf-on-paper) 34%,transparent);transition:transform .45s var(--ease),box-shadow .45s var(--ease),background-color .7s}" +
-  ".tpf-dot:hover{transform:scale(1.08)}" +
-  ".tpf-dot[aria-checked=true]{box-shadow:0 0 0 3px var(--tpf-paper),0 0 0 4.5px var(--tpf-on-paper)}" +
-  ".tpf-foot{left:0;right:0;bottom:4.4%;display:flex;align-items:center;justify-content:space-between;padding:0 15%;font-size:max(12px,1.85cqmin)}" +
-  ".tpf-foot .tpf-ico{width:1.5em;height:1.5em}" +
-  ".tpf-foot .tpf-row{gap:.9em}" +
-  ".tpf-legal{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:1.4em;font-size:max(10px,1.4cqmin);letter-spacing:.08em;text-transform:uppercase;opacity:.62;white-space:nowrap}" +
-  ".tpf-legal a:hover,.tpf-handle:hover{text-decoration:underline;text-underline-offset:.2em}" +
-  ".tpf-handle{display:grid}.tpf-handle span{grid-area:1/1;animation:tpf-fade .5s var(--ease) both}" +
-  ".tpf-foot a .tpf-ico{transition:transform .35s var(--ease)}.tpf-foot a:hover .tpf-ico{transform:translateY(-2px)}" +
-  // narrow: a phone column
+  ".tpf-foot{left:0;right:0;bottom:5%;display:flex;align-items:center;justify-content:space-between;gap:1.5em;padding:0 15%;font-size:max(12px,1.85cqmin)}" +
+  ".tpf-credit{position:absolute;left:50%;transform:translateX(-50%);font-size:max(10px,1.4cqmin);letter-spacing:.08em;text-transform:uppercase;opacity:.62;white-space:nowrap}" +
+  ".tpf-handle:hover{text-decoration:underline;text-underline-offset:.2em}" +
+  // phone column
   "@container (max-width: 620px){" +
-  ".tpf-top{padding:0 7%}.tpf-ed{display:none}" +
-  ".tpf-prog{left:7%;top:36%}.tpf-prog>.tpf-ico{display:none}.tpf-util{right:7%;top:36.5%}.tpf-pick{top:27.5%;width:min(78cqw,300px)}.tpf-badge{top:31.8%}" +
-  ".tpf-side{top:85.4%}.tpf-side.l{left:16%!important}.tpf-side.r{left:84%!important}" +
-  ".tpf-swatch{top:87.5%}" +
-  ".tpf-foot{padding:0 7%}.tpf-legal{bottom:2.6em}" +
+  ".tpf-top{padding:0 7%}.tpf-flank,.tpf-mail span{display:none}" +
+  ".tpf-news{top:16%}.tpf-pill{width:min(80cqw,320px)}" +
+  ".tpf-status{top:29%}.tpf-badge{top:33%}" +
+  ".tpf-col{top:36.5%}.tpf-col.l{left:7%}.tpf-col.r{right:7%}.tpf-col li:nth-child(n+3){display:none}" +
+  ".tpf-side{top:86%}.tpf-side.l{left:14%!important}.tpf-side.r{left:86%!important}" +
+  ".tpf-foot{padding:0 7%;bottom:3.5%}.tpf-credit{bottom:2.4em}" +
   "}" +
-  "@container (max-width: 400px){.tpf-side span{display:none}.tpf-side{top:87.5%;transform:translate(-50%,-50%)}}" +
   "@keyframes tpf-hit{0%{transform:translateY(0)}30%{transform:translateY(2px)}60%{transform:translateY(-.5px)}100%{transform:translateY(0)}}" +
   "@keyframes tpf-drop{0%{transform:translateY(-62cqh) rotate(-28deg) scale(1.5);opacity:0}25%{opacity:1}80%{transform:translateY(0) rotate(3deg) scale(1)}90%{transform:scale(1.04,.95)}100%{transform:none;opacity:1}}" +
   "@keyframes tpf-shade{0%{transform:rotate(16deg) translateX(-60%) scale(2.4);opacity:0}80%{transform:rotate(16deg);opacity:1}100%{transform:rotate(16deg);opacity:1}}" +
   "@keyframes tpf-stab{0%{transform:translateY(-22%) rotate(-10deg)}70%{transform:translateY(1.5%) rotate(1deg)}100%{transform:none}}" +
-  "@keyframes tpf-in{from{opacity:0;transform:translateX(16px);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}" +
-  "@keyframes tpf-in-l{from{opacity:0;transform:translateX(-16px);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}" +
-  "@keyframes tpf-fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}" +
   "@keyframes tpf-dot{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-2.5px);opacity:1}}" +
-  "@keyframes tpf-loop{0%{transform:none}40%{transform:scaleX(-1)}100%{transform:none}}" +
-  ".tpf.is-still *,.tpf.is-still *::before,.tpf.is-still *::after{animation:none!important;transition-duration:.01s!important;transition-delay:0s!important}" +
+  "@keyframes tpf-bob{0%{transform:none}40%{transform:translateY(-3px) scale(1.15)}100%{transform:none}}" +
+  "@keyframes tpf-blink{0%{opacity:1}50%{opacity:.25}}" +
+  "@keyframes tpf-ping{0%{transform:scale(1);opacity:.9}80%,100%{transform:scale(2.6);opacity:0}}" +
   "@media (prefers-reduced-motion: reduce){.tpf *,.tpf *::before,.tpf *::after{animation:none!important;transition-duration:.01s!important;transition-delay:0s!important}}"
 
+const ME = "kedhareswer"
+const HOME = "https://21st.dev/@" + ME
+
 const DEFAULT_SOCIALS: IconLink[] = [
-  { icon: "chat", label: "Message us", href: "#" },
-  { icon: "plane", label: "Telegram", href: "#" },
+  { icon: "github", label: "GitHub", href: "https://github.com/" + ME },
+  { icon: "21st", label: "21st.dev", href: HOME },
 ]
 
-const DEFAULT_CONTACTS: Contact[] = [
-  { name: "O'Brien", role: "New business", handle: "@obrien.adv", href: "mailto:obrien@example.com" },
-  { name: "Okafor", role: "Press", handle: "@okafor.adv", href: "mailto:press@example.com" },
-  { name: "Lindqvist", role: "Careers", handle: "@lindqvist.adv", href: "mailto:jobs@example.com" },
-  { name: "Moreau", role: "Studio", handle: "@moreau.adv", href: "mailto:studio@example.com" },
+const DEFAULT_COLUMNS: FooterColumn[] = [
+  {
+    title: "index",
+    links: [
+      { label: "Components", href: HOME },
+      { label: "Templates", href: HOME },
+      { label: "Preloaders", href: HOME },
+    ],
+    cta: { label: "work.", href: HOME },
+  },
+  {
+    title: "elsewhere",
+    links: [
+      { label: "GitHub", href: "https://github.com/" + ME },
+      { label: "21st.dev", href: HOME },
+      { label: "Source", href: "https://github.com/" + ME + "/21stdev-my-components" },
+    ],
+  },
 ]
 
-const DEFAULT_APPS: IconLink[] = [
-  { icon: "apple", label: "App Store", href: "#" },
-  { icon: "android", label: "Google Play", href: "#" },
+const DEFAULT_SIDES: IconLink[] = [
+  { icon: "shield", label: "privacy", href: "#" },
+  { icon: "doc", label: "terms", href: "#" },
 ]
-
-const DEFAULT_LEGAL: TearLink[] = [{ label: "© 2026 adv." }, { label: "Privacy", href: "#" }, { label: "Terms", href: "#" }]
-
-const isHex = (c: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)
 
 function A({ href, className, label, children, style }: { href?: string; className?: string; label?: string; children: React.ReactNode; style?: React.CSSProperties }) {
   const onClick = (e: React.MouseEvent) => {
     if (!href || href === "#") e.preventDefault()
   }
+  const out = !!href && /^https?:/.test(href)
   return (
-    <a href={href || "#"} className={className} aria-label={label} title={label} onClick={onClick} style={style}>
+    <a href={href || "#"} className={className} aria-label={label} title={label} onClick={onClick} style={style} {...(out ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
       {children}
     </a>
   )
 }
 
 export default function PushpinTearFooter({
-  brand = "adv.",
-  eyebrow = "studio",
+  brand = "kedhar.",
+  name = "kedhareswer",
   logo,
-  logoHref = "#",
+  logoHref = HOME,
   socials = DEFAULT_SOCIALS,
-  switchLabels = ["àcc", "súb"],
-  edition = ["V. 2505", "ED. 5251"],
-  contacts = DEFAULT_CONTACTS,
-  progress = { label: "version", value: "50,5%", href: "#" },
-  utility = {
-    label: "ect.",
-    links: [
-      { icon: "link", label: "Press kit", href: "#" },
-      { icon: "shield", label: "Privacy", href: "#" },
-    ],
-    word: { label: "mod.", href: "#" },
-  },
-  sideLinks = [
-    { icon: "at", label: "web", href: "#" },
-    { icon: "f", label: "25,05", href: "#" },
-  ],
-  chat = { label: "say hi", href: "mailto:hello@example.com" },
-  apps = DEFAULT_APPS,
-  legal = DEFAULT_LEGAL,
+  email = "hello@example.com",
+  newsletter = { label: "new components, once a month", placeholder: "your@email" },
+  status = { label: "open for collaborations" },
+  mark = "KS / 2026",
+  timeZone = "Asia/Kolkata",
+  timeLabel = "IST",
+  columns = DEFAULT_COLUMNS,
+  chat = { label: "say hi" },
+  sideLinks = DEFAULT_SIDES,
+  copyright = "© 2026 Kedhareswer",
+  credit = "designed & built by hand",
+  handle = { label: "@" + ME, href: HOME },
   sheet = "#1a7ff0",
   paper = "#f3f3f1",
   sheetInk = "#ffffff",
   paperInk,
-  defaultInverted = false,
   seed = 7,
   height = "100svh",
   fontSans = '"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif',
   onSubscribe,
   onRepin,
-  onContactChange,
-  onColorwayChange,
   className = "",
 }: PushpinTearFooterProps) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "")
@@ -616,21 +593,14 @@ export default function PushpinTearFooter({
   const pinRef = React.useRef<HTMLButtonElement>(null)
   const timers = React.useRef<number[]>([])
 
-  const reduced = useReducedMotion()
-  const [calm, setCalm] = React.useState(false)
-  const still = reduced || calm
+  const still = useReducedMotion()
   const [stage, setStage] = React.useState(0)
   const [hit, setHit] = React.useState(false)
   const [visible, setVisible] = React.useState(false)
   const [pin, setPin] = React.useState<"idle" | "lift" | "stab">("idle")
-  const [inverted, setInverted] = React.useState(defaultInverted)
-  const [sub, setSub] = React.useState(false)
   const [sent, setSent] = React.useState(false)
-  const [email, setEmail] = React.useState("")
-  const [who, setWho] = React.useState({ i: 0, dir: 1 })
-  const [count, setCount] = React.useState(0)
+  const [address, setAddress] = React.useState("")
   const [toast, setToast] = React.useState("")
-  const [canFull, setCanFull] = React.useState(false)
   const [grain, setGrain] = React.useState("")
 
   const s = React.useRef({
@@ -706,11 +676,9 @@ export default function PushpinTearFooter({
       const pts = flapPoly(ys, f, W, H, o)
       el.setAttribute("d", polyD(pts))
       const b = Math.min(ys.length - 1, f.at + f.span)
-      const mx = ((XS[f.at] + XS[b]) / 2) * W
-      const my = ((ys[f.at] + ys[b]) / 2) * H
       const tip = pts[f.span + 3]
-      g.setAttribute("x1", String(mx))
-      g.setAttribute("y1", String(my))
+      g.setAttribute("x1", String(((XS[f.at] + XS[b]) / 2) * W))
+      g.setAttribute("y1", String(((ys[f.at] + ys[b]) / 2) * H))
       g.setAttribute("x2", String(tip[0]))
       g.setAttribute("y2", String(tip[1]))
     }
@@ -774,12 +742,7 @@ export default function PushpinTearFooter({
     setGrain(c.toDataURL())
   }, [])
 
-  // fullscreen support
-  React.useEffect(() => {
-    setCanFull(typeof document !== "undefined" && !!document.fullscreenEnabled)
-  }, [])
-
-  // the opening: interface, pin, rip
+  // the opening: chrome, pin, rip
   React.useEffect(() => {
     if (!visible || stage > 0) return
     if (still) {
@@ -801,16 +764,6 @@ export default function PushpinTearFooter({
     later(() => setHit(false), 1480)
   }, [visible, stage, still, s, kick])
 
-  // calm switched on mid-way: finish now
-  React.useEffect(() => {
-    if (!still || stage === 0) return
-    setStage(3)
-    if (s.mode !== "rest") {
-      s.mode = "rest"
-      kick()
-    }
-  }, [still, stage, s, kick])
-
   React.useEffect(() => () => {
     timers.current.forEach((id) => clearTimeout(id))
   }, [])
@@ -830,21 +783,6 @@ export default function PushpinTearFooter({
     kick()
   }, [seed, still, s, kick])
 
-  // the stat counts up once the paper shows
-  React.useEffect(() => {
-    if (stage < 3) return
-    if (still) return setCount(1)
-    let raf = 0
-    const t0 = performance.now() + 450
-    const tick = (now: number) => {
-      const p = clamp01((now - t0) / 1300)
-      setCount(1 - Math.pow(1 - p, 3))
-      if (p < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [stage, still])
-
   // ---- actions ----------------------------------------------------------------
   const onPointerMove = (e: React.PointerEvent) => {
     const el = rootRef.current
@@ -852,7 +790,7 @@ export default function PushpinTearFooter({
     const r = el.getBoundingClientRect()
     s.px = e.clientX - r.left
     s.py = e.clientY - r.top
-    const tilt = Math.max(-9, Math.min(9, ((s.px / r.width) - 0.5) * 18))
+    const tilt = Math.max(-9, Math.min(9, (s.px / r.width - 0.5) * 18))
     pinRef.current?.style.setProperty("--tilt", tilt.toFixed(2) + "deg")
     kick()
   }
@@ -900,65 +838,38 @@ export default function PushpinTearFooter({
     setToast(msg)
     later(() => setToast(""), 1600)
   }
-  const copyLink = () => {
-    const url = typeof location !== "undefined" ? location.href : ""
-    const done = () => flash("link copied")
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(done, () => flash("copy blocked"))
-    else flash("copy blocked")
+  const copyEmail = () => {
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(email).then(() => flash("email copied"), () => flash(email))
+    else flash(email)
   }
   const toTop = () => window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" })
-  const fullscreen = () => {
-    const el = rootRef.current
-    if (!el) return
-    if (document.fullscreenElement) document.exitFullscreen?.()
-    else el.requestFullscreen?.().catch(() => {})
-  }
-  const step = (dir: number) => {
-    const n = contacts.length
-    if (!n) return
-    const i = (who.i + dir + n) % n
-    setWho({ i, dir })
-    onContactChange?.(i)
-  }
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    const v = email.trim()
+    const v = address.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return flash("check that email")
     setSent(true)
     onSubscribe?.(v)
   }
-  const colorway = (inv: boolean) => {
-    if (inv === inverted) return
-    setInverted(inv)
-    onColorwayChange?.(inv)
-  }
 
   // ---- colours ----------------------------------------------------------------
-  const pInk = paperInk ?? sheet
-  const c = inverted
-    ? { sheet: paper, paper: sheet, onSheet: pInk, onPaper: sheetInk }
-    : { sheet, paper, onSheet: sheetInk, onPaper: pInk }
-  const pinBase = isHex(c.sheet) ? c.sheet : "#1a7ff0"
-  // flaps are the back of the top sheet: always paper, whichever way round
-  const flapBase = mixHex(isHex(paper) ? paper : "#f3f3f1", "#ffffff", 0.35)
+  const pinBase = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(sheet) ? sheet : "#1a7ff0"
+  // flaps are the back of the sheet: paper-white
+  const flapBase = mixHex(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(paper) ? paper : "#f3f3f1", "#ffffff", 0.35)
   const vars = {
     height: typeof height === "number" ? height + "px" : height,
-    "--tpf-sheet": c.sheet,
-    "--tpf-paper": c.paper,
-    "--tpf-on-sheet": c.onSheet,
-    "--tpf-on-paper": c.onPaper,
+    "--tpf-sheet": sheet,
+    "--tpf-paper": paper,
+    "--tpf-on-sheet": sheetInk,
+    "--tpf-on-paper": paperInk ?? sheet,
     "--tpf-rim": mixHex(flapBase, "#ffffff", 0.6),
     "--tpf-sans": fontSans,
   } as React.CSSProperties
 
-  const contact = contacts[who.i % Math.max(1, contacts.length)]
-  const stat = progress ? parseStat(progress.value) : null
-  const barFill = stat && /%/.test(stat.post) ? clamp01(stat.n / 100) : 1
+  const mailto = "mailto:" + email
+  const cols = columns.slice(0, 2)
   const H = (i: number) => ({ "--i": i }) as React.CSSProperties
 
-  const cls = ["tpf", stage >= 1 && "s1", stage >= 2 && "s2", stage >= 3 && "s3", hit && "is-hit", still && "is-still", className]
-    .filter(Boolean)
-    .join(" ")
+  const cls = ["tpf", stage >= 1 && "s1", stage >= 2 && "s2", stage >= 3 && "s3", hit && "is-hit", className].filter(Boolean).join(" ")
 
   return (
     <footer ref={rootRef} className={cls} style={vars} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
@@ -1011,8 +922,8 @@ export default function PushpinTearFooter({
         </g>
       </svg>
 
-      {/* ---- the poster interface ---- */}
-      <div className="tpf-z tpf-top tpf-s">
+      {/* ---- on the sheet ---- */}
+      <div className="tpf-z tpf-top">
         <div className="tpf-row tpf-h" style={H(0)}>
           <button type="button" className="tpf-ib tpf-up" onClick={toTop} aria-label="Back to top" title="Back to top">
             <Icon name="chevL" />
@@ -1024,113 +935,86 @@ export default function PushpinTearFooter({
             </A>
           ))}
         </div>
-        <A href={logoHref} className="tpf-logo tpf-h" label={brand + " home"} style={H(1)}>
-          {logo ?? <LoopMark />}
+        <A href={logoHref} className="tpf-logo tpf-h" label={name + ", home"} style={H(1)}>
+          {logo ?? <KMark />}
         </A>
-        <div className="tpf-row tpf-h" style={{ ...H(2), position: "relative", gap: ".9em" }}>
-          <button type="button" className="tpf-ib" onClick={copyLink} aria-label="Copy link" title="Copy link">
+        <div className="tpf-h" style={{ ...H(2), position: "relative" }}>
+          <button type="button" className="tpf-mail" onClick={copyEmail} aria-label={"Copy " + email} title="Copy email">
+            <span>{email}</span>
             <Icon name="copy" />
           </button>
-          {canFull && (
-            <button type="button" className="tpf-ib" onClick={fullscreen} aria-label="Full screen" title="Full screen">
-              <Icon name="expand" />
-            </button>
-          )}
           <span className={"tpf-toast" + (toast ? " on" : "")} role="status" aria-live="polite">
             {toast}
           </span>
         </div>
       </div>
 
-      <div className="tpf-z tpf-sw tpf-s tpf-h" style={H(3)}>
-        <span>{switchLabels[0]}</span>
-        <span className="tpf-sw-bar" aria-hidden="true" />
-        <span>{switchLabels[1]}</span>
-        <button type="button" role="switch" className="tpf-tg" aria-checked={calm} aria-label="Calm motion" title="Calm motion" onClick={() => setCalm((v) => !v)} />
-        <span />
-        <button type="button" role="switch" className="tpf-tg" aria-checked={sub} aria-label="Newsletter" title="Newsletter" onClick={() => setSub((v) => !v)} />
-      </div>
-
-      {edition[0] && <span className="tpf-z tpf-ed tpf-s tpf-h" style={{ ...H(4), left: "26%" }}>{edition[0]}</span>}
-      {edition[1] && <span className="tpf-z tpf-ed tpf-s tpf-h" style={{ ...H(4), left: "74%" }}>{edition[1]}</span>}
-
-      <div className="tpf-z tpf-pick tpf-s tpf-h" style={H(5)}>
-        <div className="tpf-names" data-off={sub} aria-hidden={sub}>
-          <button type="button" className="tpf-chev l" onClick={() => step(-1)} aria-label="Previous contact" tabIndex={sub ? -1 : 0}>
-            <Icon name="chevL" />
-          </button>
-          <span className="tpf-name" data-dir={who.dir} aria-live="polite">
-            <span key={who.i} title={contact?.role}>{contact?.name}</span>
-          </span>
-          <button type="button" className="tpf-chev r" onClick={() => step(1)} aria-label="Next contact" tabIndex={sub ? -1 : 0}>
-            <Icon name="chevR" />
-          </button>
-        </div>
-        <form className="tpf-form" data-off={!sub} data-sent={sent} aria-hidden={!sub} onSubmit={submit}>
-          <label className="sr-only" htmlFor={uid + "e"}>Email for the newsletter</label>
-          <input
-            id={uid + "e"}
-            type="email"
-            placeholder="your@email"
-            autoComplete="email"
-            value={email}
-            tabIndex={sub && !sent ? 0 : -1}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button type="submit" aria-label="Subscribe" tabIndex={sub && !sent ? 0 : -1}>
-            <Icon name="arrow" />
-          </button>
-          <span className="tpf-sent" aria-live="polite">
-            {sent ? <><Icon name="check" /> you're in.</> : null}
-          </span>
+      {newsletter && (
+        <form className="tpf-z tpf-news tpf-h" style={H(3)} onSubmit={submit}>
+          <label htmlFor={uid + "e"}>{newsletter.label}</label>
+          <div className="tpf-pill" data-sent={sent}>
+            <input
+              id={uid + "e"}
+              type="email"
+              placeholder={newsletter.placeholder ?? "your@email"}
+              autoComplete="email"
+              value={address}
+              disabled={sent}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+            <span className="tpf-sent" aria-live="polite">
+              {sent ? <><Icon name="check" /> you're on the list</> : null}
+            </span>
+            <button type="submit" className="tpf-knob" aria-label="Subscribe" disabled={sent}>
+              <Icon name={sent ? "check" : "arrow"} />
+            </button>
+          </div>
         </form>
-      </div>
-      <span className="tpf-z tpf-badge tpf-s" data-off={sub} title={contact?.role ? contact.role + " · verified" : "verified"}>
-        <span className="tpf-h" style={{ ...H(6), display: "block", width: "100%", height: "100%" }}>
-          <Seal />
+      )}
+
+      {mark && <span className="tpf-z tpf-flank tpf-h" style={{ ...H(4), left: "24%" }}>{mark}</span>}
+      {timeZone && (
+        <span className="tpf-z tpf-flank tpf-h" style={{ ...H(4), left: "76%" }} title={"Local time · " + timeZone}>
+          <Clock zone={timeZone} label={timeLabel} />
         </span>
-      </span>
+      )}
 
-      {progress && (
-        <div className="tpf-z tpf-prog tpf-s tpf-h" style={H(6)}>
-          <Icon name="spark" />
-          <span className="tpf-bar" aria-hidden="true">
-            <i style={{ transform: "scaleX(" + (barFill * count).toFixed(4) + ")" }} />
-          </span>
-          <span className="tpf-lbl">
-            {progress.label}
-            <Icon name="squiggle" />
-          </span>
-          <A href={progress.href} className="tpf-big" label={progress.label + " " + progress.value}>
-            <span aria-hidden="true">{formatStat(progress.value, count)}</span>
+      {status && (
+        <>
+          <A href={status.href ?? mailto} className="tpf-z tpf-status tpf-h" style={H(5)}>
+            <i className="tpf-live" aria-hidden="true" />
+            <span>{status.label}</span>
           </A>
-        </div>
+          <span className="tpf-z tpf-badge" aria-hidden="true">
+            <span className="tpf-h" style={{ ...H(6), display: "block", width: "100%", height: "100%" }}>
+              <Seal />
+            </span>
+          </span>
+        </>
       )}
 
-      {utility && (
-        <div className="tpf-z tpf-util tpf-s tpf-h" style={H(7)}>
-          <span>{utility.label}</span>
-          <span className="tpf-row">
-            {utility.links.map((l, i) => (
-              <A key={i} href={l.href} className="tpf-tile" label={l.label}>
-                <Icon name={l.icon} />
-              </A>
+      {cols.map((c, i) => (
+        <nav key={i} className={"tpf-z tpf-col tpf-h " + (i ? "r" : "l")} style={H(6 + i)} aria-label={c.title}>
+          <h3>
+            {c.title}
+            <Icon name="squiggle" />
+          </h3>
+          <ul>
+            {c.links.map((l, j) => (
+              <li key={j}>
+                <A href={l.href}>{l.label}</A>
+              </li>
             ))}
-          </span>
-          <A href={utility.word.href} className="tpf-big">{utility.word.label}</A>
-        </div>
-      )}
+          </ul>
+          {(() => {
+            const cta = c.cta ?? (i ? { label: "talk.", href: mailto } : null)
+            return cta ? <A href={cta.href} className="tpf-big">{cta.label}</A> : null
+          })()}
+        </nav>
+      ))}
 
       {/* ---- the pin ---- */}
-      <button
-        ref={pinRef}
-        type="button"
-        className="tpf-pin"
-        data-pin={pin}
-        onClick={repin}
-        aria-label="Re-pin: tear a new edge"
-        title="Pull the pin"
-      >
+      <button ref={pinRef} type="button" className="tpf-pin" data-pin={pin} onClick={repin} aria-label="Re-pin: tear a new edge" title="Pull the pin">
         <span className="tpf-shadow" aria-hidden="true" />
         <span className="tpf-tilt">
           <span className="tpf-drop">
@@ -1142,51 +1026,32 @@ export default function PushpinTearFooter({
       </button>
 
       {/* ---- printed on the paper ---- */}
-      <div className="tpf-z tpf-brand tpf-p-ink">
+      <div className="tpf-z tpf-brand tpf-ink">
         <div className="tpf-brand-top tpf-p" style={H(0)}>
-          <span className="tpf-eye">{eyebrow}</span>
+          <span className="tpf-eye">{name}</span>
           {chat && (
-            <A href={chat.href} className="tpf-bub" label={chat.label}>
+            <A href={chat.href ?? mailto} className="tpf-bub" label={chat.label}>
               <span className="tpf-dots" aria-hidden="true"><i /><i /><i /></span>
               <b>{chat.label}</b>
             </A>
           )}
         </div>
-        <A href={logoHref} className="tpf-word" label={brand}>
+        <A href={logoHref} className="tpf-word" label={name}>
           <span>{brand}</span>
         </A>
       </div>
 
-      {sideLinks.map((l, i) => (
-        <A key={i} href={l.href} className={"tpf-z tpf-side tpf-p-ink tpf-p " + (i ? "r" : "l")} label={l.label} style={{ ...H(1 + i), left: i ? "71.5%" : "29.5%" }}>
+      {sideLinks.slice(0, 2).map((l, i) => (
+        <A key={i} href={l.href} className={"tpf-z tpf-side tpf-ink tpf-p " + (i ? "r" : "l")} label={l.label} style={{ ...H(1 + i), left: i ? "71.5%" : "29.5%" }}>
           <span>{l.label}</span>
           <Icon name={l.icon} />
         </A>
       ))}
 
-      <div className="tpf-z tpf-swatch tpf-p" role="radiogroup" aria-label="Colourway" style={H(3)}>
-        <button type="button" role="radio" aria-checked={!inverted} className="tpf-dot" style={{ background: sheet }} onClick={() => colorway(false)} aria-label="Coloured sheet" title="Coloured sheet" />
-        <button type="button" role="radio" aria-checked={inverted} className="tpf-dot" style={{ background: paper }} onClick={() => colorway(true)} aria-label="Paper sheet" title="Paper sheet" />
-      </div>
-
-      <div className="tpf-z tpf-foot tpf-p-ink">
-        <div className="tpf-row tpf-p" style={H(4)}>
-          {apps.map((l, i) => (
-            <A key={i} href={l.href} label={l.label}>
-              <Icon name={l.icon} />
-            </A>
-          ))}
-        </div>
-        {legal.length > 0 && (
-          <nav className="tpf-legal tpf-p" aria-label="Legal" style={H(5)}>
-            {legal.map((l, i) => (l.href ? <A key={i} href={l.href}>{l.label}</A> : <span key={i}>{l.label}</span>))}
-          </nav>
-        )}
-        {contact && (
-          <A href={contact.href} className="tpf-handle tpf-p" label={(contact.role ? contact.role + ": " : "") + contact.handle} style={H(6)}>
-            <span key={who.i}>{contact.handle}</span>
-          </A>
-        )}
+      <div className="tpf-z tpf-foot tpf-ink">
+        <span className="tpf-p" style={H(3)}>{copyright}</span>
+        {credit && <span className="tpf-credit tpf-p" style={H(4)}>{credit}</span>}
+        <A href={handle.href} className="tpf-handle tpf-p" style={H(5)}>{handle.label}</A>
       </div>
     </footer>
   )

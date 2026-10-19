@@ -1,14 +1,14 @@
 // Runnable check for components/pushpin-tear-footer: the tear, the flaps, the
-// rip and re-rip timing, the stat counter and colour maths, plus the
-// install-safety rules.
+// rip and re-rip timing and the colour maths, plus the footer's contract and
+// the install-safety rules.
 // Run: node tests/pushpin-tear-footer.test.mjs
 //
 // What breaks silently here: a ridge that climbs over the poster's own text
 // (white ink on white paper, every check still green), a rip that never quite
 // finishes so the sheet keeps a sliver of blue across the bottom, a flap whose
 // path has a NaN in it (it just doesn't draw), a re-rip whose two tears have
-// different x positions (the morph slides sideways), and "50,5%" counting up
-// as "50.5%" or "505%".
+// different x positions (the morph slides sideways), and a footer that
+// quietly grows back into a widget (colour swaps, toggles, carousels).
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { stripTypeScriptTypes } from "node:module"
@@ -117,21 +117,6 @@ const T = await import("data:text/javascript," + encodeURIComponent(stripTypeScr
   assert.equal(d.match(/L/g).length, T.RIDGE_N + 1, "one vertex per ridge point")
 }
 
-// ---- stats count up in their own format ---------------------------------------
-{
-  assert.deepEqual(T.parseStat("50,5%"), { pre: "", post: "%", n: 50.5, dec: ",", decimals: 1, group: "" })
-  assert.equal(T.parseStat("1,200").n, 1200, "three digits after a comma are thousands")
-  assert.equal(T.parseStat("1,200").group, ",")
-  assert.equal(T.parseStat("€3.450,75").n, 3450.75)
-  assert.equal(T.parseStat("no digits"), null)
-  assert.equal(T.formatStat("50,5%", 1), "50,5%", "finished is the string as written")
-  assert.equal(T.formatStat("50,5%", 0), "0,0%")
-  assert.equal(T.formatStat("50,5%", 0.5), "25,3%", "comma decimals stay commas")
-  assert.equal(T.formatStat("12,745,012", 0.5), "6,372,506")
-  assert.equal(T.formatStat("x", 0.3), "x", "unparseable values are shown as-is")
-  assert.equal(T.formatStat("86,2%", NaN), "0,0%")
-}
-
 // ---- colour --------------------------------------------------------------------
 {
   assert.equal(T.mixHex("#000000", "#ffffff", 0.5), "#808080")
@@ -155,7 +140,8 @@ assert.doesNotMatch(code, /@import/, "no @import — the host owns Tailwind and 
 assert.doesNotMatch(code, /["+]\s*(\*|body|:root|html)\s*{/, "no bare global resets")
 assert.doesNotMatch(code, /[`]/, "no backticks — CSS is built by concatenation")
 assert.doesNotMatch(code, /\$\{/, "no template interpolation")
-assert.doesNotMatch(code, /https?:\/\/(?!www\.w3\.org)/, "nothing is fetched")
+assert.doesNotMatch(code, /(src=|url\(|fetch\()["']?https?:/, "nothing is fetched: http only ever appears as a link")
+assert.ok(src.includes('rel: "noopener noreferrer"'), "external links open safely")
 assert.doesNotMatch(code, /innerWidth|innerHeight|scrollY/, "size from the element, not the window")
 assert.doesNotMatch(code, /\bh-(full|screen)\b/, "no percentage-height classes")
 assert.doesNotMatch(code, /localStorage|sessionStorage/, "no storage")
@@ -196,29 +182,39 @@ assert.ok(css.includes(".tpf:not(.s3) .tpf-p{opacity:0;translate:0 18px"))
 // Motion.
 assert.ok(src.includes("prefers-reduced-motion"), "reads prefers-reduced-motion")
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce){"), "and stops the CSS animation")
-assert.ok(src.includes("const still = reduced || calm"), "the calm switch is the same still state")
+assert.ok(src.includes("const still = useReducedMotion()"), "reduced motion is the still state")
 assert.ok(src.includes('s.mode = still ? "rest" : "morph"'), "a still re-tear jumps, never animates")
 assert.ok(src.includes("new IntersectionObserver"), "the opening waits until it is seen")
 
 // Cleanup.
-for (const gone of ["io.disconnect()", "ro.disconnect()", "cancelAnimationFrame(s.raf)", "cancelAnimationFrame(raf)", "clearTimeout(id)", 'removeEventListener("change", onMq)']) {
+for (const gone of ["io.disconnect()", "ro.disconnect()", "cancelAnimationFrame(s.raf)", "clearInterval(id)", "clearTimeout(id)", 'removeEventListener("change", onMq)']) {
   assert.ok(src.includes(gone), "cleanup is missing " + gone)
 }
 
+// It is a footer: a <footer> with navigation, legal, copyright and contact,
+// and none of the widgets an earlier draft had.
+assert.ok(src.includes("<footer ref={rootRef}"), "the root is a <footer>")
+assert.ok(src.includes('<nav key={i} className={"tpf-z tpf-col'), "link columns are <nav>s")
+assert.ok(src.includes("aria-label={c.title}"), "each column is named")
+for (const gone of ["inverted", "colorway", "role=\"radiogroup\"", "role=\"switch\"", "requestFullscreen", "contacts", "calm"]) {
+  assert.ok(!code.includes(gone), "not a footer thing: " + gone)
+}
+assert.ok(src.includes("function KMark()"), "the default mark is the KS monogram")
+assert.ok(src.includes('const ME = "kedhareswer"'), "defaults are the author's own")
+
 // Accessibility.
-assert.ok(src.includes('role="switch"') && src.includes("aria-checked={calm}") && src.includes("aria-checked={sub}"), "the switches are switches")
-assert.ok(src.includes('role="radiogroup"') && src.includes("aria-checked={!inverted}"), "the swatches are a radio group")
 assert.ok(src.includes('aria-label="Re-pin: tear a new edge"'), "the pin says what it does")
 assert.ok(src.includes('aria-label="Back to top"'))
-assert.ok(src.includes('htmlFor={uid + "e"}'), "the email field is labelled")
+assert.ok(src.includes('htmlFor={uid + "e"}'), "the newsletter field is labelled")
+assert.ok(src.includes('aria-label="Subscribe"'))
 assert.ok(src.includes('role="status" aria-live="polite"'), "the toast is announced")
 assert.ok(src.includes('<svg ref={svgRef} className="tpf-stage" aria-hidden="true">'), "the paper art is decoration")
 assert.ok(src.includes('if (!href || href === "#") e.preventDefault()'), "\"#\" links never rewrite the host page's hash")
+assert.ok(css.includes("width:max-content;transform:translateX(-50%)"), "centred blocks are not squeezed to half the width")
 
-// Defaults match the reference.
-assert.ok(src.includes('brand = "adv."'))
-assert.ok(src.includes('switchLabels = ["àcc", "súb"]'))
-assert.ok(src.includes('value: "50,5%"'))
+// Defaults.
+assert.ok(src.includes('brand = "kedhar."'))
+assert.ok(src.includes('timeZone = "Asia/Kolkata"'))
 
 // A demo wrapper left at width:auto collapses inside 21st's centring flex.
 for (const f of ["demo.tsx", "demo-ember.tsx"]) {

@@ -1,79 +1,80 @@
 # Pushpin Tear Footer
 
-A closing section made as a poster: an electric-blue sheet pinned over plain
-paper. The bottom of the sheet has been torn away. Your brand is printed on the
-paper underneath, and the footer's controls sit on the blue.
+A site footer made as a torn poster. An electric-blue sheet holds the footer's
+chrome: back to top, socials, the **KS** monogram, copy-email, a newsletter
+field, an availability line, a live local clock and two link columns. The
+bottom of the sheet has been ripped away from a glossy pushpin. The brand is
+printed on the paper underneath, along with the privacy and terms links, the
+copyright and the handle.
 
 The tear is drawn, not an image. It has a jagged ridge with a white fibre rim,
-six curled flaps of the sheet's paper back (four hang into the tear, two curl
-back over the blue), a drop shadow where the sheet sits over the paper, and
-grain on both layers. The pin is a glossy plastic pushpin drawn in SVG and
-shaded from whatever colour the sheet is.
+six curled flaps of the sheet's paper back, a drop shadow where the sheet sits
+over the paper, and grain on both layers. In the monogram, the K's upper arm
+ends in a pushpin head.
 
 **No dependencies.** React is the only import. Nothing is fetched: the tear,
-flaps, grain, pin and icons are SVG and canvas built from numbers.
+flaps, grain, pin, monogram and icons are SVG and canvas built from numbers.
 
 ## The opening (once, when it scrolls into view)
 
-1. **0 ms**: the poster's interface assembles. Items fade up out of a blur,
-   45 ms apart, and the loop mark draws itself.
+1. **0 ms**: the chrome assembles. Items fade up out of a blur, 45 ms apart.
+   The monogram's strokes draw on and its pin head pops in.
 2. **640 ms**: the pushpin drops in from above the page and lands with a small
-   squash. Its shadow shrinks and sharpens as it falls.
+   squash. Its shadow sharpens as it falls.
 3. **1140 ms**: the pin hits, the sheet jolts, and the tear rips from under the
    pin out to both edges. It goes a little too far, then settles. The flaps
    unfold as the edge passes them.
 4. **~1600 ms**: the paper's print rises in. The wordmark slides up through a
-   mask, its underline draws, and the progress stat counts up.
+   mask and its underline draws.
 
-With `prefers-reduced-motion` (or the calm switch on), it opens on the finished
-frame.
+With `prefers-reduced-motion`, it opens on the finished frame.
 
-## Interaction
+## Footer parts
 
-- **Pin**: click it, or press Enter or Space. It pulls out, the tear re-rips
-  along a new edge (the old flaps fold away and new ones open), and the pin
-  stabs back in. `onRepin(seed)` fires. On hover it lifts slightly and its
-  shadow stretches. It leans toward the pointer.
-- **Flaps**: they lift toward a nearby pointer.
-- **àcc switch**: calm mode. All motion stops, and any re-rip after that jumps
-  straight to the new edge.
-- **súb switch**: the contact picker turns into an email field. Submitting
-  checks the address, shows "you're in." and calls `onSubscribe(email)`.
-- **Contact picker** (`⟨ O'BRIEN ⟩`): steps through `contacts`. The name
-  slides in from the side you clicked, and the handle in the bottom corner
-  follows it. `onContactChange(index)`.
-- **Swatches**: swap the colourway, giving a paper sheet torn over a blue
-  ground. The pin turns white and the inks cross-fade.
-  `onColorwayChange(inverted)`.
-- **Top bar**: back to top, socials, copy the page link (with a toast), and
-  full screen (only where the browser supports it).
-- **Speech bubble**: its dots type, and on hover it opens to show `chat.label`.
-- **Links**: the stats underline-shift, side links draw an underline, and
-  icons nudge.
+- **Top bar**: back to top, socials, the monogram (links home), and the email
+  address. Clicking the address copies it, with a toast.
+- **Newsletter**: a white pill whose submit is the blue knob. It validates the
+  address, shows "you're on the list" and calls `onSubscribe(email)`.
+- **Flanks**: a small mark on the left, and on the right a live clock in your
+  time zone with a blinking colon.
+- **Availability**: a pinging dot and one line. It links to `status.href`, or
+  to your email.
+- **Columns**: two `<nav>`s, each with a title, links and a big underlined
+  call to action. The second one defaults to `talk.`, which opens your email.
+- **Paper**: your name, the wordmark, a "say hi" bubble, privacy and terms,
+  the copyright, a credit line and your handle.
+- **Pin**: click it (or press Enter or Space) and it pulls out, the tear
+  re-rips along a new edge, and it stabs back in. `onRepin(seed)` fires. It
+  leans toward the pointer, and the flaps lift when the pointer is near.
 
 ## Usage
 
 ```tsx
 import PushpinTearFooter from "@/components/ui/pushpin-tear-footer"
 
-<PushpinTearFooter />
+<PushpinTearFooter email="you@yourdomain.com" />
 ```
 
 Give it a parent with a width (see `demo.tsx`). It sets its own height
 (`100svh` by default, never below 620px).
 
-Re-brand and re-ink it through props (see `demo-ember.tsx`):
+Re-brand it through props (see `demo-ember.tsx`):
 
 ```tsx
 <PushpinTearFooter
   brand="ink."
-  eyebrow="riso co."
+  name="riso co."
+  logo={<span style={{ fontSize: "1.5em", fontWeight: 600 }}>ink.</span>}
   sheet="#ff4a1c"
   paper="#f1ede4"
   paperInk="#1b1712"
-  seed={23}
-  progress={{ label: "sold out", value: "86,2%" }}
-  utility={{ label: "etc.", links: [{ icon: "globe", label: "Stockists" }], word: { label: "shop.", href: "/shop" } }}
+  email="orders@example.com"
+  timeZone="Europe/Berlin"
+  timeLabel="BER"
+  columns={[
+    { title: "shop", links: [{ label: "Zines", href: "/zines" }], cta: { label: "shop.", href: "/shop" } },
+    { title: "studio", links: [{ label: "Stockists", href: "/stockists" }] },
+  ]}
   onSubscribe={(email) => fetch("/api/subscribe", { method: "POST", body: email })}
 />
 ```
@@ -82,50 +83,48 @@ Re-brand and re-ink it through props (see `demo-ember.tsx`):
 
 | Prop | Default | Notes |
 |---|---|---|
-| `brand` | `"adv."` | The wordmark on the paper. Also links to `logoHref`. |
-| `eyebrow` | `"studio"` | The small gradient word above it. |
-| `logo` / `logoHref` | loop mark / `"#"` | Top-centre mark. Pass any node. |
-| `socials` | chat, Telegram | `{ icon, label, href? }[]` next to back-to-top. |
-| `switchLabels` | `["àcc", "súb"]` | Labels over the calm and newsletter switches. |
-| `edition` | `["V. 2505", "ED. 5251"]` | The two marks flanking the switches. An empty string hides one. Hidden on phones. |
-| `contacts` | four fictional contacts | `{ name, role?, handle, href? }[]`. The name is in the picker, the handle in the corner. |
-| `progress` | `{ label: "version", value: "50,5%" }` | Counts up in its own format (`50,5%`, `1,200`, `€3.450,75`). A `%` value also fills the bar. |
-| `utility` | `ect.`, press kit + privacy, `mod.` | `{ label, links: IconLink[], word: { label, href? } }`. |
-| `sideLinks` | `web`, `25,05` | Two `IconLink`s either side of the wordmark. On phones they move beside the swatches. |
-| `chat` | `{ label: "say hi", href: "mailto:…" }` | The speech bubble. |
-| `apps` | App Store, Google Play | `IconLink[]`, bottom left. |
-| `legal` | `© 2026 adv.`, Privacy, Terms | Bottom centre. An item with no `href` is plain text. |
-| `sheet` / `paper` | `#1a7ff0` / `#f3f3f1` | The two layers. Hex. |
-| `sheetInk` / `paperInk` | `#fff` / `sheet` | Text on each. |
-| `defaultInverted` | `false` | Start on the swapped colourway. |
+| `brand` | `"kedhar."` | The wordmark on the paper. It links to `logoHref`. |
+| `name` | `"kedhareswer"` | Gradient name over the wordmark. |
+| `logo` / `logoHref` | KS monogram / 21st profile | Top-centre mark. Pass any node. |
+| `socials` | GitHub, 21st.dev | `{ icon, label, href? }[]`. |
+| `email` | `"hello@example.com"` | **Set this.** Used by copy-email, `talk.`, the status line and the bubble. |
+| `newsletter` | `{ label: "new components, once a month" }` | `{ label, placeholder? }`, or `null` to hide it. |
+| `status` | `{ label: "open for collaborations" }` | `{ label, href? }`, or `null`. |
+| `mark` | `"KS / 2026"` | Left flank. Hidden on phones. |
+| `timeZone` / `timeLabel` | `"Asia/Kolkata"` / `"IST"` | Live clock on the right flank. An empty `timeZone` hides it. |
+| `columns` | index, elsewhere | `{ title, links: { label, href? }[], cta? }[]`. The first two are used. On phones each column shows two links. |
+| `chat` | `{ label: "say hi" }` | The speech bubble. Defaults to your email; `null` hides it. |
+| `sideLinks` | privacy, terms | Two `IconLink`s either side of the wordmark. |
+| `copyright` / `credit` / `handle` | `© 2026 Kedhareswer` / `designed & built by hand` / `@kedhareswer` | The bottom line. |
+| `sheet` / `paper` | `#1a7ff0` / `#f3f3f1` | Hex. The pin is shaded from `sheet`. |
+| `sheetInk` / `paperInk` | `#fff` / `sheet` | Text on each layer. |
 | `seed` | `7` | Picks the tear. Changing it re-rips in place. |
 | `height` | `"100svh"` | Any CSS length or a number of px. |
-| `fontSans` | Helvetica Neue stack | Nothing is loaded; pass a family your page already has. |
-| `onSubscribe` / `onRepin` / `onContactChange` / `onColorwayChange` | none | |
+| `fontSans` | Helvetica Neue stack | Nothing is loaded. |
+| `onSubscribe` / `onRepin` | none | |
 | `className` | `""` | Appended to the root `<footer>`. |
 
-Icons: `chat`, `plane`, `at`, `f`, `x`, `ig`, `dribbble`, `globe`, `mail`, `link`,
-`shield`, `apple`, `android`.
+Icons: `github`, `21st`, `x`, `ig`, `linkedin`, `dribbble`, `chat`, `globe`,
+`mail`, `link`, `shield`, `doc`.
 
 ## Notes
 
 - **Definite height.** The root sets its own `height` and lays out off its own
-  box (`container-type: size`, `cqmin` units), not the viewport. It never uses
-  `h-full`.
+  box (`container-type: size`, `cqmin` units). It never uses `h-full`.
 - **The tear never covers the copy.** The ridge has a floor at every x, so
-  nothing on the sheet ends up white on white and nothing on the paper ends up
-  on the blue, whatever the seed. `tests/pushpin-tear-footer.test.mjs` checks
-  400 seeds.
-- Under 620px of width it becomes a phone column: tighter gutters, the side
-  links move down beside the swatches, and the edition marks are hidden.
+  nothing on the sheet ends up white on white, whatever the seed.
+  `tests/pushpin-tear-footer.test.mjs` checks 400 seeds.
+- Under 620px of width it becomes a phone column: tighter gutters, no flanks,
+  shorter columns, and the side links move down by the bottom line.
+- External links open in a new tab with `rel="noopener noreferrer"`.
+  `href: "#"` and missing hrefs never touch the page's URL hash.
 - The CSS is one scoped `<style>` block, with every rule under `.tpf`.
-  Element resets go through `:where(.tpf)`.
 - The component paints its own palette and ignores the page's light/dark theme.
-- `href: "#"` and missing hrefs never touch the page's URL hash.
 - The rip, re-rip and flap lift run one `requestAnimationFrame` loop that
-  stops as soon as everything settles. While nothing moves, no frames run.
+  stops as soon as everything settles.
 
 ## Credit
 
 Layout, palette and the torn-poster idea after a reference poster by
-@keolatra. The tear, the pin, the interactions and the code are original.
+@keolatra. The tear, the pin, the monogram, the interactions and the code are
+original.
