@@ -4,7 +4,8 @@
 // portfolio loads, then unlocks it. The word is cut four ways: a bitmap letter
 // printed pixel by pixel, a superscript ring, a monogram inside a dial that
 // doubles as the progress ring, and the rest in quill script, with a pill tag,
-// two ink swooshes, a clock, the handles and a spaced signature around it. A
+// two ink swooshes, a clock set to the visitor's time, a typed line about you
+// and your spaced signature around it. A
 // gilded skeleton key drops in on a spring early on and hangs over the whole
 // thing.
 //
@@ -24,13 +25,6 @@
 import * as React from "react"
 
 export type SkeletonKeyMetal = "gold" | "silver" | "rose" | "bronze"
-
-export interface SkeletonKeyHandle {
-  /** The prefix, set lighter: "ig/". */
-  label: string
-  /** The handle itself: "lacrimaez". */
-  value: string
-}
 
 export interface SkeletonKeyPreloaderProps {
   /** Content revealed through the keyhole. Ignored while `loop` is set. */
@@ -58,8 +52,14 @@ export interface SkeletonKeyPreloaderProps {
   word?: string
   /** Pill tags. Tap the pill to cycle through them. */
   tags?: string[]
-  /** The stacked handles beside the script. */
-  handles?: SkeletonKeyHandle[]
+  /** Your full name: the end card and the accessible label. */
+  name?: string
+  /** The light prefix on the about block. */
+  aboutLabel?: string
+  /** A few short lines about you, typed out beside the script. */
+  about?: string[]
+  /** Where to find you, along the bottom edge. */
+  links?: string[]
   /** The letter-spaced signature along the bottom. */
   signature?: string
   /** What the handwritten version lands on at 100. It counts 0.0 → 0.9 first. */
@@ -114,7 +114,7 @@ const OPEN_MS = 1500
 const AFTER_MS = 1700
 
 // When each piece arrives, as a percentage of the load.
-const AT = { greet: 1, key: 6, sup: 14, mono: 24, tag: 33, script: 43, blob: 53, clock: 57, handles: 66, sig: 76 }
+const AT = { greet: 1, key: 6, sup: 14, mono: 24, tag: 33, script: 43, blob: 53, clock: 57, about: 64, sig: 78 }
 
 // #region timeline
 // Pure helpers, lifted out and executed by tests/skeleton-key-preloader.test.mjs.
@@ -408,11 +408,16 @@ const SKP_CSS = `
 .skp-hand { stroke: var(--skp-paper); stroke-width: 3.6; stroke-linecap: round; transform-box: view-box; transition: transform 380ms cubic-bezier(.3, 1.4, .5, 1); }
 .skp-clock:hover .skp-hand-m { animation: skp-spin 700ms linear infinite; }
 
-.skp-handles {
-  left: 640px; top: 452px; width: 250px; text-align: right; font: 400 21px/1.3 var(--skp-grotesk); letter-spacing: -.01em;
+.skp-about {
+  left: 600px; top: 452px; width: 290px; text-align: right; font: 500 21px/1.3 var(--skp-grotesk); letter-spacing: -.01em;
 }
-.skp-handles > div { white-space: pre; }
-.skp-handles b { font-weight: 500; }
+.skp-about > div { white-space: pre; }
+.skp-about i { font-style: normal; font-weight: 400; opacity: .55; }
+.skp-caret {
+  display: inline-block; width: 2px; height: .95em; margin-left: 3px; vertical-align: -.12em; background: var(--skp-ink);
+  opacity: 0; transition: opacity 200ms ease;
+}
+.skp-about[data-on="true"] .skp-caret { opacity: 1; animation: skp-blink 1s steps(1) infinite; }
 
 .skp-sig { left: 470px; top: 560px; width: 500px; text-align: center; font: 400 19px/1 var(--skp-grotesk); letter-spacing: .95em; white-space: nowrap; padding-left: .95em; }
 .skp-sig span { display: inline-block; min-width: .6em; text-align: center; opacity: 0; transition: opacity 200ms ease; }
@@ -441,7 +446,10 @@ const SKP_CSS = `
   padding: 0 clamp(16px, 3vw, 36px) clamp(16px, 3vh, 30px); font: 400 11px/1.4 var(--skp-mono); letter-spacing: .14em;
   text-transform: uppercase; color: var(--skp-ink); pointer-events: none; transition: opacity 300ms ease;
 }
-.skp-hud > span { opacity: .62; white-space: nowrap; }
+.skp-hud > span { opacity: .62; white-space: nowrap; flex: 1 1 0; }
+.skp-hud > span:nth-child(2) { text-align: center; }
+.skp-hud > span:nth-child(3) { text-align: right; }
+@media (max-width: 640px) { .skp-hud-links { display: none; } .skp-hud > span:nth-child(2) { text-align: right; } }
 .skp-hud-hint { transition: opacity 400ms ease; }
 .skp-hud-hint[data-off="true"] { opacity: 0 !important; }
 .skp-gate[data-lock="true"] .skp-hud { opacity: 0; }
@@ -457,20 +465,22 @@ const SKP_CSS = `
   position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
   background: var(--skp-ink); color: var(--skp-paper); text-align: center;
 }
-.skp-after-sig { font: 400 clamp(64px, 12vw, 170px)/1.2 var(--skp-script-face); padding: 0 .3em; }
-.skp-after-k { font: 400 11px/1.4 var(--skp-mono); letter-spacing: .3em; text-transform: uppercase; opacity: .7; }
+.skp-after-sig { font: 400 clamp(64px, 12vw, 170px)/1.2 var(--skp-script-face); padding: 0 .3em; animation: skp-fade 900ms 200ms ease both; }
+.skp-after-about { font: 400 clamp(15px, 1.6vw, 19px)/1.5 var(--skp-grotesk); max-width: 44ch; text-wrap: balance; opacity: .85; animation: skp-fade 900ms 500ms ease both; }
+.skp-after-k { font: 400 11px/1.4 var(--skp-mono); letter-spacing: .3em; text-transform: uppercase; opacity: .55; animation: skp-fade 900ms 800ms ease both; }
 
 @keyframes skp-fade { from { opacity: 0; } }
 @keyframes skp-flip { from { opacity: 0; transform: translateY(-.4em) rotate(-12deg); } }
 @keyframes skp-roll { from { opacity: 0; transform: translateY(.8em); } }
 @keyframes skp-rise { from { opacity: 0; translate: -50% 14px; } }
 @keyframes skp-spin { to { transform: rotate(360deg); } }
+@keyframes skp-blink { 50% { opacity: 0; } }
 @keyframes skp-beckon { 50% { transform: scale(1.045) rotate(4deg); } }
 @keyframes skp-grain { 25% { transform: translate(-3%, 2%); } 50% { transform: translate(2%, -3%); } 75% { transform: translate(-1%, -2%); } }
 @keyframes skp-shake { 20% { transform: translate(-3px, 1px); } 45% { transform: translate(2px, -1px); } 70% { transform: translate(-1px, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .skp-gate, .skp-grain, .skp-shake, .skp-dial-rot, .skp-ver-num span, .skp-pill span, .skp-turn, .skp-clock:hover .skp-hand-m { animation: none !important; }
+  .skp-gate, .skp-grain, .skp-shake, .skp-dial-rot, .skp-caret, .skp-after-sig, .skp-after-about, .skp-after-k, .skp-ver-num span, .skp-pill span, .skp-turn, .skp-clock:hover .skp-hand-m { animation: none !important; }
   .skp-par { translate: none; }
   .skp-ch, .skp-pill, .skp-px, .skp-clock, .skp-mono { transform: none !important; }
   .skp-script-in, .skp-tag-swoosh, .skp-blob-ink { clip-path: none !important; }
@@ -563,9 +573,11 @@ function SwooshArt() {
 }
 
 /** The ink stroke along the bottom left, with the clock riding on it. */
-function BlobArt({ pct }: { pct: number }) {
-  const m = pct * 7.2
-  const h = 210 + pct * 0.9
+function BlobArt({ pct, time }: { pct: number; time: { h: number; m: number } }) {
+  // the hands wind from twelve to the visitor's own time as the page loads
+  const k = skpEase(pct / 100)
+  const m = (360 + time.m * 6) * k
+  const h = ((time.h % 12) * 30 + time.m * 0.5) * k
   return (
     <svg viewBox="0 0 220 150" aria-hidden="true">
       <path
@@ -640,12 +652,12 @@ export default function SkeletonKeyPreloader({
   unlock = "auto",
   greeting = "welcome to my",
   word = "portfolio",
-  tags = ["#asai", "#motion", "#visuals", "#archive"],
-  handles = [
-    { label: "ig/", value: "lacrimaez" },
-    { label: "amino/", value: "reverios" },
-  ],
-  signature = "lacrimaez",
+  tags = ["#kedhar", "#design", "#motion", "#code"],
+  name = "Kedhareswer Naidu",
+  aboutLabel = "about/",
+  about = ["design engineer", "building interfaces", "that move."],
+  links = ["21st.dev/@kedhareswer", "kedhar.vercel.app"],
+  signature = "kedhareswer",
   release = "1.0",
   metal = "gold",
   paper = "#fbfaf7",
@@ -671,6 +683,7 @@ export default function SkeletonKeyPreloader({
   const [ready, setReady] = React.useState(false)
   const [drag, setDrag] = React.useState(false)
   const [reduced, setReduced] = React.useState(false)
+  const [time, setTime] = React.useState({ h: 10, m: 10 })
 
   const rootRef = React.useRef(null as HTMLDivElement | null)
   const gateRef = React.useRef(null as HTMLDivElement | null)
@@ -704,6 +717,11 @@ export default function SkeletonKeyPreloader({
     light: { x: 40, y: 60 },
     zoom: { z: 1, cx: FOCUS.x, cy: FOCUS.y },
   })
+
+  React.useEffect(() => {
+    const d = new Date()
+    setTime({ h: d.getHours(), m: d.getMinutes() })
+  }, [run])
 
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -1048,7 +1066,8 @@ export default function SkeletonKeyPreloader({
       {loop ? null : children}
       {loop && (phase === "open" || phase === "after") ? (
         <div className="skp-after" aria-hidden="true">
-          <div className="skp-after-sig">{signature}</div>
+          <div className="skp-after-sig">{name.split(" ")[0]}</div>
+          <div className="skp-after-about">{about.join(" ")}</div>
           <div className="skp-after-k">
             {word} {release} — unlocked
           </div>
@@ -1064,7 +1083,7 @@ export default function SkeletonKeyPreloader({
           data-drag={drag}
           data-reduced={reduced}
           role="progressbar"
-          aria-label={"Loading " + word}
+          aria-label={"Loading " + name + " — " + word}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={pct}
@@ -1166,18 +1185,26 @@ export default function SkeletonKeyPreloader({
               </div>
 
               <div className="skp-abs skp-blob skp-par skp-dim" data-on={on(AT.blob)} data-clock={on(AT.clock)} style={css({ "--d": 20 })}>
-                <BlobArt pct={pct} />
+                <BlobArt pct={pct} time={time} />
               </div>
 
-              <div className="skp-abs skp-handles skp-par skp-dim" style={css({ "--d": 8 })}>
-                {handles.map((h, i) => (
-                  <div key={i} data-on={on(AT.handles)}>
-                    <Typed text={h.label + " "} delay={i * 260} />
-                    <b>
-                      <Typed text={h.value} delay={i * 260 + (h.label.length + 1) * 32} />
-                    </b>
-                  </div>
-                ))}
+              <div className="skp-abs skp-about skp-par skp-dim" data-on={on(AT.about)} style={css({ "--d": 8 })}>
+                {about.map((line, i) => {
+                  const lead = i === 0 && aboutLabel ? aboutLabel + " " : ""
+                  // each line starts typing where the one above it stopped
+                  const typedBefore = (aboutLabel ? aboutLabel.length + 1 : 0) + about.slice(0, i).join("").length
+                  return (
+                    <div key={i}>
+                      {lead ? (
+                        <i>
+                          <Typed text={lead} />
+                        </i>
+                      ) : null}
+                      <Typed text={line} delay={typedBefore * 32 + i * 140} />
+                      {i === about.length - 1 ? <span className="skp-caret" /> : null}
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="skp-abs skp-sig skp-par skp-dim" data-on={on(AT.sig)} style={css({ "--d": 5 })}>
@@ -1202,6 +1229,7 @@ export default function SkeletonKeyPreloader({
               <span className="skp-hud-hint" data-off={!loading || pct < AT.key + 4 || reduced}>
                 Grab the key ↗
               </span>
+              <span className="skp-hud-links">{links.join("  ·  ")}</span>
             </div>
           ) : null}
 

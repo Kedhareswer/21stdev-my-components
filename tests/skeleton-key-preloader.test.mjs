@@ -38,6 +38,10 @@ for (const f of ["demo.tsx", "demo-gate.tsx", "demo-noir.tsx"]) {
   assert.deepEqual(di, ["@/components/ui/skeleton-key-preloader"], f + ": imports only the component")
   assert.doesNotMatch(d, /https?:\/\//, f + ": no external assets")
 }
+// the reference moodboard's handles were placeholders; the defaults are Kedhar's own
+for (const f of ["skeleton-key-preloader.tsx", "README.md", "demo.tsx", "demo-gate.tsx", "demo-noir.tsx"])
+  assert.doesNotMatch(read(f), /lacrimaez|reverios|amino\/|#asai|noctua/i, f + ": no leftover reference identity")
+assert.ok(src.includes('signature = "kedhareswer"') && src.includes('name = "Kedhareswer Naidu"'), "defaults are Kedhar's")
 assert.match(read("demo.tsx"), /<SkeletonKeyPreloader loop \/>/, "default demo is the bare looping component")
 assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo does not wrap the full-bleed component")
 
