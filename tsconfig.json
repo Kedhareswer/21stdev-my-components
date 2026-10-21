@@ -166,7 +166,15 @@
       "@/components/ui/vinyl-halftone-preloader": ["./components/vinyl-halftone-preloader/vinyl-halftone-preloader.tsx"],
       "@/components/ui/florilegium-template": ["./components/florilegium-template/florilegium-template.tsx"],
       "@/components/ui/blossom-dusk-template": ["./components/blossom-dusk-template/blossom-dusk-template.tsx"],
-      "@/components/ui/longhand-notes-landing": ["./components/longhand-notes-landing/longhand-notes-landing.tsx"]
+      "@/components/ui/longhand-notes-landing": ["./components/longhand-notes-landing/longhand-notes-landing.tsx"],
+      "@/components/ui/skeleton-key-preloader": ["./components/skeleton-key-preloader/skeleton-key-preloader.tsx"],
+      "@/components/ui/string-tie-footer": ["./components/string-tie-footer/string-tie-footer.tsx"],
+      "@/components/ui/pushpin-tear-footer": ["./components/pushpin-tear-footer/pushpin-tear-footer.tsx"],
+      "@/components/ui/ridgeline-dither-footer": ["./components/ridgeline-dither-footer/ridgeline-dither-footer.tsx"],
+      "@/components/ui/aqua-story-profile-template": ["./components/aqua-story-profile-template/aqua-story-profile-template.tsx"],
+      "@/components/ui/meadow-journal-template": ["./components/meadow-journal-template/meadow-journal-template.tsx"],
+      "@/components/ui/halyard-copilot-landing": ["./components/halyard-copilot-landing/halyard-copilot-landing.tsx"],
+      "@/components/ui/stipple-orb-landing": ["./components/stipple-orb-landing/stipple-orb-landing.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
