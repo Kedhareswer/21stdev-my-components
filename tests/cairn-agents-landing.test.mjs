@@ -1,0 +1,190 @@
+// Install-safety and logic checks for components/cairn-agents-landing.
+// Run: node tests/cairn-agents-landing.test.mjs
+import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import { stripTypeScriptTypes } from "node:module"
+
+const SLUG = "cairn-agents-landing"
+const read = (file) => readFileSync(new URL(`../components/${SLUG}/${file}`, import.meta.url), "utf8").replace(/\r\n/g, "\n")
+const src = read(`${SLUG}.tsx`)
+const region = (name) => {
+  const a = src.indexOf(`// #region ${name}\n`)
+  const b = src.indexOf(`// #endregion ${name}\n`)
+  assert.ok(a > -1 && b > a, `region ${name} missing`)
+  return src.slice(a, b)
+}
+
+/* ---------- nothing travels with it ---------- */
+
+const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
+assert.deepEqual(imports, ["react", "gsap", "gsap/ScrollTrigger"], "react and gsap are the only imports")
+const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
+assert.ok(pkg.dependencies.gsap, "gsap is declared at the root")
+assert.match(read("README.md"), /requires `gsap`/i, "the README says it needs gsap")
+assert.doesNotMatch(src, /@import|@font-face|<link\b|fetch\(|new Image\(/, "nothing loads at runtime")
+const hosts = new Set([...src.matchAll(/https?:\/\/([^/"'\s]+)/g)].map((m) => m[1]))
+assert.deepEqual([...hosts], ["images.unsplash.com"], "the only remote host is the photos")
+assert.match(src, /onError=\{\(\) => setState\("fail"\)\}/, "a photo that can't load falls back to drawn ridges")
+assert.match(src, /onError=\{\(\) => setFailed\(true\)\}/, "an avatar that can't load falls back to initials")
+assert.ok(src.includes('height = "100svh"'), "height defaults to a definite length")
+assert.match(src, /height: "clamp\(460px, calc\(" \+ height/, "the height prop reaches the hero window")
+assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
+assert.doesNotMatch(src, /use(State|Ref|Memo|Callback|Context)<|Record<|Array<|Promise<|Partial</, "no <generics> for the 21st CLI tokenizer to choke on")
+assert.doesNotMatch(src, /\\u[0-9a-f]{4}/i, "no \\u escapes: they print literally in JSX text")
+assert.match(src, /React\.useId\(\)\.replace/, "svg ids are namespaced per instance")
+assert.doesNotMatch(src, /url\(#[a-z]/, "gradient references are built from the instance id")
+assert.match(src, /if \(typeof window !== "undefined"\) gsap\.registerPlugin\(ScrollTrigger\)/, "the plugin registers only in the browser")
+assert.match(src, /const useIso = typeof window !== "undefined" \? React\.useLayoutEffect : React\.useEffect/, "no layout-effect warning on the server")
+
+const css = src.match(/const CNL_CSS = `([\s\S]*?)`/)
+assert.ok(css, "CSS block present")
+assert.doesNotMatch(css[1], /\$\{|`/, "no interpolation inside the CSS string")
+assert.doesNotMatch(css[1], /url\(/, "no url() in the style block")
+assert.ok(css[1].includes("prefers-reduced-motion:reduce"), "honours reduced motion in CSS")
+for (const m of css[1].replace(/\/\*[\s\S]*?\*\//g, "").replace(/@media[^{]*\{/g, "").replace(/@keyframes[^{]*\{/g, "").matchAll(/(?<=^|[{}])\s*([^{}@]+?)\s*\{/g)) {
+  const sel = m[1].trim()
+  if (/^(from|to|[\d.,%\s]+)$/.test(sel)) continue
+  for (const s of sel.split(/,(?![^(]*\))/)) assert.match(s.trim(), /^(:where\(\.dark\) )?\.cnl-/, `selector escapes the component: ${s.trim()}`)
+}
+for (const m of css[1].matchAll(/([^{}]+)\{[^}]*(?<![-\w])height:100%/g))
+  assert.match(m[1].trim(), /^(\.cnl-ridges,\.cnl-img|\.cnl-avatar img|\.cnl-file-bar i|\.cnl-sim-bar i|\.cnl-step-bar i|\.cnl-eq i|\.cnl-wave i|\.cnl-form input)$/, `percentage height on ${m[1].trim()}`)
+assert.match(css[1], /\.cnl-svg\{display:block;max-width:none/, "svgs are guarded against Preflight")
+assert.match(css[1], /\.cnl-ridges,\.cnl-img\{[^}]*max-width:none/, "and so are photos")
+assert.match(css[1], /\.cnl-root :where\(button\)\{/, "the reset has no specificity to fight")
+assert.match(css[1], /\.cnl-root\{[^}]*overflow-x:clip/, "the root clips sideways without breaking the sticky nav")
+assert.doesNotMatch(css[1], /\.cnl-root\{[^}]*overflow:hidden/, "overflow:hidden on the root would break the sticky nav")
+assert.match(css[1], /\.cnl-nav\{position:sticky/, "the nav sticks")
+assert.match(css[1], /:where\(\.dark\) \.cnl-root\[data-scheme=auto\]/, "scheme=auto follows the host's dark class")
+assert.match(css[1], /\.cnl-vista\.cnl-hero-vista\{[^}]*clip-path:inset\(0 var\(--cnl-in\) round var\(--cnl-r\)\)/, "the hero window's frame is two scroll-driven variables")
+assert.match(css[1], /\.cnl-canvas-vista\{height:620px\}/, "the canvas window has a definite height")
+
+/* ---------- it behaves like a product ---------- */
+
+for (const k of ["top", "customers", "product", "demo", "talk", "company"]) assert.ok(src.includes(`data-sec="${k}"`), `section ${k} is addressable`)
+assert.match(src, /scrollIntoView\(\{ behavior: reduced \? "auto" : "smooth", block: "start" \}\)/, "in-page links scroll, instantly under reduced motion")
+assert.match(src, /gsap\.matchMedia\(\)/, "scroll motion is gated by media queries")
+assert.match(src, /mm\.add\("\(prefers-reduced-motion: no-preference\)"/, "and only runs without reduced motion")
+assert.match(src, /mm\.add\("\(min-width: 1024px\)"/, "the canvas pins on wide screens only")
+assert.match(src, /pinnedContainer: pc \|\| undefined/, "windows inside the pinned canvas know they are pinned")
+assert.match(src, /"--cnl-in": "0px", "--cnl-r": "0px"/, "the hero window opens to full bleed")
+assert.match(src, /x\.to\(a, \{ width: aw, height: ah/, "the typing pill morphs into the agent's answer")
+assert.match(src, /x\.to\(v, \{ width: vw/, "and the voice pill grows out of a circle")
+assert.match(src, /if \(hover \|\| !visible\) x\.pause\(\)/, "the hero conversation pauses on hover and off screen")
+assert.match(src, /role="tablist" aria-label="Agent type"/, "agent types are tabs")
+assert.match(src, /addFiles\(Array\.from\(e\.dataTransfer\.files\)\)/, "files can be dropped")
+assert.match(src, /type="file"\n\s+multiple/, "or browsed")
+assert.match(src, /role="switch" aria-checked=\{p\.on\}/, "policies are switches")
+assert.match(src, /policies: policies\.filter\(\(p\) => p\.on\)\.length,\n\s+sensitivity,/, "the simulation reads the policies and sensitivity")
+assert.match(src, /new SpeechSynthesisUtterance\(line\.text\)/, "the call can be heard aloud")
+assert.match(src, /aria-label=\{sound \? "Mute voices" : "Play voices aloud"\}/, "but only when asked")
+assert.match(src, /onAnimationEnd=\{\(\) => setI\(\(x\) => \(x \+ 1\) % items\.length\)\}/, "testimonials advance when their bar fills, so hover pauses them")
+assert.match(src, /role="dialog" aria-modal="true" aria-labelledby="cnl-dlg-t"/, "talk to us is a modal dialog")
+assert.match(src, /e\.key === "Tab" && box\.current/, "the dialog traps focus")
+assert.match(src, /if \(!isEmail\(email\)\)/, "the call to action validates its email")
+assert.ok(read("demo.tsx").includes("<CairnAgentsLanding />"), "default demo is the component, full bleed")
+assert.doesNotMatch(read("demo.tsx"), /<div/, "default demo has no wrapper")
+assert.match(read("demo-ember.tsx"), /palette="ember"/, "the second demo reprints the page")
+assert.doesNotMatch(read("demo-ember.tsx"), /="[^"]*\\n/, "no \\n inside a JSX string attribute (it would print literally)")
+
+/* ---------- logic, executed ---------- */
+
+const code = region("content") + region("logic") +
+  "\nexport { PALETTES, DEFAULT_CANVAS, DEFAULT_CALL, DEFAULT_SCENARIOS, DEFAULT_STATS, clamp, isEmail, formatClock, formatBytes, formatStat, chunksFor, fileKind, splitTitle, splitWords, initials, nextIndex, stepAt, stepLocal, sensitivityLabel, simulateCalls, tally, callTimeline, lineAt, litWords, moodAt, sentimentPath, moodLabel, ridgePath, resolvePalette }\n"
+const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
+
+assert.ok(L.isEmail("maya@riovera.com"))
+assert.ok(L.isEmail(" ops@support.acme.co.uk "))
+assert.ok(!L.isEmail("maya@riovera"))
+assert.ok(!L.isEmail("maya riovera@x.com"))
+
+assert.equal(L.formatClock(702), "11:42")
+assert.equal(L.formatClock(0), "0:00")
+assert.equal(L.formatClock(-3), "0:00")
+assert.equal(L.formatClock(59.6), "1:00", "rounds and carries")
+assert.equal(L.formatBytes(512), "512 B")
+assert.equal(L.formatBytes(18400), "18 KB")
+assert.equal(L.formatBytes(2.5 * 1048576), "2.5 MB")
+assert.equal(L.formatStat(2.1, 1), "2.1")
+assert.equal(L.formatStat(1284, 0), "1,284")
+assert.equal(L.chunksFor(0), 1)
+assert.equal(L.chunksFor(3601), 3)
+assert.equal(L.fileKind("Policy.PDF"), "doc")
+assert.equal(L.fileKind("logo.webp"), "image")
+assert.equal(L.fileKind("hold-music.mp3"), "music")
+assert.equal(L.fileKind("export.zip"), "folder")
+assert.equal(L.fileKind("README"), "doc")
+
+assert.deepEqual(L.splitTitle("AI Agents for\n Enterprise Support\n"), ["AI Agents for", "Enterprise Support"])
+assert.equal(L.initials("Maya Ortiz"), "MO")
+assert.equal(L.initials("Dr. Kwame Osei"), "DO")
+assert.equal(L.initials(" "), "?")
+
+assert.equal(L.nextIndex(2, "ArrowRight", 3), 0)
+assert.equal(L.nextIndex(0, "ArrowLeft", 3), 2)
+assert.equal(L.nextIndex(1, "End", 3), 2)
+assert.equal(L.nextIndex(1, "x", 3), 1)
+
+assert.equal(L.stepAt(0, 4), 0)
+assert.equal(L.stepAt(0.26, 4), 1)
+assert.equal(L.stepAt(1, 4), 3, "the end of the pin is the last step, not past it")
+assert.equal(L.stepAt(-1, 4), 0)
+assert.ok(Math.abs(L.stepLocal(0.375, 4, 1) - 0.5) < 1e-9, "halfway through step two")
+assert.equal(L.stepLocal(0.9, 4, 1), 1)
+assert.equal(L.sensitivityLabel(10), "Calm: hands off rarely")
+assert.equal(L.sensitivityLabel(50), "Balanced")
+assert.equal(L.sensitivityLabel(90), "Careful: hands off early")
+
+const C = L.DEFAULT_CANVAS
+const sim = (o) => L.simulateCalls(500, { seed: 7, personas: ["Frustrated", "In a hurry"], intents: C.intents, policies: 3, sensitivity: 45, ...o })
+const a = sim({})
+assert.equal(a.calls.length, 500)
+assert.equal(a.resolved + a.handoff + a.flagged, 500, "every call has one outcome")
+assert.deepEqual(sim({}), a, "deterministic for a seed")
+assert.notDeepEqual(sim({ seed: 108 }).calls, a.calls, "and different for another")
+assert.ok(a.resolved / 500 > 0.8, "a sensible agent resolves most calls")
+assert.ok(sim({ policies: 4 }).flagged <= sim({ policies: 1 }).flagged, "more policies flag fewer calls")
+assert.ok(sim({ sensitivity: 100 }).handoff + sim({ sensitivity: 100 }).flagged >= sim({ sensitivity: 0 }).handoff + sim({ sensitivity: 0 }).flagged, "more sensitivity hands off more")
+assert.ok(sim({ personas: [] }).calls.every((c) => c.persona === "Typical"), "no personas still runs")
+assert.ok(a.calls.every((c) => c.ms >= 280 && c.ms <= 800), "first-response times are plausible")
+const t = L.tally(a.calls, 250.7)
+assert.equal(t.done, 250)
+assert.equal(t.resolved + t.handoff + t.flagged, 250)
+assert.deepEqual(L.tally(a.calls, 9999), { done: 500, resolved: a.resolved, handoff: a.handoff, flagged: a.flagged })
+
+const lines = L.DEFAULT_CALL.data.lines
+const { marks, total } = L.callTimeline(lines)
+assert.equal(marks.length, lines.length)
+assert.ok(marks.every((m, i) => m.end > m.start && (i === 0 || m.start > marks[i - 1].end)), "lines don't overlap")
+assert.ok(total > 30 && total < 150, "the default call lasts a believable minute or two")
+assert.equal(L.lineAt(marks, 0), -1, "silence before the first line")
+assert.equal(L.lineAt(marks, marks[2].start + 0.01), 2)
+assert.equal(L.lineAt(marks, total), lines.length - 1)
+assert.equal(L.litWords("one two three four", 0), 0)
+assert.equal(L.litWords("one two three four", 0.5), 2)
+assert.equal(L.litWords("one two three four", 2), 4)
+assert.equal(L.moodAt(lines, marks, 0), lines[0].mood)
+assert.equal(L.moodAt(lines, marks, total), lines[lines.length - 1].mood)
+assert.ok(L.moodAt(lines, marks, total * 0.5) > lines[0].mood, "the call gets calmer")
+const sp = L.sentimentPath(lines, marks, total, total, 238, 64)
+assert.match(sp.d, /^M0\.0 [\d.]+( L[\d.]+ [\d.]+)+$/)
+assert.ok(Math.abs(sp.x - 238) < 0.01, "the full call reaches the right edge")
+assert.ok(sp.y < 32, "and ends above the neutral line")
+assert.ok(L.sentimentPath(lines, marks, total, total / 3, 238, 64).x < 100, "part of the call draws part of the line")
+assert.equal(L.moodLabel(-0.8), "Frustrated")
+assert.equal(L.moodLabel(0.9), "Relieved")
+
+assert.match(L.ridgePath(3, 470, 70), /^M0 900( L[\d.-]+ [\d.-]+){41} L1600 900 Z$/)
+assert.equal(L.ridgePath(3, 470, 70), L.ridgePath(3, 470, 70), "ridges are seeded")
+
+assert.equal(L.resolvePalette("ember").accent, L.PALETTES.ember.accent)
+assert.equal(L.resolvePalette("nope").accent, L.PALETTES.fog.accent, "unknown names fall back to fog")
+assert.equal(L.resolvePalette({ accent: "#f00" }).accent, "#f00", "a partial palette overrides")
+assert.equal(L.resolvePalette({ accent: "#f00" }).agent, L.PALETTES.fog.agent, "and falls back to fog")
+assert.deepEqual(L.resolvePalette({ ridges: ["#000"] }).ridges, L.PALETTES.fog.ridges, "too few ridge tones fall back")
+for (const [name, p] of Object.entries(L.PALETTES)) assert.equal(p.ridges.length, 6, `${name} has six ridge tones`)
+
+assert.ok(L.DEFAULT_SCENARIOS.every((s) => s.alert && s.reply && s.voice), "every scenario has three beats")
+assert.equal(new Set(C.steps.map((s) => s.panel)).size, 4, "each step has its own panel")
+assert.equal(L.DEFAULT_STATS.items[0].from, 702, "the hold time counts down from 11:42")
+
+console.log("cairn-agents-landing: ok")
