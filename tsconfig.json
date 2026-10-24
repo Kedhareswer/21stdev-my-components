@@ -175,7 +175,20 @@
       "@/components/ui/meadow-journal-template": ["./components/meadow-journal-template/meadow-journal-template.tsx"],
       "@/components/ui/halyard-copilot-landing": ["./components/halyard-copilot-landing/halyard-copilot-landing.tsx"],
       "@/components/ui/stipple-orb-landing": ["./components/stipple-orb-landing/stipple-orb-landing.tsx"],
-      "@/components/ui/infinite-shot-stack": ["./components/infinite-shot-stack/infinite-shot-stack.tsx"]
+      "@/components/ui/infinite-shot-stack": ["./components/infinite-shot-stack/infinite-shot-stack.tsx"],
+      "@/components/ui/not-alone-campaign-template": ["./components/not-alone-campaign-template/not-alone-campaign-template.tsx"],
+      "@/components/ui/dune-haul-footer": ["./components/dune-haul-footer/dune-haul-footer.tsx"],
+      "@/components/ui/mallow-support-template": ["./components/mallow-support-template/mallow-support-template.tsx"],
+      "@/components/ui/marginalia-portfolio-template": ["./components/marginalia-portfolio-template/marginalia-portfolio-template.tsx"],
+      "@/components/ui/fuelplate-recipes-template": ["./components/fuelplate-recipes-template/fuelplate-recipes-template.tsx"],
+      "@/components/ui/tessel-agent-landing": ["./components/tessel-agent-landing/tessel-agent-landing.tsx"],
+      "@/components/ui/cairn-agents-landing": ["./components/cairn-agents-landing/cairn-agents-landing.tsx"],
+      "@/components/ui/fruit-sticker-footer": ["./components/fruit-sticker-footer/fruit-sticker-footer.tsx"],
+      "@/components/ui/pixel-bloom-preloader": ["./components/pixel-bloom-preloader/pixel-bloom-preloader.tsx"],
+      "@/components/ui/sticker-slap-footer": ["./components/sticker-slap-footer/sticker-slap-footer.tsx"],
+      "@/components/ui/doodle-crew-footer": ["./components/doodle-crew-footer/doodle-crew-footer.tsx"],
+      "@/components/ui/teal-treasury-landing": ["./components/teal-treasury-landing/teal-treasury-landing.tsx"],
+      "@/components/ui/seraph-foundry-template": ["./components/seraph-foundry-template/seraph-foundry-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
