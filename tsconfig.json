@@ -86,6 +86,7 @@
       "@/components/ui/anodized-ink": ["./components/anodized-ink/anodized-ink.tsx"],
       "@/components/ui/beam-wordmark-footer": ["./components/beam-wordmark-footer/beam-wordmark-footer.tsx"],
       "@/components/ui/amour-sunrise-preloader": ["./components/amour-sunrise-preloader/amour-sunrise-preloader.tsx"],
+      "@/components/ui/pixel-bloom-preloader": ["./components/pixel-bloom-preloader/pixel-bloom-preloader.tsx"],
       "@/components/ui/stardust-stage-preloader": ["./components/stardust-stage-preloader/stardust-stage-preloader.tsx"],
       "@/components/ui/dragon-seal-preloader": ["./components/dragon-seal-preloader/dragon-seal-preloader.tsx"],
       "@/components/ui/title-sequence-preloader": ["./components/title-sequence-preloader/title-sequence-preloader.tsx"],
