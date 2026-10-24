@@ -82,7 +82,21 @@ export type MspTicket = {
   took?: number
 }
 
-export type MspWay = { title: string; text: string; kind: "resolve" | "learn" | "escalate"; image?: string }
+export type MspWay = {
+  title: string
+  text: string
+  kind: "resolve" | "learn" | "escalate"
+  image?: string
+  /** Who asks, and their message in the card (resolve, escalate). */
+  from?: string
+  ask?: string
+  /** The reply: the AI's (resolve) or the person's (escalate). */
+  answer?: string
+  /** Who the escalate card hands off to. */
+  handTo?: string
+  /** The learn card's knowledge sources; the last two finish learning as it plays. */
+  sources?: { name: string; meta: string }[]
+}
 
 export type MspFeature = { title: string; text: string; kind: "smarter" | "voice" | "overnight"; image?: string }
 
@@ -156,7 +170,16 @@ export type MspProps = {
   stories?: { eyebrow?: string; title?: string; items?: MspStory[] } | null
   testimonials?: { eyebrow?: string; title?: string; items?: MspQuote[] } | null
   faq?: { eyebrow?: string; title?: string; items?: MspFaq[] } | null
-  cta?: { title?: string; text?: string; button?: string; placeholder?: string; morning?: string } | null
+  cta?: {
+    title?: string
+    text?: string
+    button?: string
+    placeholder?: string
+    /** The greeting on the morning-report card. */
+    morning?: string
+    /** Tickets waiting for a person on that card. */
+    waiting?: { name: string; subject: string; tag: string }[]
+  } | null
   footer?: { tagline?: string; columns?: { title: string; links: MspLink[] }[]; legal?: string; status?: string } | null
   /** Called with the email from the sign-up band, or with nothing from any other Start button. Return false (or throw) to show an error. */
   onGetStarted?: MspGetStarted
@@ -328,6 +351,19 @@ const TICKETS = [
   { name: "Ravi Nair", subject: "Gift wrapping?", channel: "whatsapp", took: 2, message: "Can you gift wrap and leave out the receipt?", reply: "We can, Ravi. Tick gift wrap at checkout and add a note. The receipt is emailed to you, never packed in the box." },
   { name: "Daniel Kim", subject: "Pause my candle subscription", channel: "email", took: 4, message: "I'm away in August. Can I skip a month without cancelling?", reply: "Easy, Daniel. I've skipped your August box. Your next candle ships on 3 September, and you can change that any time from your account." },
 ] as MspTicket[]
+
+const SOURCES = [
+  { name: "Help center", meta: "142 articles" },
+  { name: "Shop orders", meta: "Live sync" },
+  { name: "Past tickets", meta: "18,240 replies" },
+  { name: "Returns policy", meta: "Notion" },
+]
+
+const WAITING = [
+  { name: "Lena Fischer", subject: "Vase arrived cracked", tag: "Refund" },
+  { name: "Chloé Martin", subject: "Wrong colour delivered", tag: "Swap" },
+  { name: "Jonas Holm", subject: "Wholesale pricing", tag: "Sales" },
+]
 
 const LOGOS = ["Northwind", "Lumen Labs", "Arbor", "Fable & Co", "Vesta", "Driftwood", "Kiln", "Parcelry"]
 
@@ -1091,6 +1127,8 @@ function Meadow({ scene, active = true, label, className, image, alt }: MeadowPr
   const box = React.useRef(null as HTMLDivElement | null)
   const cv = React.useRef(null as HTMLCanvasElement | null)
   const painter = React.useRef(null as Painter | null)
+  const activeRef = React.useRef(active)
+  activeRef.current = active
   const [failed, setFailed] = React.useState(false)
   const photo = (image || (env && env.images[scene]) || "") as string
   const usePhoto = !!photo && !failed
@@ -1148,7 +1186,7 @@ function Meadow({ scene, active = true, label, className, image, alt }: MeadowPr
       typeof IntersectionObserver === "function"
         ? new IntersectionObserver(
             ([e]) => {
-              p.visible = e.isIntersecting && active
+              p.visible = e.isIntersecting && activeRef.current
               if (e.isIntersecting) {
                 size()
                 enqueue(p)
@@ -1160,7 +1198,7 @@ function Meadow({ scene, active = true, label, className, image, alt }: MeadowPr
         : null
     if (io) io.observe(el)
     else {
-      p.visible = active
+      p.visible = activeRef.current
       enqueue(p)
     }
     let lastX = -1
@@ -1650,7 +1688,7 @@ function HeroApp({ tickets, workspace, agent, live, narrow: slim }: { tickets: M
   const handed = items.filter((it) => statusOf(it, now) === "handed").length + 7
 
   return (
-    <div className="msp-app" ref={narrow}>
+    <div className="msp-app" ref={narrow} data-narrow={slim ? "" : undefined}>
       <div className="msp-app-bar">
         <span className="msp-app-dots" aria-hidden="true">
           <i />
@@ -1690,7 +1728,7 @@ function HeroApp({ tickets, workspace, agent, live, narrow: slim }: { tickets: M
           </span>
           <span className="msp-side-row">
             <Icon d="spark" size={14} />
-            Resolved by {brand}
+            Auto-resolved
             <em className="msp-count">{fmt(resolved)}</em>
           </span>
           <span className="msp-side-row">
@@ -1822,7 +1860,7 @@ function Hero({ hero, height }: { hero: NonNullable<MspProps["hero"]>; height: s
     }
   }, [])
   return (
-    <section className="msp-hero" data-sec="top" style={{ minHeight: "calc(min(" + height + ", 940px) - 68px)" }} aria-labelledby="msp-hero-title">
+    <section className="msp-hero" data-sec="top" style={{ minHeight: "calc(min(" + height + ", 820px) - 68px)" }} aria-labelledby="msp-hero-title">
       <div className="msp-wrap msp-hero-grid">
         <div className="msp-hero-copy">
           {hero.badge && (
@@ -1896,8 +1934,11 @@ function useTyped(text: string, run: boolean, speed = 18) {
   return text.slice(0, n)
 }
 
-function WayVignette({ kind, play, brand }: { kind: MspWay["kind"]; play: number; brand: string }) {
-  const reply = "Of course! Gifts can come back within 60 days, no receipt needed. I've emailed you a free return label."
+const SOURCE_ICONS = ["book", "bag", "history", "doc", "chat", "tag"]
+
+function WayVignette({ way, play, brand }: { way: MspWay; play: number; brand: string }) {
+  const kind = way.kind
+  const reply = fill(way.answer && kind === "resolve" ? way.answer : "Of course! Gifts can come back within 60 days, no receipt needed. I've emailed you a free return label.", brand)
   const typed = useTyped(reply, play > 0, 16)
   const done = typed.length === reply.length && play > 0
   const [pct, setPct] = React.useState(0)
@@ -1928,12 +1969,13 @@ function WayVignette({ kind, play, brand }: { kind: MspWay["kind"]; play: number
   }, [play, kind, reduced])
 
   if (kind === "learn") {
-    const rows = [
-      { icon: "book", name: "Help center", meta: "142 articles", st: "done" },
-      { icon: "bag", name: "Shop orders", meta: "Live sync", st: "done" },
-      { icon: "history", name: "Past tickets", meta: "18,240 replies", st: pct >= 100 ? "done" : "learning" },
-      { icon: "doc", name: "Returns policy", meta: "Notion", st: pct >= 100 ? "done" : pct > 60 ? "learning" : "queued" },
-    ]
+    const list = (way.sources || SOURCES).slice(0, 5)
+    const rows = list.map((r, i) => ({
+      icon: SOURCE_ICONS[i % SOURCE_ICONS.length],
+      name: r.name,
+      meta: r.meta,
+      st: pct >= 100 || i < list.length - 2 ? "done" : i === list.length - 1 && pct <= 60 ? "queued" : "learning",
+    }))
     return (
       <div className="msp-vig">
         <p className="msp-vig-head">
@@ -1964,16 +2006,16 @@ function WayVignette({ kind, play, brand }: { kind: MspWay["kind"]; play: number
     return (
       <div className="msp-vig">
         <div className="msp-bubble msp-bubble-in msp-seq" data-show={stage >= 1 ? "" : undefined}>
-          <Avatar name="Lena Fischer" size={22} />
-          <p>Third late order this month. I'd like a refund, please.</p>
+          <Avatar name={way.from || "Lena Fischer"} size={22} />
+          <p>{fill(way.ask || "Third late order this month. I'd like a refund, please.", brand)}</p>
         </div>
         <p className="msp-handoff" data-show={stage >= 2 ? "" : undefined}>
           <Icon d="hand" size={12} />
-          {brand} handed this to Priya, with a summary
+          {brand} handed this to {way.handTo || "Priya"}, with a summary
         </p>
         <div className="msp-bubble msp-bubble-in msp-bubble-agent msp-seq" data-show={stage >= 3 ? "" : undefined}>
-          <Avatar name="Priya Raman" size={22} />
-          <p>I'm sorry, Lena. Refund sent for all three, and the next one ships free.</p>
+          <Avatar name={way.handTo || "Priya Raman"} size={22} />
+          <p>{fill(way.answer || "I'm sorry, Lena. Refund sent for all three, and the next one ships free.", brand)}</p>
         </div>
       </div>
     )
@@ -1981,8 +2023,8 @@ function WayVignette({ kind, play, brand }: { kind: MspWay["kind"]; play: number
   return (
     <div className="msp-vig">
       <div className="msp-bubble msp-bubble-in">
-        <Avatar name="Sam Ortiz" size={22} />
-        <p>Can I return a gift without the receipt?</p>
+        <Avatar name={way.from || "Sam Ortiz"} size={22} />
+        <p>{fill(way.ask || "Can I return a gift without the receipt?", brand)}</p>
       </div>
       <div className="msp-bubble msp-bubble-out">
         <Avatar name={brand} brand size={22} />
@@ -2011,7 +2053,7 @@ function WayCard({ way, brand }: { way: MspWay; brand: string }) {
     <article ref={ref} className="msp-way msp-rise" onPointerEnter={(e) => e.pointerType === "mouse" && replay()} onFocus={replay} tabIndex={0}>
       <div className="msp-way-art">
         <Meadow scene={way.kind} image={way.image} />
-        <WayVignette kind={way.kind} play={play} brand={brand} />
+        <WayVignette way={way} play={play} brand={brand} />
       </div>
       <h3>{fill(way.title, brand)}</h3>
       <p>{fill(way.text, brand)}</p>
@@ -2858,18 +2900,14 @@ function Cta({ data, onGetStarted, inputRef }: { data: NonNullable<MspProps["cta
                   <b>4.8</b>CSAT
                 </span>
               </div>
-              {[
-                ["Lena Fischer", "Vase arrived cracked", "Refund"],
-                ["Chloé Martin", "Wrong colour delivered", "Swap"],
-                ["Jonas Holm", "Wholesale pricing", "Sales"],
-              ].map(([n, s, t]) => (
-                <div key={n} className="msp-morning-row">
-                  <Avatar name={n} size={24} />
+              {(data.waiting || WAITING).slice(0, 4).map((w) => (
+                <div key={w.name + w.subject} className="msp-morning-row">
+                  <Avatar name={w.name} size={24} />
                   <span>
-                    <b>{n}</b>
-                    {s}
+                    <b>{w.name}</b>
+                    {w.subject}
                   </span>
-                  <i>{t}</i>
+                  <i>{w.tag}</i>
                 </div>
               ))}
             </div>
@@ -3095,7 +3133,7 @@ const MSP_CSS = `
 .msp-root{--msp-serif:"Newsreader","Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--msp-sans:"Inter","Inter Variable",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--msp-radius:18px;--msp-shadow:0 1px 2px rgba(20,24,20,.06),0 18px 40px -18px rgba(20,30,40,.28);--msp-shadow-lg:0 2px 4px rgba(20,24,20,.06),0 40px 80px -30px rgba(18,30,44,.42);--msp-ease:cubic-bezier(.22,1,.36,1);position:relative;min-height:var(--msp-h);background:var(--msp-paper);color:var(--msp-ink);font-family:var(--msp-sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:clip;isolation:isolate;color-scheme:light;text-align:left}
 .msp-root[data-theme="dark"]{--msp-shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -18px rgba(0,0,0,.7);--msp-shadow-lg:0 2px 4px rgba(0,0,0,.4),0 40px 80px -30px rgba(0,0,0,.85);color-scheme:dark}
 .msp-root :where(*,*::before,*::after){box-sizing:border-box}
-.msp-root :where(svg,canvas,img){display:block;max-width:none}
+.msp-root :where(svg,canvas,img){display:block;max-width:none;flex-shrink:0}
 .msp-root :where(h1,h2,h3,p,ul,ol,figure,blockquote){margin:0;padding:0}
 .msp-root :where(ul,ol){list-style:none}
 .msp-root :where(a){color:inherit;text-decoration:none}
@@ -3133,7 +3171,7 @@ const MSP_CSS = `
 .msp-nav[data-scrolled]{background:color-mix(in srgb,var(--msp-paper) 82%,transparent);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);box-shadow:0 1px 0 var(--msp-rule)}
 .msp-nav-row{display:flex;align-items:center;gap:24px;height:68px}
 .msp-brand{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.02em}
-.msp-nav-links{display:flex;align-items:center;gap:4px;margin:0 auto}
+.msp-nav-links{display:flex;align-items:center;gap:4px;margin:0 auto;padding-right:40px}
 .msp-nav-item{position:relative}
 .msp-nav-link{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:999px;font-size:14px;color:var(--msp-muted);transition:color .2s,background-color .2s}
 .msp-nav-link:hover,.msp-nav-link[aria-expanded="true"]{color:var(--msp-ink);background:color-mix(in srgb,var(--msp-ink) 5%,transparent)}
@@ -3150,7 +3188,7 @@ const MSP_CSS = `
 .msp-menu-feature{display:flex;flex-direction:column;gap:3px;padding:8px;border-radius:12px;background:var(--msp-soft);font-size:12.5px;color:var(--msp-muted)}
 .msp-menu-feature b{font-size:13.5px;font-weight:500;color:var(--msp-ink);margin-top:6px}
 .msp-menu-art{position:relative;display:block;height:118px;border-radius:9px;overflow:hidden}
-.msp-nav-actions{display:flex;align-items:center;gap:8px}
+.msp-nav-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
 .msp-nav-cta{height:38px}
 .msp-burger{display:none;width:40px;height:40px;align-items:center;justify-content:center;border-radius:12px}
 .msp-sheet{display:none}
@@ -3190,11 +3228,12 @@ const MSP_CSS = `
 .msp-switch input:checked+.msp-switch-track span{transform:translateX(12px)}
 .msp-switch input:focus-visible+.msp-switch-track{outline:2px solid var(--msp-ink);outline-offset:2px}
 .msp-app-body{display:grid;grid-template-columns:204px 268px 1fr;height:470px}
-.msp-app-body[data-narrow]{grid-template-columns:1fr}
-.msp-app-body[data-narrow] .msp-app-side,.msp-app-body[data-narrow] .msp-app-convo{display:none}
+.msp-app-body[data-narrow]{grid-template-columns:1fr;height:430px}
+.msp-app-body[data-narrow] .msp-app-side,.msp-app-body[data-narrow] .msp-app-convo,.msp-app[data-narrow] .msp-app-search{display:none}
+.msp-app[data-narrow] .msp-switch{margin-left:auto}
 .msp-app-side{padding:12px 10px;border-right:1px solid var(--msp-rule);display:flex;flex-direction:column;gap:2px;background:color-mix(in srgb,var(--msp-soft) 45%,var(--msp-card))}
 .msp-app-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--msp-muted);padding:8px 8px 4px}
-.msp-side-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:8px;color:var(--msp-muted);white-space:nowrap}
+.msp-side-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:8px;color:var(--msp-muted);white-space:nowrap;overflow:hidden}
 .msp-side-row[data-on]{background:var(--msp-card);color:var(--msp-ink);box-shadow:0 0 0 1px var(--msp-rule)}
 .msp-side-row em{margin-left:auto;font-style:normal;font-size:11px;font-variant-numeric:tabular-nums}
 .msp-count{color:var(--msp-good)}
