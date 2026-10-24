@@ -188,7 +188,9 @@
       "@/components/ui/sticker-slap-footer": ["./components/sticker-slap-footer/sticker-slap-footer.tsx"],
       "@/components/ui/doodle-crew-footer": ["./components/doodle-crew-footer/doodle-crew-footer.tsx"],
       "@/components/ui/teal-treasury-landing": ["./components/teal-treasury-landing/teal-treasury-landing.tsx"],
-      "@/components/ui/seraph-foundry-template": ["./components/seraph-foundry-template/seraph-foundry-template.tsx"]
+      "@/components/ui/seraph-foundry-template": ["./components/seraph-foundry-template/seraph-foundry-template.tsx"],
+      "@/components/ui/wild-hunt-footer": ["./components/wild-hunt-footer/wild-hunt-footer.tsx"],
+      "@/components/ui/old-masters-preloader": ["./components/old-masters-preloader/old-masters-preloader.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
