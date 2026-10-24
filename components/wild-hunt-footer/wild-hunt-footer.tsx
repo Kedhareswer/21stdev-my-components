@@ -426,9 +426,10 @@ export default function WildHuntFooter({
   const marksRef = React.useRef(null as SVGSVGElement | null)
   const swashRef = React.useRef(null as SVGSVGElement | null)
   const footRef = React.useRef(null as HTMLDivElement | null)
-  const opts = React.useRef({ colors, wordmark, imageHeight, dissolve, tracking, grain, interactive, fontFamily })
-  opts.current = { colors, wordmark, imageHeight, dissolve, tracking, grain, interactive, fontFamily }
-  const key = [wordmark, imageHeight, dissolve, tracking, grain, colors.background, colors.ink, fontFamily].join("|")
+  const hasCutout = !!image.cutout
+  const opts = React.useRef({ colors, wordmark, imageHeight, dissolve, tracking, grain, interactive, fontFamily, hasCutout })
+  opts.current = { colors, wordmark, imageHeight, dissolve, tracking, grain, interactive, fontFamily, hasCutout }
+  const key = [wordmark, imageHeight, dissolve, tracking, grain, colors.background, colors.ink, fontFamily, hasCutout].join("|")
 
   React.useEffect(() => {
     const root = rootRef.current
@@ -542,7 +543,8 @@ export default function WildHuntFooter({
       cell = Math.max(2, Math.floor(Math.min((w - sidePad * 2) / cols, (zoneH * 0.84) / WHF_ROWS)))
       const bw = cols * cell
       const bh = WHF_ROWS * cell
-      box = { x: Math.round((w - bw) / 2), y: Math.round(zoneTop + (zoneH - bh) / 2), w: bw, h: bh }
+      // Under a cut-out the word sits centred, leaving the figures their room; under a plain picture it rises toward the red edge.
+      box = { x: Math.round((w - bw) / 2), y: Math.round(zoneTop + (zoneH - bh) * (o.hasCutout ? 0.5 : 0.3)), w: bw, h: bh }
 
       picture.style.height = bandH + "px"
       for (const el of Array.from(root.querySelectorAll(".whf-vert")) as HTMLElement[]) {
