@@ -169,6 +169,7 @@
       "@/components/ui/longhand-notes-landing": ["./components/longhand-notes-landing/longhand-notes-landing.tsx"],
       "@/components/ui/skeleton-key-preloader": ["./components/skeleton-key-preloader/skeleton-key-preloader.tsx"],
       "@/components/ui/string-tie-footer": ["./components/string-tie-footer/string-tie-footer.tsx"],
+      "@/components/ui/doodle-crew-footer": ["./components/doodle-crew-footer/doodle-crew-footer.tsx"],
       "@/components/ui/pushpin-tear-footer": ["./components/pushpin-tear-footer/pushpin-tear-footer.tsx"],
       "@/components/ui/ridgeline-dither-footer": ["./components/ridgeline-dither-footer/ridgeline-dither-footer.tsx"],
       "@/components/ui/aqua-story-profile-template": ["./components/aqua-story-profile-template/aqua-story-profile-template.tsx"],
