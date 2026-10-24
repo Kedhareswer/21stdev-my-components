@@ -106,7 +106,7 @@ const PRESETS: { [k: string]: { background: string; ink: string } } = {
 // The riders, matted out of the painting (Photoshop select-subject on the
 // 3840px scan, exported as WebP with alpha) and pinned to a commit of this
 // component's repository on jsDelivr, so the URL never moves.
-const DEFAULT_CUTOUT = "https://cdn.jsdelivr.net/gh/Kedhareswer/21stdev-my-components@CUTOUT_SHA/media/wild-hunt-footer/riders.webp"
+const DEFAULT_CUTOUT = "https://cdn.jsdelivr.net/gh/Kedhareswer/21stdev-my-components@652e700136033aecc7c865fba0c05d77cab7831c/media/wild-hunt-footer/riders.webp"
 
 const DEFAULT_IMAGE: WildHuntImage = {
   src: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/La_caza_salvaje_de_Od%C3%ADn%2C_por_Peter_Nicolai_Arbo.jpg/1280px-La_caza_salvaje_de_Od%C3%ADn%2C_por_Peter_Nicolai_Arbo.jpg",

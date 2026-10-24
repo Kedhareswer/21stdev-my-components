@@ -122,7 +122,7 @@ assert.equal(L.whfDissolve(1, 0.4, 0.28), 1)
 assert.ok(Math.abs(L.whfDissolve(0.54, 0.4, 0.28) - 0.5) < 1e-9, "eased midpoint")
 let prev = -1
 for (let y = 0; y <= 1; y += 0.01) { const v = L.whfDissolve(y, 0.4, L.WHF_SPAN); assert.ok(v >= prev - 1e-12); prev = v }
-assert.equal(L.whfDissolve(1, 2, 0.28), 1, "a start past the bottom is clamped")
+assert.equal(L.whfDissolve(1, 2, 0.28), L.whfDissolve(1, 0.95, 0.28), "a start past the bottom is clamped")
 assert.equal(L.whfDissolve(0.5, 0.4, 0), 1, "a zero span is a hard edge")
 
 // Hash: deterministic, in range, and different across buckets.
