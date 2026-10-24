@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs"
 const dir = new URL("../components/old-masters-preloader/", import.meta.url)
 const src = readFileSync(new URL("old-masters-preloader.tsx", dir), "utf8")
 const demos = Object.fromEntries(
-  ["demo", "demo-carmine", "demo-gilt", "demo-vellum", "demo-gate"].map((name) => [name, readFileSync(new URL(name + ".tsx", dir), "utf8")]),
+  ["demo", "demo-noir", "demo-vellum", "demo-gate"].map((name) => [name, readFileSync(new URL(name + ".tsx", dir), "utf8")]),
 )
 const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
 
@@ -33,7 +33,12 @@ assert.ok(src.includes("cancelAnimationFrame(raf)"), "the frame loop is torn dow
 assert.ok(src.includes("ro.disconnect()"), "resize observers are torn down on unmount")
 assert.doesNotMatch(src, /console\./, "no debug logging ships")
 assert.doesNotMatch(src, /toBlob\(/, "the grain is encoded synchronously")
-assert.ok(src.includes('maxWidth: "none"'), "the photograph escapes Preflight's img max-width")
+assert.ok(src.includes('maxWidth: "none"'), "the photographs escape Preflight's img max-width")
+assert.ok(src.includes('maskType: "luminance"'), "figures are keyed by a luminance mask")
+assert.ok(src.includes('getContext("2d")'), "the light is a 2d canvas, safe on a software renderer")
+assert.doesNotMatch(src, /getContext\("webgl/, "no WebGL: covers render on SwiftShader")
+assert.ok(src.includes('addEventListener("wheel"'), "a scroll can lift the stage")
+assert.ok(src.includes("removeEventListener(\"wheel\""), "the wheel listener is torn down")
 assert.doesNotMatch(src, /href=["']#["']/, "no placeholder # links")
 // Hooks run in the same order on every render: nothing may be called after the
 // early return that hands the page back.
@@ -70,9 +75,10 @@ for (const phase of ["load", "unveil", "landing", "exit"]) {
 assert.match(css, /\.om-root \.om-cta \{/, "the call to action outranks the button reset")
 
 const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"))
-assert.match(reduced, /--om-px: 0px !important/, "no parallax under reduced motion")
-assert.match(reduced, /\.om-star svg, \.om-grain \{ animation: none; \}/, "the stars and grain hold still")
-assert.match(reduced, /\.om-l, \.om-init \{ transform: none; opacity: 0;/, "letters fade in instead of rising")
+assert.match(reduced, /--om-px: 0 !important/, "no parallax under reduced motion")
+assert.match(reduced, /\.om-star svg, \.om-grain, \.om-ring-spin, \.om-fig-in, \.om-hint i \{ animation: none; \}/, "the stars, grain, ring, bob and hint hold still")
+assert.match(reduced, /--om-tilt: 0 !important/, "no tilt under reduced motion")
+assert.match(reduced, /\.om-word \{ transition: transform 0\.01s/, "the word jumps to the floor instead of dropping")
 
 // ---- 3. The pure region, executed ------------------------------------------
 const start = src.indexOf("// #region timeline")
@@ -81,6 +87,7 @@ assert.ok(start > -1 && end > start, "timeline region markers missing")
 const js = src
   .slice(start, end)
   .replace(/:\s*"light" \| "dark"(?=\s*[,)])/g, "")
+  .replace(/:\s*number\[\](?=\s*[,)])/g, "")
   .replace(/:\s*\{ x: number; w: number \}\[\]/g, "")
   .replace(/:\s*(?:number|string|boolean)(?:\[\])*(?=\s*(?:[,)=;{]))/g, "")
 const m = await import("data:text/javascript," + encodeURIComponent(js))
@@ -134,6 +141,18 @@ assert.deepEqual(m.omCover(2000, 3000, 1440, 900, 0.5, 1), { x: 0, y: -1260, w: 
 assert.deepEqual(m.omCover(2000, 3000, 1440, 900, 0.5, 4), m.omCover(2000, 3000, 1440, 900, 0.5, 1), "focal is clamped")
 assert.deepEqual(m.omCover(0, 0, 1440, 900, 0.5, 0.5), { x: 0, y: 0, w: 1440, h: 900 }, "no natural size yet fills the stage")
 
+// where a figure stands
+assert.deepEqual(m.omFigureBox(50, 100, 80, 0.5, 1440, 900), { left: 540, top: 180, w: 360, h: 720 }, "centred on x, feet on the floor")
+assert.deepEqual(m.omFigureBox(20, 110, 100, 1.5, 1000, 500), { left: -175, top: 50, w: 750, h: 500 }, "may overhang the stage")
+assert.equal(m.omFigureBox(50, 100, 80, 0, 1440, 900).w, 432, "no aspect yet falls back to a slim figure")
+assert.deepEqual(m.omFigureBox(50, 100, 80, 0.5, 0, 0), { left: 0, top: 0, w: 0, h: 0 }, "no stage yet, no box")
+
+// the nearest figure
+assert.equal(m.omNearest(0.5, [0.2, 0.55, 0.9], 0.22), 1)
+assert.equal(m.omNearest(0.05, [0.2, 0.55, 0.9], 0.22), 0)
+assert.equal(m.omNearest(0.37, [0.2, 0.55, 0.9], 0.1), -1, "nothing within reach")
+assert.equal(m.omNearest(0.5, [], 0.22), -1, "no cast")
+
 // the fit
 assert.equal(m.omFit(500, 1000, 400, 36), 200)
 assert.equal(m.omFit(500, 5000, 400, 36), 400, "capped by height")
@@ -141,16 +160,16 @@ assert.equal(m.omFit(500, 10, 400, 36), 36, "never below the floor")
 assert.equal(m.omFit(0, 1000, 400, 36), 36, "nothing measured yet falls to the floor")
 
 // the luminance transfer
-const light = m.omTransfer(0.4, 0.2, "light")
-assert.equal(light.slope, -5)
-assert.equal(light.intercept, 2.5)
-assert.equal(light.slope * 0.3 + light.intercept, 1, "dark ground shows the word")
-assert.equal(light.slope * 0.5 + light.intercept, 0, "lit figure covers it")
-const dark = m.omTransfer(0.74, 0.18, "dark")
-assert.ok(dark.slope > 0, "a dark figure flips the ramp")
-assert.ok(dark.slope * 0.83 + dark.intercept >= 1 - 1e-9, "paper shows the word")
-assert.ok(dark.slope * 0.6 + dark.intercept <= 0, "ink covers it")
-assert.ok(m.omTransfer(0.5, 0, "light").slope < -40, "zero softness becomes a hard edge, not a division by zero")
+const light = m.omTransfer(0.2, 0.16, "light")
+assert.equal(light.slope, 6.25)
+assert.equal(light.intercept, -0.75)
+assert.ok(light.slope * 0.05 + light.intercept <= 0, "the black ground is keyed out")
+assert.ok(light.slope * 0.4 + light.intercept >= 1, "lit marble is kept")
+const dark = m.omTransfer(0.7, 0.12, "dark")
+assert.ok(dark.slope < 0, "ink on paper flips the ramp")
+assert.ok(dark.slope * 0.9 + dark.intercept <= 0, "the paper is keyed out")
+assert.ok(dark.slope * 0.5 + dark.intercept >= 1, "the ink is kept")
+assert.ok(m.omTransfer(0.5, 0, "light").slope > 40, "zero softness becomes a hard edge, not a division by zero")
 
 // seeded noise, the hash and the barcode
 const a = m.omRng(42)
@@ -159,8 +178,8 @@ const seq = Array.from({ length: 50 }, () => a())
 assert.deepEqual(seq, Array.from({ length: 50 }, () => b()), "the grain is the same on every mount")
 assert.ok(seq.every((v) => v >= 0 && v < 1), "rng stays in [0, 1)")
 assert.notDeepEqual(seq, Array.from({ length: 50 }, m.omRng(43)), "different seeds differ")
-assert.equal(m.omHash("Kallisto"), m.omHash("Kallisto"))
-assert.notEqual(m.omHash("Kallisto"), m.omHash("Arcadia"))
+assert.equal(m.omHash("Arcadia"), m.omHash("Arcadia"))
+assert.notEqual(m.omHash("Arcadia"), m.omHash("Erudition"))
 assert.ok(m.omHash("") > 0, "the empty string still seeds")
 const bars = m.omBars(7, 34, 92)
 assert.equal(bars.length, 34)
@@ -169,7 +188,7 @@ assert.deepEqual(bars, m.omBars(7, 34, 92), "the barcode is stable")
 
 // the split
 assert.deepEqual(m.omSplit("Erudition", true), { initial: "E", rest: ["r", "u", "d", "i", "t", "i", "o", "n"] })
-assert.deepEqual(m.omSplit("Kallisto", false), { initial: "", rest: ["K", "a", "l", "l", "i", "s", "t", "o"] })
+assert.deepEqual(m.omSplit("Arcadia", false), { initial: "", rest: ["A", "r", "c", "a", "d", "i", "a"] })
 assert.deepEqual(m.omSplit("", true), { initial: "", rest: [] })
 
 // the baseline of a line-height: 1 box
@@ -178,7 +197,7 @@ assert.equal(m.omBaseline(0.8, 0.2), 0.2)
 assert.equal(m.omBaseline(0, 0), 0.2, "no metrics falls back")
 
 // ---- 4. No borrowed copy ---------------------------------------------------
-for (const mark of [/atlantis/i, /your money/i, /conclusion/i, /talica/i]) {
+for (const mark of [/atlantis/i, /your money/i, /conclusion/i, /talica/i, /your keys/i]) {
   assert.doesNotMatch(src + Object.values(demos).join(""), mark, `borrowed reference copy must not ship: ${mark}`)
 }
 
@@ -192,12 +211,12 @@ for (const [name, d] of Object.entries(demos)) {
 }
 assert.match(demos.demo, /<OldMastersPreloader\s*\/>/, "default demo is the component, untouched")
 assert.doesNotMatch(demos.demo, /<div/, "default demo must not wrap the component")
-assert.match(demos["demo-carmine"], /progress=\{loaded\}/, "one demo drives real progress")
-assert.match(demos["demo-carmine"], /tone="carmine"/, "one demo shows the red tone")
-assert.match(demos["demo-gilt"], /scriptInitial/, "one demo shows the script initial")
+assert.match(demos["demo-gate"], /progress=\{loaded\}/, "the gate demo drives real progress")
+assert.match(demos["demo-gate"], /onComplete=/, "the gate demo uses it as a gate over a page")
+assert.match(demos["demo-noir"], /scriptInitial/, "the noir demo shows the script initial")
+assert.match(demos["demo-noir"], /tone="noir"/, "one demo shows the black tone")
 assert.match(demos["demo-vellum"], /tone="vellum"/, "one demo shows the light tone")
-assert.match(demos["demo-vellum"], /subject="dark"/, "the light tone demo flips the mask for ink on paper")
-assert.match(demos["demo-gate"], /onComplete=/, "one demo uses it as a gate over a page")
+assert.match(demos["demo-vellum"], /subject: "dark"/, "the light tone demo keys ink off paper")
 assert.ok(
   tsconfig.includes('"@/components/ui/old-masters-preloader": ["./components/old-masters-preloader/old-masters-preloader.tsx"]'),
   "tsconfig maps the canonical import for npm run check",
