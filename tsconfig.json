@@ -175,7 +175,8 @@
       "@/components/ui/meadow-journal-template": ["./components/meadow-journal-template/meadow-journal-template.tsx"],
       "@/components/ui/halyard-copilot-landing": ["./components/halyard-copilot-landing/halyard-copilot-landing.tsx"],
       "@/components/ui/stipple-orb-landing": ["./components/stipple-orb-landing/stipple-orb-landing.tsx"],
-      "@/components/ui/infinite-shot-stack": ["./components/infinite-shot-stack/infinite-shot-stack.tsx"]
+      "@/components/ui/infinite-shot-stack": ["./components/infinite-shot-stack/infinite-shot-stack.tsx"],
+      "@/components/ui/seraph-foundry-template": ["./components/seraph-foundry-template/seraph-foundry-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
