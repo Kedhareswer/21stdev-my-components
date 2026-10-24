@@ -96,6 +96,7 @@
       "@/components/ui/shutter-glyph-footer": ["./components/shutter-glyph-footer/shutter-glyph-footer.tsx"],
       "@/components/ui/kiln-wordmark-footer": ["./components/kiln-wordmark-footer/kiln-wordmark-footer.tsx"],
       "@/components/ui/starburst-thanks-footer": ["./components/starburst-thanks-footer/starburst-thanks-footer.tsx"],
+      "@/components/ui/sticker-slap-footer": ["./components/sticker-slap-footer/sticker-slap-footer.tsx"],
       "@/components/ui/isoline-bloom": ["./components/isoline-bloom/isoline-bloom.tsx"],
       "@/components/ui/ink-orbit-testimonials": ["./components/ink-orbit-testimonials/ink-orbit-testimonials.tsx"],
       "@/components/ui/ink-orbit-pricing": ["./components/ink-orbit-pricing/ink-orbit-pricing.tsx"],
