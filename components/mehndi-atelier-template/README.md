@@ -1,50 +1,72 @@
 # Mehndi Atelier Template
 
-A storefront for an organic henna house, printed in maroon, olive and gold on
-cream parchment. It is a shop a mehndi studio could actually open: an
-announcement ribbon, a lace-trimmed header with a working bag, a split hero
-where a gold mandala draws itself on and the photograph develops like a fresh
-stain, a best-sellers bento with quick-add, four collection plates, a heritage
-plate framed by paisleys, a stain study you can play with, and a footer.
+A storefront for an organic henna house, dressed the way a mehndi house's
+wedding card is: maroon, olive and burnished gold on parchment, with damask
+grounds, brocade borders, Mughal arches, filigree corners, paisleys and
+mandalas. It is a working shop, not a poster: search, a nav with dropdowns, a
+bag drawer, quick-add, a design booker and a stain study you can play with.
 
 ```
-section      what happens
------------  ----------------------------------------------------------------------------
-ribbon       slow marquee of announcements, pauses on hover
-header       sticky, tucks away on scroll down, gold progress hairline, lace trim,
-             search / account / bag; the bag opens a drawer with quantities and a total
-hero         panels wipe in, the mandala draws ring by ring and keeps turning with scroll,
-             the headline rises, the photo develops from sepia to colour over 48 "hours"
-band         italic marquee of the house words
-best sellers bento: a feature tile with parallax, four products with a mandala sweep,
-             hover quick-add; a drop of henna flies into the bag and the badge bounces
-collections  four plates lift out of the page, each with its own mandala turning on scroll
-heritage     two paisleys draw themselves on, text rises, closing rosette rule
-stain study  pick a final shade, drag the hours: the motif oxidises from orange to wine
-footer       brand, link columns, newsletter, lace, a mandala turning on the last scroll
+section       what happens
+------------  ---------------------------------------------------------------------------
+strip         maroon announcement marquee (pauses on hover) and a search field
+brand band    damask ground, emblem + tagline, the wordmark letters rise in, account,
+              wishlist, bag with a running subtotal
+nav           maroon tabs between brocade borders, gold dividers, dropdown panels;
+              sticks, and picks up a mini wordmark and its own bag once the band scrolls off
+hero          maroon and olive panels open like doors; the gold frame, the filigree
+              spandrels and a mandala straddling the split draw themselves on; the gilt
+              title rises; a cusped arch window grows out of its sill with the photo in it,
+              and a seal turns beside it. Scrolling swings the arch open into the whole
+              panel (a true morph), turns the mandala and lifts the copy away
+best sellers  twin heading (lead · medallion · title); products in arched frames that
+              draw on; hover lifts a gilt "Add to bag"; a henna drop flies to the bag
+the edit      bento: photo tile with a framed label, two maroon damask cards with
+              filigree, a cream design booker (pick a style, see the price, book it);
+              then four collection plates that tilt up out of the page
+heritage      double-ruled plate with filigree corners; two dressed paisleys draw
+              themselves and sway with scroll; medallion seal under the copy
+stain study   pick a final shade, drag the hours: the mandala on a brass thaali oxidises
+              from pumpkin orange to the chosen shade
+footer        brocade edge, damask, gilt wordmark, link columns, newsletter
 ```
 
 ## How it works
 
-- **Every ornament is generated.** `mandalaRings(seed, R)` lays out rings of
-  petals, spikes, scallops, dots, ticks and circles that never repeat back to
-  back; `ringMarks` turns a ring into SVG paths. The paisley, rosette and lace
-  are built the same way. No image assets, crisp at any size, recoloured by the
-  palette. Change `seed` and every mandala on the page changes.
-- **Draw-on without SplitText.** Each ornament path carries `pathLength={1}`,
-  so a single CSS variable (`--draw`) is its dash offset. GSAP animates the
-  variable; there is no per-path length measuring.
-- **The stain curve.** Henna oxidises for about 48 hours: orange on day one,
-  then dark and settled. `stainAt(hours, final)` models that with an eased
-  blend from pumpkin to the chosen shade, and `stainOpacity` fills it in. The
-  hero photo plays the same idea on load (`sepia → colour`).
-- **The bag** is real state: `addToBag`, `setQty`, `bagTotal`, `bagCount`, with
-  Indian digit grouping when the currency is rupees. `onAddToCart` and
-  `onCheckout` receive the bag.
+- **Every ornament is generated.** Nothing is an image asset, so it stays crisp
+  at any size and recolours with the palette. Change `seed` and every mandala,
+  paisley and filigree on the page changes.
+  - `mandalaRings(seed, R)` lays out rings of petals, spikes, scallops, dots,
+    ticks and circles that never repeat back to back.
+  - `paisleyOrnament(seed)` samples a boteh drawn as cubic beziers, then dresses
+    it. It cuts a scalloped lace edge with a bead in each scallop, a feather band
+    along the inside (outward normals), two echo lines with a bead row, a rosette
+    in the bulb and a leafy vine into the hook.
+  - `filigreeArm` is a wave that dies away, with a spiral tendril off every
+    crest, leaves in the troughs and a curl at the end. Two arms and a petal fan
+    make a corner, and two mirrored arms and a lotus make a flourish.
+  - `archPath(x, y, w, h, k, lobes)` is a pointed two-centred Mughal arch cut
+    into cusped lobes. `k` morphs it from the arch at 1 to a plain rectangle at
+    0, with the same SVG commands at every k.
+- **The hero window morph.** The photo fills the olive panel and is clipped with
+  `clip-path: path(...)`. That path is regenerated from `archPath` on every
+  frame of the intro (the arch grows out of its sill) and of the scroll (it
+  swings open into the panel). A ResizeObserver keeps it in pixel units.
+- **Draw-on without plugins.** Ornament strokes carry `pathLength={1}`, so one
+  CSS variable, `--draw`, is their dash offset, and GSAP animates the variable.
+- **The stain curve.** `stainAt(hours, final)` eases from fresh pumpkin to the
+  chosen shade over 48 hours, darkening fast on day one. `stainOpacity` fills
+  the stain in as it oxidises.
+- **The bag** is real state: `addToBag`, `setQty`, `bagTotal`, `bagCount`.
+  Rupees get Indian grouping (₹1,24,999).
 - **Motion** is GSAP + ScrollTrigger inside one `gsap.context` (reverted on
-  unmount) and `gsap.matchMedia`. Nothing is pinned, so React's DOM is never
-  rewritten. Layout answers the component's own width through container
-  queries, not the window.
+  unmount) and `gsap.matchMedia`. Nothing is pinned. The play-once reveals use
+  `toggleActions` rather than `once: true`, whose self-kill breaks
+  ScrollTrigger when matchMedia re-runs mid-page.
+- **Layout** answers the component's own width through container queries. The
+  container is an inner `.mat-page`, not the root: a size container is the
+  containing block for `position: fixed`, and the drawer, toast and flying drop
+  must stay pinned to the viewport.
 
 ## Dependencies
 
@@ -56,11 +78,11 @@ footer       brand, link columns, newsletter, lace, a mandala turning on the las
 import MehndiAtelierTemplate from "@/components/ui/mehndi-atelier-template"
 
 <MehndiAtelierTemplate
-  preset="heirloom"                         // "heirloom" | "indigo" | "terracotta"
+  preset="heirloom"                          // "heirloom" | "indigo" | "terracotta"
   brand={{ name: "Mahadi", tagline: "Organic Henna Atelier", est: "Est. 1987 · Jaipur" }}
   onAddToCart={(item, bag) => track(item)}
   onCheckout={(bag, total) => router.push("/checkout")}
-  onNavigate={(target) => router.push("/" + target)}
+  onNavigate={(target) => router.push("/" + target)}   // "shop", "search:cones", "book:Bridal feet"…
 />
 ```
 
@@ -70,19 +92,22 @@ import MehndiAtelierTemplate from "@/components/ui/mehndi-atelier-template"
 | `preset` | `"heirloom"` | Palette. |
 | `colors` | — | Override `paper`, `ink`, `maroon`, `olive`, `gold`, `sand`, `rose`. |
 | `theme` | `"auto"` | `"auto"` follows a `.dark` ancestor. |
-| `fontHref` | Google Fonts (Cormorant Garamond + Marcellus + Jost) | `null` loads nothing. |
+| `fontHref` | Google Fonts (Cinzel, Cormorant Garamond, Jost) | `null` loads nothing. |
 | `brand` | Mahadi | `name`, `tagline`, `est`. |
-| `announcements` | 4 lines | Ribbon marquee. |
-| `bandWords` | 4 words | The italic marquee under the hero. |
-| `nav` | 7 links | `{ label, href? }`. Without `href`, clicks go to `onNavigate`. |
-| `hero` | — | `kicker`, `title` (lines), `sub`, `cta`, `photoKicker`, `photoTitle`, `photoCta`. |
-| `sellers` / `feature` | — | Copy for the best-sellers head and the large tile. |
-| `products` | 4 | `{ id, name, note, price, image, badge? }`. |
+| `announcements` | 4 lines | The strip's marquee. |
+| `nav` | 7 tabs | `{ label, href?, children?: { label, href? }[] }`. Children make a dropdown. |
+| `hero` | — | `kicker`, `title` (lines), `sub`, `cta`, `photoKicker`, `photoTitle`, `photoCta`, `seal`. |
+| `sellers` | — | `lead` (left of the medallion), `title` (right), `blurb`. |
+| `products` | 4 | `{ id, name, note, price, image, badge? }`. Shown in arched frames. |
+| `feature` | — | The bento photo tile: `kicker`, `title`, `blurb`, `cta`. |
+| `highlights` | 2 | The maroon cards: `{ title, blurb, cta? }`. |
+| `designs` | 4 styles | The booker: `kicker`, `title`, `blurb`, `cta`, `items: { name, time, price }[]`. |
+| `collectionsHead` | — | `kicker`, `title` over the bento. |
 | `collections` | 4 | `{ id, title, blurb, cta?, tone?: "sand" \| "rose" \| "maroon" \| "plum", href? }`. |
 | `heritage` | — | `kicker`, `title`, `body` (paragraphs), `cta`. |
-| `study` / `shades` | — | Copy and `{ id, name, hex }` final shades for the stain study. |
+| `study` / `shades` | — | Copy, and `{ id, name, hex }` final shades. |
 | `images` | Unsplash | `hero`, `feature`: a URL or `{ src, alt, focus }`. |
-| `currency` | `"₹"` | Rupees get Indian grouping (`₹1,24,999`). |
+| `currency` | `"₹"` | |
 | `seed` | `7` | Seed for every generated ornament. |
 | `onAddToCart` | — | `(item, bag)` after each quick-add. |
 | `onCheckout` | — | `(bag, total)` from the drawer. |
@@ -91,25 +116,27 @@ import MehndiAtelierTemplate from "@/components/ui/mehndi-atelier-template"
 ## Accessibility
 
 - The headline carries its full text as `aria-label`; the animated words are hidden.
-- The ribbon's text is also present once, unanimated, for screen readers.
-- Shades are a `radiogroup`; the hours are a real `range` input; the drawer is a
-  `dialog` that Escape closes, with its controls out of the tab order while shut.
-- `prefers-reduced-motion` skips all GSAP choreography (the page renders finished),
-  stops both marquees and the hover sweeps.
+- The marquee's text is also present once, unanimated, for screen readers.
+- Dropdowns open on hover and on keyboard focus (`:focus-within`).
+- Shades and designs are `radiogroup`s; the hours are a real `range` input.
+- The bag is a `dialog` that Escape closes; its controls leave the tab order while it is shut.
+- `prefers-reduced-motion` skips all GSAP choreography (the page renders
+  finished, arch closed), stops the marquee, the gilt shimmer and the hover sweeps.
 
 ## Photo credits (Unsplash)
 
-- Hero: `photo-1621801306185-8c0ccf9c8eb8` (two hands with henna, dark background)
-- Feature: `photo-1599536884823-1bc4fb5f9dea` (tins of spices from above)
-- Powder: `photo-1603122612817-2fe0e0631a93` · Cones: `photo-1774019410616-2b38e4eeabd2`
-- Stencils: `photo-1565368114375-ba1a4db7099f` · Seal: `photo-1764640848891-9b23d3632ccf`
-- Indigo demo: `photo-1556536088-f010a312a8d3`, `photo-1581600140682-d4e68c8cde32`,
-  `photo-1782876224837-e7163083c4c7`, `photo-1566745265763-de510bdae868`,
-  `photo-1781377012601-93162be3a433`
+- Hero arch: `photo-1621801306185-8c0ccf9c8eb8` (hands with henna on dark green)
+- Bento tile: `photo-1730003873829-09b4b16444c1` (bridal henna on a red carpet)
+- Products: `photo-1603122612817-2fe0e0631a93` (powder), `photo-1774019410616-2b38e4eeabd2`
+  (cone), `photo-1738849760236-541fcdd3931d` (palms with flower bracelets),
+  `photo-1771498897921-91522949362e` (artist at work)
+- Indigo demo: `photo-1562508548-69377b81ab9e`, `photo-1583878544826-8f8c418033ed`,
+  `photo-1556536088-f010a312a8d3`, `photo-1782876224837-e7163083c4c7`,
+  `photo-1780326761884-04dedf3778f8`, `photo-1781377012601-93162be3a433`
 
 ## Notes for publishing
 
-- The default font and photos come from Google Fonts and Unsplash. 21st's capture
+- The default fonts and photos come from Google Fonts and Unsplash. 21st's capture
   sandbox blocks external origins, so supply `media/mehndi-atelier-template/default.png`
   as `--preview`.
 - Reference images: `media/mehndi-atelier-template/reference.webp` (local only).
