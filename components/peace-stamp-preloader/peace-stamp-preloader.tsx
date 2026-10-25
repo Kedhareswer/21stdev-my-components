@@ -1554,8 +1554,10 @@ export default function PeaceStampPreloader({
                   {/* the inner field, its diagonal bands, its spandrels */}
                   <rect x={FIELD_L} y={FIELD_T} width={FIELD_R - FIELD_L} height={FIELD_B - FIELD_T} fill="none" stroke={C.cream} strokeWidth="1.6" />
                   <g clipPath={url("field")}>
-                    <path d={"M" + FIELD_L + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_L + " " + FIELD_B + "Z"} fill={C.band} />
-                    <path d={"M" + FIELD_R + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_R + " " + FIELD_B + "Z"} fill={C.band} />
+                    <g className="psp-plate-field">
+                      <path d={"M" + FIELD_L + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_L + " " + FIELD_B + "Z"} fill={C.band} />
+                      <path d={"M" + FIELD_R + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_R + " " + FIELD_B + "Z"} fill={C.band} />
+                    </g>
                     {DIAGONALS.map((dg, i) => {
                       const d = "M" + dg.from[0] + " " + dg.from[1] + "L" + CX + " " + CY
                       return (
