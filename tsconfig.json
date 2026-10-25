@@ -184,6 +184,7 @@
       "@/components/ui/tessel-agent-landing": ["./components/tessel-agent-landing/tessel-agent-landing.tsx"],
       "@/components/ui/cairn-agents-landing": ["./components/cairn-agents-landing/cairn-agents-landing.tsx"],
       "@/components/ui/fruit-sticker-footer": ["./components/fruit-sticker-footer/fruit-sticker-footer.tsx"],
+      "@/components/ui/peace-stamp-preloader": ["./components/peace-stamp-preloader/peace-stamp-preloader.tsx"],
       "@/components/ui/pixel-bloom-preloader": ["./components/pixel-bloom-preloader/pixel-bloom-preloader.tsx"],
       "@/components/ui/sticker-slap-footer": ["./components/sticker-slap-footer/sticker-slap-footer.tsx"],
       "@/components/ui/doodle-crew-footer": ["./components/doodle-crew-footer/doodle-crew-footer.tsx"],
