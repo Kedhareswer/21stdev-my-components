@@ -23,6 +23,9 @@ assert.ok(src.includes('"--h": height'), "the height prop feeds --h")
 assert.ok(/\.mat-hero\{[^}]*height:var\(--h\)/.test(src), "the hero takes its height from the prop")
 assert.doesNotMatch(src, /className=["'][^"']*\bh-full\b/, "no h-full")
 assert.doesNotMatch(src, /pin:\s*true/, "no ScrollTrigger pinning (it rewrites React's DOM)")
+// once:true triggers kill themselves during a refresh, which mutates ScrollTrigger's
+// list while matchMedia re-creates triggers mid-page (resize, rotate) and throws.
+assert.doesNotMatch(src, /once:\s*true/, "no self-killing once:true triggers")
 assert.ok(src.includes("ctx.revert()"), "every trigger and tween is reverted on unmount")
 
 // Fonts: a <link> only when asked for, never an @import.
@@ -59,9 +62,21 @@ assert.ok(src.includes('motion: "(prefers-reduced-motion: no-preference)"'), "GS
 assert.ok(css.includes("@container"), "layout answers the component's width, not the window")
 assert.ok(css.includes(":where(.dark) .mat-root"), "dark mode follows a .dark ancestor")
 
-// Preflight: every positioned photo guards max-width.
-for (const cls of ["mat-hero-photo", "mat-feature-img"]) assert.ok(new RegExp("\\." + cls + "\\{[^}]*max-width:none").test(css), cls + " guards max-width")
-assert.ok(/\.mat-product-media img\{[^}]*max-width:none/.test(css), "product photos guard max-width")
+// Preflight: every positioned <img> guards max-width (product photos are SVG <image>s).
+for (const cls of ["mat-win-img", "mat-tile-img"]) assert.ok(new RegExp("\\." + cls + "\\{[^}]*max-width:none").test(css), cls + " guards max-width")
+
+// A size container is the containing block for position:fixed, so the drawer, the
+// toast and the flying drop must live outside it or they open off-screen once scrolled.
+assert.doesNotMatch(css.match(/\.mat-root\{[^}]*\}/)[0], /container-type/, "the root is not the container")
+assert.match(css, /\.mat-page\{[^}]*container-type:inline-size/, ".mat-page is the container")
+const pageOpen = src.indexOf('<div className="mat-page">')
+const pageClose = src.indexOf("</footer>\n      </div>")
+for (const overlay of ['className={"mat-toast"', 'className={"mat-drawer-wrap"'])
+  assert.ok(src.indexOf(overlay) > pageClose && pageClose > pageOpen, overlay + " sits outside the container")
+assert.match(css, /\.mat-flydrop\{position:fixed/, "the flying drop is fixed")
+
+// The hero window is morphed by regenerating the arch every frame.
+assert.ok(src.includes("img.style.clipPath = 'path(\"' + archPath("), "the window clip is a regenerated arch")
 
 // 21st's CLI tokenizer hangs on generics before the first JSX close tag.
 const head = src.slice(0, src.indexOf("</"))
@@ -103,7 +118,7 @@ const lift = (names, exports) =>
 }
 
 {
-  const O = await lift(["rng", "ornament"], "petalPath, scallopPath, mandalaRings, ringMarks, paisleyPaths")
+  const O = await lift(["rng", "ornament"], "petalPath, scallopPath, mandalaRings, ringMarks")
   const p = O.petalPath(10, 40, 0, 0.4)
   assert.match(p, /^M10,0Q.*Z$/, "a petal starts at r0 on its angle and closes")
   assert.doesNotMatch(p, /NaN/)
@@ -129,10 +144,92 @@ const lift = (names, exports) =>
     if (ring.kind === "petal") assert.equal(paths.length, ring.n * 2, "petals carry an inner petal")
     if (ring.kind === "spike" || ring.kind === "ticks") assert.equal(paths.length, ring.n)
   }
-  const { outline, echo, spine } = O.paisleyPaths()
-  assert.match(outline, /^M0,-92C.*Z$/)
-  assert.equal(echo.length, 2)
-  assert.match(spine, /^M-4,-70C/)
+}
+
+const nums = (d) => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+
+{
+  const C = await lift(["ornament", "curve"], "bez, sampleCubics, resample, area, centroid, normals, smoothPath, leafPath, dotPath, spiral")
+  assert.deepEqual(C.bez([0, 0, 0, 10, 10, 10, 10, 0], 0), [0, 0])
+  assert.deepEqual(C.bez([0, 0, 0, 10, 10, 10, 10, 0], 1), [10, 0])
+  assert.equal(C.sampleCubics([[0, 0, 1, 1, 2, 2, 3, 3], [3, 3, 4, 4, 5, 5, 6, 6]], 8).length, 16)
+
+  const line = [[0, 0], [100, 0]]
+  const rs = C.resample(line, 10, false)
+  assert.equal(rs.length, 11, "a point every 10 units, ends included")
+  for (let i = 1; i < rs.length; i++) assert.ok(Math.abs(Math.hypot(rs[i][0] - rs[i - 1][0], rs[i][1] - rs[i - 1][1]) - 10) < 1e-9)
+
+  const sq = [[0, 0], [10, 0], [10, 10], [0, 10]] // clockwise on screen
+  assert.equal(C.area(sq), 100)
+  assert.equal(C.area(sq.slice().reverse()), -100)
+  assert.deepEqual(C.centroid(sq), [5, 5])
+  for (const pts of [sq, sq.slice().reverse()]) {
+    const ns = C.normals(pts)
+    pts.forEach((p, i) => {
+      const out = [p[0] + ns[i][0] - 5, p[1] + ns[i][1] - 5]
+      assert.ok(Math.hypot(...out) > Math.hypot(p[0] - 5, p[1] - 5), "normals point out of the loop either way round")
+    })
+  }
+  const sp = C.smoothPath([[0, 0], [10, 5], [20, 0]], false)
+  assert.match(sp, /^M0,0C.*20,0$/, "an open curve starts and ends on its points")
+  assert.match(C.smoothPath(sq, true), /Z$/)
+  assert.match(C.leafPath([0, 0], [10, 0], 3), /^M0,0Q5,3 10,0Q5,-3 0,0Z$/)
+  assert.match(C.dotPath([5, 5], 2), /^M3,5a2,2 0 1 0 4,0a2,2 0 1 0 -4,0$/)
+  const s = C.spiral([0, 0], 0, 10, 1, 1, 20)
+  assert.ok(Math.hypot(s[0][0], s[0][1]) < 1e-9, "a spiral leaves from its start point")
+  assert.ok(s[1][0] > 0, "heading along its heading")
+  const r = (p) => Math.hypot(p[0] - 0, p[1] - 10)
+  assert.ok(r(s[s.length - 1]) < r(s[0]) * 0.3, "and tightens round its centre")
+}
+
+{
+  const A = await lift(["ornament", "curve", "arch"], "archPath")
+  const commands = (d) => d.replace(/[^MLQZ]/g, "")
+  const full = A.archPath(0, 0, 300, 390, 1, 4)
+  assert.match(full, /^M0,390L0,[\d.]+(Q[-\d.]+,[-\d.]+ [-\d.]+,[-\d.]+){8}L300,390Z$/, "jambs, eight cusped lobes, sill")
+  assert.doesNotMatch(full, /NaN|Infinity/)
+  for (const k of [0, 0.25, 0.5, 0.75, 1]) assert.equal(commands(A.archPath(10, 20, 300, 390, k, 4)), commands(full), "same commands at every k, so it can be regenerated mid-morph")
+  // the crown points (every second number pair after the jambs) are mirror images
+  const n = nums(full)
+  const crown = []
+  for (let i = 4; i + 3 < n.length - 4; i += 4) crown.push([n[i + 2], n[i + 3]])
+  crown.forEach((p, i) => {
+    const q = crown[crown.length - 1 - i]
+    if (i < crown.length / 2) {
+      assert.ok(Math.abs(p[0] + q[0] - 300) < 0.02, "symmetric across the centre")
+      assert.ok(Math.abs(p[1] - q[1]) < 0.02)
+    }
+  })
+  const apex = Math.min(...crown.map((p) => p[1]))
+  assert.ok(Math.abs(apex) < 0.02, "the crown touches the top of the box")
+  const flat = nums(A.archPath(0, 0, 720, 900, 0, 4))
+  for (let i = 0; i < flat.length; i += 2) assert.ok(flat[i + 1] === 0 || flat[i + 1] === 900, "k = 0 is the plain rectangle")
+  for (const [w, h] of [[0, 0], [400, 10], [10, 400]]) assert.doesNotMatch(A.archPath(0, 0, w, h, 0.6, 4), /NaN|Infinity/, "degenerate boxes stay finite")
+}
+
+{
+  const P = await lift(["rng", "ornament", "curve", "paisley"], "paisleyOrnament")
+  const a = P.paisleyOrnament(7)
+  for (const [k, v] of Object.entries(a)) {
+    const str = typeof v === "string" ? v : JSON.stringify(v)
+    assert.doesNotMatch(str, /NaN|Infinity|undefined/, k + " is finite")
+  }
+  for (const k of ["outline", "scallops", "echo1", "echo2"]) assert.match(a[k], /^M.*Z$/, k + " is a closed loop")
+  assert.ok(a.feathers.split("M").length > 40, "a full band of feathers")
+  assert.ok(a.beadRow.split("M").length > 30, "a full row of beads")
+  assert.ok(Math.abs(a.core.cx) < 40 && a.core.cy > 0, "the rosette sits in the bulb")
+  assert.deepEqual(P.paisleyOrnament(7), a, "deterministic for a seed")
+  assert.notDeepEqual(P.paisleyOrnament(8).vine, a.vine, "another seed bends the vine differently")
+}
+
+{
+  const F = await lift(["rng", "ornament", "curve", "filigree"], "filigreeArm")
+  const a = F.filigreeArm(178, 20, 3, 5)
+  assert.equal(a.tendrils.length, 3, "one tendril per wave")
+  for (const d of [a.vine, a.leaves, a.dots, ...a.tendrils]) assert.doesNotMatch(d, /NaN|Infinity/)
+  const xs = nums(a.vine).filter((_, i) => i % 2 === 0)
+  assert.ok(Math.min(...xs) >= -1 && Math.max(...xs) <= 178 + 20, "the vine runs along its arm")
+  assert.deepEqual(F.filigreeArm(178, 20, 3, 5), a, "deterministic")
 }
 
 {
