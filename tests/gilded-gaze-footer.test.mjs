@@ -13,7 +13,9 @@ const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) 
 assert.deepEqual(imports, ["react"], "react is the only import")
 assert.doesNotMatch(src, /@import|url\(["']?(https?:|\/\/|data:)/, "nothing fetched from CSS: every url() points at an in-page #id")
 assert.doesNotMatch(src, /<img|fetch\(/, "the portrait is an SVG <image>, nothing else is fetched")
-assert.ok(src.includes("images.unsplash.com/photo-1724301964759-374723c8ee7d"), "the default portrait is the credited Unsplash photo")
+assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /https?:\/\//, "nothing is fetched by default: she is drawn, not loaded")
+assert.ok(src.includes("<GgFigureArt pal={pal}"), "the illustrated elder is the default")
+assert.ok(/portrait,\n/.test(src) && src.includes("portrait ? ("), "a photo is an opt-in prop")
 assert.match(src, /sceneHeight = "clamp\(\d+px, [\d.]+vw, \d+px\)"/, "the scene height defaults to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 assert.ok(src.includes("prefers-reduced-motion"), "honours reduced motion")
@@ -55,7 +57,7 @@ for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s*([^
 }
 // Every animated class has a reduced-motion answer.
 const rm = css.slice(css.indexOf("@media (prefers-reduced-motion"))
-for (const cls of ["gg-line-in", "gg-quirk", "gg-portrait-wrap", "gg-glow", "gg-stream", "gg-grow", "gg-motif", "gg-clasp", "gg-drop-in", "gg-drop", "gg-wing", "gg-core", "gg-halo", "gg-flare", "gg-spark", "gg-ring", "gg-burst", "gg-rip"]) {
+for (const cls of ["gg-line-in", "gg-quirk", "gg-portrait-wrap", "gg-glow", "gg-stream", "gg-wing-clip", "gg-motif", "gg-clasp", "gg-drop-in", "gg-drop", "gg-wing", "gg-body", "gg-breath", "gg-swing", "gg-cloth", "gg-zari", "gg-zari-d", "gg-core", "gg-halo", "gg-flare", "gg-spark", "gg-ring", "gg-burst", "gg-rip"]) {
   assert.ok(rm.includes("." + cls + ",") || rm.includes("." + cls + " "), "reduced motion forgets ." + cls)
 }
 // The links sit in the corners under the wings only where there is room.
@@ -65,7 +67,10 @@ assert.match(css, /@media \(min-width: 1280px\) \{\s*\.gg-links \{ position: abs
 const a = src.indexOf("// #region wing\n")
 const b = src.indexOf("// #endregion", a)
 assert.ok(a > -1 && b > a, "wing region missing")
-const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b))))
+const fa = src.indexOf("// #region figure\n")
+const fb = src.indexOf("// #endregion", fa)
+assert.ok(fa > -1 && fb > fa, "figure region missing")
+const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b) + "\n" + src.slice(fa, fb))))
 const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1])
 
 // PRNG: deterministic, in range, seed-sensitive.
@@ -161,5 +166,21 @@ const wide = L.ggFit(pb, { w: 2000, h: 1000 }, [0.5, 0.5])
 assert.ok(Math.abs(wide[0]) < 1e-9 && Math.abs(wide[1] - (pb.y + pb.h / 2)) < 1e-9, "centre stays centre")
 const tl = L.ggFit(pb, { w: 2000, h: 1000 }, [0, 0])
 assert.ok(tl[0] < pb.x && Math.abs(tl[1] - pb.y) < 1e-9, "a wide image is cropped at the sides")
+
+// The illustration: smooth paths, a symmetric face inside the veil's opening,
+// and eye fractions that land on her closed eyes, where the glow is placed.
+assert.match(L.ggCurve([[0, 0], [10, 0], [10, 10]]), /^M0 0(C[-\d. ]+){3}Z$/, "a closed smooth path")
+assert.match(L.ggCurve([[0, 0], [10, 0], [10, 10]], false), /^M0 0(C[-\d. ]+){2}$/, "an open one")
+assert.equal(L.GG_FIG_W / L.GG_FIG_H, L.GG_PORTRAIT_ASPECT, "the artboard fits the portrait box exactly")
+const [eL, eR] = L.GG_FIG_EYES.map((e) => [e[0] * L.GG_FIG_W, e[1] * L.GG_FIG_H])
+assert.ok(Math.abs(eL[0] - 262) < 1e-9 && Math.abs(eR[0] - 338) < 1e-9 && eL[1] === eR[1], "eyes level and either side of centre")
+const face = src.match(/const GG_FACE_PTS: GgPt\[\] = (\[[\s\S]*?\n\])/)[1]
+const facePts = JSON.parse(face.replace(/,\s*\]$/, "]"))
+const open = JSON.parse(src.match(/const GG_OPEN_PTS: GgPt\[\] = (\[[\s\S]*?\n\])/)[1].replace(/,\s*\]$/, "]"))
+for (const e of [eL, eR]) assert.ok(L.ggInside(facePts, e[0], e[1]), "an eye outside her face")
+for (const p of facePts) {
+  assert.ok(facePts.some((q) => Math.abs(q[0] - (600 - p[0])) < 0.2 && Math.abs(q[1] - p[1]) < 0.2), "face not symmetric at " + p)
+  if (p[1] < 340) assert.ok(L.ggInside(open, p[0], p[1]), "the veil covers her face at " + p)
+}
 
 console.log("gilded-gaze-footer: ok")
