@@ -5,15 +5,16 @@ import * as React from "react"
 // Gilded Gaze Footer
 //
 // A closing poster. The house line sits alone at the top in heavy display
-// type. Below it a portrait rises out of the bottom edge, her eyes ignite, and
-// molten gold pours out of them, across her temples, into two baroque wings of
+// type. Below it an illustrated elder rises out of the bottom edge, her eyes
+// ignite, and molten gold pours out of them, across her temples, into two baroque wings of
 // curling acanthus scrolls, paisleys, rosettes and hanging drops that grow out
 // to the edges of the page. The link columns sit in the quiet corners under
 // the wings.
 //
-// Every ornament is drawn in this file as SVG from a seed. The only thing
-// fetched is the portrait itself (a prop), so the piece recolours with a
-// palette and survives installation. React is the only import.
+// She and every ornament are drawn in this file as SVG, so nothing is fetched,
+// the piece recolours with a palette, and it survives installation. A photo
+// can stand in for her through the optional `portrait` prop. React is the
+// only import.
 
 export type GgLink = { label: string; href?: string }
 export type GgColumn = { title: string; links: GgLink[] }
@@ -27,6 +28,28 @@ export type GgPortrait = {
   eyes?: [GgPt, GgPt]
   /** Optional cut-out: the subject's outline as fractions of the image. Without it, a soft oval vignette. */
   outline?: GgPt[]
+}
+export type GgFigurePalette = {
+  /** Light, mid and shadow skin. */
+  skin: string[]
+  line: string
+  blush: string
+  lips: string
+  bindi: string
+  /** Silver hair, light and dark. */
+  hair: string[]
+  /** The dupatta: light, mid, shadow, and its bandhani dots. */
+  veil: string[]
+  veilDot: string
+  /** The blouse, light and dark, and its print. */
+  blouse: string[]
+  blouseDot: string
+  flower: string
+  /** The chooda: ivory, and the coloured bangles between. */
+  ivory: string
+  bangle: string
+  /** Two bead colours, for necklaces, rings and earrings. */
+  bead: string[]
 }
 export type GgPalette = {
   /** Seven stops of the metal, dark to light and back. */
@@ -53,6 +76,8 @@ export type GgPalette = {
   /** UI accent: column diamonds, link underlines, social fill. */
   accent: string
   accentInk: string
+  /** The illustrated elder. */
+  figure: GgFigurePalette
 }
 export type GgPreset = "gold" | "moon"
 export type GgProps = {
@@ -67,7 +92,10 @@ export type GgProps = {
   copyright?: string
   columns?: GgColumn[]
   socials?: GgSocial[]
+  /** A photo in place of the illustrated elder. Leave it out to keep her. */
   portrait?: GgPortrait
+  /** What a screen reader hears for the illustration. */
+  figureAlt?: string
   preset?: GgPreset
   palette?: GgPaletteInput
   /** Which arrangement of scrolls and motifs to grow. */
@@ -86,6 +114,7 @@ export type GgProps = {
 }
 
 const GG_CSS = `
+@property --gg-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
 .gg-root { position: relative; isolation: isolate; overflow: hidden; --gg-px: 0; --gg-py: 0; --gg-near: 0; --gg-sp: 1; --gg-gutter: clamp(20px, 4vw, 64px); -webkit-font-smoothing: antialiased; }
 .gg-root *, .gg-root *::before, .gg-root *::after { box-sizing: border-box; }
 .gg-statement { position: relative; z-index: 2; text-align: center; padding: clamp(64px, 9vw, 132px) var(--gg-gutter) 0; }
@@ -141,10 +170,18 @@ const GG_CSS = `
 .gg-layer { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block; pointer-events: none; }
 .gg-portrait-wrap { opacity: 0; }
 .gg-lit .gg-portrait-wrap { animation: ggRise 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-.gg-portrait { transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); transform: translate(calc(var(--gg-px) * -5px), calc(var(--gg-py) * -3px + (1 - var(--gg-sp)) * 26px)); }
-.gg-wing-wrap { position: absolute; inset: 0; transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); }
-.gg-wing-wrap-r { transform: translate(calc(var(--gg-px) * 10px + (var(--gg-sp) - 1) * 6vw), calc(var(--gg-py) * 6px)); }
-.gg-wing-wrap-l { transform: translate(calc(var(--gg-px) * 10px + (1 - var(--gg-sp)) * 6vw), calc(var(--gg-py) * 6px)); }
+.gg-body { transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); transform: translate(calc(var(--gg-px) * -6px), calc(var(--gg-py) * -4px + (1 - var(--gg-sp)) * 26px)); }
+.gg-lit .gg-breath { animation: ggBreath 5.5s ease-in-out 3.2s infinite alternate; }
+.gg-wing-wrap { position: absolute; inset: 0; transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1), rotate 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); transform: translate(calc(var(--gg-px) * -6px), calc(var(--gg-py) * -4px + (1 - var(--gg-sp)) * 26px)) scale(calc(0.84 + var(--gg-sp) * 0.16)); }
+.gg-wing-wrap-r { rotate: calc(var(--gg-py) * 2.4deg + var(--gg-px) * -1deg); }
+.gg-wing-wrap-l { rotate: calc(var(--gg-py) * -2.4deg + var(--gg-px) * -1deg); }
+.gg-hit { pointer-events: auto; }
+.gg-zari { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.gg-lit .gg-zari { animation: ggDraw 1.7s cubic-bezier(0.3, 0.6, 0.2, 1) 0.45s both; }
+.gg-zari-d { opacity: 0; }
+.gg-lit .gg-zari-d { animation: ggFade 0.7s ease-out 1.9s both; }
+.gg-lit .gg-cloth { animation: ggCloth 6.5s ease-in-out 3s infinite alternate; }
+.gg-lit .gg-swing { animation: ggSwing 2.9s ease-in-out infinite alternate; animation-delay: calc(var(--k) * -1.45s); }
 .gg-wing { overflow: visible; will-change: transform; }
 .gg-lit .gg-wing-r { animation: ggBreatheR 7.5s ease-in-out 4.2s infinite alternate; }
 .gg-lit .gg-wing-l { animation: ggBreatheL 7.5s ease-in-out 5.3s infinite alternate; }
@@ -152,8 +189,8 @@ const GG_CSS = `
 .gg-lit .gg-glow { animation: ggFade 1.2s ease-out 1s both; }
 .gg-stream { opacity: 0; }
 .gg-lit .gg-stream { animation: ggStream 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) both; animation-delay: calc(1s + var(--o) * 0.08s); }
-.gg-grow { transform: scale(0); }
-.gg-lit .gg-grow { animation: ggGrow 2.3s cubic-bezier(0.3, 0.55, 0.2, 1) 1.45s both; }
+.gg-wing-clip { --gg-r: 0px; -webkit-mask-image: radial-gradient(circle at var(--gg-cx) var(--gg-cy), #000 var(--gg-r), transparent calc(var(--gg-r) + 90px)); mask-image: radial-gradient(circle at var(--gg-cx) var(--gg-cy), #000 var(--gg-r), transparent calc(var(--gg-r) + 90px)); }
+.gg-lit .gg-wing-clip { animation: ggOpen 2.4s cubic-bezier(0.3, 0.55, 0.2, 1) 1.4s both; }
 .gg-motif { opacity: 0; }
 .gg-lit .gg-motif { animation: ggPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(1.6s + var(--k) * 1.7s); }
 .gg-clasp { opacity: 0; }
@@ -194,7 +231,7 @@ const GG_CSS = `
 @keyframes ggBloom { from { opacity: 0; transform: scale(0.15); } to { opacity: 1; transform: scale(1); } }
 @keyframes ggFlare { from { opacity: 0; transform: scaleX(0); } 45% { opacity: 1; } to { opacity: 1; transform: scaleX(1); } }
 @keyframes ggStream { from { opacity: 0; transform: scaleX(0); } 30% { opacity: 1; } to { opacity: 1; transform: scaleX(1); } }
-@keyframes ggGrow { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes ggOpen { from { --gg-r: 0px; } to { --gg-r: 1500px; } }
 @keyframes ggPop { from { opacity: 0; transform: scale(0); } 70% { opacity: 1; transform: scale(1.18); } to { opacity: 1; transform: scale(1); } }
 @keyframes ggHang { from { opacity: 0; transform: translateY(-14px) scaleY(0.4); } to { opacity: 1; transform: none; } }
 @keyframes ggSway { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
@@ -205,11 +242,18 @@ const GG_CSS = `
 @keyframes ggBurst { from { opacity: 1; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(calc(var(--bx) * 1px), calc(var(--by) * 1px)) scale(0.2); } }
 @keyframes ggSurge { 0% { transform: scale(1); } 30% { transform: scale(1.9); } 100% { transform: scale(1); } }
 @keyframes ggFlash { 0% { opacity: 0; } 30% { opacity: 0.42; } 100% { opacity: 0; } }
+@keyframes ggBreath { to { transform: translateY(-3px); } }
+@keyframes ggDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes ggCloth { to { transform: translate(4px, 1.5px); } }
+@keyframes ggSwing { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
 @keyframes ggRipple { 0% { transform: none; } 40% { transform: scale(1.24); } 100% { transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .gg-root .gg-line-in, .gg-root .gg-quirk, .gg-root .gg-fade, .gg-root .gg-portrait-wrap, .gg-root .gg-glow, .gg-root .gg-stream, .gg-root .gg-grow, .gg-root .gg-motif, .gg-root .gg-clasp, .gg-root .gg-drop-in, .gg-root .gg-beads, .gg-root .gg-wash, .gg-root .gg-core, .gg-root .gg-halo, .gg-root .gg-flare { animation: none !important; opacity: 1; transform: none; }
-  .gg-root .gg-wing, .gg-root .gg-wing-wrap, .gg-root .gg-portrait, .gg-root .gg-near, .gg-root .gg-surge-g, .gg-root .gg-rip, .gg-root .gg-drop { animation: none !important; transform: none; transition: none; }
+  .gg-root .gg-line-in, .gg-root .gg-quirk, .gg-root .gg-fade, .gg-root .gg-portrait-wrap, .gg-root .gg-glow, .gg-root .gg-stream, .gg-root .gg-motif, .gg-root .gg-clasp, .gg-root .gg-drop-in, .gg-root .gg-beads, .gg-root .gg-wash, .gg-root .gg-core, .gg-root .gg-halo, .gg-root .gg-flare { animation: none !important; opacity: 1; transform: none; }
+  .gg-root .gg-wing, .gg-root .gg-wing-wrap, .gg-root .gg-body, .gg-root .gg-breath, .gg-root .gg-swing, .gg-root .gg-cloth, .gg-root .gg-near, .gg-root .gg-surge-g, .gg-root .gg-rip, .gg-root .gg-drop { animation: none !important; transform: none; rotate: none; transition: none; }
+  .gg-root .gg-zari { animation: none !important; stroke-dashoffset: 0; }
+  .gg-root .gg-wing-clip { animation: none !important; -webkit-mask-image: none; mask-image: none; }
+  .gg-root .gg-zari-d { animation: none !important; opacity: 1; }
   .gg-root .gg-spark, .gg-root .gg-ring, .gg-root .gg-burst { animation: none !important; opacity: 0; }
   .gg-root .gg-link, .gg-root .gg-social, .gg-root .gg-top-btn svg { transition: none; }
 }
@@ -255,9 +299,28 @@ export type GgWingSpec = {
 
 /** The envelope the ornament grows inside: up and out from the temple, round the tip, back under. */
 export const GG_WING: GgPt[] = [
-  [160, -36], [222, -86], [302, -138], [392, -184], [487, -218], [582, -236], [667, -238], [722, -214],
-  [742, -156], [740, -80], [724, -2], [696, 70], [652, 130], [594, 170], [521, 190], [446, 178],
-  [374, 150], [306, 118], [238, 88], [181, 60], [152, 34], [146, 4],
+  [160, -36],
+  [222, -86],
+  [302, -138],
+  [392, -184],
+  [487, -218],
+  [582, -236],
+  [667, -238],
+  [722, -214],
+  [742, -156],
+  [740, -80],
+  [724, -2],
+  [696, 70],
+  [652, 130],
+  [594, 170],
+  [521, 190],
+  [446, 178],
+  [374, 150],
+  [306, 118],
+  [238, 88],
+  [181, 60],
+  [152, 34],
+  [146, 4],
 ]
 
 /** Unit motifs, drawn once per wing and stamped with <use>. */
@@ -283,7 +346,15 @@ const ggPts = (pts: GgPt[]) => pts.map((p) => ggF(p[0]) + " " + ggF(p[1])).join(
 
 /** Eight petals, as one path. */
 export const ggRosette = () => {
-  const base: GgPt[] = [[0, -0.18], [0.32, -0.35], [0.3, -0.85], [0, -1], [-0.3, -0.85], [-0.32, -0.35], [0, -0.18]]
+  const base: GgPt[] = [
+    [0, -0.18],
+    [0.32, -0.35],
+    [0.3, -0.85],
+    [0, -1],
+    [-0.3, -0.85],
+    [-0.32, -0.35],
+    [0, -0.18],
+  ]
   let d = ""
   for (let i = 0; i < 8; i++) {
     const c = Math.cos(ggRad(i * 45))
@@ -693,6 +764,22 @@ const GG_PRESETS: { [k: string]: GgPalette } = {
     stream: "#ffd054",
     accent: "#c99a2e",
     accentInk: "#1a1206",
+    figure: {
+      skin: ["#cf9264", "#a8683e", "#784326"],
+      line: "#4a2412",
+      blush: "#d9665a",
+      lips: "#8a3b33",
+      bindi: "#c4121f",
+      hair: ["#efece7", "#9d978f"],
+      veil: ["#c92b74", "#901551", "#540930"],
+      veilDot: "#ffd6e6",
+      blouse: ["#4d1a48", "#260a24"],
+      blouseDot: "#e0476b",
+      flower: "#d8202f",
+      ivory: "#f4e8cf",
+      bangle: "#b8142a",
+      bead: ["#c0222d", "#11885f"],
+    },
   },
   moon: {
     metal: ["#363b49", "#99a3b5", "#eef2f8", "#b5bfcf", "#ffffff", "#8c96a9", "#41475a"],
@@ -712,6 +799,22 @@ const GG_PRESETS: { [k: string]: GgPalette } = {
     stream: "#bcdcff",
     accent: "#9ab0d3",
     accentInk: "#0b1020",
+    figure: {
+      skin: ["#cf9264", "#a8683e", "#784326"],
+      line: "#3e2014",
+      blush: "#c9645e",
+      lips: "#7d3a36",
+      bindi: "#b3122a",
+      hair: ["#f1f2f5", "#9a9ca6"],
+      veil: ["#4a56c8", "#27308f", "#121755"],
+      veilDot: "#d4dcff",
+      blouse: ["#173650", "#0a1828"],
+      blouseDot: "#86bdff",
+      flower: "#eef2fd",
+      ivory: "#eef1f8",
+      bangle: "#2746a8",
+      bead: ["#2a4fb5", "#128592"],
+    },
   },
 }
 
@@ -724,10 +827,18 @@ const GG_ICONS: { [k: string]: React.ReactNode } = {
     </g>
   ),
   x: <path fill="currentColor" d="M17.5 3h3l-7.1 8.1L21.8 21h-6.4l-4.6-6-5.3 6H2.5l7.6-8.7L2.2 3h6.6l4.2 5.5L17.5 3zm-1.1 16.2h1.7L7.4 4.7H5.6l10.8 14.5z" />,
-  linkedin: <path fill="currentColor" d="M4.5 9h3.6v11.5H4.5zM6.3 3.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2M10.2 9h3.4v1.6c.5-.9 1.7-1.9 3.6-1.9 3.8 0 4.5 2.5 4.5 5.7v6.1h-3.6v-5.4c0-1.3 0-3-1.8-3s-2.1 1.4-2.1 2.9v5.5h-3.6z" />,
+  linkedin: (
+    <path
+      fill="currentColor"
+      d="M4.5 9h3.6v11.5H4.5zM6.3 3.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2M10.2 9h3.4v1.6c.5-.9 1.7-1.9 3.6-1.9 3.8 0 4.5 2.5 4.5 5.7v6.1h-3.6v-5.4c0-1.3 0-3-1.8-3s-2.1 1.4-2.1 2.9v5.5h-3.6z"
+    />
+  ),
   youtube: (
     <g>
-      <path fill="currentColor" d="M22.5 7.2a2.7 2.7 0 0 0-1.9-1.9C18.9 4.8 12 4.8 12 4.8s-6.9 0-8.6.5A2.7 2.7 0 0 0 1.5 7.2 28 28 0 0 0 1 12a28 28 0 0 0 .5 4.8 2.7 2.7 0 0 0 1.9 1.9c1.7.5 8.6.5 8.6.5s6.9 0 8.6-.5a2.7 2.7 0 0 0 1.9-1.9A28 28 0 0 0 23 12a28 28 0 0 0-.5-4.8z" />
+      <path
+        fill="currentColor"
+        d="M22.5 7.2a2.7 2.7 0 0 0-1.9-1.9C18.9 4.8 12 4.8 12 4.8s-6.9 0-8.6.5A2.7 2.7 0 0 0 1.5 7.2 28 28 0 0 0 1 12a28 28 0 0 0 .5 4.8 2.7 2.7 0 0 0 1.9 1.9c1.7.5 8.6.5 8.6.5s6.9 0 8.6-.5a2.7 2.7 0 0 0 1.9-1.9A28 28 0 0 0 23 12a28 28 0 0 0-.5-4.8z"
+      />
       <path fill="var(--gg-icon-bg, #fff)" d="M9.8 15.1V8.9l5.7 3.1z" />
     </g>
   ),
@@ -746,6 +857,704 @@ const GG_ICONS: { [k: string]: React.ReactNode } = {
   ),
 }
 
+// The illustrated elder: a 600 × 750 artboard in the same enamel-and-gold
+// language as the wings, cel-shaded. Her eyes are closed; the light comes
+// from them. Shapes are point lists run through one smooth-curve helper.
+// #region figure
+export const GG_FIG_W = 600
+export const GG_FIG_H = 750
+export const GG_FIG_EYES: [GgPt, GgPt] = [
+  [262 / 600, 237 / 750],
+  [338 / 600, 237 / 750],
+]
+
+/** A smooth path through the points (Catmull-Rom as cubic Béziers). */
+export const ggCurve = (pts: GgPt[], closed = true) => {
+  const n = pts.length
+  const at = (i: number) => (closed ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))])
+  let d = "M" + ggF(pts[0][0]) + " " + ggF(pts[0][1])
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    d +=
+      "C" +
+      ggF(p1[0] + (p2[0] - p0[0]) / 6) +
+      " " +
+      ggF(p1[1] + (p2[1] - p0[1]) / 6) +
+      " " +
+      ggF(p2[0] - (p3[0] - p1[0]) / 6) +
+      " " +
+      ggF(p2[1] - (p3[1] - p1[1]) / 6) +
+      " " +
+      ggF(p2[0]) +
+      " " +
+      ggF(p2[1])
+  }
+  return closed ? d + "Z" : d
+}
+const ggMirror = (pts: GgPt[]): GgPt[] => pts.map((p) => [600 - p[0], p[1]] as GgPt)
+
+const GG_VEIL_PTS: GgPt[] = [
+  [300, 90],
+  [360, 96],
+  [408, 124],
+  [436, 170],
+  [446, 228],
+  [444, 290],
+  [436, 340],
+  [446, 392],
+  [488, 438],
+  [548, 478],
+  [590, 540],
+  [612, 640],
+  [622, 800],
+  [-22, 800],
+  [-12, 640],
+  [10, 540],
+  [52, 478],
+  [112, 438],
+  [154, 392],
+  [164, 340],
+  [156, 290],
+  [154, 228],
+  [164, 170],
+  [192, 124],
+  [240, 96],
+]
+const GG_HEM_PTS: GgPt[] = [
+  [52, 478],
+  [112, 438],
+  [154, 392],
+  [164, 340],
+  [156, 290],
+  [154, 228],
+  [164, 170],
+  [192, 124],
+  [240, 96],
+  [300, 90],
+  [360, 96],
+  [408, 124],
+  [436, 170],
+  [446, 228],
+  [444, 290],
+  [436, 340],
+  [446, 392],
+  [488, 438],
+  [548, 478],
+]
+const GG_OPEN_PTS: GgPt[] = [
+  [300, 150],
+  [346, 153],
+  [384, 174],
+  [400, 212],
+  [404, 262],
+  [400, 312],
+  [406, 368],
+  [426, 438],
+  [452, 520],
+  [470, 620],
+  [482, 800],
+  [436, 800],
+  [424, 640],
+  [396, 560],
+  [340, 504],
+  [272, 456],
+  [226, 404],
+  [202, 346],
+  [196, 284],
+  [198, 224],
+  [214, 178],
+  [254, 154],
+]
+const GG_EDGE_PTS: GgPt[] = [
+  [436, 800],
+  [424, 640],
+  [396, 560],
+  [340, 504],
+  [272, 456],
+  [226, 404],
+  [202, 346],
+  [196, 284],
+  [198, 224],
+  [214, 178],
+  [254, 154],
+  [300, 150],
+  [346, 153],
+  [384, 174],
+  [400, 212],
+  [404, 262],
+  [400, 312],
+  [406, 368],
+  [426, 438],
+  [452, 520],
+  [470, 620],
+  [482, 800],
+]
+const GG_HAIR_PTS: GgPt[] = [
+  [300, 152],
+  [352, 156],
+  [390, 180],
+  [403, 222],
+  [403, 276],
+  [392, 240],
+  [374, 206],
+  [346, 186],
+  [300, 178],
+  [254, 186],
+  [226, 206],
+  [208, 240],
+  [197, 276],
+  [197, 222],
+  [210, 180],
+  [248, 156],
+]
+const GG_FACE_PTS: GgPt[] = [
+  [300, 168],
+  [333.1, 170],
+  [358.9, 182],
+  [373.6, 206],
+  [379.1, 236],
+  [380, 264],
+  [374.5, 292],
+  [367.2, 319.6],
+  [351.5, 343.6],
+  [329.4, 362.1],
+  [311, 370.8],
+  [300, 373],
+  [289, 370.8],
+  [270.6, 362.1],
+  [248.5, 343.6],
+  [232.8, 319.6],
+  [225.5, 292],
+  [220, 264],
+  [220.9, 236],
+  [226.4, 206],
+  [241.1, 182],
+  [266.9, 170],
+]
+/** The shadow side of the face, from the temple round the jaw and back up the cheekbone. */
+const GG_SHADE_PTS: GgPt[] = [
+  [342.3, 174],
+  [366.2, 194],
+  [378.2, 230],
+  [380, 264],
+  [374.5, 292],
+  [367.2, 319.6],
+  [351.5, 343.6],
+  [329.4, 362.1],
+  [309.2, 370.8],
+  [323.9, 347.9],
+  [340.5, 324],
+  [347.8, 298],
+  [351.5, 270],
+  [347.8, 242],
+  [340.5, 214],
+  [333.1, 190],
+]
+const GG_NECK_PTS: GgPt[] = [
+  [264, 330],
+  [336, 330],
+  [341, 380],
+  [354, 428],
+  [300, 448],
+  [246, 428],
+  [259, 380],
+]
+const GG_BLOUSE_PTS: GgPt[] = [
+  [170, 446],
+  [246, 420],
+  [300, 444],
+  [354, 420],
+  [446, 440],
+  [530, 800],
+  [90, 800],
+]
+const GG_ARM_PTS: GgPt[] = [
+  [112, 800],
+  [170, 650],
+  [226, 530],
+  [258, 458],
+  [280, 424],
+  [330, 428],
+  [324, 466],
+  [292, 548],
+  [250, 664],
+  [228, 800],
+]
+const GG_SLEEVE_PTS: GgPt[] = [
+  [140, 556],
+  [306, 624],
+  [292, 800],
+  [60, 800],
+  [70, 640],
+]
+const GG_BROW: GgPt[] = [
+  [241, 219],
+  [253, 209],
+  [269, 206],
+  [285, 211],
+  [270, 211],
+  [254, 214],
+]
+const GG_LIPS: GgPt[] = [
+  [279, 323],
+  [291, 318],
+  [300, 320],
+  [309, 318],
+  [321, 323],
+  [309, 331],
+  [300, 332],
+  [291, 331],
+]
+const GG_FOLDS = [
+  ggCurve(
+    [
+      [170, 150],
+      [146, 250],
+      [132, 360],
+      [96, 440],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [198, 116],
+      [182, 200],
+      [176, 300],
+      [168, 380],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [430, 150],
+      [454, 250],
+      [468, 360],
+      [504, 440],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [402, 116],
+      [418, 200],
+      [424, 300],
+      [432, 380],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [40, 560],
+      [140, 600],
+      [250, 690],
+      [300, 800],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [60, 500],
+      [170, 540],
+      [300, 620],
+      [372, 720],
+    ],
+    false,
+  ),
+  ggCurve(
+    [
+      [520, 500],
+      [550, 600],
+      [566, 700],
+      [570, 800],
+    ],
+    false,
+  ),
+]
+const GG_BANGLES = [0, 0, 1, 0, 0, 2, 0, 0, 1, 0, 0, 2]
+
+// #endregion
+
+export function GgFigureArt({ pal, id }: { pal: GgPalette; id: string }) {
+  const f = pal.figure
+  const metal = "url(#" + id + "fm)"
+  const skin = "url(#" + id + "fs)"
+  const line = f.line
+  const soft = { fill: "none", stroke: line, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
+  const lit = { fill: "none", stroke: f.skin[0], strokeLinecap: "round" as const }
+  const bangle = [f.ivory, f.bangle, pal.metal[3]]
+  const edge = ggCurve(GG_EDGE_PTS, false)
+  const hem = ggCurve(GG_HEM_PTS, false)
+  // The forearm's axis, wrist to elbow, for the bangles.
+  const ax = [0.38, -0.925]
+  return (
+    <g className="gg-fig">
+      <defs>
+        <linearGradient id={id + "fm"} x1="0" y1="0" x2="1" y2="1">
+          {pal.metal.map((c, i) => (
+            <stop key={i} offset={i / (pal.metal.length - 1)} stopColor={c} />
+          ))}
+        </linearGradient>
+        <radialGradient id={id + "fs"} cx="0.4" cy="0.34" r="0.78">
+          <stop offset="0" stopColor={f.skin[0]} />
+          <stop offset="0.6" stopColor={f.skin[1]} />
+          <stop offset="1" stopColor={f.skin[2]} />
+        </radialGradient>
+        <linearGradient id={id + "fa"} gradientUnits="userSpaceOnUse" x1="150" y1="600" x2="300" y2="660">
+          <stop offset="0" stopColor={f.skin[2]} />
+          <stop offset="0.5" stopColor={f.skin[1]} />
+          <stop offset="1" stopColor={f.skin[2]} />
+        </linearGradient>
+        <linearGradient id={id + "fv"} x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" stopColor={f.veil[0]} />
+          <stop offset="0.55" stopColor={f.veil[1]} />
+          <stop offset="1" stopColor={f.veil[2]} />
+        </linearGradient>
+        <linearGradient id={id + "fb"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={f.blouse[0]} />
+          <stop offset="1" stopColor={f.blouse[1]} />
+        </linearGradient>
+        <linearGradient id={id + "fh"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={f.hair[0]} />
+          <stop offset="1" stopColor={f.hair[1]} />
+        </linearGradient>
+        <pattern id={id + "fd"} patternUnits="userSpaceOnUse" width="24" height="24" patternTransform="rotate(-8)">
+          <circle cx="6" cy="6" r="1.6" fill={f.veilDot} />
+          <circle cx="9.2" cy="6.2" r="1" fill={f.veilDot} />
+          <circle cx="7.4" cy="8.9" r="1" fill={f.veilDot} />
+          <circle cx="18" cy="18" r="1.6" fill={f.veilDot} />
+          <circle cx="21.2" cy="18.2" r="1" fill={f.veilDot} />
+          <circle cx="19.4" cy="20.9" r="1" fill={f.veilDot} />
+        </pattern>
+        <pattern id={id + "fp"} patternUnits="userSpaceOnUse" width="28" height="28" patternTransform="rotate(10)">
+          <path d="M8 3l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill={pal.metal[3]} opacity="0.85" />
+          <circle cx="22" cy="21" r="2.1" fill={f.blouseDot} />
+        </pattern>
+        <clipPath id={id + "fo"}>
+          <path d={ggCurve(GG_OPEN_PTS)} />
+        </clipPath>
+        <clipPath id={id + "fc"}>
+          <path d={ggCurve(GG_VEIL_PTS)} />
+        </clipPath>
+        <clipPath id={id + "ff"}>
+          <path d={ggCurve(GG_FACE_PTS)} />
+        </clipPath>
+      </defs>
+
+      {/* the dupatta */}
+      <path d={ggCurve(GG_VEIL_PTS)} fill={"url(#" + id + "fv)"} />
+      <path d={ggCurve(GG_VEIL_PTS)} fill={"url(#" + id + "fd)"} opacity="0.5" />
+      <g clipPath={"url(#" + id + "fc)"}>
+        <g className="gg-cloth">
+          {GG_FOLDS.map((d, i) => (
+            <path key={i} d={d} fill="none" stroke={f.veil[2]} strokeWidth={i < 4 ? 15 : 24} strokeLinecap="round" opacity="0.3" />
+          ))}
+          {GG_FOLDS.map((d, i) => (
+            <path
+              key={i}
+              d={d}
+              fill="none"
+              stroke={f.veil[0]}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              opacity="0.4"
+              transform={i < 4 ? "translate(9 0)" : "translate(0 -13)"}
+            />
+          ))}
+        </g>
+      </g>
+      <path d={hem} fill="none" stroke={pal.edge} strokeWidth="6" strokeLinecap="round" />
+      <path d={hem} fill="none" stroke={metal} strokeWidth="4" strokeLinecap="round" />
+
+      {/* through the opening: hair, neck, blouse and her jewellery */}
+      <g clipPath={"url(#" + id + "fo)"}>
+        <rect x="150" y="140" width="380" height="660" fill={f.veil[2]} />
+        <path d={ggCurve(GG_HAIR_PTS)} fill={"url(#" + id + "fh)"} />
+        {[
+          [
+            [300, 154],
+            [262, 162],
+            [228, 188],
+            [210, 236],
+          ],
+          [
+            [300, 154],
+            [270, 166],
+            [240, 196],
+            [222, 248],
+          ],
+          [
+            [300, 154],
+            [338, 162],
+            [372, 188],
+            [390, 236],
+          ],
+          [
+            [300, 154],
+            [330, 166],
+            [360, 196],
+            [378, 248],
+          ],
+        ].map((p, i) => (
+          <path key={i} d={ggCurve(p as GgPt[], false)} fill="none" stroke={f.hair[1]} strokeWidth="1.4" opacity="0.75" strokeLinecap="round" />
+        ))}
+        <path d={ggCurve(GG_NECK_PTS)} fill={f.skin[2]} />
+        <path
+          d={ggCurve([
+            [300, 330],
+            [338, 330],
+            [342, 380],
+            [354, 428],
+            [320, 440],
+          ])}
+          fill={line}
+          opacity="0.12"
+        />
+        <g {...soft} strokeWidth="1.4" opacity="0.4">
+          <path d="M281 362C279 384 277 400 272 418" />
+          <path d="M319 362C321 384 323 400 328 418" />
+          <path d="M272 396C288 403 312 403 328 396" />
+        </g>
+        <path d={ggCurve(GG_BLOUSE_PTS)} fill={"url(#" + id + "fb)"} />
+        <path d={ggCurve(GG_BLOUSE_PTS)} fill={"url(#" + id + "fp)"} opacity="0.7" />
+        <path d="M246 420C270 438 330 438 354 420" fill="none" stroke={metal} strokeWidth="4" />
+        {/* the hansli collar and a long strand with its pendant */}
+        <path d="M256 410C272 432 328 432 344 410" fill="none" stroke={pal.edge} strokeWidth="11" strokeLinecap="round" />
+        <path d="M256 410C272 432 328 432 344 410" fill="none" stroke={metal} strokeWidth="8.5" strokeLinecap="round" />
+        <path d="M262 414C276 428 324 428 338 414" fill="none" stroke={pal.metal[4]} strokeWidth="1.6" strokeLinecap="round" opacity="0.8" />
+        <path d="M244 424C262 486 338 486 356 424" fill="none" stroke={f.bead[0]} strokeWidth="5.4" strokeLinecap="round" strokeDasharray="0 8" />
+        <path
+          d="M244 424C262 486 338 486 356 424"
+          fill="none"
+          stroke={f.bead[1]}
+          strokeWidth="5.4"
+          strokeLinecap="round"
+          strokeDasharray="0 8"
+          strokeDashoffset="4"
+        />
+        <g transform="translate(340 486)">
+          <path d="M0 -12C9 -2 13 6 13 12C13 20 7 25 0 25C-7 25 -13 20 -13 12C-13 6 -9 -2 0 -12Z" fill={metal} stroke={pal.edge} strokeWidth="1" />
+          <circle cy="12" r="6" fill={f.bead[0]} stroke={pal.edge} strokeWidth="0.8" />
+        </g>
+        <g transform="translate(418 530) rotate(-14)">
+          {[0, 72, 144, 216, 288].map((a) => (
+            <path key={a} transform={"rotate(" + a + ")"} d="M0 -4C10 -8 16 -22 0 -30C-16 -22 -10 -8 0 -4Z" fill={f.flower} stroke={pal.edge} strokeWidth="1" />
+          ))}
+          <circle r="6" fill={metal} stroke={pal.edge} strokeWidth="0.8" />
+        </g>
+      </g>
+
+      {/* the face, cel-shaded */}
+      <path d={ggCurve(GG_FACE_PTS)} fill={skin} />
+      <g clipPath={"url(#" + id + "ff)"}>
+        <path d={ggCurve(GG_SHADE_PTS)} fill={f.skin[2]} opacity="0.85" />
+        <path d={ggCurve(GG_SHADE_PTS)} fill={line} opacity="0.12" transform="translate(6 2)" />
+        <ellipse cx="300" cy="200" rx="54" ry="22" fill="#fff" opacity="0.08" />
+        <ellipse cx="262" cy="239" rx="24" ry="13" fill={f.skin[2]} opacity="0.32" />
+        <ellipse cx="338" cy="239" rx="24" ry="13" fill={f.skin[2]} opacity="0.42" />
+        <path
+          d={ggCurve([
+            [226, 292],
+            [240, 300],
+            [252, 318],
+            [246, 330],
+            [232, 314],
+          ])}
+          fill={f.skin[2]}
+          opacity="0.3"
+        />
+        <path
+          d={ggCurve([
+            [374, 292],
+            [360, 300],
+            [348, 318],
+            [354, 330],
+            [368, 314],
+          ])}
+          fill={f.skin[2]}
+          opacity="0.35"
+        />
+        <ellipse cx="246" cy="274" rx="18" ry="9" fill={f.blush} opacity="0.32" />
+        <ellipse cx="354" cy="274" rx="18" ry="9" fill={f.blush} opacity="0.26" />
+        <path
+          d={ggCurve([
+            [306, 244],
+            [312, 262],
+            [318, 282],
+            [314, 294],
+            [307, 282],
+            [304, 262],
+          ])}
+          fill={f.skin[2]}
+          opacity="0.5"
+        />
+        <path
+          d={ggCurve([
+            [286, 334],
+            [300, 338],
+            [314, 334],
+            [310, 344],
+            [300, 346],
+            [290, 344],
+          ])}
+          fill={f.skin[2]}
+          opacity="0.35"
+        />
+        <ellipse cx="300" cy="352" rx="12" ry="6" fill="#fff" opacity="0.1" />
+      </g>
+      {/* lines of a long life: a dark fold with a lit edge beside it */}
+      <g {...soft} strokeWidth="1.9" opacity="0.62">
+        <path d="M254 194C268 189 284 191 300 189C316 191 332 189 346 194" />
+        <path d="M258 202C272 198 288 200 300 198C312 200 328 198 342 202" />
+        <path d="M270 184C282 181 292 182 300 181C308 182 318 181 330 184" />
+        <path d="M246 249C256 257 270 257 281 250" />
+        <path d="M250 256C259 263 270 263 279 258" opacity="0.7" />
+        <path d="M319 250C330 257 344 257 354 249" />
+        <path d="M321 258C330 263 341 263 350 256" opacity="0.7" />
+        <path d="M239 232L229 227M239 238L228 239M240 243L231 249" />
+        <path d="M361 232L371 227M361 238L372 239M360 243L369 249" />
+        <path d="M229 278C233 296 239 308 251 322" />
+        <path d="M371 278C367 296 361 308 349 322" />
+        <path d="M244 340C256 350 270 356 284 360" opacity="0.6" />
+        <path d="M356 340C344 350 330 356 316 360" opacity="0.6" />
+        <path d="M280 339C276 350 278 357 284 363" />
+        <path d="M320 339C324 350 322 357 316 363" />
+      </g>
+      <path d="M282 292C268 304 264 322 272 340" {...soft} strokeWidth="2.2" opacity="0.7" />
+      <path d="M318 292C332 304 336 322 328 340" {...soft} strokeWidth="2.2" opacity="0.7" />
+      <path d="M279 294C265 306 261 322 268 338" {...lit} strokeWidth="1.6" opacity="0.45" />
+      <path d="M321 294C335 306 339 322 332 338" {...lit} strokeWidth="1.6" opacity="0.3" />
+      {/* brows and closed eyes */}
+      <path d={ggCurve(GG_BROW)} fill={f.hair[1]} />
+      <path d={ggCurve(ggMirror(GG_BROW))} fill={f.hair[1]} />
+      <path d="M247 229C255 224 270 224 278 229" {...soft} strokeWidth="1.3" opacity="0.35" />
+      <path d="M322 229C330 224 345 224 353 229" {...soft} strokeWidth="1.3" opacity="0.35" />
+      <path d="M245 235C252 244 272 244 279 235" {...soft} strokeWidth="2.6" />
+      <path d="M321 235C328 244 348 244 355 235" {...soft} strokeWidth="2.6" />
+      <path d="M249 240L246 245M255 242L254 247M261 243L261 248M267 242L269 247M273 240L276 244" {...soft} strokeWidth="1.2" />
+      <path d="M327 240L324 244M333 242L331 247M339 243L339 248M345 242L346 247M351 240L354 245" {...soft} strokeWidth="1.2" />
+      {/* nose and mouth */}
+      <path d="M294 242C292 260 290 274 287 284" {...soft} strokeWidth="1.3" opacity="0.35" />
+      <circle cx="300" cy="288" r="5.5" fill="#fff" opacity="0.14" />
+      <path d="M284 287C279 293 283 300 292 299M316 287C321 293 317 300 308 299" {...soft} strokeWidth="1.7" opacity="0.75" />
+      <path d="M292 299C296 303 304 303 308 299" {...soft} strokeWidth="1.5" opacity="0.6" />
+      <path d={ggCurve(GG_LIPS)} fill={f.lips} />
+      <path d="M279 323C290 327 310 327 321 323" {...soft} strokeWidth="1.9" />
+      <path d="M277 321L280 324M323 321L320 324" {...soft} strokeWidth="1.4" />
+      <path d="M288 314L289 318M294 313L294.5 317.5M306 313L305.5 317.5M312 314L311 318" {...soft} strokeWidth="0.9" opacity="0.35" />
+      {/* bindi, and the borla on her parting */}
+      <circle cx="300" cy="215" r="5.6" fill={f.bindi} />
+      <circle cx="298.6" cy="213.6" r="1.6" fill="#fff" opacity="0.6" />
+      <path d="M300 150L300 166" stroke={metal} strokeWidth="2.2" strokeDasharray="0 4" strokeLinecap="round" />
+      <g transform="translate(300 178)">
+        <circle r="13" fill={pal.edge} />
+        <circle r="12" fill={metal} />
+        <circle r="12" fill="none" stroke={pal.edge} strokeWidth="1.6" strokeDasharray="0 3.4" strokeLinecap="round" opacity="0.6" />
+        <circle r="6.5" fill="none" stroke={pal.edge} strokeWidth="1.3" strokeDasharray="0 2.6" strokeLinecap="round" opacity="0.5" />
+        <circle cx="-3.6" cy="-4" r="3" fill="#fff" opacity="0.55" />
+      </g>
+      {/* the nath, with its chain into her hair */}
+      <path d="M270 296C246 284 226 264 212 236" fill="none" stroke={metal} strokeWidth="1.5" strokeDasharray="0 3.4" strokeLinecap="round" />
+      <circle cx="282" cy="306" r="14" fill="none" stroke={pal.edge} strokeWidth="3.6" />
+      <circle cx="282" cy="306" r="14" fill="none" stroke={metal} strokeWidth="2.4" />
+      <circle cx="282" cy="320" r="3.4" fill={f.bead[0]} stroke={pal.edge} strokeWidth="0.6" />
+      <circle cx="271" cy="315" r="1.8" fill={pal.pearl} />
+      <circle cx="293" cy="315" r="1.8" fill={pal.pearl} />
+
+      {/* the zari edge of her veil, drawn on as she arrives */}
+      <path className="gg-zari" d={edge} pathLength={1} fill="none" stroke={pal.edge} strokeWidth="25" />
+      <path className="gg-zari" d={edge} pathLength={1} fill="none" stroke={metal} strokeWidth="21" />
+      <path className="gg-zari-d" d={edge} fill="none" stroke={pal.metal[4]} strokeWidth="1.4" opacity="0.7" transform="translate(-4 0)" />
+      <path className="gg-zari-d" d={edge} fill="none" stroke={pal.pearl} strokeWidth="3.4" strokeLinecap="round" strokeDasharray="0 9" />
+      <path
+        className="gg-zari-d"
+        d={edge}
+        fill="none"
+        stroke={pal.enamel[0]}
+        strokeWidth="3.4"
+        strokeLinecap="round"
+        strokeDasharray="0 18"
+        strokeDashoffset="4.5"
+      />
+
+      {/* jhumkas, free to swing */}
+      {[
+        [204, 298, 0],
+        [396, 298, 1],
+      ].map(([x, y, k]) => (
+        <g key={k} transform={"translate(" + x + " " + y + ")"}>
+          <g className="gg-swing" style={{ "--k": k } as React.CSSProperties}>
+            <circle r="7" fill={metal} stroke={pal.edge} strokeWidth="0.9" />
+            <circle r="3" fill={f.bead[k]} />
+            <path d="M0 7L0 13" stroke={metal} strokeWidth="2" />
+            <path d="M-15 30C-15 16 15 16 15 30Z" fill={metal} stroke={pal.edge} strokeWidth="1" />
+            <path d="M-15 30L15 30" stroke={pal.pearl} strokeWidth="2.4" strokeLinecap="round" strokeDasharray="0 5" />
+            {[-12, -6, 0, 6, 12].map((dx, i) => (
+              <g key={i}>
+                <path d={"M" + dx + " 32L" + dx * 1.15 + " " + (48 + (i % 2) * 6)} stroke={pal.metal[1]} strokeWidth="1.2" />
+                <circle cx={dx * 1.15} cy={50 + (i % 2) * 6} r="2.6" fill={i === 2 ? f.bead[0] : pal.pearl} stroke={pal.pearlEdge} strokeWidth="0.5" />
+              </g>
+            ))}
+          </g>
+        </g>
+      ))}
+
+      {/* her forearm rising from below, ringed in ivory chooda */}
+      <path d={ggCurve(GG_ARM_PTS)} fill={"url(#" + id + "fa)"} />
+      {GG_BANGLES.map((k, i) => {
+        const s = 10 + i * 10.5
+        const x = 298 - ax[0] * s
+        const y = 452 - ax[1] * s
+        const rx = 25 + s * 0.09
+        const d = "M" + ggF(-rx) + " 0A" + ggF(rx) + " 7 0 0 0 " + ggF(rx) + " 0"
+        return (
+          <g key={i} transform={"translate(" + ggF(x) + " " + ggF(y) + ") rotate(22.3)"}>
+            <path d={d} fill="none" stroke={pal.edge} strokeWidth="8.4" strokeLinecap="round" />
+            <path d={d} fill="none" stroke={k === 2 ? metal : bangle[k]} strokeWidth="6.6" strokeLinecap="round" />
+            <path d={d} fill="none" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" opacity={k === 0 ? 0.55 : 0.3} transform="translate(0 -1.8)" />
+          </g>
+        )
+      })}
+      <path d={ggCurve(GG_SLEEVE_PTS)} fill={"url(#" + id + "fb)"} />
+      <path d={ggCurve(GG_SLEEVE_PTS)} fill={"url(#" + id + "fp)"} opacity="0.7" />
+      <path d="M140 556C196 578 250 600 306 624" fill="none" stroke={metal} strokeWidth="5" strokeLinecap="round" />
+
+      {/* her fist under her chin: four fingers curled toward you, the thumb along the jaw, two rings */}
+      <g transform="rotate(12 300 392)">
+        <rect x="256" y="350" width="90" height="80" rx="22" fill={f.skin[2]} />
+        {[0, 1, 2, 3].map((i) => (
+          <rect
+            key={i}
+            x={258 + i * 21.5}
+            y={352 + (i === 0 || i === 3 ? 5 : 0)}
+            width="21.5"
+            height="48"
+            rx="10.5"
+            fill={skin}
+            stroke={line}
+            strokeWidth="1.3"
+          />
+        ))}
+        <path
+          d="M262 376C266 373 274 373 278 376M284 374C288 371 296 371 300 374M305 374C309 371 317 371 321 374M327 376C331 373 339 373 343 376"
+          {...soft}
+          strokeWidth="1.1"
+          opacity="0.6"
+        />
+        <path d="M262 392C266 395 274 395 278 392M327 392C331 395 339 395 343 392" {...soft} strokeWidth="1" opacity="0.4" />
+        <path d="M250 358C258 340 296 334 324 342C330 346 328 354 320 355C298 353 274 356 260 368Z" fill={skin} stroke={line} strokeWidth="1.3" />
+        {[1, 3].map((i) => (
+          <g key={i}>
+            <rect x={258 + i * 21.5} y="385" width="21.5" height="5.5" rx="2" fill={metal} stroke={pal.edge} strokeWidth="0.7" />
+            <circle cx={269 + i * 21.5} cy="387.7" r="3.6" fill={f.bead[i === 1 ? 0 : 1]} stroke={pal.edge} strokeWidth="0.6" />
+          </g>
+        ))}
+      </g>
+    </g>
+  )
+}
 
 const GG_SOCIAL_NAMES: { [k: string]: string } = {
   instagram: "Instagram",
@@ -758,29 +1567,49 @@ const GG_SOCIAL_NAMES: { [k: string]: string } = {
 }
 
 const GG_DEFAULT_COLUMNS: GgColumn[] = [
-  { title: "Studio", links: [{ label: "Work", href: "#" }, { label: "Services", href: "#" }, { label: "Process", href: "#" }, { label: "Journal", href: "#" }] },
-  { title: "Company", links: [{ label: "About", href: "#" }, { label: "Careers", href: "#" }, { label: "Press", href: "#" }, { label: "Contact", href: "#" }] },
-  { title: "Promote", links: [{ label: "Campaigns", href: "#" }, { label: "Brand film", href: "#" }, { label: "Launches", href: "#" }, { label: "Case studies", href: "#" }] },
-  { title: "Legal", links: [{ label: "Privacy", href: "#" }, { label: "Terms", href: "#" }, { label: "Cookies", href: "#" }] },
+  {
+    title: "Studio",
+    links: [
+      { label: "Work", href: "#" },
+      { label: "Services", href: "#" },
+      { label: "Process", href: "#" },
+      { label: "Journal", href: "#" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "#" },
+      { label: "Careers", href: "#" },
+      { label: "Press", href: "#" },
+      { label: "Contact", href: "#" },
+    ],
+  },
+  {
+    title: "Promote",
+    links: [
+      { label: "Campaigns", href: "#" },
+      { label: "Brand film", href: "#" },
+      { label: "Launches", href: "#" },
+      { label: "Case studies", href: "#" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+      { label: "Cookies", href: "#" },
+    ],
+  },
 ]
 
-const GG_DEFAULT_SOCIALS: GgSocial[] = [{ icon: "instagram", href: "#" }, { icon: "x", href: "#" }, { icon: "linkedin", href: "#" }, { icon: "youtube", href: "#" }]
-
-/** Himanshu Kiradiya, Ajmer, Rajasthan, on Unsplash. The focal-point crop keeps her centred. */
-const GG_DEFAULT_PORTRAIT: GgPortrait = {
-  src: "https://images.unsplash.com/photo-1724301964759-374723c8ee7d?auto=format&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.35&fp-z=1.25&w=1100&h=1375&q=85",
-  alt: "An elderly Rajasthani woman in a magenta veil, looking straight at you",
-  eyes: [
-    [0.425, 0.307],
-    [0.583, 0.311],
-  ],
-  outline: [
-    [0.5, 0.109], [0.57, 0.116], [0.63, 0.15], [0.67, 0.22], [0.69, 0.3], [0.71, 0.38], [0.74, 0.45], [0.787, 0.53],
-    [0.833, 0.61], [0.88, 0.7], [0.91, 0.79], [0.935, 0.88], [0.96, 0.95], [0.98, 1.02], [0.0, 1.02], [-0.02, 0.9],
-    [0.03, 0.86], [0.085, 0.78], [0.16, 0.69], [0.22, 0.6], [0.278, 0.5], [0.305, 0.4], [0.318, 0.31], [0.33, 0.237],
-    [0.352, 0.178], [0.407, 0.126],
-  ],
-}
+const GG_DEFAULT_SOCIALS: GgSocial[] = [
+  { icon: "instagram", href: "#" },
+  { icon: "x", href: "#" },
+  { icon: "linkedin", href: "#" },
+  { icon: "youtube", href: "#" },
+]
 
 const GG_DISPLAY = '"Anton", Impact, "Haettenschweiler", "Arial Narrow Bold", "Franklin Gothic Demi Cond", "Helvetica Neue", Arial, sans-serif'
 const GG_BODY = 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
@@ -798,7 +1627,8 @@ export default function GildedGazeFooter({
   copyright,
   columns = GG_DEFAULT_COLUMNS,
   socials = GG_DEFAULT_SOCIALS,
-  portrait = GG_DEFAULT_PORTRAIT,
+  portrait,
+  figureAlt = "An illustrated Rajasthani elder in a magenta veil, eyes closed, light pouring from them",
   preset = "gold",
   palette,
   seed = 7,
@@ -812,7 +1642,8 @@ export default function GildedGazeFooter({
   style,
   id,
 }: GgProps) {
-  const pal: GgPalette = { ...(GG_PRESETS[preset] || GG_PRESETS.gold), ...(palette || {}) }
+  const base = GG_PRESETS[preset] || GG_PRESETS.gold
+  const pal: GgPalette = { ...base, ...(palette || {}), figure: { ...base.figure, ...((palette && palette.figure) || {}) } }
   const uid = React.useId().replace(/:/g, "")
   const rootRef = React.useRef(null as HTMLElement | null)
   const sceneRef = React.useRef(null as HTMLDivElement | null)
@@ -831,9 +1662,10 @@ export default function GildedGazeFooter({
   const W = box.h > 0 ? (box.w / box.h) * GG_H : 1600
   const px = box.h > 0 ? box.h / GG_H : 1
   const pbox = ggPortraitBox(W)
-  const eyesF = portrait.eyes || GG_DEFAULT_PORTRAIT.eyes!
-  const eyeL = ggFit(pbox, nat, eyesF[0])
-  const eyeR = ggFit(pbox, nat, eyesF[1])
+  const eyesF = portrait ? portrait.eyes || GG_FIG_EYES : GG_FIG_EYES
+  const natural = portrait ? nat : { w: GG_FIG_W, h: GG_FIG_H }
+  const eyeL = ggFit(pbox, natural, eyesF[0])
+  const eyeR = ggFit(pbox, natural, eyesF[1])
   const eyeMid: GgPt = [(eyeL[0] + eyeR[0]) / 2, (eyeL[1] + eyeR[1]) / 2]
   const scaleR = ggWingScale(W, eyeR[0], eyeR[1])
   const scaleL = ggWingScale(W, eyeL[0], eyeL[1])
@@ -860,12 +1692,17 @@ export default function GildedGazeFooter({
     return () => mq.removeEventListener("change", on)
   }, [])
 
-  // Preload the portrait: the scene stays dormant until she is here, and her
-  // real size places the eyes.
+  // A photo is preloaded: the scene stays dormant until it is here, and its
+  // real size places the eyes. The illustration is ready at once.
+  const src = portrait ? portrait.src : ""
   React.useEffect(() => {
     let live = true
-    setLoaded(false)
     setNat(null)
+    if (!src) {
+      setLoaded(true)
+      return
+    }
+    setLoaded(false)
     const im = new Image()
     im.onload = () => {
       if (!live) return
@@ -875,11 +1712,11 @@ export default function GildedGazeFooter({
     im.onerror = () => {
       if (live) setLoaded(true)
     }
-    im.src = portrait.src
+    im.src = src
     return () => {
       live = false
     }
-  }, [portrait.src])
+  }, [src])
 
   // Follow the scene's box, wake when it is on screen, and read the scroll
   // only while it is.
@@ -1015,9 +1852,12 @@ export default function GildedGazeFooter({
 
   const stageView = ggF(-W / 2) + " 0 " + ggF(W) + " " + GG_H
   const cut =
-    portrait.outline && portrait.outline.length > 2
+    portrait && portrait.outline && portrait.outline.length > 2
       ? "M" +
-        ggSmooth(portrait.outline.map((f) => ggFit(pbox, nat, f)), 6)
+        ggSmooth(
+          portrait.outline.map((f) => ggFit(pbox, nat, f)),
+          6,
+        )
           .map((p) => ggF(p[0]) + " " + ggF(p[1]))
           .join("L") +
         "Z"
@@ -1060,121 +1900,170 @@ export default function GildedGazeFooter({
       </g>
     )
     return (
-      <div className={"gg-wing-wrap " + (side > 0 ? "gg-wing-wrap-r" : "gg-wing-wrap-l")}>
-        <svg
-          className={"gg-layer gg-wing " + (side > 0 ? "gg-wing-r" : "gg-wing-l")}
-          viewBox={vb}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          style={{ transformOrigin: ggF(box.w / 2 + eye[0] * px) + "px " + ggF(eye[1] * px) + "px" }}
+      <div
+        className={"gg-wing-wrap " + (side > 0 ? "gg-wing-wrap-r" : "gg-wing-wrap-l")}
+        style={{ transformOrigin: ggF(box.w / 2 + eye[0] * px) + "px " + ggF(eye[1] * px) + "px" }}
+      >
+        <div
+          className="gg-layer gg-wing-clip"
+          style={
+            {
+              "--gg-cx": ggF(box.w / 2 + (eye[0] + side * R[0] * scale) * px) + "px",
+              "--gg-cy": ggF((eye[1] + R[1] * scale) * px) + "px",
+            } as React.CSSProperties
+          }
         >
-          <defs>
-            <linearGradient id={idp + "m"} x1="0" y1="0" x2="1" y2="1">
-              {pal.metal.map((c, i) => (
-                <stop key={i} offset={i / (pal.metal.length - 1)} stopColor={c} />
+          <svg
+            className={"gg-layer gg-wing " + (side > 0 ? "gg-wing-r" : "gg-wing-l")}
+            viewBox={vb}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            style={{ transformOrigin: ggF(box.w / 2 + eye[0] * px) + "px " + ggF(eye[1] * px) + "px" }}
+          >
+            <defs>
+              <linearGradient id={idp + "m"} x1="0" y1="0" x2="1" y2="1">
+                {pal.metal.map((c, i) => (
+                  <stop key={i} offset={i / (pal.metal.length - 1)} stopColor={c} />
+                ))}
+              </linearGradient>
+              <linearGradient id={idp + "gr"} gradientUnits="userSpaceOnUse" x1={R[0]} y1="-120" x2={GG_REACH} y2="120">
+                {pal.ground.map((c, i) => (
+                  <stop key={i} offset={i / Math.max(1, pal.ground.length - 1)} stopColor={c} />
+                ))}
+              </linearGradient>
+              {pal.enamel.map((c, i) => (
+                <radialGradient key={i} id={idp + "e" + i} cx="0.4" cy="0.36" r="0.72">
+                  <stop offset="0" stopColor={c} />
+                  <stop offset="0.68" stopColor={c} />
+                  <stop offset="1" stopColor={pal.enamelInk[i] || c} />
+                </radialGradient>
               ))}
-            </linearGradient>
-            <linearGradient id={idp + "gr"} gradientUnits="userSpaceOnUse" x1={R[0]} y1="-120" x2={GG_REACH} y2="120">
-              {pal.ground.map((c, i) => (
-                <stop key={i} offset={i / Math.max(1, pal.ground.length - 1)} stopColor={c} />
-              ))}
-            </linearGradient>
-            {pal.enamel.map((c, i) => (
-              <radialGradient key={i} id={idp + "e" + i} cx="0.4" cy="0.36" r="0.72">
-                <stop offset="0" stopColor={c} />
-                <stop offset="0.68" stopColor={c} />
-                <stop offset="1" stopColor={pal.enamelInk[i] || c} />
-              </radialGradient>
-            ))}
-            <linearGradient id={idp + "h"} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={R[0] + 10} y2="0">
-              <stop offset="0" stopColor="#fff" />
-              <stop offset="0.16" stopColor={pal.core} />
-              <stop offset="0.42" stopColor={pal.stream} />
-              <stop offset="0.75" stopColor={pal.metal[2]} />
-              <stop offset="1" stopColor={pal.metal[3]} />
-            </linearGradient>
-            <linearGradient id={idp + "s"} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={R[0] + 130} y2="0">
-              <stop offset="0" stopColor={pal.coreOuter} stopOpacity="1" />
-              <stop offset="0.6" stopColor={pal.stream} stopOpacity="0.6" />
-              <stop offset="1" stopColor={pal.stream} stopOpacity="0" />
-            </linearGradient>
-            <radialGradient id={idp + "mg"} cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0.86" stopColor="#fff" />
-              <stop offset="1" stopColor="#000" />
-            </radialGradient>
-            <mask id={idp + "mk"} maskUnits="userSpaceOnUse" x="-80" y="-440" width="1040" height="900">
-              <g transform={"translate(" + R[0] + " " + R[1] + ")"}>
-                <circle className="gg-grow" r="780" fill={"url(#" + idp + "mg)"} />
+              <linearGradient id={idp + "h"} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={R[0] + 10} y2="0">
+                <stop offset="0" stopColor="#fff" />
+                <stop offset="0.16" stopColor={pal.core} />
+                <stop offset="0.42" stopColor={pal.stream} />
+                <stop offset="0.75" stopColor={pal.metal[2]} />
+                <stop offset="1" stopColor={pal.metal[3]} />
+              </linearGradient>
+              <linearGradient id={idp + "s"} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={R[0] + 130} y2="0">
+                <stop offset="0" stopColor={pal.coreOuter} stopOpacity="1" />
+                <stop offset="0.6" stopColor={pal.stream} stopOpacity="0.6" />
+                <stop offset="1" stopColor={pal.stream} stopOpacity="0" />
+              </linearGradient>
+              <g id={idp + "k0"}>
+                <path d={GG_PAISLEY} stroke={pal.edge} strokeWidth="3.2" vectorEffect={ns} />
+                <path d={GG_PAISLEY} stroke={metal} strokeWidth="1.8" vectorEffect={ns} />
+                <path d={GG_PAISLEY} transform="translate(0.03 0.2) scale(0.56)" fill="currentColor" stroke={pal.pearl} strokeWidth="1" vectorEffect={ns} />
+                <path
+                  d={GG_PAISLEY}
+                  transform="scale(0.8)"
+                  fill="none"
+                  stroke={pal.pearl}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="0 4.6"
+                  vectorEffect={ns}
+                  opacity="0.9"
+                />
+                <circle cx="0.02" cy="0.36" r="0.13" fill={pal.pearl} />
               </g>
-            </mask>
-            <g id={idp + "k0"}>
-              <path d={GG_PAISLEY} stroke={pal.edge} strokeWidth="3.2" vectorEffect={ns} />
-              <path d={GG_PAISLEY} stroke={metal} strokeWidth="1.8" vectorEffect={ns} />
-              <path d={GG_PAISLEY} transform="translate(0.03 0.2) scale(0.56)" fill="currentColor" stroke={pal.pearl} strokeWidth="1" vectorEffect={ns} />
-              <path d={GG_PAISLEY} transform="scale(0.8)" fill="none" stroke={pal.pearl} strokeWidth="2" strokeLinecap="round" strokeDasharray="0 4.6" vectorEffect={ns} opacity="0.9" />
-              <circle cx="0.02" cy="0.36" r="0.13" fill={pal.pearl} />
-            </g>
-            <g id={idp + "k1"}>
-              <path d={rosette} stroke={pal.edge} strokeWidth="2.8" vectorEffect={ns} />
-              <path d={rosette} stroke={metal} strokeWidth="1.4" vectorEffect={ns} />
-              <circle r="0.38" fill="currentColor" stroke={metal} strokeWidth="2" vectorEffect={ns} />
-              <circle r="0.14" fill={pal.pearl} />
-            </g>
-            <g id={idp + "k2"}>
-              <circle r="0.95" fill={metal} stroke={pal.edge} strokeWidth="1" vectorEffect={ns} />
-              <circle r="0.6" stroke={pal.edge} strokeWidth="0.8" vectorEffect={ns} />
-              <circle cx="-0.2" cy="-0.22" r="0.17" fill="#fff" opacity="0.85" />
-            </g>
-            <g id={idp + "k3"}>
-              <path d={GG_LEAF} stroke={pal.edge} strokeWidth="2.6" vectorEffect={ns} />
-              <path d={GG_LEAF} stroke={metal} strokeWidth="1.3" vectorEffect={ns} />
-              <path d="M0 -0.78L0 0.78" stroke={pal.pearl} strokeWidth="1" vectorEffect={ns} opacity="0.85" />
-            </g>
-          </defs>
-          <g transform={"scale(" + (side * scale).toFixed(4) + " " + scale.toFixed(4) + ")"}>
-            <path className="gg-glow" d={wing.glow} fill="none" stroke={"url(#" + idp + "s)"} strokeWidth="42" strokeLinecap="round" />
-            <g mask={"url(#" + idp + "mk)"}>
-              <path d={wing.ground} fill={pal.shadow} transform="translate(3 6)" />
-              <path d={wing.ground} fill={"url(#" + idp + "gr)"} />
-              {wing.motifs.map((mo, i) => (
-                <g key={i} transform={"translate(" + ggF(mo.x) + " " + ggF(mo.y) + ") rotate(" + ggF(mo.a) + ") scale(" + ggF(mo.r / (mo.kind === 0 ? 1.15 : mo.kind === 3 ? 0.9 : 1)) + ")"}>
-                  <g className="gg-motif" style={{ "--k": ggF(mo.k) } as React.CSSProperties}>
-                    <use className="gg-rip" style={{ "--k": ggF(mo.k) } as React.CSSProperties} href={"#" + idp + "k" + mo.kind} fill={enamel(mo.fill)} color={pal.enamel[mo.ink % pal.enamel.length]} />
-                  </g>
-                </g>
-              ))}
-              {wing.scrolls.map((s, i) => drawScroll(s, i, false))}
-              {wing.currents.map((s, i) => drawScroll(s, i, true))}
-              {wing.drops.map((d, i) => (
-                <g key={i} transform={"translate(" + ggF(d.x) + " " + ggF(d.y) + ")"}>
-                  <g className="gg-drop-in" style={{ "--k": ggF(d.k) } as React.CSSProperties}>
-                    <g className="gg-drop" style={{ "--k": ggF(d.k) } as React.CSSProperties}>
-                      <path d={"M0 0L0 " + ggF(d.len)} stroke={pal.metal[1]} strokeWidth="1.2" />
-                      <circle cy={ggF(d.len)} r={ggF(d.r * 0.55)} fill={pal.pearl} stroke={pal.pearlEdge} strokeWidth="0.6" />
-                      <path d={GG_TEAR} transform={"translate(0 " + ggF(d.len + d.r * 1.55) + ") scale(" + ggF(d.r) + ")"} fill={metal} stroke={pal.edge} strokeWidth="0.8" vectorEffect={ns} />
-                      <circle cy={ggF(d.len + d.r * 2.1)} r={ggF(d.r * 0.36)} fill={enamel(i)} />
+              <g id={idp + "k1"}>
+                <path d={rosette} stroke={pal.edge} strokeWidth="2.8" vectorEffect={ns} />
+                <path d={rosette} stroke={metal} strokeWidth="1.4" vectorEffect={ns} />
+                <circle r="0.38" fill="currentColor" stroke={metal} strokeWidth="2" vectorEffect={ns} />
+                <circle r="0.14" fill={pal.pearl} />
+              </g>
+              <g id={idp + "k2"}>
+                <circle r="0.95" fill={metal} stroke={pal.edge} strokeWidth="1" vectorEffect={ns} />
+                <circle r="0.6" stroke={pal.edge} strokeWidth="0.8" vectorEffect={ns} />
+                <circle cx="-0.2" cy="-0.22" r="0.17" fill="#fff" opacity="0.85" />
+              </g>
+              <g id={idp + "k3"}>
+                <path d={GG_LEAF} stroke={pal.edge} strokeWidth="2.6" vectorEffect={ns} />
+                <path d={GG_LEAF} stroke={metal} strokeWidth="1.3" vectorEffect={ns} />
+                <path d="M0 -0.78L0 0.78" stroke={pal.pearl} strokeWidth="1" vectorEffect={ns} opacity="0.85" />
+              </g>
+            </defs>
+            <g transform={"scale(" + (side * scale).toFixed(4) + " " + scale.toFixed(4) + ")"}>
+              <path className="gg-glow" d={wing.glow} fill="none" stroke={"url(#" + idp + "s)"} strokeWidth="42" strokeLinecap="round" />
+              <g>
+                <path d={wing.ground} fill={pal.shadow} transform="translate(3 6)" />
+                <path d={wing.ground} fill={"url(#" + idp + "gr)"} />
+                {wing.motifs.map((mo, i) => (
+                  <g
+                    key={i}
+                    transform={
+                      "translate(" +
+                      ggF(mo.x) +
+                      " " +
+                      ggF(mo.y) +
+                      ") rotate(" +
+                      ggF(mo.a) +
+                      ") scale(" +
+                      ggF(mo.r / (mo.kind === 0 ? 1.15 : mo.kind === 3 ? 0.9 : 1)) +
+                      ")"
+                    }
+                  >
+                    <g className="gg-motif" style={{ "--k": ggF(mo.k) } as React.CSSProperties}>
+                      <use
+                        className="gg-rip"
+                        style={{ "--k": ggF(mo.k) } as React.CSSProperties}
+                        href={"#" + idp + "k" + mo.kind}
+                        fill={enamel(mo.fill)}
+                        color={pal.enamel[mo.ink % pal.enamel.length]}
+                      />
                     </g>
                   </g>
-                </g>
-              ))}
-            </g>
-            {wing.streams.map((st) => (
-              <path key={st.o} className="gg-stream" style={{ "--o": st.o } as React.CSSProperties} d={st.d} fill={"url(#" + idp + "h)"} stroke={pal.metal[0]} strokeOpacity="0.35" strokeWidth="0.6" />
-            ))}
-            <g transform={"translate(" + R[0] + " " + R[1] + ")"}>
-              <g className="gg-clasp">
-                <use href={"#" + idp + "k1"} transform="scale(19)" fill={enamel(0)} color={pal.enamel[1]} />
-                <circle r="7.5" fill={metal} stroke={pal.edge} strokeWidth="0.9" />
-                <circle r="4.8" fill={enamel(2)} />
-                <circle cx="-1.6" cy="-1.9" r="1.4" fill="#fff" opacity="0.85" />
+                ))}
+                {wing.scrolls.map((s, i) => drawScroll(s, i, false))}
+                {wing.currents.map((s, i) => drawScroll(s, i, true))}
+                {wing.drops.map((d, i) => (
+                  <g key={i} transform={"translate(" + ggF(d.x) + " " + ggF(d.y) + ")"}>
+                    <g className="gg-drop-in" style={{ "--k": ggF(d.k) } as React.CSSProperties}>
+                      <g className="gg-drop" style={{ "--k": ggF(d.k) } as React.CSSProperties}>
+                        <path d={"M0 0L0 " + ggF(d.len)} stroke={pal.metal[1]} strokeWidth="1.2" />
+                        <circle cy={ggF(d.len)} r={ggF(d.r * 0.55)} fill={pal.pearl} stroke={pal.pearlEdge} strokeWidth="0.6" />
+                        <path
+                          d={GG_TEAR}
+                          transform={"translate(0 " + ggF(d.len + d.r * 1.55) + ") scale(" + ggF(d.r) + ")"}
+                          fill={metal}
+                          stroke={pal.edge}
+                          strokeWidth="0.8"
+                          vectorEffect={ns}
+                        />
+                        <circle cy={ggF(d.len + d.r * 2.1)} r={ggF(d.r * 0.36)} fill={enamel(i)} />
+                      </g>
+                    </g>
+                  </g>
+                ))}
               </g>
+              {wing.streams.map((st) => (
+                <path
+                  key={st.o}
+                  className="gg-stream"
+                  style={{ "--o": st.o } as React.CSSProperties}
+                  d={st.d}
+                  fill={"url(#" + idp + "h)"}
+                  stroke={pal.metal[0]}
+                  strokeOpacity="0.35"
+                  strokeWidth="0.6"
+                />
+              ))}
+              <g transform={"translate(" + R[0] + " " + R[1] + ")"}>
+                <g className="gg-clasp">
+                  <use href={"#" + idp + "k1"} transform="scale(19)" fill={enamel(0)} color={pal.enamel[1]} />
+                  <circle r="7.5" fill={metal} stroke={pal.edge} strokeWidth="0.9" />
+                  <circle r="4.8" fill={enamel(2)} />
+                  <circle cx="-1.6" cy="-1.9" r="1.4" fill="#fff" opacity="0.85" />
+                </g>
+              </g>
+              {wing.beads.map((d, k) => (
+                <path className="gg-beads" key={k} d={d} fill="none" stroke={pal.metal[1]} strokeWidth={2 + k * 1.2} strokeLinecap="round" />
+              ))}
+              <path className="gg-flash" d={wing.ground} fill={pal.flare} style={{ mixBlendMode: "screen" }} />
             </g>
-            {wing.beads.map((d, k) => (
-              <path className="gg-beads" key={k} d={d} fill="none" stroke={pal.metal[1]} strokeWidth={2 + k * 1.2} strokeLinecap="round" />
-            ))}
-            <path className="gg-flash" d={wing.ground} fill={pal.flare} style={{ mixBlendMode: "screen" }} />
-          </g>
-        </svg>
+          </svg>
+        </div>
       </div>
     )
   }
@@ -1194,8 +2083,8 @@ export default function GildedGazeFooter({
         <svg className="gg-eye gg-eye-glow" viewBox={vb} style={{ left, top, width: eyeSize, height: eyeSize }} aria-hidden="true">
           <defs>
             <radialGradient id={idp + "h"} cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0" stopColor={pal.coreOuter} stopOpacity="0.95" />
-              <stop offset="0.28" stopColor={pal.halo} stopOpacity="0.6" />
+              <stop offset="0" stopColor={pal.coreOuter} stopOpacity="0.85" />
+              <stop offset="0.26" stopColor={pal.halo} stopOpacity="0.4" />
               <stop offset="1" stopColor={pal.halo} stopOpacity="0" />
             </radialGradient>
             <radialGradient id={idp + "f"} cx="0.5" cy="0.5" r="0.5">
@@ -1206,7 +2095,7 @@ export default function GildedGazeFooter({
           </defs>
           <g className="gg-near">
             <g className="gg-surge-g">
-              <circle className="gg-halo" r="78" fill={"url(#" + idp + "h)"} />
+              <circle className="gg-halo" r="64" fill={"url(#" + idp + "h)"} />
               <g className="gg-flare" style={{ "--d": "0s" } as React.CSSProperties}>
                 <ellipse cx={side * 95} rx="190" ry="7" fill={"url(#" + idp + "f)"} />
               </g>
@@ -1228,10 +2117,32 @@ export default function GildedGazeFooter({
             </radialGradient>
           </defs>
           <g className="gg-near">
-            <circle className="gg-ring" r="10" fill="none" stroke={pal.halo} strokeWidth="1.6" vectorEffect="non-scaling-stroke" style={{ "--d": "0s" } as React.CSSProperties} />
-            <circle className="gg-ring" r="10" fill="none" stroke={pal.core} strokeWidth="1" vectorEffect="non-scaling-stroke" style={{ "--d": "0.18s" } as React.CSSProperties} />
+            <circle
+              className="gg-ring"
+              r="10"
+              fill="none"
+              stroke={pal.halo}
+              strokeWidth="1.6"
+              vectorEffect="non-scaling-stroke"
+              style={{ "--d": "0s" } as React.CSSProperties}
+            />
+            <circle
+              className="gg-ring"
+              r="10"
+              fill="none"
+              stroke={pal.core}
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+              style={{ "--d": "0.18s" } as React.CSSProperties}
+            />
             {bursts.map((b, i) => (
-              <path key={i} className="gg-burst" d={GG_SPARK_D} fill={pal.spark} style={{ "--bx": b[0], "--by": b[1], "--d": i * 0.03 + "s" } as React.CSSProperties} />
+              <path
+                key={i}
+                className="gg-burst"
+                d={GG_SPARK_D}
+                fill={pal.spark}
+                style={{ "--bx": b[0], "--by": b[1], "--d": i * 0.03 + "s" } as React.CSSProperties}
+              />
             ))}
             <g className="gg-core">
               <ellipse rx="20" ry="12" fill={"url(#" + idp + "c)"} />
@@ -1298,30 +2209,74 @@ export default function GildedGazeFooter({
         <div className="gg-scene" ref={sceneRef} style={{ height: sceneHeight }}>
           {box.w > 0 ? (
             <>
-              <div className="gg-layer gg-portrait-wrap">
-                <svg className="gg-layer gg-portrait" viewBox={stageView} preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <radialGradient id={uid + "pm"} cx="0.5" cy="0.44" r="0.5" gradientTransform="scale(1 1.55) translate(0 -0.18)">
-                      <stop offset="0.5" stopColor="#fff" />
-                      <stop offset="1" stopColor="#000" />
-                    </radialGradient>
-                    <filter id={uid + "pf"} x="-10%" y="-10%" width="120%" height="120%">
-                      <feGaussianBlur stdDeviation="1.8" />
-                    </filter>
-                    <mask id={uid + "pmask"} maskUnits="userSpaceOnUse" x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h}>
-                      {cut ? <path d={cut} fill="#fff" filter={"url(#" + uid + "pf)"} /> : <rect x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h} fill={"url(#" + uid + "pm)"} />}
-                    </mask>
-                    <radialGradient id={uid + "pw"} cx="0.5" cy="0.5" r="0.5">
-                      <stop offset="0" stopColor={pal.wash} stopOpacity="0.55" />
-                      <stop offset="0.45" stopColor={pal.wash} stopOpacity="0.22" />
-                      <stop offset="1" stopColor={pal.wash} stopOpacity="0" />
-                    </radialGradient>
-                  </defs>
-                  <g mask={"url(#" + uid + "pmask)"}>
-                    <image href={portrait.src} x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h} preserveAspectRatio="xMidYMid slice" />
-                    <ellipse className="gg-wash" cx={eyeMid[0]} cy={eyeMid[1] + 10} rx="260" ry="180" fill={"url(#" + uid + "pw)"} style={{ mixBlendMode: "screen" }} />
-                  </g>
-                </svg>
+              <div className="gg-layer gg-body">
+                <div className="gg-layer gg-breath">
+                  <div className="gg-layer gg-portrait-wrap">
+                    <svg className="gg-layer" viewBox={stageView} preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <radialGradient id={uid + "pw"} cx="0.5" cy="0.5" r="0.5">
+                          <stop offset="0" stopColor={pal.wash} stopOpacity="0.55" />
+                          <stop offset="0.45" stopColor={pal.wash} stopOpacity="0.22" />
+                          <stop offset="1" stopColor={pal.wash} stopOpacity="0" />
+                        </radialGradient>
+                        {portrait ? (
+                          <>
+                            <radialGradient id={uid + "pm"} cx="0.5" cy="0.44" r="0.5" gradientTransform="scale(1 1.55) translate(0 -0.18)">
+                              <stop offset="0.5" stopColor="#fff" />
+                              <stop offset="1" stopColor="#000" />
+                            </radialGradient>
+                            <filter id={uid + "pf"} x="-10%" y="-10%" width="120%" height="120%">
+                              <feGaussianBlur stdDeviation="1.8" />
+                            </filter>
+                            <mask id={uid + "pmask"} maskUnits="userSpaceOnUse" x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h}>
+                              {cut ? (
+                                <path d={cut} fill="#fff" filter={"url(#" + uid + "pf)"} />
+                              ) : (
+                                <rect x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h} fill={"url(#" + uid + "pm)"} />
+                              )}
+                            </mask>
+                          </>
+                        ) : null}
+                      </defs>
+                      {portrait ? (
+                        <g mask={"url(#" + uid + "pmask)"}>
+                          <image href={portrait.src} x={pbox.x} y={pbox.y} width={pbox.w} height={pbox.h} preserveAspectRatio="xMidYMid slice" />
+                          <ellipse
+                            className="gg-wash"
+                            cx={eyeMid[0]}
+                            cy={eyeMid[1] + 10}
+                            rx="260"
+                            ry="180"
+                            fill={"url(#" + uid + "pw)"}
+                            style={{ mixBlendMode: "screen" }}
+                          />
+                        </g>
+                      ) : (
+                        <svg
+                          x={pbox.x}
+                          y={pbox.y}
+                          width={pbox.w}
+                          height={pbox.h}
+                          viewBox={"0 0 " + GG_FIG_W + " " + GG_FIG_H}
+                          preserveAspectRatio="xMidYMid slice"
+                          overflow="visible"
+                        >
+                          <GgFigureArt pal={pal} id={uid + "f"} />
+                          <ellipse
+                            className="gg-wash"
+                            cx="300"
+                            cy="240"
+                            rx="110"
+                            ry="58"
+                            fill={"url(#" + uid + "pw)"}
+                            style={{ mixBlendMode: "screen" }}
+                            opacity="0.7"
+                          />
+                        </svg>
+                      )}
+                    </svg>
+                  </div>
+                </div>
               </div>
               {renderWing(-1, eyeL, scaleL)}
               {renderWing(1, eyeR, scaleR)}
@@ -1334,18 +2289,27 @@ export default function GildedGazeFooter({
                   </svg>
                 ))}
               </svg>
-              {renderEye(eyeL, -1, "el")}
-              {renderEye(eyeR, 1, "er")}
-              <button
-                type="button"
-                className="gg-hit"
-                aria-label="Light up her eyes"
-                onClick={ignite}
-                style={{ left: ggF(box.w / 2 + eyeMid[0] * px - hitW / 2) + "px", top: ggF(eyeMid[1] * px - hitH / 2) + "px", width: ggF(hitW) + "px", height: ggF(hitH) + "px" }}
-              />
+              <div className="gg-layer gg-body">
+                <div className="gg-layer gg-breath">
+                  {renderEye(eyeL, -1, "el")}
+                  {renderEye(eyeR, 1, "er")}
+                  <button
+                    type="button"
+                    className="gg-hit"
+                    aria-label="Light up her eyes"
+                    onClick={ignite}
+                    style={{
+                      left: ggF(box.w / 2 + eyeMid[0] * px - hitW / 2) + "px",
+                      top: ggF(eyeMid[1] * px - hitH / 2) + "px",
+                      width: ggF(hitW) + "px",
+                      height: ggF(hitH) + "px",
+                    }}
+                  />
+                </div>
+              </div>
             </>
           ) : null}
-          {portrait.alt ? <span className="gg-sr">{portrait.alt}</span> : null}
+          <span className="gg-sr">{portrait ? portrait.alt || figureAlt : figureAlt}</span>
         </div>
 
         <div className="gg-links">
@@ -1389,4 +2353,4 @@ export default function GildedGazeFooter({
   )
 }
 
-export type GgPaletteInput = Partial<GgPalette>
+export type GgPaletteInput = Partial<Omit<GgPalette, "figure">> & { figure?: Partial<GgFigurePalette> }
