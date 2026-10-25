@@ -58,6 +58,7 @@ assert.match(css[1], /\.fit-root :where\(svg,canvas,img\)\{display:block;max-wid
 assert.match(css[1], /\.fit-root\{[^}]*overflow-x:clip/, "the root clips sideways without breaking the sticky stages")
 assert.doesNotMatch(css[1], /\.fit-root\{[^}]*overflow:hidden/, "overflow:hidden on the root would break position:sticky")
 assert.match(css[1], /\.fit-root\[data-motion="reduced"\] \.fit-quote\{height:auto\}/, "reduced motion unpins the quote")
+assert.match(css[1], /\.fit-root\[data-motion="reduced"\] \.fit-quote-stick\{position:relative\}/, "but keeps its stage full height, so the front clouds stay below the words")
 assert.match(css[1], /\.fit-root\[data-motion="reduced"\] \.fit-fig-float\{animation:none\}/, "and stops the figures floating")
 assert.match(css[1], /@media \(max-width:760px\)\{/, "a designed phone layout")
 assert.match(css[1], /\.fit-next-title span\{display:block;clip-path:inset\(0 -\.4em/, "the rising name is clipped top and bottom only, so wide glyphs are never cut")
