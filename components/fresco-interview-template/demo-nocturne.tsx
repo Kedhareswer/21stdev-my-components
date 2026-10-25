@@ -19,6 +19,14 @@ export default function DemoNocturne() {
         subject: "Hana Lindqvist, founder of Paper Moon",
         deck: "**Paper Moon** _turned a shuttered cinema into the city's late-night shadow theatre._",
         cta: { label: "See Paper Moon's site", href: "#" },
+        backdrop: {
+          src: UNSPLASH + "1780821637422-4a5703aea411",
+          alt: "A ceiling fresco of angels on cream clouds",
+          crop: [0.02, 0.04, 0.96, 0.6],
+          focus: "50% 40%",
+          mask: "hero",
+          keep: 0.22,
+        },
         figures: [
           {
             src: UNSPLASH + "1758651794755-465d25631649",
@@ -124,6 +132,15 @@ export default function DemoNocturne() {
       quote={{
         text: "**Light, patience** _and a bedsheet are all a theatre has ever needed._",
         cite: "Hana Lindqvist",
+        backdrop: {
+          src: UNSPLASH + "1768296100606-72e7ff614831",
+          alt: "A Baroque ceiling fresco around a burst of light",
+          crop: [0.1, 0.24, 0.8, 0.5],
+          focus: "50% 50%",
+          mask: "stage",
+          keep: 0.35,
+          opacity: 0.9,
+        },
         figure: {
           src: UNSPLASH + "1571033690858-b336bfa1dd0f",
           alt: "A marble figure looking up into the light",
@@ -143,6 +160,14 @@ export default function DemoNocturne() {
         title: ["Omar", "Haddad"],
         blurb: "The baker who runs a bread library out of a phone box.",
         href: "#",
+        backdrop: {
+          src: UNSPLASH + "1583119912267-cc97c911e416",
+          alt: "A ceiling fresco of cherubs on a pale sky",
+          crop: [0, 0.05, 1, 0.9],
+          focus: "50% 60%",
+          mask: "stage",
+          keep: 0.3,
+        },
         figure: {
           src: UNSPLASH + "1758651794755-465d25631649",
           alt: "A marble angel holding a garment",
