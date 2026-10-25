@@ -1368,7 +1368,7 @@ const FIT_CSS = `
 .fit-root[data-motion="reduced"] .fit-fig-float{animation:none}
 .fit-root[data-motion="reduced"] .fit-cue i:after{animation:none;top:0}
 .fit-root[data-motion="reduced"] .fit-quote{height:auto}
-.fit-root[data-motion="reduced"] .fit-quote-stick{position:relative;height:auto;min-height:0;padding:14vh 20px 20vh}
+.fit-root[data-motion="reduced"] .fit-quote-stick{position:relative}
 .fit-root[data-motion="reduced"] .fit-rule{transform:none}
 .fit-root[data-motion="reduced"] .fit-cloud,.fit-root[data-motion="reduced"] .fit-fig-canvas,.fit-root[data-motion="reduced"] .fit-fig-img{transition:none}
 @media (prefers-reduced-motion:reduce){.fit-fig-float{animation:none}.fit-cue i:after{animation:none;top:0}}
