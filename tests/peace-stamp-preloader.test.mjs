@@ -182,41 +182,29 @@ checkPath(leaf, "leaf")
 assert.equal(m.pspLeaf(48, 24, 13, 3), leaf, "the same seed cuts the same leaf")
 for (const v of m.pspLeafLines(48, 24)) checkPath(v, "vein")
 
-// hands: kinematics, silhouettes and marks
-const fk = m.pspFk([0, 0], [10, 10], [0, 90])
-assert.deepEqual(fk.map((p) => p.map(Math.round)), [[0, 0], [10, 0], [10, 10]], "forward kinematics walks the joints")
-for (const e of [0, 0.5, 1]) {
-  for (const [name, hand] of [["left", m.pspHandLeft(e)], ["right", m.pspHandRight(e)]]) {
-    checkPath(hand.palm, `${name} palm`)
-    assert.equal(hand.under.length + hand.over.length, 5, `${name} hand has four fingers and a thumb`)
-    assert.ok(hand.bumps.length >= 5 && hand.bumps.every((b) => b.length === 5 && b.every(Number.isFinite)), `${name} relief has swellings`)
-    for (const f of [...hand.under, ...hand.over]) {
-      assert.equal(f.pts.length, f.lens.length + 1, "a joint per segment plus the base")
-      assert.ok(f.pts.every((pt) => pt.every(Number.isFinite)), "finite joints")
-      assert.ok(f.tone > 0 && f.tone <= 1, "relief height is a grey")
-      checkPath(m.pspFingerOutline(f), `${name} finger`)
-      const marks = m.pspFingerMarks(f)
-      assert.equal(marks.creases.length, (f.lens.length - 1) * 3, "three wrinkles over each joint")
-      for (const c of marks.creases) checkPath(c, "crease")
-      if (f.nail) assert.ok(marks.nail && Number.isFinite(marks.nail.x) && marks.nail.rx > 0, "the nail has a place")
-      else assert.equal(marks.nail, null)
-    }
-  }
+// ---- 3b. The hands: the fresco's, embedded, tinted by the palette ------------
+// They are Michelangelo's (public domain), cut out and stored as WebP data
+// URIs in the file itself, so nothing is fetched and the file still travels alone.
+for (const name of ["PSP_HAND_L", "PSP_HAND_R"]) {
+  const m2 = src.match(new RegExp("const " + name + " =\\s*\"data:image/webp;base64,([A-Za-z0-9+/=]+)\""))
+  assert.ok(m2, `${name} is an embedded WebP data URI`)
+  const bytes = Buffer.from(m2[1], "base64")
+  assert.equal(bytes.subarray(0, 4).toString("ascii"), "RIFF", `${name} decodes to a RIFF container`)
+  assert.equal(bytes.subarray(8, 12).toString("ascii"), "WEBP", `${name} is WebP`)
+  assert.ok(bytes.length > 8000 && bytes.length < 40000, `${name} stays small (${bytes.length} bytes)`)
+  assert.equal(bytes.readUInt32LE(4) + 8, bytes.length, `${name} is a complete file`)
 }
-const left = m.pspHandLeft(1)
-const right = m.pspHandRight(1)
-assert.ok(left.tip[0] > m.pspHandLeft(0).tip[0], "the left index reaches out as the hand arrives")
-assert.ok(right.tip[0] < m.pspHandRight(0).tip[0] || right.tip[1] > m.pspHandRight(0).tip[1], "the right index closes toward the stem")
-const gap = Math.hypot(left.tip[0] - right.tip[0], left.tip[1] - right.tip[1])
-assert.ok(gap > 12 && gap < 70, `the fingertips almost meet, as in the fresco (gap ${gap.toFixed(1)})`)
-assert.ok(left.tip[0] > 300 && left.tip[0] < 420 && right.tip[0] > 340 && right.tip[0] < 460, "the touch is in the middle of the disc")
-const curled = right.under[1]
-assert.ok(curled.a[2] < 90 && curled.a[0] > 120, "the right little finger curls back under")
-const index = left.under[left.under.length - 1]
-const outline = m.pspFingerOutline(index)
-const ends = coords(outline)
-const tip = m.pspFingerTip(index)
-assert.ok(ends.some((p) => Math.hypot(p[0] - tip[0], p[1] - tip[1]) < 3), "the outline reaches the fingertip")
+assert.ok(src.includes("public domain"), "the hands' provenance is recorded in the file")
+assert.ok(src.includes('<feComponentTransfer result="t">') && src.includes('type="table" tableValues={table(0)}'), "a gradient map tints the hands")
+assert.ok(src.includes("hex(C.skinDark)") && src.includes("hex(C.skinLight)"), "the tint comes from the palette")
+const hands = src.match(/l: \{ w: (\d+), h: (\d+), tip: \[(\d+), (\d+)\], at: \[(\d+), (\d+)\][^}]*\},\s*r: \{ w: (\d+), h: (\d+), tip: \[(\d+), (\d+)\], at: \[(\d+), (\d+)\]/)
+assert.ok(hands, "both hands are placed")
+const [lw, lh, ltx, lty, lax, lay, rw, rh, rtx, rty, rax, ray] = hands.slice(1).map(Number)
+assert.ok(ltx > lw * 0.9 && rtx < rw * 0.1, "the left hand reaches right, the right hand reaches left")
+assert.ok(lty < lh && rty < rh, "fingertips lie inside their images")
+const gap = Math.hypot(rax - lax, ray - lay)
+assert.ok(gap > 15 && gap < 60, `the fingertips almost meet, as in the fresco (gap ${gap.toFixed(1)})`)
+assert.ok(lax > 300 && rax < 460, "the touch is in the middle of the disc")
 
 // ---- 4. No borrowed marks --------------------------------------------------
 // The look is after a postage stamp; the issuing body's name must not ship.

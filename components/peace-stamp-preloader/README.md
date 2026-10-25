@@ -3,8 +3,8 @@
 A loading gate drawn as a postage stamp. A sheet of teal-edged, perforated
 paper lands on the page, and the stamp prints itself as the page loads. In the
 middle, on a mint disc lit from within, a gold dog-rose grows from a bud. Two
-sculpted blue hands reach in over the edges of the stamp, one pointing, one
-closing on the stem, after the hands in the Sistine ceiling. At 100% the light
+blue hands reach in over the edges of the stamp until their fingertips almost
+meet. They are Michelangelo's, from the Creation of Adam. At 100% the light
 flares between the fingertips, a postmark cancels the stamp, and the stamp
 lifts off the page to reveal whatever it was guarding.
 
@@ -18,9 +18,8 @@ lifts off the page to reveal whatever it was guarding.
 3. **Grow.** The stem draws itself and the leaves unfurl. A bud appears and
    morphs open, petal by petal, into an engraved dog-rose, and the stamens
    come up in its heart.
-4. **Reach.** The left hand slides in from the left edge, its index finger
-   straightening as it arrives. The right hand slides in from the right and
-   closes its fingers.
+4. **Reach.** The left hand slides in from the left edge, the right hand from
+   the right. Each swings up from the wrist into its reach as it arrives.
 5. **Touch.** At 100% a gold spark flashes between the fingertips and the
    disc brightens.
 6. **Cancel.** A rough-edged postmark slams onto the corner with the face
@@ -58,26 +57,27 @@ import PeaceStampPreloader from "@/components/ui/peace-stamp-preloader"
 />
 ```
 
-**No dependencies beyond React, and no assets.** Every mark is procedural SVG
-built in the file.
+**No dependencies beyond React, and nothing is fetched.** The stamp is
+procedural SVG built in the file. The hands are two small images embedded in
+the file itself.
 
 - **Frame.** The perforation is a CSS mask on the sheet, so the hands, grain
   and sheen all clip against it.
 - **Ornament.** The scrollwork is tapered ribbons wound into logarithmic
   spirals. The lettering sits on arcs.
-- **Hands.** Each hand is a palm and five articulated fingers posed by
-  forward kinematics. Each finger is a tube that swells at the knuckles and
-  tapers to a rounded tip. The hand is drawn as a grey height map, nearer
-  parts lighter, with soft swellings for the knuckles, the wrist bone and the
-  muscle. SVG lighting filters light it, giving the matte, sculpted, grainy
-  finish: a fine and a broad blur, diffuse and specular light, ambient
-  occlusion, and noise. Wrinkles, nails and a soft cast shadow go on top.
+- **Hands.** These are Adam's and God's hands from Michelangelo's fresco on
+  the Sistine Chapel ceiling, c. 1512, which is in the public domain. They
+  were cut out of the Wikimedia Commons file "Creation of Adam (Michelangelo)
+  Detail.jpg" and stored as greyscale WebP images, about 23KB each, embedded
+  as data URIs. A gradient-map filter maps the fresco's light and shade onto
+  the palette's four skin tones, so every preset recolours them, and adds a
+  little grain. Each hand casts a soft shadow on the stamp.
 - **Texture.** Paper grain, ink mottling and the postmark's rough edge are
   SVG filters, painted once.
 
 The frame, the ring, the flower and each hand are separate layers. The ring
-turns and the hands slide on the compositor, and only the flower repaints as
-it morphs. One `requestAnimationFrame` loop drives everything, writing to the
+turns and the hands slide and swing on the compositor, and only the flower
+repaints as it morphs. One `requestAnimationFrame` loop drives everything, writing to the
 DOM directly, and it skips any write whose value hasn't changed.
 
 ## Props
@@ -120,9 +120,9 @@ DOM directly, and it skips any write whose value hasn't changed.
 | `petal` | `#e8c461` | The flower. |
 | `petalDark` | `#94641a` | The engraving, the veins, the stamens, the stem's edge. |
 | `leaf` | `#9a8a3a` | The leaves. |
-| `skin` | `#3d84ea` | The hands. |
-| `skinDark` | `#143c94` | Their shadow side, creases and the navy underside. |
-| `skinLight` | `#a9d4ff` | Their highlights and nails. |
+| `skin` | `#3d84ea` | The hands' midtones. |
+| `skinDark` | `#143c94` | Their shadows. A darker navy is derived from it for the deepest ones. |
+| `skinLight` | `#a9d4ff` | Their lights. |
 | `ink` | `#1f2547` | The postmark. |
 | `stage` | — | Behind the stamp. Leave out to use the host's `bg-background`. |
 
@@ -138,10 +138,9 @@ DOM directly, and it skips any write whose value hasn't changed.
   - The ring stops turning.
   - The hands fade in where they stand instead of sliding.
   - The flower still opens with the load.
-- The lighting filters run on the CPU in some browsers. They only re-run
-  while a hand is changing pose. Sliding and idling hands are composited.
+- The component file is about 130KB, most of it the two embedded hand images.
 - The gate is a focusable `role="progressbar"` with its value and a status
   text, and works with Enter and Space.
 - All the geometry is exported, so the same drawing can be reused elsewhere.
   That includes `pspPetal`, `pspFlower`, `pspLyre`, `pspSScroll`,
-  `pspHandLeft`, `pspHandRight`, `pspFingerOutline` and `pspPerforationPath`.
+  `pspLeaf` and `pspPerforationPath`.
