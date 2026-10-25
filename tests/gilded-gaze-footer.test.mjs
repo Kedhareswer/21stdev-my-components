@@ -14,8 +14,9 @@ assert.deepEqual(imports, ["react"], "react is the only import")
 assert.doesNotMatch(src, /@import|url\(["']?(https?:|\/\/|data:)/, "nothing fetched from CSS: every url() points at an in-page #id")
 assert.doesNotMatch(src, /<img|fetch\(/, "the portrait is an SVG <image>, nothing else is fetched")
 assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /https?:\/\//, "nothing is fetched by default: she is drawn, not loaded")
-assert.ok(src.includes("<GgFigureArt pal={pal}"), "the illustrated elder is the default")
-assert.ok(/portrait,\n/.test(src) && src.includes("portrait ? ("), "a photo is an opt-in prop")
+assert.match(src, /const GG_ELDER =\s*"data:image\/webp;base64,[A-Za-z0-9+/=]{20000,}"/, "the elder is embedded, not fetched")
+assert.ok(src.includes("portrait = GG_DEFAULT_PORTRAIT") && src.includes("cutout: true"), "she is the default portrait, drawn as a transparent cut-out")
+assert.ok(src.indexOf("const GG_ELDER") < src.indexOf("const GG_DEFAULT_PORTRAIT"), "declared before use")
 assert.match(src, /sceneHeight = "clamp\(\d+px, [\d.]+vw, \d+px\)"/, "the scene height defaults to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 assert.ok(src.includes("prefers-reduced-motion"), "honours reduced motion")
@@ -57,7 +58,7 @@ for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s*([^
 }
 // Every animated class has a reduced-motion answer.
 const rm = css.slice(css.indexOf("@media (prefers-reduced-motion"))
-for (const cls of ["gg-line-in", "gg-quirk", "gg-portrait-wrap", "gg-glow", "gg-stream", "gg-wing-clip", "gg-motif", "gg-clasp", "gg-drop-in", "gg-drop", "gg-wing", "gg-body", "gg-breath", "gg-swing", "gg-cloth", "gg-zari", "gg-zari-d", "gg-core", "gg-halo", "gg-flare", "gg-spark", "gg-ring", "gg-burst", "gg-rip"]) {
+for (const cls of ["gg-line-in", "gg-quirk", "gg-portrait-wrap", "gg-glow", "gg-stream", "gg-wing-clip", "gg-motif", "gg-clasp", "gg-drop-in", "gg-drop", "gg-wing", "gg-body", "gg-breath", "gg-filler", "gg-core", "gg-halo", "gg-flare", "gg-spark", "gg-ring", "gg-burst", "gg-rip"]) {
   assert.ok(rm.includes("." + cls + ",") || rm.includes("." + cls + " "), "reduced motion forgets ." + cls)
 }
 // The links sit in the corners under the wings only where there is room.
@@ -67,10 +68,7 @@ assert.match(css, /@media \(min-width: 1280px\) \{\s*\.gg-links \{ position: abs
 const a = src.indexOf("// #region wing\n")
 const b = src.indexOf("// #endregion", a)
 assert.ok(a > -1 && b > a, "wing region missing")
-const fa = src.indexOf("// #region figure\n")
-const fb = src.indexOf("// #endregion", fa)
-assert.ok(fa > -1 && fb > fa, "figure region missing")
-const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b) + "\n" + src.slice(fa, fb))))
+const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(a, b))))
 const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1])
 
 // PRNG: deterministic, in range, seed-sensitive.
@@ -122,7 +120,8 @@ assert.ok(Math.abs(L.ggEdgeDist([[0, 0], [10, 0], [10, 10], [0, 10]], 5, 3) - 3)
 const w1 = L.ggWing(7)
 assert.deepEqual(L.ggWing(7), w1, "same seed, same wing")
 assert.notDeepEqual(L.ggWing(19).motifs, w1.motifs, "another seed, another wing")
-assert.equal(w1.currents.length, 5, "five gold currents")
+assert.equal(w1.currents.length, 6, "six gold currents")
+assert.ok(w1.fillers.length >= 60, "gold filigree in the gaps: " + w1.fillers.length)
 assert.ok(w1.scrolls.length >= 24, "acanthus scrolls off the currents: " + w1.scrolls.length)
 assert.ok(w1.motifs.length >= 60, "densely set: " + w1.motifs.length)
 assert.equal(w1.streams.length, 4, "four braided strands from the eye")
@@ -149,38 +148,28 @@ for (const s of [...w1.currents, ...w1.scrolls]) {
 assert.ok(w1.env.every((p) => p[0] >= L.GG_ROOT[0] - 10), "the ornament leaves the face to the streams")
 assert.ok(w1.sparks.length > 0 && w1.sparks.every((p) => p.every(Number.isFinite)))
 
-// Scale: reaches toward the edge, capped by the room above the eye, never vanishes on a phone.
+// Scale: as tall as the room above the eye allows, and long enough to run off the page.
 const sDesk = L.ggWingScale(1636, 60, 258)
-assert.ok(sDesk > 0.9 && sDesk <= (258 - 12) / L.GG_TOP + 1e-9)
-assert.equal(L.ggWingScale(4000, 60, 2000), 1.2, "capped on huge screens")
-assert.equal(L.ggWingScale(640, 60, 2000), 0.72, "a phone gets a bigger minimum, and the wing bleeds off")
-assert.equal(L.ggWingScale(1000, 60, 2000), 0.6, "a narrow desktop never shrinks the wing below 0.6")
+assert.ok(sDesk > 0.9 && sDesk <= (258 - 12) / L.GG_TOP + 1e-9, "capped by the room above the eye")
+assert.ok(60 + L.GG_REACH * sDesk > 1636 / 2 + 40, "on a desktop the wing runs off the edge of the page")
+const sPhone = L.ggWingScale(562, 60, 306)
+assert.ok(sPhone > 0.55 && 60 + L.GG_REACH * sPhone > 562 / 2 + 100, "on a phone too")
+assert.equal(L.ggWingScale(4000, 60, 2000), 1, "never above full size")
+assert.equal(L.ggWingScale(100, 60, 2000), 0.5, "never below half")
 
 // Portrait box and fit: cropped by the bottom edge, centred, slice-fitted.
 const pb = L.ggPortraitBox(1600)
 assert.ok(Math.abs(pb.y + pb.h * L.GG_PORTRAIT_SHOW - L.GG_H) < 1e-9 && Math.abs(pb.x + pb.w / 2) < 1e-9, "bottom-cropped, centred")
 assert.ok(Math.abs(pb.w / pb.h - L.GG_PORTRAIT_ASPECT) < 1e-9)
-assert.ok(L.ggPortraitBox(560).w > 560, "on a phone her veil bleeds off the sides")
+assert.ok(L.ggPortraitBox(560).w <= 560, "on a phone she fits the width, leaving room for the wings")
 assert.deepEqual(L.ggFit(pb, null, [0, 0]), [pb.x, pb.y], "unknown size: the box itself")
 const wide = L.ggFit(pb, { w: 2000, h: 1000 }, [0.5, 0.5])
 assert.ok(Math.abs(wide[0]) < 1e-9 && Math.abs(wide[1] - (pb.y + pb.h / 2)) < 1e-9, "centre stays centre")
 const tl = L.ggFit(pb, { w: 2000, h: 1000 }, [0, 0])
 assert.ok(tl[0] < pb.x && Math.abs(tl[1] - pb.y) < 1e-9, "a wide image is cropped at the sides")
 
-// The illustration: smooth paths, a symmetric face inside the veil's opening,
-// and eye fractions that land on her closed eyes, where the glow is placed.
-assert.match(L.ggCurve([[0, 0], [10, 0], [10, 10]]), /^M0 0(C[-\d. ]+){3}Z$/, "a closed smooth path")
-assert.match(L.ggCurve([[0, 0], [10, 0], [10, 10]], false), /^M0 0(C[-\d. ]+){2}$/, "an open one")
-assert.equal(L.GG_FIG_W / L.GG_FIG_H, L.GG_PORTRAIT_ASPECT, "the artboard fits the portrait box exactly")
-const [eL, eR] = L.GG_FIG_EYES.map((e) => [e[0] * L.GG_FIG_W, e[1] * L.GG_FIG_H])
-assert.ok(Math.abs(eL[0] - 262) < 1e-9 && Math.abs(eR[0] - 338) < 1e-9 && eL[1] === eR[1], "eyes level and either side of centre")
-const face = src.match(/const GG_FACE_PTS: GgPt\[\] = (\[[\s\S]*?\n\])/)[1]
-const facePts = JSON.parse(face.replace(/,\s*\]$/, "]"))
-const open = JSON.parse(src.match(/const GG_OPEN_PTS: GgPt\[\] = (\[[\s\S]*?\n\])/)[1].replace(/,\s*\]$/, "]"))
-for (const e of [eL, eR]) assert.ok(L.ggInside(facePts, e[0], e[1]), "an eye outside her face")
-for (const p of facePts) {
-  assert.ok(facePts.some((q) => Math.abs(q[0] - (600 - p[0])) < 0.2 && Math.abs(q[1] - p[1]) < 0.2), "face not symmetric at " + p)
-  if (p[1] < 340) assert.ok(L.ggInside(open, p[0], p[1]), "the veil covers her face at " + p)
-}
+// Her eyes, as placed by the default portrait, are level and either side of centre.
+const eyes = JSON.parse(src.match(/eyes: (\[\s*\[[\d.]+, [\d.]+\],\s*\[[\d.]+, [\d.]+\],?\s*\])/)[1].replace(/,\s*\]$/, "]"))
+assert.ok(eyes[0][0] < 0.5 && eyes[1][0] > 0.5 && Math.abs(eyes[0][1] - eyes[1][1]) < 0.01, "eyes level, either side of centre")
 
 console.log("gilded-gaze-footer: ok")
