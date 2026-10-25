@@ -15,6 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/ember-petal-preloader": ["./components/ember-petal-preloader/ember-petal-preloader.tsx"],
+      "@/components/ui/fresco-interview-template": ["./components/fresco-interview-template/fresco-interview-template.tsx"],
       "@/components/ui/slit-type-faq": ["./components/slit-type-faq/slit-type-faq.tsx"],
       "@/components/ui/plumb-payroll-template": ["./components/plumb-payroll-template/plumb-payroll-template.tsx"],
       "@/components/ui/long-exposure-agency-template": ["./components/long-exposure-agency-template/long-exposure-agency-template.tsx"],
