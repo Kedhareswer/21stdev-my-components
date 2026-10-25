@@ -1,57 +1,59 @@
 "use client"
 
 // Peace Stamp Preloader — a loading gate drawn as a postage stamp. A sheet of
-// perforated paper lands on the page, the teal and magenta plates print one
-// after the other, the gold hairlines and the guilloche border draw
-// themselves, and in the middle, on a mint disc, a golden hellebore grows out
-// of a bud as the page loads. Two engraved blue hands reach in from the edges
-// of the stamp: one open and pointing, the other pinching the stem. At 100%
-// the fingertip glints, a postmark cancels the stamp, and the stamp lifts off
-// the page to reveal whatever it was guarding.
+// teal-edged, perforated paper lands on the page and the stamp prints itself
+// as the page loads: the striped rules run out, the diagonal bands draw in from
+// the corners, the Victorian scrollwork unfurls, the lettered ring turns into
+// place, and a gold dog-rose grows on a lit disc, its petals morphing from a
+// bud to an open flower. Two sculpted blue hands reach in over the edges of
+// the stamp, one pointing, one closing on the stem. At 100% the light flares
+// between the fingertips, a postmark cancels the stamp, and it lifts off the
+// page to reveal whatever it was guarding.
 //
-// One file, React only. Every mark is procedural SVG built in the file: the
-// perforation, the guilloche, the ring type, the flower and its morphing
-// petals, both hands with their hatching, and the postmark. Paper grain and
-// the postmark's rough ink come from SVG filters. Nothing is fetched. Every
-// rule in the scoped <style> is .psp- prefixed.
+// One file, React only. Every mark is procedural SVG built in the file. The
+// hands are shaped from a palm and articulated fingers (forward kinematics),
+// drawn as a height map and lit with SVG lighting filters, which is what gives
+// them the matte, sculpted, grainy look. Paper grain, ink mottling and the
+// postmark's rough edge are SVG filters too. Nothing is fetched. Every rule in
+// the scoped <style> is .psp- prefixed.
 
 import * as React from "react"
 
 export interface PeaceStampPalette {
-  /** The stamp's paper. */
-  paper: string
-  /** The magenta plate: the field inside the border and the inner ring. */
+  /** The magenta plate: the field, the ring, the lettering's ground. */
   field: string
-  /** The teal plate: the outer band, the side letters, the outer ring. */
+  /** The teal plate: the perforated edge, the bands, the bars, the scrollwork. */
   band: string
-  /** Gold hairlines, dots and the small type. */
+  /** Lettering and hairlines. */
+  cream: string
+  /** Gold hairlines and dots. */
   gold: string
-  /** Edge of the central disc. It fades to `disc` at the centre. */
+  /** Edge of the central disc. */
   mint: string
   /** Centre of the disc, where the light is. */
   disc: string
   /** The flower's petals. */
   petal: string
-  /** Veins and the darker heart of the flower. */
+  /** The engraving on the flower, its veins and its heart. */
   petalDark: string
   /** Stem and leaves. */
   leaf: string
   /** The hands. */
   skin: string
-  /** The hands' shadow side and hatching. */
+  /** The hands' shadow side. */
   skinDark: string
-  /** The hands' highlight. */
+  /** The hands' highlights. */
   skinLight: string
-  /** Engraved lines, the postmark, the small print. */
+  /** The postmark. */
   ink: string
   /** The stage behind the stamp. Leave out to use the host's background token. */
   stage?: string
 }
 
 export interface PeaceStampPaletteOverrides {
-  paper?: string
   field?: string
   band?: string
+  cream?: string
   gold?: string
   mint?: string
   disc?: string
@@ -77,15 +79,17 @@ export interface PeaceStampPreloaderProps {
    * simulated load over `durationMs`. The bloom waits for 100.
    */
   progress?: number
-  /** Length of the simulated load. Defaults to 5200ms. */
+  /** Length of the simulated load. Defaults to 5600ms. */
   durationMs?: number
-  /** The word on the ring and on the side arcs. Three or four letters read best. */
+  /** The word on the ring. Three or four letters read best. */
   word?: string
-  /** The line set up the left edge, reading bottom to top. */
+  /** Set up the left panel, reading bottom to top. */
   leftText?: string
-  /** The line set down the right edge, reading top to bottom. */
+  /** Set down the right panel, reading top to bottom. */
   rightText?: string
-  /** Set small in the four corner tabs. */
+  /** Set in two of the diagonal bands. */
+  cornerText?: string
+  /** Set in the other two bands, and on the postmark. */
   year?: string
   /** Face value. The ring counts up to it with the load. */
   value?: number
@@ -105,7 +109,7 @@ export interface PeaceStampPreloaderProps {
   hud?: boolean
   /** Accessible name of the progress bar. */
   label?: string
-  /** Face for the ring, the arcs and the side lines. Nothing is fetched. */
+  /** Face for the stamp's lettering. Nothing is fetched. */
   serifFamily?: string
   /** Face for the read-out. Nothing is fetched. */
   monoFamily?: string
@@ -119,66 +123,64 @@ export interface PeaceStampPreloaderProps {
 
 const PRESETS: { [k: string]: PeaceStampPalette } = {
   magenta: {
-    paper: "#f5f0e4",
-    field: "#e4247c",
-    band: "#41b3a1",
-    gold: "#e0b35c",
-    mint: "#bfe9d9",
+    field: "#e8287a",
+    band: "#38b8a2",
+    cream: "#f8e7c5",
+    gold: "#dcae5e",
+    mint: "#bfe8d8",
     disc: "#ffffff",
-    petal: "#e6bd52",
-    petalDark: "#a8741f",
-    leaf: "#8a9a3a",
-    skin: "#3f82df",
-    skinDark: "#1b3f94",
-    skinLight: "#b9d7fb",
-    ink: "#1d2744",
+    petal: "#e8c461",
+    petalDark: "#94641a",
+    leaf: "#9a8a3a",
+    skin: "#3d84ea",
+    skinDark: "#143c94",
+    skinLight: "#a9d4ff",
+    ink: "#1f2547",
   },
   cobalt: {
-    paper: "#f3efe6",
-    field: "#1f3fb8",
-    band: "#f07a4e",
-    gold: "#f1cf7a",
-    mint: "#dbe4ff",
+    field: "#2341b6",
+    band: "#ef7a4d",
+    cream: "#fbeed6",
+    gold: "#f0cd7a",
+    mint: "#d8e2ff",
     disc: "#ffffff",
-    petal: "#f6c54f",
-    petalDark: "#b07a14",
-    leaf: "#5b8f5a",
-    skin: "#e6553f",
-    skinDark: "#7a1f14",
-    skinLight: "#ffc4b3",
-    ink: "#141a3d",
+    petal: "#f8d670",
+    petalDark: "#a06d0e",
+    leaf: "#7e9852",
+    skin: "#e2543d",
+    skinDark: "#5e140b",
+    skinLight: "#ffc6b5",
+    ink: "#121a3d",
   },
   olive: {
-    paper: "#efe8d4",
-    field: "#5e6b2d",
-    band: "#c8552f",
-    gold: "#d9b35e",
-    mint: "#e8e1c5",
-    disc: "#fbf7ea",
-    petal: "#d6a93e",
-    petalDark: "#8a5f12",
-    leaf: "#3f5a2a",
-    skin: "#8b6b4a",
-    skinDark: "#3d2a16",
-    skinLight: "#e6cfae",
+    field: "#5e6a2b",
+    band: "#c65a33",
+    cream: "#f3e6c8",
+    gold: "#dbb662",
+    mint: "#ece3c4",
+    disc: "#fffaf0",
+    petal: "#e6bd5a",
+    petalDark: "#7e540e",
+    leaf: "#8b893b",
+    skin: "#8a6747",
+    skinDark: "#2a190b",
+    skinLight: "#f0d8b6",
     ink: "#2b2416",
   },
 }
 
 // Stamp coordinates. Everything is drawn in this box and scaled to fit.
-const W = 760
+const W = 800
 const H = 540
-const CX = 380
+const CX = 400
 const CY = 270
-// Where the two fingertips meet the flower.
-const TOUCH_X = 338
-const TOUCH_Y = 255
-const PINCH_X = 416
-const PINCH_Y = 294
-const HEAD_X = 397
-const HEAD_Y = 186
+const R_OUT = 236
+const R_IN = 162
+const R_DISC = 155
+const HEAD_X = 394
+const HEAD_Y = 176
 // How far off the sheet the hands start, in stamp units.
-const SLIDE = 540
+const SLIDE = 520
 
 type Phase = "enter" | "load" | "touch" | "cancel" | "exit" | "done"
 type Pt = [number, number]
@@ -211,20 +213,18 @@ export const pspSimulated = (t: number) => {
   const fast = 1 - Math.pow(1 - x, 2.2)
   const stall1 = 0.12 * Math.exp(-Math.pow((x - 0.34) / 0.07, 2))
   const stall2 = 0.09 * Math.exp(-Math.pow((x - 0.72) / 0.06, 2))
-  let v = fast - (stall1 + stall2) * (1 - x)
-  v = pspClamp(v, 0, 1)
+  const v = pspClamp(fast - (stall1 + stall2) * (1 - x), 0, 1)
   return x >= 1 ? 1 : v
 }
 
 /** "€0,68" from 0.68. Counts up through the load with `value * p`. */
 export const pspMoney = (value: number, currency: string, decimal: string, p: number) => {
   const v = Math.max(0, value) * pspClamp(p, 0, 1)
-  const decimals = Number.isInteger(value) ? 0 : 2
-  const s = v.toFixed(decimals)
+  const s = v.toFixed(Number.isInteger(value) ? 0 : 2)
   return currency + (decimal === "," ? s.replace(".", ",") : s)
 }
 
-/** Deterministic noise, so grains and jitter are the same on every mount. */
+/** Deterministic noise, so the drawing is the same on every mount. */
 export const pspRng = (seed: number) => {
   let s = seed >>> 0 || 1
   return () => {
@@ -246,17 +246,16 @@ export const pspSmooth = (pts: Pt[], closed: boolean, tension = 1): string => {
   const at = (i: number) => pts[closed ? ((i % n) + n) % n : pspClamp(i, 0, n - 1)]
   let d = "M" + f1(pts[0][0]) + " " + f1(pts[0][1])
   const segs = closed ? n : n - 1
+  const k = tension / 6
   for (let i = 0; i < segs; i++) {
     const p0 = at(i - 1)
     const p1 = at(i)
     const p2 = at(i + 1)
     const p3 = at(i + 2)
-    const k = tension / 6
-    const c1x = p1[0] + (p2[0] - p0[0]) * k
-    const c1y = p1[1] + (p2[1] - p0[1]) * k
-    const c2x = p2[0] - (p3[0] - p1[0]) * k
-    const c2y = p2[1] - (p3[1] - p1[1]) * k
-    d += "C" + f1(c1x) + " " + f1(c1y) + " " + f1(c2x) + " " + f1(c2y) + " " + f1(p2[0]) + " " + f1(p2[1])
+    d +=
+      "C" + f1(p1[0] + (p2[0] - p0[0]) * k) + " " + f1(p1[1] + (p2[1] - p0[1]) * k) +
+      " " + f1(p2[0] - (p3[0] - p1[0]) * k) + " " + f1(p2[1] - (p3[1] - p1[1]) * k) +
+      " " + f1(p2[0]) + " " + f1(p2[1])
   }
   return closed ? d + "Z" : d
 }
@@ -273,11 +272,7 @@ export const pspArc = (cx: number, cy: number, r: number, a0: number, a1: number
   return "M" + f1(x0) + " " + f1(y0) + "A" + r + " " + r + " 0 " + large + " " + sweep + " " + f1(x1) + " " + f1(y1)
 }
 
-/**
- * Perforation holes round a w×h sheet: circle centres on the edge, one every
- * `pitch`. `torn` drops one tooth at the bottom-left corner, as the sheet in
- * the picture has.
- */
+/** Perforation holes round a w×h sheet: circle centres on the edge, one every `pitch`. */
 export const pspPerforation = (w: number, h: number, pitch: number) => {
   const holes: Pt[] = []
   const nx = Math.round(w / pitch)
@@ -285,124 +280,225 @@ export const pspPerforation = (w: number, h: number, pitch: number) => {
   const sx = w / nx
   const sy = h / ny
   for (let i = 0; i <= nx; i++) {
-    holes.push([i * sx, 0])
-    holes.push([i * sx, h])
+    holes.push([Math.round(i * sx * 10) / 10, 0])
+    holes.push([Math.round(i * sx * 10) / 10, h])
   }
   for (let j = 1; j < ny; j++) {
-    holes.push([0, j * sy])
-    holes.push([w, j * sy])
+    holes.push([0, Math.round(j * sy * 10) / 10])
+    holes.push([w, Math.round(j * sy * 10) / 10])
   }
   return holes
 }
 
 /**
  * The sheet with its holes punched, as one evenodd path: the sheet, a circle
- * per hole, and the torn tooth at the bottom-left corner.
+ * per hole, and a torn tooth at the bottom-left corner.
  */
 export const pspPerforationPath = (w: number, h: number, holes: Pt[], r: number) => {
   let d = "M0 0H" + w + "V" + h + "H0Z"
   for (const p of holes) {
     d += "M" + f1(p[0] - r) + " " + f1(p[1]) + "a" + r + " " + r + " 0 1 0 " + 2 * r + " 0a" + r + " " + r + " 0 1 0 " + -2 * r + " 0Z"
   }
-  d += "M0 " + (h - 24) + "L0 " + h + "L24 " + h + "Z"
+  d += "M0 " + (h - 22) + "L0 " + h + "L22 " + h + "Z"
   return d
 }
 
 /**
- * One side of the guilloche border: two sine ribbons crossing, with a loop
- * at every crossing, along `len` from (0,0). Rotate it onto each edge.
+ * A tapered ribbon round a centre line, as a filled outline. The width runs
+ * from `w0` at the start through `w1` in the middle to `w2` at the end.
  */
-export const pspGuilloche = (len: number, amp: number, period: number, phase: number) => {
-  const n = Math.max(1, Math.round(len / period))
-  const step = len / n
+export const pspRibbon = (pts: Pt[], w0: number, w1: number, w2: number) => {
+  const n = pts.length
+  if (n < 2) return ""
+  const L: Pt[] = []
+  const R: Pt[] = []
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)]
+    const b = pts[Math.min(n - 1, i + 1)]
+    const dx = b[0] - a[0]
+    const dy = b[1] - a[1]
+    const l = Math.hypot(dx, dy) || 1
+    const t = i / (n - 1)
+    const w = (1 - t) * (1 - t) * w0 + 2 * t * (1 - t) * w1 + t * t * w2
+    const nx = (-dy / l) * (w / 2)
+    const ny = (dx / l) * (w / 2)
+    L.push([pts[i][0] + nx, pts[i][1] + ny])
+    R.push([pts[i][0] - nx, pts[i][1] - ny])
+  }
+  return pspSmooth(L.concat(R.reverse()), true, 0.9)
+}
+
+/** A logarithmic spiral from radius r0 at angle a0 (radians) inward, `turns` round. */
+export const pspSpiral = (c: Pt, r0: number, a0: number, turns: number, dir: number, n = 26) => {
   const pts: Pt[] = []
-  const samples = 12
-  for (let i = 0; i <= n * samples; i++) {
-    const x = (i / samples) * step
-    const u = (i / samples) * Math.PI * 2
-    const y = amp * Math.sin(u + phase) * (0.75 + 0.25 * Math.cos(u * 2))
-    pts.push([x, y])
+  for (let i = 0; i <= n; i++) {
+    const t = i / n
+    const a = a0 + dir * t * turns * Math.PI * 2
+    const r = r0 * Math.pow(0.18, t)
+    pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)])
   }
-  return pspSmooth(pts, false, 0.9)
-}
-
-/** A dotted rule of small circles along one side. */
-export const pspDots = (len: number, step: number) => {
-  const out: number[] = []
-  for (let x = step / 2; x < len; x += step) out.push(Math.round(x * 10) / 10)
-  return out
+  return pts
 }
 
 /**
- * One hellebore petal, morphing with t: at 0 a narrow bud fold, at 1 an open
- * rounded petal with a soft notch at the tip. Drawn with its base at the
- * origin pointing up; rotate it into place.
+ * An S-scroll: a spiral at `a`, a sweep, and a spiral the other way at `b`.
+ * `side` picks which way the S turns. Returns the ribbon and the two eyes.
  */
-export const pspPetal = (t: number, len = 54, wid = 40) => {
+export const pspSScroll = (a: Pt, b: Pt, ra: number, rb: number, side: number, w: number) => {
+  const th = Math.atan2(b[1] - a[1], b[0] - a[0])
+  const sa = pspSpiral(a, ra, th - (side * Math.PI) / 2, 1.05, -side).reverse()
+  const sb = pspSpiral(b, rb, th + (side * Math.PI) / 2, 1.05, -side)
+  const p0 = sa[sa.length - 1]
+  const q0 = sa[sa.length - 2]
+  const p3 = sb[0]
+  const q3 = sb[1]
+  const span = Math.hypot(p3[0] - p0[0], p3[1] - p0[1]) / 2.6
+  const ta = Math.atan2(p0[1] - q0[1], p0[0] - q0[0])
+  const tb = Math.atan2(q3[1] - p3[1], q3[0] - p3[0])
+  const p1: Pt = [p0[0] + Math.cos(ta) * span, p0[1] + Math.sin(ta) * span]
+  const p2: Pt = [p3[0] - Math.cos(tb) * span, p3[1] - Math.sin(tb) * span]
+  const mid: Pt[] = []
+  for (const t of [0.25, 0.5, 0.75]) {
+    const u = 1 - t
+    mid.push([
+      u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+      u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+    ])
+  }
+  const pts = sa.concat(mid, sb)
+  return { d: pspRibbon(pts, w * 0.3, w * 1.25, w * 0.3), eyes: [sa[0], sb[sb.length - 1]] as Pt[] }
+}
+
+/** A teardrop leaf with its point at `tip` and its round end toward `base`. */
+export const pspDrop = (base: Pt, tip: Pt, wid: number, bend = 0) => {
+  const dx = tip[0] - base[0]
+  const dy = tip[1] - base[1]
+  const l = Math.hypot(dx, dy) || 1
+  const nx = -dy / l
+  const ny = dx / l
+  const at = (u: number, s: number): Pt => [
+    base[0] + dx * u + nx * s + nx * bend * Math.sin(Math.PI * u),
+    base[1] + dy * u + ny * s + ny * bend * Math.sin(Math.PI * u),
+  ]
+  return pspSmooth(
+    [at(-0.12, 0), at(0.05, wid * 0.5), at(0.4, wid * 0.42), at(0.78, wid * 0.16), at(1, 0), at(0.78, -wid * 0.16), at(0.4, -wid * 0.42), at(0.05, -wid * 0.5)],
+    true,
+    0.9,
+  )
+}
+
+/**
+ * A Victorian lyre of scrollwork round the origin, about 70 wide and 120
+ * tall: two mirrored S-scrolls, two small C-scrolls under them, and leaves.
+ */
+export const pspLyre = () => {
+  const scrolls: string[] = []
+  const eyes: Pt[] = []
+  for (const s of [1, -1]) {
+    const big = pspSScroll([s * 9, -34], [s * 24, 20], 13, 15, s, 6.5)
+    const small = pspSScroll([s * 5, 44], [s * 26, 48], 5, 8, -s, 4)
+    scrolls.push(big.d, small.d)
+    eyes.push(...big.eyes, ...small.eyes)
+  }
+  const leaves = [
+    pspDrop([0, -40], [0, -62], 13),
+    pspDrop([0, 30], [0, 6], 10),
+    pspDrop([12, -4], [36, -16], 9, -3),
+    pspDrop([-12, -4], [-36, -16], 9, 3),
+    pspDrop([0, 52], [0, 66], 8),
+  ]
+  return { scrolls, eyes, leaves }
+}
+
+/** The winged fleur in the spandrels: a drop between two curled wings. */
+export const pspFleur = () => ({
+  wings: [pspDrop([2, 2], [26, -6], 14, -5), pspDrop([-2, 2], [-26, -6], 14, 5)],
+  drop: pspDrop([0, -2], [0, 22], 13),
+})
+
+/**
+ * One dog-rose petal, morphing with t: at 0 a narrow folded bud, at 1 a broad
+ * open petal with a notch at its tip and a ruffle in its edge. Drawn with its
+ * base at the origin pointing up; rotate it into place.
+ */
+export const pspPetal = (t: number, len = 60, wid = 58) => {
   const k = pspClamp(t, 0, 1)
-  const L = pspLerp(len * 0.42, len, k)
+  const L = pspLerp(len * 0.46, len, k)
   const Wd = pspLerp(wid * 0.22, wid, k)
-  const notch = pspLerp(0, L * 0.06, pspSmoothstep(0.6, 1, k))
-  const shoulder = pspLerp(0.34, 0.58, k)
-  const xs = Wd / 2
-  const d =
-    "M0 0" +
-    "C" + f1(xs * 0.55) + " " + f1(-L * 0.1) + " " + f1(xs * 1.05) + " " + f1(-L * shoulder) + " " + f1(xs * 0.92) + " " + f1(-L * 0.78) +
-    "C" + f1(xs * 0.8) + " " + f1(-L * 0.98) + " " + f1(xs * 0.3) + " " + f1(-L * 1.02) + " 0 " + f1(-L + notch) +
-    "C" + f1(-xs * 0.3) + " " + f1(-L * 1.02) + " " + f1(-xs * 0.8) + " " + f1(-L * 0.98) + " " + f1(-xs * 0.92) + " " + f1(-L * 0.78) +
-    "C" + f1(-xs * 1.05) + " " + f1(-L * shoulder) + " " + f1(-xs * 0.55) + " " + f1(-L * 0.1) + " 0 0Z"
-  return d
+  const notch = pspLerp(0, L * 0.1, pspSmoothstep(0.5, 1, k))
+  const ruffle = pspLerp(0, 2.6, pspSmoothstep(0.55, 1, k))
+  const half: Pt[] = [
+    [Wd * 0.12, -L * 0.06],
+    [Wd * 0.34, -L * 0.28],
+    [Wd * 0.5, -L * 0.56],
+    [Wd * 0.5 + ruffle * 0.4, -L * 0.76],
+    [Wd * 0.38, -L * 0.94 - ruffle * 0.3],
+    [Wd * 0.18, -L * 1.0],
+    [Wd * 0.05, -L + notch * 0.7],
+  ]
+  const pts: Pt[] = [[0, 0], ...half, [0, -L + notch], ...half.slice().reverse().map((p) => [-p[0], p[1]] as Pt)]
+  return pspSmooth(pts, true, 0.95)
 }
 
-/** Three vein lines up a petal, for the engraving. Same t as the petal. */
-export const pspVeins = (t: number, len = 54, wid = 40) => {
+/** Engraved lines up a petal, fanning from its base. Same t as the petal. */
+export const pspPetalLines = (t: number, len = 60, wid = 58) => {
   const k = pspClamp(t, 0, 1)
-  const L = pspLerp(len * 0.42, len, k)
-  const xs = pspLerp(wid * 0.22, wid, k) / 2
+  const L = pspLerp(len * 0.46, len, k)
+  const Wd = pspLerp(wid * 0.22, wid, k)
   const out: string[] = []
-  for (const s of [-0.5, 0, 0.5]) {
-    const ex = xs * s * 0.85
-    out.push("M0 " + f1(-L * 0.06) + "Q" + f1(ex * 0.5) + " " + f1(-L * 0.5) + " " + f1(ex) + " " + f1(-L * 0.86))
+  for (let i = -4; i <= 4; i++) {
+    const u = i / 4
+    const ex = Wd * 0.43 * u
+    const ey = -L * (0.86 - 0.16 * u * u)
+    const reach = i % 2 ? 0.62 : 1
+    const x2 = ex * reach
+    const y2 = ey * reach
+    out.push("M" + f1(u * 1.5) + " " + f1(-L * 0.08) + "Q" + f1(ex * 0.35) + " " + f1(-L * 0.42 * reach) + " " + f1(x2) + " " + f1(y2))
   }
   return out
 }
 
 /**
- * The flower's petals at morph t: angle, path, veins and a sort order so the
- * bud reads as folded. Five petals; in the bud they lean together, open they
- * sit 72° apart.
+ * The flower's petals at morph t. In the bud they lean together along the
+ * bud's axis; open, they sit 72° apart round the heart.
  */
-export const pspFlower = (t: number) => {
+export const pspFlower = (t: number, axis = -24) => {
   const k = pspClamp(t, 0, 1)
-  const spread = pspLerp(14, 72, pspEaseOut(k))
-  const lean = pspLerp(0, 1, k)
-  return [0, 1, 2, 3, 4].map((i) => {
-    const centred = i - 2
-    const angle = centred * spread + 180 + pspLerp(0, 8, lean) * Math.sin(i * 2.1)
-    const scale = pspLerp(0.92, 1, k) * (i === 2 ? 1 : 0.97)
-    return {
-      angle,
-      scale,
-      d: pspPetal(k, 54, 40),
-      veins: pspVeins(k, 54, 40),
-    }
-  })
+  const spread = pspLerp(13, 72, pspEaseOut(k))
+  return [0, 1, 2, 3, 4].map((i) => ({
+    angle: axis + (i - 2) * spread + pspLerp(0, 5, k) * Math.sin(i * 2.3),
+    scale: pspLerp(0.9, 1, k) * (i % 2 ? 0.96 : 1),
+    d: pspPetal(k),
+    lines: pspPetalLines(k),
+  }))
 }
 
-/** A serrated leaflet, base at the origin, pointing up. */
+/** A serrated rose leaf, base at the origin, pointing up. */
 export const pspLeaf = (len: number, wid: number, teeth: number, seed: number) => {
   const rnd = pspRng(seed)
   const right: Pt[] = []
   const left: Pt[] = []
   for (let i = 0; i <= teeth; i++) {
     const u = i / teeth
-    const half = (wid / 2) * Math.sin(Math.PI * Math.pow(u, 0.8)) * (u < 0.1 ? u / 0.1 : 1)
-    const tooth = i === 0 || i === teeth ? 0 : (i % 2 ? 1 : 0.55) * (0.9 + rnd() * 0.3)
-    right.push([half * tooth + half * 0.35, -len * u])
-    left.push([-(half * tooth + half * 0.35), -len * u])
+    const half = (wid / 2) * Math.sin(Math.PI * Math.pow(u, 0.85))
+    const tooth = i === 0 || i === teeth ? 0 : (i % 2 ? 1 : 0.86) * (0.95 + rnd() * 0.1)
+    right.push([half * tooth, -len * u])
+    left.push([-half * tooth, -len * u])
   }
-  const pts: Pt[] = [...right, ...left.reverse()]
-  return pspSmooth(pts, true, 0.5)
+  return pspSmooth(right.concat(left.reverse()), true, 0.6)
+}
+
+/** The veins on a leaf, and the engraving on its shadow half. */
+export const pspLeafLines = (len: number, wid: number) => {
+  const out: string[] = ["M0 -1L0 " + f1(-len * 0.94)]
+  for (let i = 1; i <= 5; i++) {
+    const u = i / 6.4
+    const y = -len * u
+    const r = (wid / 2) * Math.sin(Math.PI * Math.pow(u + 0.08, 0.85)) * 0.86
+    out.push("M0 " + f1(y) + "Q" + f1(r * 0.5) + " " + f1(y - 5) + " " + f1(r) + " " + f1(y - 11))
+    out.push("M0 " + f1(y) + "Q" + f1(-r * 0.5) + " " + f1(y - 5) + " " + f1(-r) + " " + f1(y - 11))
+  }
+  return out
 }
 
 export interface PspFinger {
@@ -412,11 +508,15 @@ export interface PspFinger {
   lens: number[]
   /** Thickness. */
   w: number
-  /** Absolute angle of each segment, degrees. */
+  /** Absolute angle of each segment, degrees, clockwise on screen. */
   a: number[]
   /** The joints, base first, tip last. */
   pts: Pt[]
-  /** Whether a nail shows at the tip. */
+  /** Height in the relief, 0..1: 1 is nearest. Fingers set back read darker. */
+  tone: number
+  /** Which side the back of the finger faces: 1 up, -1 down, 0 toward us. */
+  up: number
+  /** Whether a nail shows. */
   nail: boolean
 }
 
@@ -433,135 +533,179 @@ export const pspFk = (base: Pt, lens: number[], angs: number[]): Pt[] => {
   }
   return pts
 }
+
 const pspMix = (a: number[], b: number[], t: number) => a.map((v, i) => pspLerp(v, b[i], t))
-const pspPoly = (pts: Pt[]) => pts.map((p, i) => (i ? "L" : "M") + f1(p[0]) + " " + f1(p[1])).join("")
-/** The point a round-capped finger actually ends at. */
+
+const pspDirs = (pts: Pt[]) => {
+  const dirs: Pt[] = []
+  for (let j = 0; j < pts.length - 1; j++) {
+    const dx = pts[j + 1][0] - pts[j][0]
+    const dy = pts[j + 1][1] - pts[j][1]
+    const l = Math.hypot(dx, dy) || 1
+    dirs.push([dx / l, dy / l])
+  }
+  return dirs
+}
+
+/** The point a finger actually ends at, past its last joint. */
 export const pspFingerTip = (f: PspFinger): Pt => {
   const last = f.pts[f.pts.length - 1]
   const r = (f.a[f.a.length - 1] * Math.PI) / 180
-  return [last[0] + (f.w / 2) * Math.cos(r), last[1] + (f.w / 2) * Math.sin(r)]
+  return [last[0] + f.w * 0.42 * Math.cos(r), last[1] + f.w * 0.42 * Math.sin(r)]
 }
 
 /**
- * The marks on one finger: its centre line, a highlight down each segment's
- * lit side (light from above), a crease across each joint and the nail.
+ * A finger's silhouette: a tube along its joints that swells at the knuckles,
+ * slims between them, tapers to a rounded tip and runs back into the palm.
  */
-export const pspFingerMarks = (f: PspFinger) => {
+export const pspFingerOutline = (f: PspFinger) => {
   const { pts, w } = f
   const n = pts.length - 1
-  const dirs: Pt[] = []
-  for (let j = 0; j < n; j++) {
-    const dx = pts[j + 1][0] - pts[j][0]
-    const dy = pts[j + 1][1] - pts[j][1]
-    const len = Math.hypot(dx, dy) || 1
-    dirs.push([dx / len, dy / len])
+  const dirs = pspDirs(pts)
+  const L: Pt[] = []
+  const R: Pt[] = []
+  const push = (c: Pt, d: Pt, width: number, s: number) => {
+    const nx = -d[1] * s * (width / 2)
+    const ny = d[0] * s * (width / 2)
+    L.push([c[0] + nx, c[1] + ny])
+    R.push([c[0] - nx, c[1] - ny])
   }
-  const highlights: string[] = []
-  const hiAlpha: number[] = []
+  const d0 = dirs[0]
+  push([pts[0][0] - d0[0] * w, pts[0][1] - d0[1] * w], d0, w * 1.08, 1)
   for (let j = 0; j < n; j++) {
     const d = dirs[j]
-    // the part of "up" that is across the finger
-    const dot = -d[1]
-    let nx = -dot * d[0]
-    let ny = -1 - dot * d[1]
-    const nl = Math.hypot(nx, ny)
-    if (nl < 0.3) {
-      highlights.push("")
-      hiAlpha.push(0)
-      continue
+    if (j === 0) push(pts[0], d, w * 1.05, 1)
+    else {
+      const bx = dirs[j - 1][0] + d[0]
+      const by = dirs[j - 1][1] + d[1]
+      const bl = Math.hypot(bx, by) || 1
+      const bis: Pt = [bx / bl, by / bl]
+      const s = Math.min(1.3, 1 / Math.max(0.3, bis[0] * d[0] + bis[1] * d[1]))
+      push(pts[j], bis, w * (j === 1 ? 1.01 : 0.95), s)
     }
-    nx /= nl
-    ny /= nl
-    const ox = nx * w * 0.27
-    const oy = ny * w * 0.27
-    const s0 = j === 0 ? w * 0.15 : 0
-    const s1 = j === n - 1 ? w * 0.32 : w * 0.05
-    const x0 = pts[j][0] + d[0] * s0 + ox
-    const y0 = pts[j][1] + d[1] * s0 + oy
-    const x1 = pts[j + 1][0] - d[0] * s1 + ox
-    const y1 = pts[j + 1][1] - d[1] * s1 + oy
-    highlights.push("M" + f1(x0) + " " + f1(y0) + "L" + f1(x1) + " " + f1(y1))
-    hiAlpha.push(Math.round(nl * 100) / 100)
-  }
-  const creases: string[] = []
-  for (let j = 0; j < n; j++) {
-    const b = j === 0 ? dirs[0] : [dirs[j - 1][0] + dirs[j][0], dirs[j - 1][1] + dirs[j][1]]
-    const bl = Math.hypot(b[0], b[1]) || 1
-    const bx = b[0] / bl
-    const by = b[1] / bl
-    const px = -by
-    const py = bx
-    const c = pts[j]
-    const half = w * (j === 0 ? 0.3 : 0.27)
-    creases.push(
-      "M" + f1(c[0] - px * half) + " " + f1(c[1] - py * half) +
-      "Q" + f1(c[0] + bx * w * 0.12) + " " + f1(c[1] + by * w * 0.12) + " " + f1(c[0] + px * half) + " " + f1(c[1] + py * half),
-    )
+    const taper = j === n - 1 ? 0.88 : j === 0 ? 0.96 : 0.91
+    push([(pts[j][0] + pts[j + 1][0]) / 2, (pts[j][1] + pts[j + 1][1]) / 2], d, w * taper, 1)
   }
   const dl = dirs[n - 1]
   const tip = pts[n]
-  const nail = {
-    x: tip[0] + dl[0] * w * 0.04,
-    y: tip[1] + dl[1] * w * 0.04,
-    a: (Math.atan2(dl[1], dl[0]) * 180) / Math.PI,
+  push(tip, dl, w * 0.84, 1)
+  const r = w * 0.42
+  const a0 = Math.atan2(dl[1], dl[0])
+  const cap: Pt[] = []
+  for (const k of [60, 30, 0, -30, -60]) {
+    const a = a0 + (k * Math.PI) / 180
+    cap.push([tip[0] + r * Math.cos(a), tip[1] + r * Math.sin(a)])
   }
-  return { d: pspPoly(pts), highlights, hiAlpha, creases, nail }
+  return pspSmooth(L.concat(cap, R.reverse()), true, 0.85)
 }
 
-const pspFingers = (spec: { base: Pt; lens: number[]; w: number; a: number[]; nail: boolean }[]): PspFinger[] =>
-  spec.map((f) => ({ ...f, pts: pspFk(f.base, f.lens, f.a) }))
+/** The fine marks on a finger: wrinkles over its joints and its nail. */
+export const pspFingerMarks = (f: PspFinger) => {
+  const { pts, w, up } = f
+  const n = pts.length - 1
+  const dirs = pspDirs(pts)
+  const dorsal = (d: Pt): Pt => {
+    if (!up) return [0, 0]
+    const nx = -d[1]
+    const ny = d[0]
+    const s = up === 1 ? (ny <= 0 ? 1 : -1) : ny >= 0 ? 1 : -1
+    return [nx * s, ny * s]
+  }
+  const creases: string[] = []
+  for (let j = 1; j < n; j++) {
+    const bx = dirs[j - 1][0] + dirs[j][0]
+    const by = dirs[j - 1][1] + dirs[j][1]
+    const bl = Math.hypot(bx, by) || 1
+    const d: Pt = [bx / bl, by / bl]
+    const dp = up ? dorsal(d) : ([-d[1], d[0]] as Pt)
+    const c = pts[j]
+    for (const o of [-2.6, 0.2, 2.8]) {
+      const reach = o === 0.2 ? 0.46 : 0.34
+      const sx = c[0] + dp[0] * w * reach + d[0] * o
+      const sy = c[1] + dp[1] * w * reach + d[1] * o
+      const ex = c[0] + dp[0] * w * 0.02 + d[0] * o
+      const ey = c[1] + dp[1] * w * 0.02 + d[1] * o
+      creases.push(
+        "M" + f1(sx) + " " + f1(sy) + "Q" + f1((sx + ex) / 2 + d[0] * 1.8) + " " + f1((sy + ey) / 2 + d[1] * 1.8) + " " + f1(ex) + " " + f1(ey),
+      )
+    }
+  }
+  const dl = dirs[n - 1]
+  const dp = dorsal(dl)
+  const segLen = Math.hypot(pts[n][0] - pts[n - 1][0], pts[n][1] - pts[n - 1][1])
+  const nail = f.nail
+    ? {
+        x: pts[n - 1][0] + (pts[n][0] - pts[n - 1][0]) * 0.78 + dp[0] * w * 0.2,
+        y: pts[n - 1][1] + (pts[n][1] - pts[n - 1][1]) * 0.78 + dp[1] * w * 0.2,
+        a: (Math.atan2(dl[1], dl[0]) * 180) / Math.PI,
+        rx: segLen * 0.42,
+        ry: w * (up ? 0.22 : 0.3),
+      }
+    : null
+  return { creases, nail }
+}
+
+const pspFingers = (
+  spec: { base: Pt; lens: number[]; w: number; a: number[]; tone: number; up: number; nail: boolean }[],
+): PspFinger[] => spec.map((f) => ({ ...f, pts: pspFk(f.base, f.lens, f.a) }))
 
 /**
- * The open hand: palm down, seen from above, index finger reaching, the
- * others curling under, the thumb hanging toward the viewer. Local space: the
- * wrist is at the origin, the fingers point along +x, the thumb side is +y.
- * `e` is the pose, 0 relaxed to 1 reaching: the index straightens and the
- * other fingers ease as the hand arrives.
+ * The left hand, after the one reaching out in the Sistine ceiling: the back
+ * of the hand up, the wrist lifted, the index finger reaching and the others
+ * drooping, the thumb hanging below. Stamp coordinates. `e` is the pose, 0
+ * slack (as it slides in) to 1 reaching.
  */
-export const pspHandOpen = (e: number) => {
+export const pspHandLeft = (e: number) => {
   const t = pspEaseOut(pspClamp(e, 0, 1))
+  // forearm, narrowing to the wrist, then the back of the hand rising to the knuckles
   const palm: Pt[] = [
-    [-290, -30], [-150, -33], [-30, -35], [30, -43], [90, -47], [122, -42], [132, -16], [130, 12],
-    [126, 40], [116, 62], [100, 74], [70, 80], [40, 74], [18, 64], [0, 48], [-150, 44], [-290, 42],
+    [-40, 134], [40, 136], [110, 146], [170, 157], [210, 161], [245, 164], [272, 168], [294, 176],
+    [304, 192], [306, 210], [302, 228], [294, 242], [278, 252], [250, 256], [214, 250], [182, 244],
+    [130, 248], [60, 252], [-40, 256],
   ]
-  const fingers = pspFingers([
-    { base: [112, 54], lens: [34, 24, 20], w: 24, a: pspMix([26, 54, 80], [16, 34, 54], t), nail: true },
-    { base: [122, 28], lens: [44, 30, 24], w: 26, a: pspMix([22, 48, 72], [12, 26, 42], t), nail: true },
-    { base: [126, 0], lens: [50, 32, 26], w: 27, a: pspMix([20, 42, 66], [8, 18, 30], t), nail: true },
-    { base: [122, -28], lens: [56, 34, 28], w: 28, a: pspMix([14, 30, 46], [2, 8, 14], t), nail: true },
-    { base: [46, 52], lens: [34, 28], w: 29, a: pspMix([70, 84], [42, 58], t), nail: true },
+  const under = pspFingers([
+    { base: [282, 230], lens: [36, 27, 22], w: 17, a: pspMix([96, 118, 134], [88, 108, 122], t), tone: 0.6, up: 1, nail: false },
+    { base: [288, 214], lens: [46, 32, 26], w: 19, a: pspMix([76, 100, 118], [66, 88, 104], t), tone: 0.7, up: 1, nail: true },
+    { base: [286, 196], lens: [60, 42, 32], w: 20.5, a: pspMix([64, 84, 100], [56, 72, 86], t), tone: 0.82, up: 1, nail: true },
+    { base: [282, 176], lens: [58, 40, 32], w: 21, a: pspMix([46, 56, 64], [36, 42, 48], t), tone: 0.92, up: 1, nail: true },
   ])
-  const highlight = pspSmooth([[-260, -22], [-120, -25], [-20, -27], [40, -35], [92, -39], [116, -36]], false)
-  return { palm: pspSmooth(palm, true, 0.9), fingers, highlight, tip: pspFingerTip(fingers[3]) }
+  // the thumb lies along the side of the hand, a lump catching the light
+  const over = pspFingers([{ base: [190, 214], lens: [34, 26], w: 27, a: pspMix([24, 36], [12, 24], t), tone: 1, up: 1, nail: false }])
+  // soft swellings in the relief: knuckles, the wrist bone, the forearm's muscle
+  const bumps: number[][] = [
+    [294, 180, 11, 9, 30], [298, 198, 10, 9, 40], [298, 216, 9, 8, 50], [292, 232, 8, 7, 60],
+    [178, 163, 13, 8, -4], [70, 160, 64, 14, -3], [240, 184, 30, 15, 10], [224, 222, 22, 12, 16],
+  ]
+  return { palm: pspSmooth(palm, true, 0.9), under, over, bumps, tip: pspFingerTip(under[3]) }
 }
 
 /**
- * The pinching hand: the thumb rides over the index and closes on its tip,
- * the other fingers curl under. Same local space as the open hand; the stamp
- * mirrors it to come in from the right. `e` closes the pinch.
+ * The right hand: the back of the hand toward us, the index finger reaching
+ * to the stem, the thumb tucked behind it, the other fingers curled under.
+ * Stamp coordinates. `e` closes the hand onto the stem.
  */
-export const pspHandPinch = (e: number) => {
+export const pspHandRight = (e: number) => {
   const t = pspEaseOut(pspClamp(e, 0, 1))
   const palm: Pt[] = [
-    [-290, -26], [-150, -29], [-30, -31], [30, -39], [80, -44], [108, -34], [118, -6], [116, 22],
-    [108, 46], [96, 66], [76, 80], [48, 82], [20, 72], [0, 48], [-150, 42], [-290, 40],
+    [840, 282], [760, 280], [680, 278], [600, 272], [566, 250], [536, 232], [508, 222], [486, 224],
+    [470, 236], [462, 256], [460, 280], [464, 304], [474, 324], [490, 340], [512, 350], [546, 356],
+    [590, 366], [650, 380], [730, 388], [840, 392],
   ]
-  const fingers = pspFingers([
-    { base: [94, 60], lens: [28, 20, 16], w: 23, a: pspMix([24, 52, 86], [36, 86, 136], t), nail: false },
-    { base: [104, 40], lens: [34, 24, 18], w: 25, a: pspMix([20, 46, 78], [30, 78, 128], t), nail: false },
-    { base: [112, 18], lens: [38, 26, 20], w: 26, a: pspMix([16, 40, 70], [24, 70, 120], t), nail: false },
-    { base: [114, -10], lens: [52, 34, 26], w: 27, a: pspMix([-4, -2, 0], [-4, -10, -22], t), nail: false },
-    { base: [44, -30], lens: [86, 72], w: 30, a: pspMix([-34, -4], [-22, 12], t), nail: true },
+  const under = pspFingers([
+    { base: [510, 300], lens: [46, 36], w: 23, a: pspMix([194, 182], [178, 156], t), tone: 0.7, up: 0, nail: true },
+    { base: [490, 326], lens: [29, 21, 17], w: 17.5, a: pspMix([160, 124, 96], [152, 100, 58], t), tone: 0.6, up: 1, nail: false },
+    { base: [482, 308], lens: [34, 25, 20], w: 19, a: pspMix([166, 132, 104], [160, 108, 66], t), tone: 0.68, up: 1, nail: false },
+    { base: [478, 288], lens: [38, 28, 22], w: 20, a: pspMix([172, 142, 112], [166, 116, 74], t), tone: 0.78, up: 1, nail: false },
+    { base: [486, 246], lens: [44, 32, 26], w: 21.5, a: pspMix([176, 170, 166], [160, 152, 146], t), tone: 0.92, up: 1, nail: true },
   ])
-  const thumbTip = pspFingerTip(fingers[4])
-  const indexDip = fingers[3].pts[2]
-  const indexTip = fingers[3].pts[3]
-  const pinch: Pt = [(thumbTip[0] + (indexDip[0] + indexTip[0]) / 2) / 2, (thumbTip[1] + (indexDip[1] + indexTip[1]) / 2) / 2]
-  const highlight = pspSmooth([[-260, -18], [-120, -21], [-20, -23], [40, -31], [90, -37]], false)
-  return { palm: pspSmooth(palm, true, 0.9), fingers, highlight, pinch }
+  const bumps: number[][] = [
+    [480, 250, 11, 10, -20], [474, 292, 10, 9, -10], [478, 312, 9, 8, 0], [486, 330, 8, 7, 10],
+    [530, 250, 30, 15, -18], [600, 278, 14, 9, 6], [720, 310, 72, 14, 2],
+  ]
+  return { palm: pspSmooth(palm, true, 0.9), under, over: [] as PspFinger[], bumps, tip: pspFingerTip(under[4]) }
 }
 
-/** A postmark: two rings, type between them, and wavy cancellation bars. */
+/** A postmark's cancellation bars, wavy, running off to the right. */
 export const pspPostmark = (r: number, bars: number) => {
   const out: string[] = []
   for (let i = 0; i < bars; i++) {
@@ -578,50 +722,48 @@ const PSP_CSS = `
 .psp-root { position: relative; overflow: hidden; isolation: isolate; -webkit-tap-highlight-color: transparent; }
 .psp-dest { position: absolute; inset: 0; z-index: 0; overflow: auto; }
 .psp-stage { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; overflow: hidden; outline: none; cursor: default; }
-.psp-stage:focus-visible .psp-hud { text-decoration: underline; text-underline-offset: 0.3em; }
+.psp-stage:focus-visible .psp-hud-tl { text-decoration: underline; text-underline-offset: 0.3em; }
 .psp-root[data-phase="load"] .psp-stage, .psp-root[data-phase="enter"] .psp-stage { cursor: pointer; }
 .psp-root[data-loop="true"][data-phase="cancel"] .psp-stage { cursor: pointer; }
 .psp-root[data-phase="exit"] .psp-stage { transition: opacity 0.55s ease-in 0.35s; opacity: 0; pointer-events: none; }
 .psp-root[data-phase="done"] .psp-stage { display: none; }
-.psp-scene { position: relative; perspective: 1500px; }
-.psp-tilt { position: relative; transform-style: preserve-3d; will-change: transform; }
-.psp-shadow { position: absolute; inset: 6% 2% -4% 2%; border-radius: 8px; background: rgba(10, 8, 20, 0.45); filter: blur(22px); transform: translate(14px, 26px); will-change: transform; z-index: -1; opacity: 0.55; }
-.psp-dark-shadow .psp-shadow { background: rgba(0, 0, 0, 0.7); }
-.psp-sheet { position: relative; width: 100%; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
-.psp-stamp { display: block; width: 100%; height: auto; overflow: visible; }
-.psp-grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: multiply; }
-.psp-sheen { position: absolute; top: -10%; bottom: -10%; left: 0; width: 34%; pointer-events: none; background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0) 80%); }
 .psp-root svg, .psp-root canvas, .psp-root img { max-width: none; }
-.psp-postmark { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0; transform-origin: 78% 22%; }
+.psp-scene { position: relative; perspective: 1600px; }
+.psp-tilt { position: relative; transform-style: preserve-3d; will-change: transform; }
+.psp-shadow { position: absolute; inset: 4% 1% -3% 1%; border-radius: 6px; background: rgba(12, 8, 24, 0.5); filter: blur(24px); transform: translate(16px, 28px); z-index: -1; opacity: 0.5; }
+.psp-sheet { position: relative; width: 100%; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.psp-stamp { display: block; width: 100%; height: auto; }
+.psp-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.psp-ring { transform-origin: 50% 50%; will-change: transform, opacity; }
+.psp-grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: multiply; will-change: transform; }
+.psp-sheen { position: absolute; top: -10%; bottom: -10%; left: 0; width: 30%; pointer-events: none; mix-blend-mode: soft-light; background: linear-gradient(100deg, rgba(255,255,255,0) 15%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 85%); transform: translateX(-120%) skewX(-18deg); animation: psp-sheen 7.5s ease-in-out 1.8s infinite; }
+@keyframes psp-sheen { 0% { transform: translateX(-120%) skewX(-18deg); } 55% { transform: translateX(380%) skewX(-18deg); } 100% { transform: translateX(380%) skewX(-18deg); } }
+.psp-hands { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.psp-hand { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; will-change: transform; }
+.psp-postmark { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0; transform-origin: 80% 20%; }
 
 /* landing */
-.psp-root[data-phase="enter"] .psp-tilt, .psp-root[data-phase="enter"] .psp-shadow { animation: psp-land 1s cubic-bezier(0.2, 0.9, 0.25, 1.05) both; }
-.psp-root[data-phase="enter"] .psp-shadow { animation-name: psp-land-shadow; }
-@keyframes psp-land { from { opacity: 0; transform: translate3d(0, -46px, 120px) rotateX(24deg) rotateZ(-4deg); } to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0); } }
-@keyframes psp-land-shadow { from { opacity: 0; transform: translate(40px, 80px) scale(1.1); } to { opacity: 0.55; transform: translate(14px, 26px) scale(1); } }
+.psp-root[data-phase="enter"] .psp-tilt { animation: psp-land 1s cubic-bezier(0.2, 0.9, 0.25, 1.05) both; }
+.psp-root[data-phase="enter"] .psp-shadow { animation: psp-land-shadow 1s cubic-bezier(0.2, 0.9, 0.25, 1.05) both; }
+@keyframes psp-land { from { opacity: 0; transform: translate3d(0, -50px, 140px) rotateX(26deg) rotateZ(-5deg); } to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0); } }
+@keyframes psp-land-shadow { from { opacity: 0; transform: translate(44px, 90px) scale(1.1); } to { opacity: 0.5; transform: translate(16px, 28px) scale(1); } }
 
 /* the plates print one after the other while the sheet lands */
-.psp-plate-band { animation: psp-wipe 0.7s cubic-bezier(0.6, 0, 0.2, 1) 0.45s both; }
-.psp-plate-field { animation: psp-wipe 0.7s cubic-bezier(0.6, 0, 0.2, 1) 0.8s both; }
-.psp-plate-gold { animation: psp-wipe 0.8s cubic-bezier(0.6, 0, 0.2, 1) 1.15s both; }
+.psp-plate-band { animation: psp-wipe 0.7s cubic-bezier(0.6, 0, 0.2, 1) 0.4s both; }
+.psp-plate-field { animation: psp-wipe 0.7s cubic-bezier(0.6, 0, 0.2, 1) 0.72s both; }
+.psp-plate-gold { animation: psp-wipe 0.8s cubic-bezier(0.6, 0, 0.2, 1) 1.02s both; }
 @keyframes psp-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-.psp-ink { animation: psp-fade 0.6s ease-out 1.5s both; }
 @keyframes psp-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* the gold catches the light */
-.psp-sheen { mix-blend-mode: soft-light; animation: psp-sheen 7s ease-in-out 1.6s infinite; transform: translateX(-120%) skewX(-18deg); }
-@keyframes psp-sheen { 0% { transform: translateX(-120%) skewX(-18deg); } 55% { transform: translateX(330%) skewX(-18deg); } 100% { transform: translateX(330%) skewX(-18deg); } }
-
 /* the touch */
-.psp-spark { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.psp-spark, .psp-halo { opacity: 0; transform-box: fill-box; transform-origin: center; }
 .psp-root[data-phase="touch"] .psp-spark, .psp-root[data-phase="cancel"] .psp-spark { animation: psp-spark 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes psp-spark { 0% { opacity: 0; transform: scale(0.2) rotate(-30deg); } 25% { opacity: 1; transform: scale(1.25) rotate(10deg); } 60% { opacity: 0.9; transform: scale(0.95) rotate(30deg); } 100% { opacity: 0; transform: scale(1.4) rotate(60deg); } }
-.psp-halo { opacity: 0; transform-box: fill-box; transform-origin: center; }
 .psp-root[data-phase="touch"] .psp-halo, .psp-root[data-phase="cancel"] .psp-halo { animation: psp-halo 1.6s ease-out both; }
-@keyframes psp-halo { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 0.9; } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes psp-halo { 0% { opacity: 0; transform: scale(0.3); } 30% { opacity: 0.95; } 100% { opacity: 0; transform: scale(3); } }
 
 /* the cancellation */
-.psp-root[data-phase="cancel"] .psp-postmark, .psp-root[data-phase="exit"] .psp-postmark { animation: psp-slam 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) both; }
+.psp-root[data-phase="cancel"] .psp-postmark { animation: psp-slam 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) both; }
 @keyframes psp-slam { from { opacity: 0; transform: scale(1.7) rotate(-14deg); } 60% { opacity: 1; } to { opacity: 0.92; transform: scale(1) rotate(-12deg); } }
 .psp-root[data-phase="cancel"] .psp-tilt { animation: psp-thump 0.5s cubic-bezier(0.3, 1.4, 0.4, 1) both; }
 @keyframes psp-thump { 0% { transform: translate3d(0, 0, 0); } 30% { transform: translate3d(0, 4px, -30px); } 100% { transform: translate3d(0, 0, 0); } }
@@ -629,10 +771,9 @@ const PSP_CSS = `
 /* the lift */
 .psp-root[data-phase="exit"] .psp-tilt { animation: psp-lift 0.9s cubic-bezier(0.5, 0, 0.8, 0.4) both; }
 .psp-root[data-phase="exit"] .psp-shadow { animation: psp-lift-shadow 0.9s cubic-bezier(0.5, 0, 0.8, 0.4) both; }
-.psp-root[data-phase="exit"] .psp-postmark { animation: psp-lift-mark 0.9s cubic-bezier(0.5, 0, 0.8, 0.4) both; }
+.psp-root[data-phase="exit"] .psp-postmark { opacity: 0.92; transform: rotate(-12deg); }
 @keyframes psp-lift { 0% { transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0); opacity: 1; } 100% { transform: translate3d(6%, -140%, 300px) rotateX(38deg) rotateZ(-9deg); opacity: 0; } }
-@keyframes psp-lift-shadow { 0% { opacity: 0.55; transform: translate(14px, 26px) scale(1); } 100% { opacity: 0; transform: translate(60px, 140px) scale(1.2); } }
-@keyframes psp-lift-mark { 0% { opacity: 0.92; transform: scale(1) rotate(-12deg); } 100% { opacity: 0; transform: translate3d(6%, -140%, 300px) scale(1.1) rotate(-20deg); } }
+@keyframes psp-lift-shadow { 0% { opacity: 0.5; transform: translate(16px, 28px) scale(1); } 100% { opacity: 0; transform: translate(60px, 140px) scale(1.2); } }
 
 /* read-out */
 .psp-hud { position: absolute; z-index: 2; font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; line-height: 1; opacity: 0.75; pointer-events: none; font-variant-numeric: tabular-nums; }
@@ -649,40 +790,83 @@ const PSP_CSS = `
   .psp-plate-band, .psp-plate-field, .psp-plate-gold { animation: psp-fade 0.5s ease-out both; }
   .psp-sheen { animation: none; opacity: 0; }
   .psp-root[data-phase="cancel"] .psp-tilt { animation: none; }
-  .psp-root[data-phase="cancel"] .psp-postmark, .psp-root[data-phase="exit"] .psp-postmark { animation: psp-fade 0.4s ease-out both; opacity: 0.92; transform: rotate(-12deg); }
-  .psp-root[data-phase="exit"] .psp-tilt, .psp-root[data-phase="exit"] .psp-shadow, .psp-root[data-phase="exit"] .psp-postmark { animation: psp-fade 0.6s ease-in both reverse; }
+  .psp-root[data-phase="cancel"] .psp-postmark { animation: psp-fade 0.4s ease-out both; opacity: 0.92; transform: rotate(-12deg); }
+  .psp-root[data-phase="exit"] .psp-tilt, .psp-root[data-phase="exit"] .psp-shadow { animation: psp-fade 0.6s ease-in both reverse; }
   .psp-root[data-phase="touch"] .psp-halo, .psp-root[data-phase="cancel"] .psp-halo { animation: none; opacity: 0; }
 }
 `
 
 const MONO_FALLBACK = 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
-const SERIF_FALLBACK = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif'
+const SERIF_FALLBACK = '"Didot", "Bodoni 72", "Bodoni MT", "Playfair Display", "Iowan Old Style", "Palatino Linotype", Georgia, serif'
 
-const PERF = pspPerforation(W, H, 24)
-const OPEN_FINAL = pspHandOpen(1)
-const PINCH_FINAL = pspHandPinch(1)
-const OPEN_TRANSFORM = "translate(" + TOUCH_X + " " + TOUCH_Y + ") rotate(10) scale(0.95) translate(" + f1(-OPEN_FINAL.tip[0]) + " " + f1(-OPEN_FINAL.tip[1]) + ")"
-const PINCH_TRANSFORM = "translate(" + PINCH_X + " " + PINCH_Y + ") rotate(17) scale(-1 1) translate(" + f1(-PINCH_FINAL.pinch[0]) + " " + f1(-PINCH_FINAL.pinch[1]) + ")"
+const PERF_D = pspPerforationPath(W, H, pspPerforation(W, H, 22.5), 7.2)
+const LEFT_FINAL = pspHandLeft(1)
+const RIGHT_FINAL = pspHandRight(1)
+const TOUCH: Pt = [(LEFT_FINAL.tip[0] + RIGHT_FINAL.tip[0]) / 2, (LEFT_FINAL.tip[1] + RIGHT_FINAL.tip[1]) / 2]
+const LYRE = pspLyre()
+const FLEUR = pspFleur()
 const POSTMARK_BARS = pspPostmark(92, 5)
-const LEAVES = [
-  { x: 342, y: 366, rot: -118, len: 74, wid: 26, path: pspLeaf(74, 26, 11, 3) },
-  { x: 346, y: 370, rot: -158, len: 64, wid: 24, path: pspLeaf(64, 24, 9, 5) },
-  { x: 340, y: 364, rot: -82, len: 58, wid: 22, path: pspLeaf(58, 22, 9, 8) },
-  { x: 404, y: 300, rot: 44, len: 40, wid: 14, path: pspLeaf(40, 14, 7, 11) },
-]
-const CORNERS = [[31, 31, 0], [W - 31, 31, 90], [W - 31, H - 31, 180], [31, H - 31, 270]]
-const STEM = "M" + HEAD_X + " " + (HEAD_Y + 26) + "C428 245 432 275 " + PINCH_X + " " + PINCH_Y + "S372 335 338 372"
-const STEM_LEN = 230
-const GUILLOCHE_A = pspGuilloche(W - 2 * 46, 9, 46, 0)
-const GUILLOCHE_B = pspGuilloche(W - 2 * 46, 9, 46, Math.PI)
-const GUILLOCHE_SA = pspGuilloche(H - 2 * 46, 9, 46, 0)
-const GUILLOCHE_SB = pspGuilloche(H - 2 * 46, 9, 46, Math.PI)
-const GUILLOCHE_LEN = 1400
 
+// the frame: side panels, striped rules, the inner field and its diagonals
+const SIDE_L = 44
+const SIDE_R = W - 44
+const PANEL_W = 54
+const RULE_T = 34
+const RULE_H = 22
+const FIELD_T = RULE_T + RULE_H + 6
+const FIELD_B = H - FIELD_T
+const FIELD_L = SIDE_L + PANEL_W
+const FIELD_R = SIDE_R - PANEL_W
+const BARS = (() => {
+  const xs: number[] = []
+  for (let x = SIDE_L + 4; x < SIDE_R - 4; x += 6.4) xs.push(Math.round(x * 10) / 10)
+  return xs
+})()
+const DIAGONALS: { from: Pt; len: number; text: "corner" | "year"; angle: number; at: Pt }[] = [
+  [FIELD_L, FIELD_T, "corner"],
+  [FIELD_R, FIELD_T, "year"],
+  [FIELD_L, FIELD_B, "year"],
+  [FIELD_R, FIELD_B, "corner"],
+].map(([x, y, text]) => {
+  const from: Pt = [x as number, y as number]
+  const dx = CX - from[0]
+  const dy = CY - from[1]
+  const len = Math.hypot(dx, dy)
+  const ux = dx / len
+  const uy = dy / len
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI
+  if (angle > 90) angle -= 180
+  if (angle < -90) angle += 180
+  return { from, len, text: text as "corner" | "year", angle, at: [from[0] + ux * 70, from[1] + uy * 70] as Pt }
+})
+const LYRES = [
+  { x: 150, y: 168, sx: 1, sy: 1 },
+  { x: 150, y: 372, sx: 1, sy: -1 },
+  { x: 650, y: 168, sx: -1, sy: 1 },
+  { x: 650, y: 372, sx: -1, sy: -1 },
+]
+const FLEURS = [
+  { x: 214, y: 82, r: 0 },
+  { x: 586, y: 82, r: 0 },
+  { x: 214, y: 458, r: 180 },
+  { x: 586, y: 458, r: 180 },
+]
+
+// the flower
+const STEM = "M" + (HEAD_X + 6) + " " + (HEAD_Y + 30) + "C" + (HEAD_X + 14) + " 240 418 282 414 318S364 382 322 404"
+const BRANCH = "M406 238C424 222 446 206 470 196"
+const LEAVES = [
+  { x: 470, y: 196, rot: 66, len: 52, wid: 26, seed: 3 },
+  { x: 446, y: 210, rot: 18, len: 40, wid: 21, seed: 5 },
+  { x: 370, y: 162, rot: -56, len: 48, wid: 25, seed: 8 },
+  { x: 362, y: 360, rot: -48, len: 50, wid: 24, seed: 11 },
+  { x: 340, y: 392, rot: -98, len: 46, wid: 22, seed: 13 },
+  { x: 380, y: 348, rot: 40, len: 38, wid: 19, seed: 17 },
+].map((l) => ({ ...l, path: pspLeaf(l.len, l.wid, 13, l.seed), lines: pspLeafLines(l.len, l.wid) }))
 const STAMENS = (() => {
   const rnd = pspRng(17)
   const out: { a: number; r: number; w: number }[] = []
-  for (let i = 0; i < 26; i++) out.push({ a: (i / 26) * Math.PI * 2 + rnd() * 0.2, r: 12 + rnd() * 9, w: 1.6 + rnd() * 1.4 })
+  for (let i = 0; i < 44; i++) out.push({ a: (i / 44) * Math.PI * 2 + rnd() * 0.25, r: 10 + rnd() * 12, w: 1.3 + rnd() * 1.3 })
   return out
 })()
 
@@ -690,10 +874,11 @@ export default function PeaceStampPreloader({
   children,
   loop = false,
   progress,
-  durationMs = 5200,
+  durationMs = 5600,
   word = "МИР",
   leftText = "PAR AVION",
-  rightText = "POSTAGE",
+  rightText = "POSTE",
+  cornerText = "PAX",
   year = "2026",
   value = 0.68,
   currency = "€",
@@ -701,7 +886,7 @@ export default function PeaceStampPreloader({
   postmark = "DELIVERED",
   preset = "magenta",
   palette,
-  tilt = 7,
+  tilt = 6,
   hud = true,
   label = "Loading",
   serifFamily = SERIF_FALLBACK,
@@ -752,14 +937,14 @@ export default function PeaceStampPreloader({
     setPhase(next)
   }, [])
 
-  // ---- size: the stamp fits the box, never taller than four fifths of it ----
+  // ---- size: the stamp fits the box, never taller than about four fifths of it
   React.useEffect(() => {
     const root = rootRef.current
     if (!root) return
     const fit = () => {
       const r = root.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) return
-      const w = Math.min(r.width * 0.9, 760, ((r.height * 0.78) * W) / H)
+      const w = Math.min(r.width * 0.9, 820, (r.height * 0.78 * W) / H)
       setStampW(Math.max(220, Math.round(w)))
     }
     fit()
@@ -768,7 +953,7 @@ export default function PeaceStampPreloader({
     return () => ro.disconnect()
   }, [])
 
-  // ---- reduced motion ------------------------------------------------------
+  // ---- reduced motion --------------------------------------------------------
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
     const set = () => {
@@ -784,32 +969,80 @@ export default function PeaceStampPreloader({
     destRef.current?.toggleAttribute("inert", phase !== "done")
   }, [phase])
 
-  // ---- the frame loop: load, morph, reach, tilt --------------------------------
+  // ---- the frame loop: load, print, grow, reach, tilt ------------------------
   React.useEffect(() => {
     const stage = stageRef.current
     if (!stage) return
-    const q = (sel: string) => stage.querySelector(sel) as SVGElement | HTMLElement | null
+    const all = (sel: string) => Array.from(stage.querySelectorAll(sel)) as SVGElement[]
+    const one = (sel: string) => stage.querySelector(sel) as SVGElement | null
     const el = {
-      tilt: q(".psp-tilt") as HTMLElement | null,
-      shadow: q(".psp-shadow") as HTMLElement | null,
-      handL: q(".psp-hand-o"),
-      handR: q(".psp-hand-p"),
-      stem: q(".psp-stem"),
-      stemLine: q(".psp-stem-line"),
-      petals: Array.from(stage.querySelectorAll(".psp-petal")) as SVGElement[],
-      veins: Array.from(stage.querySelectorAll(".psp-veins")) as SVGElement[],
-      heart: q(".psp-heart"),
-      leaves: Array.from(stage.querySelectorAll(".psp-leaf")) as SVGElement[],
-      guill: Array.from(stage.querySelectorAll(".psp-guilloche")) as SVGElement[],
-      arcs: Array.from(stage.querySelectorAll(".psp-arc-word")) as SVGElement[],
-      ring: q(".psp-ring-type"),
-      sides: Array.from(stage.querySelectorAll(".psp-side")) as SVGElement[],
-      corners: Array.from(stage.querySelectorAll(".psp-corner")) as SVGElement[],
-      denom: q(".psp-denom"),
-      counter: q(".psp-counter"),
-      light: q(".psp-light"),
-      flowerLayer: q(".psp-flower-layer") as SVGElement | null,
-      handLayer: q(".psp-hand-layer") as SVGElement | null,
+      tilt: stage.querySelector(".psp-tilt") as HTMLElement | null,
+      shadow: stage.querySelector(".psp-shadow") as HTMLElement | null,
+      handL: stage.querySelector(".psp-hand-l") as HTMLElement | null,
+      handR: stage.querySelector(".psp-hand-r") as HTMLElement | null,
+      barClip: all(".psp-bar-clip"),
+      diag: all(".psp-diag"),
+      diagText: all(".psp-diag-text"),
+      ring: stage.querySelector(".psp-ring") as HTMLElement | null,
+      sides: all(".psp-side"),
+      lyres: all(".psp-lyre"),
+      fleurs: all(".psp-fleur"),
+      stem: all(".psp-stem"),
+      leaves: all(".psp-leaf"),
+      head: one(".psp-head"),
+      petals: all(".psp-petal"),
+      petalLines: all(".psp-petal-lines"),
+      heart: one(".psp-heart"),
+      denom: one(".psp-denom"),
+      counter: stage.querySelector(".psp-counter") as HTMLElement | null,
+      light: one(".psp-light"),
+    }
+    const stemLens = el.stem.map((s) => {
+      const len = (s as SVGPathElement).getTotalLength ? (s as SVGPathElement).getTotalLength() : 300
+      s.style.strokeDasharray = String(len)
+      s.style.strokeDashoffset = String(len)
+      return len
+    })
+    const diagLen = el.diag.map((d) => +(d.getAttribute("data-len") || 0))
+
+    // the hands' parts, collected once so posing is only attribute writes
+    const handParts = (h: string) => {
+      const svg = stage.querySelector(".psp-hand-" + h)
+      const keys = ["f0", "f1", "f2", "f3", "f4", "o0"]
+      const map: { [k: string]: { paths: SVGElement[]; creases: SVGElement[]; nail: SVGElement | null } } = {}
+      for (const k of keys) {
+        const paths = svg ? (Array.from(svg.querySelectorAll('[data-part="' + k + '"]')) as SVGElement[]) : []
+        const mark = svg ? svg.querySelector('[data-mark="' + k + '"]') : null
+        map[k] = {
+          paths,
+          creases: mark ? (Array.from(mark.querySelectorAll(".psp-crease")) as SVGElement[]) : [],
+          nail: mark ? (mark.querySelector(".psp-nail") as SVGElement | null) : null,
+        }
+      }
+      return map
+    }
+    const parts = { l: handParts("l"), r: handParts("r") }
+    const lastPose = { l: -1, r: -1 }
+    const pose = (h: "l" | "r", e: number) => {
+      const q = Math.round(e * 40) / 40
+      if (q === lastPose[h]) return
+      lastPose[h] = q
+      const hand = h === "l" ? pspHandLeft(q) : pspHandRight(q)
+      const list: [string, PspFinger][] = hand.under.map((f, i) => ["f" + i, f] as [string, PspFinger])
+      hand.over.forEach((f, i) => list.push(["o" + i, f]))
+      for (const [k, f] of list) {
+        const p = parts[h][k]
+        if (!p) continue
+        const d = pspFingerOutline(f)
+        for (const path of p.paths) path.setAttribute("d", d)
+        const m = pspFingerMarks(f)
+        p.creases.forEach((c, j) => c.setAttribute("d", m.creases[j] || "M0 0"))
+        if (p.nail && m.nail) {
+          p.nail.setAttribute("transform", "translate(" + f1(m.nail.x) + " " + f1(m.nail.y) + ") rotate(" + f1(m.nail.a) + ")")
+          p.nail.setAttribute("rx", f1(m.nail.rx))
+          p.nail.setAttribute("ry", f1(m.nail.ry))
+        }
+      }
     }
 
     shownRef.current = 0
@@ -820,103 +1053,120 @@ export default function PeaceStampPreloader({
     let last = performance.now()
     let raf = 0
     let lastPetalK = -1
-    const lastPose = { o: -1, p: -1 }
-    const fingerEls = (h: string) =>
-      Array.from(stage.querySelectorAll(".psp-hand-" + h + " .psp-finger")).map((g) => ({
-        geo: stage.querySelector("#" + id("f" + h + (g as HTMLElement).dataset.i)) as SVGElement | null,
-        hi: Array.from(g.querySelectorAll(".psp-f-hi path")) as SVGElement[],
-        creases: Array.from(g.querySelectorAll(".psp-f-crease path")) as SVGElement[],
-        nail: g.querySelector(".psp-f-nail") as SVGElement | null,
-      }))
-    const fingers = { o: fingerEls("o"), p: fingerEls("p") }
-    const pose = (h: "o" | "p", e: number) => {
-      if (Math.abs(e - lastPose[h]) < 0.002) return
-      lastPose[h] = e
-      const hand = h === "o" ? pspHandOpen(e) : pspHandPinch(e)
-      hand.fingers.forEach((f, i) => {
-        const els = fingers[h][i]
-        if (!els) return
-        const m = pspFingerMarks(f)
-        els.geo?.setAttribute("d", m.d)
-        els.hi.forEach((pth, j) => {
-          pth.setAttribute("d", m.highlights[j] || "M0 0")
-          pth.style.opacity = String(0.6 * (m.hiAlpha[j] || 0))
-        })
-        els.creases.forEach((pth, j) => pth.setAttribute("d", m.creases[j] || "M0 0"))
-        els.nail?.setAttribute("transform", "translate(" + f1(m.nail.x) + " " + f1(m.nail.y) + ") rotate(" + f1(m.nail.a) + ")")
-      })
+
+    // Every write goes through here and is skipped when nothing changed, so a
+    // piece that has finished animating costs nothing on later frames.
+    const cache = new WeakMap()
+    const put = (e: Element | null, k: string, v: string) => {
+      if (!e) return
+      let o = cache.get(e)
+      if (!o) {
+        o = {}
+        cache.set(e, o)
+      }
+      if (o[k] === v) return
+      o[k] = v
+      if (k.charAt(0) === "$") (e as HTMLElement).style.setProperty(k.slice(1), v)
+      else e.setAttribute(k, v)
     }
 
-    const paint = (p: number, now: number) => {
+    const paint = (p: number) => {
       const reduced = reducedRef.current
-      // guilloche draws over the first half
-      const g = pspSmoothstep(0.02, 0.55, p)
-      for (const path of el.guill) path.style.strokeDashoffset = String(GUILLOCHE_LEN * (1 - g))
-      // the side lines and the corner tabs come in
-      const s = pspSmoothstep(0.1, 0.4, p)
-      for (const side of el.sides) side.style.opacity = String(s)
-      for (const c of el.corners) c.style.opacity = String(pspSmoothstep(0.3, 0.5, p))
-      // the big arcs slide out from behind the disc
-      const a = pspEaseBack(pspSmoothstep(0.25, 0.6, p))
-      el.arcs.forEach((arc, i) => {
-        const dir = i === 0 ? -1 : 1
-        arc.style.opacity = String(pspSmoothstep(0.25, 0.4, p))
-        arc.style.transform = reduced ? "" : "translateX(" + dir * 120 * (1 - a) + "px)"
+      // the striped rules run out from the corners
+      const rule = pspEaseOut(pspSmoothstep(0.0, 0.3, p))
+      for (const r of el.barClip) put(r, "width", f1((SIDE_R - SIDE_L) * rule))
+      // the diagonal bands draw in from the corners
+      el.diag.forEach((d, i) => {
+        const u = pspEaseOut(pspSmoothstep(0.06 + (i % 4) * 0.02, 0.34 + (i % 4) * 0.02, p))
+        put(d, "$stroke-dashoffset", f1(diagLen[i] * (1 - u)))
       })
-      if (el.ring) el.ring.style.opacity = String(pspSmoothstep(0.18, 0.4, p))
-      // stem, leaves, bud, bloom
-      const st = pspSmoothstep(0.22, 0.52, p)
-      if (el.stem) el.stem.style.strokeDashoffset = String(STEM_LEN * (1 - st))
-      if (el.stemLine) el.stemLine.style.strokeDashoffset = String(STEM_LEN * (1 - st))
+      for (const t of el.diagText) put(t, "$opacity", f1(pspSmoothstep(0.3, 0.42, p)))
+      // the ring turns into place
+      const ring = pspEaseBack(pspSmoothstep(0.1, 0.42, p))
+      put(el.ring, "$opacity", f1(pspSmoothstep(0.1, 0.22, p)))
+      put(el.ring, "$transform", reduced ? "none" : "rotate(" + f1(-80 * (1 - ring)) + "deg) scale(" + (Math.round(pspLerp(0.86, 1, ring) * 1000) / 1000) + ")")
+      el.sides.forEach((sd, i) => {
+        const u = pspEaseOut(pspSmoothstep(0.14 + i * 0.04, 0.36 + i * 0.04, p))
+        put(sd, "$opacity", f1(u))
+        put(sd, "$transform", reduced ? "none" : "translateY(" + f1((i % 2 ? -1 : 1) * 30 * (1 - u)) + "px)")
+      })
+      // the scrollwork unfurls
+      el.lyres.forEach((g, i) => {
+        const L = LYRES[i]
+        const u = pspEaseBack(pspSmoothstep(0.2 + i * 0.05, 0.52 + i * 0.05, p))
+        const sc = reduced ? (u > 0.01 ? 1 : 0.001) : Math.max(0.001, u)
+        put(g, "transform", "translate(" + L.x + " " + L.y + ") rotate(" + f1(reduced ? 0 : -50 * (1 - u) * L.sx * L.sy) + ") scale(" + f1(L.sx * sc) + " " + f1(L.sy * sc) + ")")
+        put(g, "$opacity", f1(pspSmoothstep(0.2 + i * 0.05, 0.3 + i * 0.05, p)))
+      })
+      el.fleurs.forEach((g, i) => {
+        const F = FLEURS[i]
+        const u = pspEaseBack(pspSmoothstep(0.3 + i * 0.03, 0.5 + i * 0.03, p))
+        put(g, "transform", "translate(" + F.x + " " + F.y + ") rotate(" + F.r + ") scale(" + f1(Math.max(0.001, u)) + ")")
+      })
+      // the stem draws, the leaves unfurl, the bud opens
+      const st = pspSmoothstep(0.24, 0.52, p)
+      el.stem.forEach((sm, i) => {
+        const k = i === 2 ? pspSmoothstep(0.42, 0.6, p) : st
+        put(sm, "$stroke-dashoffset", f1(stemLens[i] * (1 - k)))
+      })
       el.leaves.forEach((leaf, i) => {
-        const u = pspEaseBack(pspSmoothstep(0.42 + i * 0.05, 0.62 + i * 0.05, p))
+        const u = pspEaseBack(pspSmoothstep(0.4 + i * 0.045, 0.62 + i * 0.045, p))
         const L = LEAVES[i]
-        leaf.setAttribute("transform", "translate(" + L.x + " " + L.y + ") rotate(" + L.rot + ") scale(" + f1(u) + ")")
+        put(leaf, "transform", "translate(" + L.x + " " + L.y + ") rotate(" + f1(L.rot - (1 - u) * 40) + ") scale(" + f1(Math.max(0.001, u * 1.2)) + ")")
       })
-      const bud = pspSmoothstep(0.34, 0.46, p)
+      const bud = pspEaseBack(pspSmoothstep(0.34, 0.48, p))
       const k = pspSmoothstep(0.5, 0.96, p)
-      if (Math.abs(k - lastPetalK) > 0.002 || bud < 1) {
+      if (Math.abs(k - lastPetalK) > 0.004 || (bud > 0 && bud < 1)) {
         lastPetalK = k
-        const petals = pspFlower(k)
-        petals.forEach((pt, i) => {
-          const e = el.petals[i]
-          if (!e) return
-          e.setAttribute("d", pt.d)
-          e.setAttribute("transform", "rotate(" + f1(pt.angle) + ") scale(" + f1(pt.scale * pspLerp(0.1, 1, pspEaseBack(bud))) + ")")
-          const v = el.veins[i]
-          if (v) {
-            v.setAttribute("transform", "rotate(" + f1(pt.angle) + ") scale(" + f1(pt.scale * pspLerp(0.1, 1, pspEaseBack(bud))) + ")")
-            v.style.opacity = String(pspSmoothstep(0.55, 0.9, k) * 0.9)
-            Array.from(v.children).forEach((c, j) => c.setAttribute("d", pt.veins[j]))
+        pspFlower(k).forEach((pt, i) => {
+          const tf = "rotate(" + f1(pt.angle) + ") scale(" + f1(Math.max(0.001, pt.scale * pspLerp(0.08, 1, bud))) + ")"
+          put(el.petals[i], "d", pt.d)
+          put(el.petals[i], "transform", tf)
+          const g = el.petalLines[i]
+          if (g) {
+            put(g, "transform", tf)
+            put(g, "$opacity", f1(0.25 + 0.6 * pspSmoothstep(0.3, 0.9, k)))
+            Array.from(g.children).forEach((c, j) => put(c, "d", pt.lines[j] || "M0 0"))
           }
         })
       }
-      if (el.heart) el.heart.setAttribute("transform", "scale(" + f1(pspLerp(0.2, 1, pspEaseBack(pspSmoothstep(0.7, 1, p)))) + ")")
-      // the hands reach in
-      const hl = pspEaseBack(pspSmoothstep(0.3, 0.86, p))
-      const hr = pspEaseBack(pspSmoothstep(0.42, 0.98, p))
-      const drift = reduced ? 0 : 4 * Math.sin(now / 900)
-      if (el.handL) {
-        el.handL.style.opacity = reduced ? String(pspSmoothstep(0.3, 0.5, p)) : "1"
-        el.handL.style.transform = "translate(" + (reduced ? 0 : -SLIDE * (1 - hl) + drift) + "px, " + (reduced ? 0 : -drift * 0.4) + "px)"
-      }
-      if (el.handR) {
-        el.handR.style.opacity = reduced ? String(pspSmoothstep(0.42, 0.62, p)) : "1"
-        el.handR.style.transform = "translate(" + (reduced ? 0 : SLIDE * (1 - hr) - drift) + "px, " + (reduced ? 0 : drift * 0.5) + "px)"
-      }
-      // the fingers settle into their pose as each hand arrives
-      pose("o", pspSmoothstep(0.5, 0.95, p))
-      pose("p", pspSmoothstep(0.6, 1, p))
-      if (el.light) el.light.style.opacity = String(0.4 + 0.6 * pspSmoothstep(0.6, 1, p))
+      put(el.heart, "transform", "scale(" + f1(Math.max(0.001, pspEaseBack(pspSmoothstep(0.68, 1, p)))) + ")")
+      // the hands reach in over the edges, and settle into their pose
+      const hl = pspEaseOut(pspSmoothstep(0.28, 0.86, p))
+      const hr = pspEaseOut(pspSmoothstep(0.4, 0.97, p))
+      const sc = stampScale()
+      put(el.handL, "$opacity", reduced ? f1(pspSmoothstep(0.28, 0.5, p)) : "1")
+      put(el.handL, "$transform", "translate(" + f1(reduced ? 0 : -SLIDE * (1 - hl) * sc) + "px, 0px)")
+      put(el.handR, "$opacity", reduced ? f1(pspSmoothstep(0.4, 0.62, p)) : "1")
+      put(el.handR, "$transform", "translate(" + f1(reduced ? 0 : SLIDE * (1 - hr) * sc) + "px, 0px)")
+      pose("l", pspSmoothstep(0.52, 0.94, p))
+      pose("r", pspSmoothstep(0.62, 1, p))
+      put(el.light, "$opacity", f1(0.35 + 0.65 * pspSmoothstep(0.6, 1, p)))
       // the ring counts up to the face value
-      const m = moneyRef.current
-      if (el.denom) el.denom.textContent = pspMoney(m.value, m.currency, m.decimal, p)
+      // the counter and the face value read from the same rounded percentage
       const pc = Math.round(p * 100)
+      const m = moneyRef.current
+      if (el.denom) {
+        const txt = pspMoney(m.value, m.currency, m.decimal, pc / 100)
+        if (el.denom.textContent !== txt) el.denom.textContent = txt
+      }
       if (pc !== pctRef.current) {
         pctRef.current = pc
         if (el.counter) el.counter.textContent = String(pc).padStart(3, "0")
         setPct(pc)
       }
+    }
+    // stamp units to CSS pixels, for the hands' slide
+    let scaleAt = -1
+    let scaleVal = 1
+    const stampScale = () => {
+      const t = performance.now()
+      if (t - scaleAt > 500) {
+        scaleAt = t
+        const w = el.tilt ? el.tilt.offsetWidth : 0
+        scaleVal = w ? w / W : 1
+      }
+      return scaleVal
     }
 
     const tick = (now: number) => {
@@ -927,22 +1177,20 @@ export default function PeaceStampPreloader({
       const since = now - phaseAtRef.current
       const reduced = reducedRef.current
 
-      // target progress
       let target: number
-      if (progressRef.current !== undefined && progressRef.current !== null) {
-        target = pspClamp(progressRef.current / 100, 0, 1)
-      } else {
-        const t = (now - startRef.current - 700) / Math.max(400, durationRef.current)
-        target = pspSimulated(t)
-      }
+      if (progressRef.current !== undefined && progressRef.current !== null) target = pspClamp(progressRef.current / 100, 0, 1)
+      else target = pspSimulated((now - startRef.current - 900) / Math.max(400, durationRef.current))
       if (rushRef.current) target = 1
       const shown = shownRef.current
-      const gain = rushRef.current ? 7 : 3.2
-      let next = shown + (target - shown) * Math.min(1, gain * dt)
+      let next = shown + (target - shown) * Math.min(1, (rushRef.current ? 6 : 3) * dt)
       if (target - next < 0.0015) next = target
       if (next < shown) next = shown
       shownRef.current = next
-      if (ph === "enter" || ph === "load") paint(next, now)
+      if (ph === "enter" || ph === "load") paint(next)
+
+      // idle life: the flower sways, the hands breathe
+      const idle = reduced ? 0 : 1
+      put(el.head, "transform", "translate(" + HEAD_X + " " + HEAD_Y + ") rotate(" + f1(idle * 2.2 * Math.sin(now / 1300)) + ") scale(1.2)")
 
       // tilt toward the pointer, on a spring
       const sp = springRef.current
@@ -950,34 +1198,30 @@ export default function PeaceStampPreloader({
       const maxTilt = reduced ? 0 : tiltRef.current
       const trx = ptr.on ? -ptr.y * maxTilt : 0
       const trY = ptr.on ? ptr.x * maxTilt : 0
-      const kS = 60
-      const kD = 9
-      sp.vx += (kS * (trx - sp.rx) - kD * sp.vx) * dt
-      sp.vy += (kS * (trY - sp.ry) - kD * sp.vy) * dt
+      sp.vx += (60 * (trx - sp.rx) - 9 * sp.vx) * dt
+      sp.vy += (60 * (trY - sp.ry) - 9 * sp.vy) * dt
       sp.rx += sp.vx * dt
       sp.ry += sp.vy * dt
-      const idle = reduced ? 0 : 1
       const bobY = idle * 3 * Math.sin(now / 1400)
       const bobR = idle * 0.6 * Math.sin(now / 2100)
-      if ((ph === "load" || ph === "touch") && el.tilt) {
-        el.tilt.style.transform =
-          "translate3d(0," + f1(bobY) + "px,0) rotateX(" + f1(sp.rx + bobR) + "deg) rotateY(" + f1(sp.ry) + "deg)"
-        if (el.shadow) {
-          el.shadow.style.transform = "translate(" + f1(14 - sp.ry * 1.6) + "px, " + f1(26 + sp.rx * 1.6 - bobY) + "px)"
-        }
-        if (el.handLayer) el.handLayer.style.transform = "translate(" + f1(sp.ry * 1.1) + "px, " + f1(-sp.rx * 1.1) + "px)"
-        if (el.flowerLayer) el.flowerLayer.style.transform = "translate(" + f1(sp.ry * 0.6) + "px, " + f1(-sp.rx * 0.6) + "px)"
+      if (ph !== "enter" && ph !== "cancel" && ph !== "exit" && el.tilt) {
+        el.tilt.style.transform = "translate3d(0," + f1(bobY) + "px,0) rotateX(" + f1(sp.rx + bobR) + "deg) rotateY(" + f1(sp.ry) + "deg)"
+        if (el.shadow) el.shadow.style.transform = "translate(" + f1(16 - sp.ry * 1.6) + "px, " + f1(28 + sp.rx * 1.6 - bobY) + "px)"
+      }
+      if (ph !== "enter" && ph !== "load") {
+        const s = stampScale()
+        const drift = idle * 3 * Math.sin(now / 900)
+        if (el.handL) el.handL.style.transform = "translate(" + f1(drift * s + sp.ry * 1.2) + "px, " + f1(-drift * 0.5 * s - sp.rx * 1.2) + "px)"
+        if (el.handR) el.handR.style.transform = "translate(" + f1(-drift * s + sp.ry * 1.2) + "px, " + f1(drift * 0.6 * s - sp.rx * 1.2) + "px)"
       }
 
-      // phases
       if (ph === "enter" && since > 1000) go("load")
       else if (ph === "load" && next >= 1 && target >= 1) go("touch")
       else if (ph === "touch" && since > 1100) go("cancel")
       else if (ph === "cancel" && since > (loopRef.current ? 2600 : 1300)) go("exit")
       else if (ph === "exit" && since > 1000) {
-        if (loopRef.current) {
-          setCycle((c) => c + 1)
-        } else {
+        if (loopRef.current) setCycle((c) => c + 1)
+        else {
           go("done")
           onCompleteRef.current?.()
         }
@@ -995,7 +1239,7 @@ export default function PeaceStampPreloader({
     setPhase("enter")
   }, [cycle])
 
-  // ---- input -----------------------------------------------------------------
+  // ---- input -------------------------------------------------------------------
   const activate = React.useCallback(() => {
     const ph = phaseRef.current
     if (ph === "enter" || ph === "load") rushRef.current = true
@@ -1017,81 +1261,150 @@ export default function PeaceStampPreloader({
     }
   }
 
-  // the perforated edge, as a CSS mask on the sheet so the hands, the grain
-  // and the sheen all clip against it without a filter in the animated tree
+  // the perforated edge, as a CSS mask on the sheet: the grain, the sheen and
+  // the drawing all clip against it without a filter in the animated tree
   const perfMask = React.useMemo(() => {
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + " " + H + '"><path fill-rule="evenodd" d="' + pspPerforationPath(W, H, PERF, 8.5) + '"/></svg>'
-    return "url(\"data:image/svg+xml;utf8," + encodeURIComponent(svg) + "\")"
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + " " + H + '"><path fill-rule="evenodd" d="' + PERF_D + '"/></svg>'
+    return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")'
   }, [])
 
-  const renderHand = (h: string, hand: { palm: string; fingers: PspFinger[]; highlight: string }, transform: string, from: number) => (
-    <g className={"psp-hand psp-hand-" + h} data-hand={h} style={{ transform: "translate(" + from + "px, 0)" }}>
-      <g transform={transform}>
-        <defs>
-          {hand.fingers.map((f, i) => (
-            <path key={i} id={id("f" + h + i)} className="psp-fgeo" data-i={i} d={pspFingerMarks(f).d} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          ))}
-          <mask id={id("union-" + h)} maskUnits="userSpaceOnUse" x="-320" y="-150" width="640" height="340">
-            <path d={hand.palm} fill="#fff" />
-            {hand.fingers.map((f, i) => (
-              <use key={i} href={"#" + id("f" + h + i)} stroke="#fff" strokeWidth={f.w} />
-            ))}
-          </mask>
-          <mask id={id("hatchmask-" + h)} maskUnits="userSpaceOnUse" x="-320" y="-150" width="640" height="340">
-            <path d={hand.palm} fill={url("hatchfade")} />
-            {hand.fingers.map((f, i) => (
-              <use key={i} href={"#" + id("f" + h + i)} stroke={url("hatchfade")} strokeWidth={f.w} />
-            ))}
-          </mask>
-        </defs>
-        <path d={hand.palm} fill={url("skin")} stroke={C.skinDark} strokeWidth="1.8" strokeLinejoin="round" />
-        <path d={hand.highlight} fill="none" stroke={C.skinLight} strokeWidth="4" strokeLinecap="round" opacity="0.5" />
-        {hand.fingers.map((f, i) => {
-          const m = pspFingerMarks(f)
-          return (
-            <g key={i} className="psp-finger" data-i={i}>
-              <g mask={url("union-" + h)}>
-                <use href={"#" + id("f" + h + i)} stroke={C.skinDark} strokeWidth={f.w + 8} opacity="0.22" transform="translate(2 7)" />
-              </g>
-              <use href={"#" + id("f" + h + i)} stroke={C.skinDark} strokeWidth={f.w + 3.6} />
-              <use href={"#" + id("f" + h + i)} stroke={url("skin")} strokeWidth={f.w} />
-              <g className="psp-f-hi" fill="none" stroke={C.skinLight} strokeWidth="2.6" strokeLinecap="round">
-                {m.highlights.map((d, j) => (
-                  <path key={j} d={d} style={{ opacity: 0.6 * m.hiAlpha[j] }} />
-                ))}
-              </g>
-              <g className="psp-f-crease" fill="none" stroke={C.skinDark} strokeWidth="1.2" strokeLinecap="round" opacity="0.8">
-                {m.creases.map((d, j) => (
-                  <path key={j} d={d} />
-                ))}
-              </g>
-              {f.nail && (
-                <ellipse
-                  className="psp-f-nail"
-                  rx={f.w * 0.2}
-                  ry={f.w * 0.27}
-                  transform={"translate(" + f1(m.nail.x) + " " + f1(m.nail.y) + ") rotate(" + f1(m.nail.a) + ")"}
-                  fill={C.skinLight}
-                  fillOpacity="0.35"
-                  stroke={C.skinDark}
-                  strokeWidth="0.9"
-                />
-              )}
-            </g>
-          )
-        })}
-        <rect x="-320" y="-150" width="640" height="340" fill={url("hatch")} mask={url("hatchmask-" + h)} opacity="0.7" />
-        <rect x="-320" y="-150" width="640" height="340" fill={url("crosshatch")} mask={url("hatchmask-" + h)} opacity="0.3" />
-      </g>
-    </g>
-  )
+  // Lettering: cream, edged in teal, like the engraved type on the stamp.
+  const letter = { fill: C.cream, stroke: C.band, strokeWidth: 2.6, paintOrder: "stroke" as const, strokeLinejoin: "round" as const }
 
-  const ink = C.ink
-  const perfR = 8.5
-  const stageStyle: React.CSSProperties = C.stage ? { background: C.stage } : {}
+  const renderHand = (h: "l" | "r", box: number[], from: number) => {
+    const hand = h === "l" ? pspHandLeft(0) : pspHandRight(0)
+    const fingers: [string, PspFinger][] = hand.under.map((f, i) => ["f" + i, f] as [string, PspFinger])
+    const over: [string, PspFinger][] = hand.over.map((f, i) => ["o" + i, f] as [string, PspFinger])
+    const gray = (t: number) => {
+      const v = Math.round(255 * t)
+      return "rgb(" + v + "," + v + "," + v + ")"
+    }
+    return (
+      <svg
+        className={"psp-hand psp-hand-" + h}
+        viewBox={"0 0 " + W + " " + H}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        style={{ transform: "translate(" + from + "px, 0px)" }}
+      >
+        <defs>
+          <filter id={id("sculpt-" + h)} filterUnits="userSpaceOnUse" x={box[0]} y={box[1]} width={box[2]} height={box[3]} colorInterpolationFilters="sRGB">
+            <feColorMatrix in="SourceGraphic" type="luminanceToAlpha" result="h0" />
+            <feGaussianBlur in="h0" stdDeviation="3.2" result="hs" />
+            <feGaussianBlur in="h0" stdDeviation="15" result="hb" />
+            <feComposite in="hs" in2="hb" operator="arithmetic" k2="0.42" k3="0.58" result="hm" />
+            <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="1" seed={h === "l" ? 21 : 33} result="dn" />
+            <feColorMatrix in="dn" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="da" />
+            <feComposite in="da" in2="hm" operator="arithmetic" k2="0.035" k3="1" k4="-0.017" result="h" />
+            <feDiffuseLighting in="h" surfaceScale="24" diffuseConstant="1.25" lightingColor="#ffffff" result="d">
+              <feDistantLight azimuth="250" elevation="36" />
+            </feDiffuseLighting>
+            <feSpecularLighting in="h" surfaceScale="24" specularConstant="0.5" specularExponent="6" lightingColor={C.skinLight} result="s">
+              <feDistantLight azimuth="250" elevation="55" />
+            </feSpecularLighting>
+            <feComposite in="s" in2="SourceAlpha" operator="in" result="s2" />
+            <feFlood floodColor={C.skin} result="c" />
+            <feFlood floodColor={C.skinDark} result="k" />
+            <feComposite in="d" in2="c" operator="arithmetic" k1="1" result="cd" />
+            <feComposite in="d" in2="k" operator="arithmetic" k1="-1" k3="1" result="kd" />
+            <feComposite in="cd" in2="kd" operator="arithmetic" k2="1" k3="1" result="lit" />
+            <feColorMatrix in="hb" type="matrix" values="0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 0 1" result="ao" />
+            <feComposite in="lit" in2="ao" operator="arithmetic" k1="0.4" k2="0.7" result="lao" />
+            <feComposite in="s2" in2="lao" operator="arithmetic" k2="0.6" k3="1" result="ls" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="2" seed={h === "l" ? 4 : 9} result="n0" />
+            <feColorMatrix in="n0" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="n" />
+            <feComposite in="n" in2="ls" operator="arithmetic" k2="0.3" k3="1" k4="-0.15" result="grained" />
+            <feComposite in="grained" in2="SourceAlpha" operator="in" />
+          </filter>
+          <linearGradient id={id("tone-" + h)} x1="0" y1={box[1]} x2="0" y2={box[1] + box[3]} gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor={C.skinLight} />
+            <stop offset="0.35" stopColor={C.skinLight} stopOpacity="0.35" />
+            <stop offset="0.6" stopColor={C.skin} stopOpacity="0" />
+            <stop offset="1" stopColor={C.skinDark} />
+          </linearGradient>
+          <filter id={id("soft-" + h)} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" />
+          </filter>
+          <filter id={id("cast-" + h)} filterUnits="userSpaceOnUse" x={box[0] - 30} y={box[1] - 30} width={box[2] + 60} height={box[3] + 60}>
+            <feGaussianBlur in="SourceAlpha" stdDeviation="7" />
+          </filter>
+        </defs>
+        {/* the shadow the hand casts on the stamp */}
+        <g filter={url("cast-" + h)} opacity="0.42" transform="translate(9 15)">
+          {fingers.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill="#000" />
+          ))}
+          <path d={hand.palm} fill="#000" />
+          {over.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill="#000" />
+          ))}
+        </g>
+        {/* the relief: nearer is lighter; the filter lights it */}
+        <g filter={url("sculpt-" + h)}>
+          {fingers.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill={gray(f.tone)} stroke="#000" strokeWidth="2.4" strokeLinejoin="round" />
+          ))}
+          <path d={hand.palm} fill={gray(0.86)} />
+          {hand.bumps.map((b, i) => (
+            <ellipse key={i} cx={b[0]} cy={b[1]} rx={b[2]} ry={b[3]} transform={"rotate(" + b[4] + " " + b[0] + " " + b[1] + ")"} fill="#fff" filter={url("soft-" + h)} />
+          ))}
+          {over.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill={gray(f.tone)} />
+          ))}
+        </g>
+        {/* a broad top light and a navy underside, blended over the relief */}
+        <g style={{ mixBlendMode: "soft-light" }} opacity="0.75">
+          {fingers.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill={url("tone-" + h)} />
+          ))}
+          <path d={hand.palm} fill={url("tone-" + h)} />
+          {over.map(([k, f]) => (
+            <path key={k} data-part={k} d={pspFingerOutline(f)} fill={url("tone-" + h)} />
+          ))}
+        </g>
+        {/* wrinkles and nails, over the relief */}
+        <g fill="none" strokeLinecap="round">
+          {fingers.concat(over).map(([k, f]) => {
+            const m = pspFingerMarks(f)
+            return (
+              <g key={k} data-mark={k}>
+                {m.creases.map((d, j) => (
+                  <path key={j} className="psp-crease" d={d} stroke={C.skinDark} strokeWidth="1" opacity="0.3" />
+                ))}
+                {m.nail ? (
+                  <ellipse
+                    className="psp-nail"
+                    rx={m.nail.rx}
+                    ry={m.nail.ry}
+                    transform={"translate(" + f1(m.nail.x) + " " + f1(m.nail.y) + ") rotate(" + f1(m.nail.a) + ")"}
+                    fill={C.skinLight}
+                    fillOpacity="0.16"
+                    stroke={C.skinDark}
+                    strokeWidth="0.9"
+                    strokeOpacity="0.35"
+                  />
+                ) : null}
+              </g>
+            )
+          })}
+        </g>
+      </svg>
+    )
+  }
+
+  const stageStyle: React.CSSProperties = { fontFamily: monoFamily }
+  if (C.stage) stageStyle.background = C.stage
   const live = phase !== "done"
   const statusText =
     phase === "enter" || phase === "load" ? label : phase === "touch" ? "Received" : phase === "cancel" ? "Cancelled" : "Opening"
+  const quatrefoil = (x: number, y: number, s: number, color: string, key: string | number) => (
+    <g key={key} transform={"translate(" + f1(x) + " " + f1(y) + ") scale(" + s + ")"} fill={color}>
+      {[0, 90, 180, 270].map((a) => (
+        <path key={a} d="M0 -1.5C2.6 -3 3 -7 0 -9.5C-3 -7 -2.6 -3 0 -1.5Z" transform={"rotate(" + a + ")"} />
+      ))}
+      <circle r="1.6" />
+    </g>
+  )
 
   return (
     <div
@@ -1114,7 +1427,7 @@ export default function PeaceStampPreloader({
           key={cycle}
           ref={stageRef}
           className="psp-stage bg-background"
-          style={{ ...stageStyle, fontFamily: monoFamily }}
+          style={stageStyle}
           role="progressbar"
           aria-label={label}
           aria-valuemin={0}
@@ -1131,253 +1444,293 @@ export default function PeaceStampPreloader({
             <div className="psp-tilt">
               <div className="psp-shadow" />
               <div className="psp-sheet" style={{ aspectRatio: W + " / " + H, WebkitMaskImage: perfMask, maskImage: perfMask }}>
-                <svg
-                  className="psp-stamp"
-                  viewBox={"0 0 " + W + " " + H}
-                  width={W}
-                  height={H}
-                  aria-hidden="true"
-                  style={{ fontFamily: serifFamily }}
-                >
+                <svg className="psp-stamp" viewBox={"0 0 " + W + " " + H} width={W} height={H} aria-hidden="true" style={{ fontFamily: serifFamily }}>
                   <defs>
                     <clipPath id={id("disc")}>
-                      <circle cx={CX} cy={CY} r="125" />
+                      <circle cx={CX} cy={CY} r={R_DISC} />
                     </clipPath>
-                    <radialGradient id={id("light")} cx={TOUCH_X + 30} cy={TOUCH_Y + 10} r="150" gradientUnits="userSpaceOnUse">
+                    <clipPath id={id("field")}>
+                      <rect x={FIELD_L} y={FIELD_T} width={FIELD_R - FIELD_L} height={FIELD_B - FIELD_T} />
+                    </clipPath>
+                    <clipPath id={id("bars-t")}>
+                      <rect className="psp-bar-clip" x={SIDE_L} y={RULE_T} width="0" height={RULE_H} />
+                    </clipPath>
+                    <clipPath id={id("bars-b")}>
+                      <rect className="psp-bar-clip" x={SIDE_L} y={H - RULE_T - RULE_H} width="0" height={RULE_H} />
+                    </clipPath>
+                    <radialGradient id={id("light")} cx={TOUCH[0]} cy={TOUCH[1] - 30} r="190" gradientUnits="userSpaceOnUse">
                       <stop offset="0" stopColor={C.disc} />
-                      <stop offset="0.45" stopColor={C.disc} stopOpacity="0.85" />
+                      <stop offset="0.38" stopColor={C.disc} stopOpacity="0.9" />
                       <stop offset="1" stopColor={C.mint} stopOpacity="0" />
                     </radialGradient>
-                    <radialGradient id={id("vignette")} cx={CX} cy={CY} r="125" gradientUnits="userSpaceOnUse">
-                      <stop offset="0.7" stopColor={C.band} stopOpacity="0" />
-                      <stop offset="1" stopColor={C.band} stopOpacity="0.45" />
+                    <radialGradient id={id("vignette")} cx={CX} cy={CY} r={R_DISC} gradientUnits="userSpaceOnUse">
+                      <stop offset="0.62" stopColor={C.band} stopOpacity="0" />
+                      <stop offset="1" stopColor={C.band} stopOpacity="0.55" />
                     </radialGradient>
-                    <linearGradient id={id("skin")} x1="0" y1="-70" x2="0" y2="150" gradientUnits="userSpaceOnUse">
-                      <stop offset="0" stopColor={C.skinLight} />
-                      <stop offset="0.32" stopColor={C.skin} />
-                      <stop offset="1" stopColor={C.skinDark} />
-                    </linearGradient>
-                    <linearGradient id={id("hatchfade")} x1="0" y1="-70" x2="0" y2="150" gradientUnits="userSpaceOnUse">
-                      <stop offset="0" stopColor="#000" />
-                      <stop offset="0.3" stopColor="#000" />
-                      <stop offset="1" stopColor="#fff" />
-                    </linearGradient>
-                    <pattern id={id("hatch")} patternUnits="userSpaceOnUse" width="4.2" height="4.2" patternTransform="rotate(-28)">
-                      <rect x="0" y="0" width="4.2" height="1.1" fill={C.skinDark} />
-                    </pattern>
-                    <pattern id={id("crosshatch")} patternUnits="userSpaceOnUse" width="4.2" height="4.2" patternTransform="rotate(38)">
-                      <rect x="0" y="0" width="4.2" height="0.9" fill={C.skinDark} />
-                    </pattern>
-                    <radialGradient id={id("petal")} cx="0" cy="-20" r="56" gradientUnits="userSpaceOnUse">
+                    <linearGradient id={id("petal")} x1="0" y1="0" x2="0" y2="-60" gradientUnits="userSpaceOnUse">
                       <stop offset="0" stopColor={C.petalDark} />
-                      <stop offset="0.35" stopColor={C.petal} />
-                      <stop offset="0.85" stopColor={C.petal} />
-                      <stop offset="1" stopColor={C.petalDark} stopOpacity="0.9" />
-                    </radialGradient>
-                    <path id={id("arc-top")} d={pspArc(CX, CY, 149, 200, 340)} />
-                    <path id={id("arc-bottom")} d={pspArc(CX, CY, 173, 160, 20)} />
-                    <path id={id("arc-left")} d={pspArc(CX, CY, 216, 232, 128)} />
-                    <path id={id("arc-right")} d={pspArc(CX, CY, 216, -52, 52)} />
+                      <stop offset="0.34" stopColor={C.petal} />
+                      <stop offset="0.86" stopColor={C.petal} />
+                      <stop offset="1" stopColor={C.cream} />
+                    </linearGradient>
+                    <linearGradient id={id("leaf")} x1="-14" y1="0" x2="14" y2="0" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stopColor={C.petal} />
+                      <stop offset="0.48" stopColor={C.leaf} />
+                      <stop offset="0.52" stopColor={C.petalDark} />
+                      <stop offset="1" stopColor={C.leaf} />
+                    </linearGradient>
+                    <linearGradient id={id("goldline")} x1="0" y1="0" x2={W} y2={H} gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stopColor={C.gold} />
+                      <stop offset="0.45" stopColor={C.cream} />
+                      <stop offset="0.55" stopColor={C.gold} />
+                      <stop offset="1" stopColor={C.gold} />
+                    </linearGradient>
+                    <path id={id("arc-top")} d={pspArc(CX, CY, 182, 200, 340)} />
+                    <path id={id("arc-bottom")} d={pspArc(CX, CY, 217, 160, 20)} />
+                    <path id={id("arc-left")} d={pspArc(CX, CY, 183, 140, 220)} />
+                    <path id={id("arc-right")} d={pspArc(CX, CY, 183, -40, 40)} />
                   </defs>
 
-                  {/* paper */}
-                  <rect x="0" y="0" width={W} height={H} fill={C.paper} />
-
-                  {/* the teal plate */}
-                  <g className="psp-plate-band">
-                    <rect x="14" y="14" width={W - 28} height={H - 28} fill={C.band} />
-                    <rect x="31" y="31" width={W - 62} height={H - 62} fill={C.paper} />
-                    <circle cx={CX} cy={CY} r="190" fill={C.band} />
-                    {CORNERS.map(([x, y, r], i) => (
-                      <path key={i} d="M0 0L64 0L0 64Z" fill={C.band} transform={"translate(" + x + " " + y + ") rotate(" + r + ")"} />
-                    ))}
-                  </g>
+                  {/* paper, before any plate */}
+                  <rect x="0" y="0" width={W} height={H} fill={C.cream} />
 
                   {/* the magenta plate */}
                   <g className="psp-plate-field">
-                    <rect x="31" y="31" width={W - 62} height={H - 62} fill={C.field} />
-                    <circle cx={CX} cy={CY} r="190" fill={C.band} />
-                    {CORNERS.map(([x, y, r], i) => (
-                      <g key={i} transform={"translate(" + x + " " + y + ") rotate(" + r + ")"}>
-                        <path d="M0 0L64 0L0 64Z" fill={C.band} />
-                        <path d="M8 8L46 8L8 46Z" fill={C.field} />
-                        <circle cx="19" cy="19" r="4" fill={C.gold} className="psp-corner" style={{ opacity: 0 }} />
+                    <rect x="22" y="22" width={W - 44} height={H - 44} fill={C.field} />
+                  </g>
+
+                  {/* the teal plate: the perforated edge */}
+                  <g className="psp-plate-band">
+                    <path d={"M0 0H" + W + "V" + H + "H0Z M22 22V" + (H - 22) + "H" + (W - 22) + "V22Z"} fill={C.band} fillRule="evenodd" />
+                  </g>
+
+                  {/* gold hairlines round the frame */}
+                  <g className="psp-plate-gold" fill="none">
+                    <rect x="24.5" y="24.5" width={W - 49} height={H - 49} stroke={url("goldline")} strokeWidth="2.2" />
+                    <rect x="31" y="31" width={W - 62} height={H - 62} stroke={C.cream} strokeWidth="1" opacity="0.8" />
+                  </g>
+
+                  {/* striped rules top and bottom */}
+                  {[0, 1].map((b) => {
+                    const y = b ? H - RULE_T - RULE_H : RULE_T
+                    return (
+                      <g key={b}>
+                        <rect x={SIDE_L} y={y} width={SIDE_R - SIDE_L} height={RULE_H} fill="none" stroke={C.cream} strokeWidth="1.4" />
+                        <g clipPath={url(b ? "bars-b" : "bars-t")} fill={C.band}>
+                          {BARS.map((x) => (
+                            <rect key={x} x={x} y={y + 3.5} width="3.1" height={RULE_H - 7} />
+                          ))}
+                        </g>
                       </g>
+                    )
+                  })}
+
+                  {/* the side panels */}
+                  {[SIDE_L, FIELD_R].map((x, i) => (
+                    <g key={i}>
+                      <rect x={x} y={FIELD_T} width={PANEL_W} height={FIELD_B - FIELD_T} fill={C.field} stroke={C.band} strokeWidth="3" />
+                      <rect x={x + 5} y={FIELD_T + 5} width={PANEL_W - 10} height={FIELD_B - FIELD_T - 10} fill="none" stroke={C.cream} strokeWidth="1" opacity="0.85" />
+                    </g>
+                  ))}
+                  <g fontWeight="700" letterSpacing="5" fontSize="46" {...letter}>
+                    <g className="psp-side" style={{ opacity: 0 }}>
+                      <text textAnchor="middle" dominantBaseline="central" transform={"translate(" + (SIDE_L + PANEL_W / 2) + " " + CY + ") rotate(-90)"}>
+                        {leftText}
+                      </text>
+                    </g>
+                    <g className="psp-side" style={{ opacity: 0 }}>
+                      <text textAnchor="middle" dominantBaseline="central" transform={"translate(" + (FIELD_R + PANEL_W / 2) + " " + CY + ") rotate(90)"}>
+                        {rightText}
+                      </text>
+                    </g>
+                  </g>
+                  {[[SIDE_L, RULE_T], [FIELD_R, RULE_T], [SIDE_L, H - RULE_T - RULE_H], [FIELD_R, H - RULE_T - RULE_H]].map(([x, y], i) => (
+                    <g key={i}>
+                      <rect x={x} y={y} width={PANEL_W} height={RULE_H} fill={C.band} />
+                      {quatrefoil(x + PANEL_W / 2, y + RULE_H / 2, 0.85, C.cream, "q")}
+                    </g>
+                  ))}
+
+                  {/* the inner field, its diagonal bands, its spandrels */}
+                  <rect x={FIELD_L} y={FIELD_T} width={FIELD_R - FIELD_L} height={FIELD_B - FIELD_T} fill="none" stroke={C.cream} strokeWidth="1.6" />
+                  <g clipPath={url("field")}>
+                    <path d={"M" + FIELD_L + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_L + " " + FIELD_B + "Z"} fill={C.band} />
+                    <path d={"M" + FIELD_R + " " + FIELD_T + "L" + CX + " " + CY + "L" + FIELD_R + " " + FIELD_B + "Z"} fill={C.band} />
+                    {DIAGONALS.map((dg, i) => {
+                      const d = "M" + dg.from[0] + " " + dg.from[1] + "L" + CX + " " + CY
+                      return (
+                        <g key={i}>
+                          <path className="psp-diag" data-len={f1(dg.len)} d={d} stroke={C.cream} strokeWidth="48" strokeDasharray={f1(dg.len)} strokeDashoffset={f1(dg.len)} />
+                          <path className="psp-diag" data-len={f1(dg.len)} d={d} stroke={C.band} strokeWidth="44" strokeDasharray={f1(dg.len)} strokeDashoffset={f1(dg.len)} />
+                          <path className="psp-diag" data-len={f1(dg.len)} d={d} stroke={C.cream} strokeWidth="36" strokeDasharray={f1(dg.len)} strokeDashoffset={f1(dg.len)} opacity="0.9" />
+                          <path className="psp-diag" data-len={f1(dg.len)} d={d} stroke={C.band} strokeWidth="34" strokeDasharray={f1(dg.len)} strokeDashoffset={f1(dg.len)} />
+                        </g>
+                      )
+                    })}
+                  </g>
+                  <g fontSize="22" fontWeight="700" letterSpacing="3" fill={C.field} stroke={C.cream} strokeWidth="0.8" paintOrder="stroke">
+                    {DIAGONALS.map((dg, i) => (
+                      <text
+                        key={i}
+                        className="psp-diag-text"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        transform={"translate(" + f1(dg.at[0]) + " " + f1(dg.at[1]) + ") rotate(" + f1(dg.angle) + ")"}
+                        style={{ opacity: 0 }}
+                      >
+                        {dg.text === "corner" ? cornerText : year}
+                      </text>
                     ))}
-                    {/* the big arcs of the word, behind the ring */}
-                    <g fill={C.mint} stroke={C.band} strokeWidth="1.2" paintOrder="stroke" fontSize="58" fontWeight="700" letterSpacing="6">
-                      <text className="psp-arc-word" style={{ opacity: 0 }}>
+                  </g>
+                  {LYRES.map((L, i) => (
+                    <g key={i} className="psp-lyre" transform={"translate(" + L.x + " " + L.y + ") scale(0.001)"} style={{ opacity: 0 }}>
+                      {LYRE.scrolls.map((d, j) => (
+                        <path key={j} d={d} fill={C.field} stroke={C.cream} strokeWidth="1" strokeOpacity="0.85" />
+                      ))}
+                      {LYRE.leaves.map((d, j) => (
+                        <path key={j} d={d} fill={C.field} stroke={C.cream} strokeWidth="1" strokeOpacity="0.85" />
+                      ))}
+                      {LYRE.eyes.map((p, j) => (
+                        <circle key={j} cx={f1(p[0])} cy={f1(p[1])} r="2.8" fill={C.field} stroke={C.cream} strokeWidth="1" strokeOpacity="0.85" />
+                      ))}
+                    </g>
+                  ))}
+                  {FLEURS.map((F, i) => (
+                    <g key={i} className="psp-fleur" transform={"translate(" + F.x + " " + F.y + ") scale(0.001)"} fill={C.band}>
+                      {FLEUR.wings.map((d, j) => (
+                        <path key={j} d={d} />
+                      ))}
+                      <path d={FLEUR.drop} />
+                      <circle cx="0" cy="-4" r="3" fill={C.cream} />
+                    </g>
+                  ))}
+
+                </svg>
+
+                {/* the ring: its own layer, so it turns on the compositor */}
+                <svg className="psp-layer psp-ring" viewBox={"0 0 " + W + " " + H} aria-hidden="true" style={{ fontFamily: serifFamily, opacity: 0 }}>
+                  <g>
+                    <circle cx={CX} cy={CY} r={R_OUT + 3} fill={C.cream} />
+                    <circle cx={CX} cy={CY} r={R_OUT} fill={C.band} />
+                    <circle cx={CX} cy={CY} r={R_OUT - 5} fill={C.field} />
+                    <circle cx={CX} cy={CY} r={R_OUT - 9} fill="none" stroke={C.cream} strokeWidth="1.2" />
+                    <circle cx={CX} cy={CY} r={R_IN + 5} fill="none" stroke={C.cream} strokeWidth="1.2" />
+                    <circle cx={CX} cy={CY} r={R_IN} fill={C.cream} />
+                    <circle cx={CX} cy={CY} r={R_IN - 3} fill={C.band} />
+                    <g fontWeight="700" {...letter} strokeWidth="2.2">
+                      <text fontSize="52" letterSpacing="5">
+                        <textPath href={"#" + id("arc-top")} startOffset="50%" textAnchor="middle">
+                          {word.split("").join("·")}
+                        </textPath>
+                      </text>
+                      <text fontSize="46" letterSpacing="4">
                         <textPath href={"#" + id("arc-left")} startOffset="50%" textAnchor="middle">
                           {word}
                         </textPath>
                       </text>
-                      <text className="psp-arc-word" style={{ opacity: 0 }}>
+                      <text fontSize="46" letterSpacing="4">
                         <textPath href={"#" + id("arc-right")} startOffset="50%" textAnchor="middle">
                           {word}
                         </textPath>
                       </text>
+                      <text fontSize="48" letterSpacing="3">
+                        <textPath href={"#" + id("arc-bottom")} startOffset="50%" textAnchor="middle">
+                          <tspan className="psp-denom">{pspMoney(value, currency, decimal, 0)}</tspan>
+                        </textPath>
+                      </text>
                     </g>
-                    <circle cx={CX} cy={CY} r="176" fill={C.field} />
-                    <circle cx={CX} cy={CY} r="125" fill={C.mint} />
-                  </g>
-
-                  {/* gold hairlines, dots and the guilloche */}
-                  <g className="psp-plate-gold" fill="none" stroke={C.gold}>
-                    <rect x="22" y="22" width={W - 44} height={H - 44} strokeWidth="1.4" strokeDasharray="2 4" />
-                    <rect x="31" y="31" width={W - 62} height={H - 62} strokeWidth="1.6" />
-                    <rect x="72" y="72" width={W - 144} height={H - 144} strokeWidth="1.2" />
-                    <circle cx={CX} cy={CY} r="183" strokeWidth="1.4" strokeDasharray="1.5 5" />
-                    <circle cx={CX} cy={CY} r="176" strokeWidth="1.2" />
-                    <circle cx={CX} cy={CY} r="128" strokeWidth="2" />
-                    <circle cx={CX} cy={CY} r="122" strokeWidth="0.8" opacity="0.7" />
-                    <g strokeWidth="1.3" strokeDasharray={GUILLOCHE_LEN} opacity="0.95">
-                      <g transform="translate(46 52)">
-                        <path className="psp-guilloche" d={GUILLOCHE_A} stroke={C.band} strokeWidth="2.6" />
-                        <path className="psp-guilloche" d={GUILLOCHE_B} />
-                      </g>
-                      <g transform={"translate(46 " + (H - 52) + ")"}>
-                        <path className="psp-guilloche" d={GUILLOCHE_A} stroke={C.band} strokeWidth="2.6" />
-                        <path className="psp-guilloche" d={GUILLOCHE_B} />
-                      </g>
-                      <g transform="translate(52 46) rotate(90)">
-                        <path className="psp-guilloche" d={GUILLOCHE_SA} stroke={C.band} strokeWidth="2.6" />
-                        <path className="psp-guilloche" d={GUILLOCHE_SB} />
-                      </g>
-                      <g transform={"translate(" + (W - 52) + " 46) rotate(90)"}>
-                        <path className="psp-guilloche" d={GUILLOCHE_SA} stroke={C.band} strokeWidth="2.6" />
-                        <path className="psp-guilloche" d={GUILLOCHE_SB} />
-                      </g>
-                    </g>
-                    <g fill={C.gold} stroke="none">
-                      {pspDots(W - 2 * 72, 18).map((x, i) => (
-                        <React.Fragment key={i}>
-                          <circle cx={72 + x} cy="66" r="1.4" />
-                          <circle cx={72 + x} cy={H - 66} r="1.4" />
-                        </React.Fragment>
-                      ))}
-                      {pspDots(H - 2 * 72, 18).map((y, i) => (
-                        <React.Fragment key={i}>
-                          <circle cx="66" cy={72 + y} r="1.4" />
-                          <circle cx={W - 66} cy={72 + y} r="1.4" />
-                        </React.Fragment>
-                      ))}
-                    </g>
-                  </g>
-
-                  {/* side lines, corner years */}
-                  <g className="psp-ink" fontWeight="700" letterSpacing="5">
-                    <text className="psp-side" fontSize="30" fill={C.mint} stroke={C.gold} strokeWidth="0.7" paintOrder="stroke" textAnchor="middle" transform={"translate(60 " + CY + ") rotate(-90)"} style={{ opacity: 0 }}>
-                      {leftText}
-                    </text>
-                    <text className="psp-side" fontSize="30" fill={C.mint} stroke={C.gold} strokeWidth="0.7" paintOrder="stroke" textAnchor="middle" transform={"translate(" + (W - 60) + " " + CY + ") rotate(90)"} style={{ opacity: 0 }}>
-                      {rightText}
-                    </text>
-                    <g fontSize="11" fill={C.paper} letterSpacing="1.5" fontWeight="600">
-                      {[[62, 50], [W - 62, 50], [W - 62, H - 46], [62, H - 46]].map(([x, y], i) => (
-                        <text key={i} className="psp-side" x={x} y={y} textAnchor="middle" style={{ opacity: 0 }}>
-                          {year}
-                        </text>
-                      ))}
-                    </g>
-                  </g>
-
-                  {/* the ring type */}
-                  <g className="psp-ring-type" fill={C.mint} stroke={C.gold} strokeWidth="0.6" paintOrder="stroke" style={{ opacity: 0 }}>
-                    <text fontSize="30" fontWeight="700" letterSpacing="10">
-                      <textPath href={"#" + id("arc-top")} startOffset="50%" textAnchor="middle">
-                        {word.split("").join(" · ")}
-                      </textPath>
-                    </text>
-                    <text fontSize="28" fontWeight="700" letterSpacing="4">
-                      <textPath href={"#" + id("arc-bottom")} startOffset="50%" textAnchor="middle">
-                        <tspan className="psp-denom">{pspMoney(value, currency, decimal, 0)}</tspan>
-                      </textPath>
-                    </text>
-                    {[0, 180].map((a) => (
-                      <g key={a} transform={"translate(" + CX + " " + CY + ") rotate(" + a + ") translate(150 0)"} fill={C.gold} stroke="none">
-                        <circle r="2.4" />
-                        {[0, 90, 180, 270].map((b) => (
-                          <ellipse key={b} rx="2.2" ry="4.6" transform={"rotate(" + b + ") translate(0 -6)"} />
-                        ))}
-                      </g>
+                    {[45, 135, 225, 315].map((a) =>
+                      quatrefoil(CX + 199 * Math.cos((a * Math.PI) / 180), CY + 199 * Math.sin((a * Math.PI) / 180), 1.25, C.cream, a),
+                    )}
+                    {[28, 62, 118, 152, 208, 236, 304, 332].map((a) => (
+                      <circle key={a} cx={f1(CX + 199 * Math.cos((a * Math.PI) / 180))} cy={f1(CY + 199 * Math.sin((a * Math.PI) / 180))} r="2.6" fill={C.cream} />
                     ))}
-                    {[45, 135, 225, 315].map((a) => (
-                      <circle key={a} cx={CX + 160 * Math.cos((a * Math.PI) / 180)} cy={CY + 160 * Math.sin((a * Math.PI) / 180)} r="1.8" fill={C.gold} stroke="none" />
-                    ))}
-                  </g>
-
-                  {/* the light in the disc, and its edge */}
-                  <g className="psp-plate-field">
+                    {/* the disc and its light */}
+                    <circle cx={CX} cy={CY} r={R_DISC} fill={C.mint} />
                     <g clipPath={url("disc")}>
-                      <circle className="psp-light" cx={CX} cy={CY} r="125" fill={url("light")} style={{ opacity: 0.4 }} />
-                      <circle cx={CX} cy={CY} r="125" fill={url("vignette")} />
+                      <circle className="psp-light" cx={CX} cy={CY} r={R_DISC} fill={url("light")} style={{ opacity: 0.35 }} />
+                      <circle cx={CX} cy={CY} r={R_DISC} fill={url("vignette")} />
                     </g>
                   </g>
 
-                  {/* the flower */}
-                  <g className="psp-flower-layer">
-                    <path className="psp-stem" d={STEM} fill="none" stroke={C.leaf} strokeWidth="5" strokeLinecap="round" strokeDasharray={STEM_LEN} style={{ strokeDashoffset: STEM_LEN }} />
-                    <path className="psp-stem-line" d={STEM} fill="none" stroke={C.petalDark} strokeWidth="1" strokeLinecap="round" strokeDasharray={STEM_LEN} opacity="0.7" style={{ strokeDashoffset: STEM_LEN }} />
+                </svg>
+
+                {/* the flower: its own layer, so its morph repaints only itself */}
+                <svg className="psp-layer psp-flower" viewBox={"0 0 " + W + " " + H} aria-hidden="true">
+                  <g>
+                    <path className="psp-stem" d={STEM} fill="none" stroke={C.petalDark} strokeWidth="6.2" strokeLinecap="round" />
+                    <path className="psp-stem" d={STEM} fill="none" stroke={C.petal} strokeWidth="3.2" strokeLinecap="round" />
+                    <path className="psp-stem" d={BRANCH} fill="none" stroke={C.petalDark} strokeWidth="3.6" strokeLinecap="round" />
                     {LEAVES.map((L, i) => (
-                      <g key={i} className="psp-leaf" transform={"translate(" + L.x + " " + L.y + ") rotate(" + L.rot + ") scale(0)"}>
-                        <path d={L.path} fill={C.leaf} stroke={C.petalDark} strokeWidth="0.8" strokeLinejoin="round" />
-                        <path d={"M0 -2L0 " + -(L.len - 6)} stroke={C.petalDark} strokeWidth="0.8" fill="none" opacity="0.8" />
-                        {[0.3, 0.5, 0.7].map((u) => (
-                          <path key={u} d={"M0 " + -(L.len * u) + "Q" + L.wid * 0.2 + " " + -(L.len * u + 6) + " " + L.wid * 0.36 + " " + -(L.len * u + 12)} stroke={C.petalDark} strokeWidth="0.6" fill="none" opacity="0.6" />
-                        ))}
+                      <g key={i} className="psp-leaf" transform={"translate(" + L.x + " " + L.y + ") rotate(" + L.rot + ") scale(0.001)"}>
+                        <path d={L.path} fill={url("leaf")} stroke={C.petalDark} strokeWidth="1" strokeLinejoin="round" />
+                        <g fill="none" stroke={C.petalDark} strokeWidth="0.75" opacity="0.85">
+                          {L.lines.map((d, j) => (
+                            <path key={j} d={d} />
+                          ))}
+                        </g>
                       </g>
                     ))}
-                    <g transform={"translate(" + HEAD_X + " " + HEAD_Y + ")"}>
+                    <g className="psp-head" transform={"translate(" + HEAD_X + " " + HEAD_Y + ") scale(1.2)"}>
                       {[0, 1, 2, 3, 4].map((i) => (
-                        <path key={i} className="psp-petal" d={pspPetal(0)} transform="scale(0)" fill={url("petal")} stroke={C.petalDark} strokeWidth="0.9" strokeLinejoin="round" />
-                      ))}
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <g key={i} className="psp-veins" fill="none" stroke={C.petalDark} strokeWidth="0.7" style={{ opacity: 0 }}>
-                          <path d="" />
-                          <path d="" />
-                          <path d="" />
+                        <g key={i}>
+                          <path className="psp-petal" d={pspPetal(0)} transform="scale(0.001)" fill={url("petal")} stroke={C.petalDark} strokeWidth="1.1" strokeLinejoin="round" />
+                          <g className="psp-petal-lines" transform="scale(0.001)" fill="none" stroke={C.petalDark} strokeWidth="0.7" strokeLinecap="round" style={{ opacity: 0 }}>
+                            {pspPetalLines(0).map((d, j) => (
+                              <path key={j} d={d} />
+                            ))}
+                          </g>
                         </g>
                       ))}
-                      <g className="psp-heart" transform="scale(0.2)">
+                      <g className="psp-heart" transform="scale(0.001)">
+                        <circle r="13" fill={C.petalDark} opacity="0.35" />
                         {STAMENS.map((s, i) => (
                           <g key={i} transform={"rotate(" + f1((s.a * 180) / Math.PI) + ")"}>
-                            <line x1="0" y1="0" x2={s.r} y2="0" stroke={C.petalDark} strokeWidth="0.9" />
+                            <line x1="3" y1="0" x2={s.r} y2="0" stroke={C.petalDark} strokeWidth="0.8" />
                             <circle cx={s.r} cy="0" r={s.w} fill={C.petalDark} />
-                            <circle cx={s.r - 0.6} cy="-0.6" r={s.w * 0.45} fill={C.petal} />
+                            <circle cx={s.r - 0.4} cy="-0.4" r={s.w * 0.5} fill={C.petal} />
                           </g>
                         ))}
-                        <circle r="7" fill={C.leaf} stroke={C.petalDark} strokeWidth="0.8" />
-                        <circle r="3" fill={C.petal} />
+                        <circle r="6.5" fill={C.leaf} stroke={C.petalDark} strokeWidth="0.8" />
+                        <circle r="2.6" fill={C.petal} />
                       </g>
                     </g>
-                  </g>
-
-                  {/* the hands */}
-                  <g className="psp-hand-layer">
-                    {renderHand("o", OPEN_FINAL, OPEN_TRANSFORM, -SLIDE)}
-                    {renderHand("p", PINCH_FINAL, PINCH_TRANSFORM, SLIDE)}
                   </g>
 
                   {/* the touch */}
-                  <g transform={"translate(" + (TOUCH_X + 14) + " " + (TOUCH_Y + 2) + ")"}>
-                    <circle className="psp-halo" r="26" fill={C.disc} opacity="0" />
-                    <g className="psp-spark" fill={C.gold} stroke={C.paper} strokeWidth="0.6">
+                  <g transform={"translate(" + f1(TOUCH[0]) + " " + f1(TOUCH[1]) + ")"}>
+                    <circle className="psp-halo" r="26" fill={C.disc} />
+                    <g className="psp-spark" fill={C.gold} stroke={C.cream} strokeWidth="0.6">
                       <path d="M0 -22C2 -8 8 -2 22 0C8 2 2 8 0 22C-2 8 -8 2 -22 0C-8 -2 -2 -8 0 -22Z" />
                       <path d="M0 -10C1 -4 4 -1 10 0C4 1 1 4 0 10C-1 4 -4 1 -10 0C-4 -1 -1 -4 0 -10Z" transform="rotate(45)" fill="#fff8e0" />
                     </g>
                   </g>
                 </svg>
 
-                {/* paper grain, painted once, and the light passing over the gold */}
+                {/* the hands, over the stamp and its edge, cut at the sheet's bounds */}
+                <div className="psp-hands">
+                  {renderHand("l", [-60, 110, 440, 230], -SLIDE)}
+                  {renderHand("r", [350, 190, 500, 220], SLIDE)}
+                </div>
+
+                {/* print texture: grain and ink mottling, painted once */}
                 <svg className="psp-grain" viewBox={"0 0 " + W + " " + H} width={W} height={H} aria-hidden="true" preserveAspectRatio="none">
                   <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" stitchTiles="stitch" result="n" />
+                    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" stitchTiles="stitch" result="n" />
                     <feColorMatrix type="saturate" values="0" in="n" result="g" />
                     <feComponentTransfer in="g">
-                      <feFuncA type="table" tableValues="0 0.22" />
+                      <feFuncA type="table" tableValues="0 0.42" />
+                    </feComponentTransfer>
+                  </filter>
+                  <filter id={id("mottle")} x="0" y="0" width="100%" height="100%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="11" result="n" />
+                    <feColorMatrix type="saturate" values="0" in="n" result="g" />
+                    <feComponentTransfer in="g">
+                      <feFuncA type="table" tableValues="0 0.12" />
                     </feComponentTransfer>
                   </filter>
                   <rect x="0" y="0" width={W} height={H} filter={url("grain")} />
+                  <rect x="0" y="0" width={W} height={H} filter={url("mottle")} />
                 </svg>
                 <div className="psp-sheen" />
               </div>
@@ -1391,7 +1744,7 @@ export default function PeaceStampPreloader({
                   </filter>
                   <path id={id("arc-mark")} d={pspArc(0, 0, 78, 182, 358)} />
                 </defs>
-                <g transform={"translate(" + W * 0.78 + " " + H * 0.22 + ")"} filter={url("rough")} fill="none" stroke={ink} opacity="0.88">
+                <g transform={"translate(" + W * 0.8 + " " + H * 0.2 + ")"} filter={url("rough")} fill="none" stroke={C.ink} opacity="0.88">
                   <circle r="92" strokeWidth="5" />
                   <circle r="66" strokeWidth="3" />
                   <g strokeWidth="4" strokeLinecap="round">
@@ -1400,16 +1753,16 @@ export default function PeaceStampPreloader({
                     ))}
                   </g>
                   {postmark ? (
-                    <text fill={ink} stroke="none" fontSize="17" fontWeight="700" letterSpacing="4">
+                    <text fill={C.ink} stroke="none" fontSize="17" fontWeight="700" letterSpacing="4">
                       <textPath href={"#" + id("arc-mark")} startOffset="50%" textAnchor="middle">
                         {postmark + " · " + year}
                       </textPath>
                     </text>
                   ) : null}
-                  <text fill={ink} stroke="none" fontSize="22" fontWeight="700" letterSpacing="3" textAnchor="middle" y="8">
+                  <text fill={C.ink} stroke="none" fontSize="22" fontWeight="700" letterSpacing="3" textAnchor="middle" y="8">
                     {pspMoney(value, currency, decimal, 1)}
                   </text>
-                  <text fill={ink} stroke="none" fontSize="10" letterSpacing="4" textAnchor="middle" y="28">
+                  <text fill={C.ink} stroke="none" fontSize="10" letterSpacing="4" textAnchor="middle" y="28">
                     {"100%"}
                   </text>
                 </g>

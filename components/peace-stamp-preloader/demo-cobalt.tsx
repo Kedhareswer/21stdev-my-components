@@ -8,7 +8,8 @@ export default function DemoCobalt() {
     <PeaceStampPreloader
       loop
       preset="cobalt"
-      word="UNI"
+      word="LUX"
+      cornerText="MAIL"
       leftText="FIRST CLASS"
       rightText="REGISTERED"
       year="1968"

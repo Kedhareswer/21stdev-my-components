@@ -22,7 +22,7 @@ export default function DemoGate() {
   }, [run])
 
   return (
-    <PeaceStampPreloader key={run} progress={loaded} word="PAX" leftText="PAR AVION" rightText="AIR MAIL" value={1.2}>
+    <PeaceStampPreloader key={run} progress={loaded} word="PAZ" leftText="PAR AVION" rightText="AIR MAIL" value={1.2}>
       <main className="flex min-h-full flex-col items-center justify-center gap-6 bg-background px-6 py-16 text-center text-foreground">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Correspondence · 2026</p>
         <h1 className="font-serif text-5xl italic tracking-tight sm:text-7xl">It arrived.</h1>

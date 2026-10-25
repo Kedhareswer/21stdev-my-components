@@ -1,33 +1,36 @@
 # Peace Stamp Preloader
 
-A loading gate drawn as a postage stamp. A sheet of perforated paper lands on
-the page, the teal and magenta plates print one after the other, and the gold
-hairlines and the guilloche border draw themselves in. In the middle, on a
-mint disc lit from within, a golden hellebore grows out of a bud as the page
-loads. Two engraved blue hands reach in from the edges of the stamp: one open
-and pointing, the other pinching the stem. At 100% the fingertip glints, a
-postmark cancels the stamp, and the stamp lifts off the page to reveal
-whatever it was guarding.
+A loading gate drawn as a postage stamp. A sheet of teal-edged, perforated
+paper lands on the page, and the stamp prints itself as the page loads. In the
+middle, on a mint disc lit from within, a gold dog-rose grows from a bud. Two
+sculpted blue hands reach in over the edges of the stamp, one pointing, one
+closing on the stem, after the hands in the Sistine ceiling. At 100% the light
+flares between the fingertips, a postmark cancels the stamp, and the stamp
+lifts off the page to reveal whatever it was guarding.
 
 1. **Land.** The sheet drops onto the page with a tilt and settles. The teal
-   plate wipes across, then the magenta plate, then the gold.
-2. **Print.** The load drives everything: the guilloche ribbons draw round the
-   border, the side lines and the word's big arcs come in, the stem draws and
-   the leaves unfurl, the bud appears and morphs open petal by petal, and the
-   ring counts the face value up from `€0,00`.
-3. **Reach.** The open hand slides in from the left, its index finger
-   straightening as it arrives; the pinching hand slides in from the right and
-   closes its thumb and finger on the stem.
-4. **Touch.** At 100% a gold spark flashes at the fingertip and the disc's
-   light brightens.
-5. **Cancel.** A postmark slams onto the corner, rough-edged, with the face
-   value and the wavy bars of a cancellation. The sheet thumps under it.
-6. **Lift.** The stamp peels up and off the page. Underneath is whatever the
+   edge prints, the magenta plate wipes across, then the gold hairlines.
+2. **Print.** The load drives everything. The striped rules run out from the
+   corners and the diagonal bands draw in toward the medallion. The lettered
+   ring turns into place, and the side panels' lettering slides up and down.
+   The Victorian scrollwork unfurls in the teal spandrels and the winged
+   fleurs open. The ring counts the face value up from `€0,00`.
+3. **Grow.** The stem draws itself and the leaves unfurl. A bud appears and
+   morphs open, petal by petal, into an engraved dog-rose, and the stamens
+   come up in its heart.
+4. **Reach.** The left hand slides in from the left edge, its index finger
+   straightening as it arrives. The right hand slides in from the right and
+   closes its fingers.
+5. **Touch.** At 100% a gold spark flashes between the fingertips and the
+   disc brightens.
+6. **Cancel.** A rough-edged postmark slams onto the corner with the face
+   value and wavy bars. The sheet thumps under it.
+7. **Lift.** The stamp peels up and off the page. Underneath is whatever the
    gate was guarding. With `loop`, it lands again and reloads.
 
-The stamp tilts toward the pointer on a spring, and its shadow, hands and
-flower sit at different depths. Click or press Enter or Space while it loads
-to rush it to 100%. In `loop` mode, click the cancelled stamp to lift it.
+The stamp tilts toward the pointer on a spring, the flower sways, and the
+hands breathe. Click, or press Enter or Space, while it loads to rush it to
+100%. In `loop` mode, click the cancelled stamp to lift it.
 
 ```tsx
 import PeaceStampPreloader from "@/components/ui/peace-stamp-preloader"
@@ -43,9 +46,10 @@ import PeaceStampPreloader from "@/components/ui/peace-stamp-preloader"
 // Your own printing
 <PeaceStampPreloader
   preset="cobalt"
-  word="UNI"
+  word="LUX"
   leftText="FIRST CLASS"
   rightText="REGISTERED"
+  cornerText="MAIL"
   year="1968"
   value={0.5}
   currency="$"
@@ -55,16 +59,26 @@ import PeaceStampPreloader from "@/components/ui/peace-stamp-preloader"
 ```
 
 **No dependencies beyond React, and no assets.** Every mark is procedural SVG
-built in the file: the perforation (a CSS mask the hands, grain and sheen all
-clip against), the guilloche, the ring type on arcs, the flower with its
-morphing petals, the two hands and the postmark. The hands are a palm shape
-plus articulated fingers: each finger is a chain of joints posed by forward
-kinematics, drawn as a round-capped capsule with a dark rim, a highlight down
-its lit side, a crease at every joint, a nail and a cast shadow, with
-engraver's hatching fading in from the shadow side. Paper grain and the
-postmark's rough ink come from SVG filters painted once, outside the animated
-tree. One `requestAnimationFrame` loop drives the load, the morphs and the
-tilt, and writes straight to the DOM; React only sees the phase changes.
+built in the file.
+
+- **Frame.** The perforation is a CSS mask on the sheet, so the hands, grain
+  and sheen all clip against it.
+- **Ornament.** The scrollwork is tapered ribbons wound into logarithmic
+  spirals. The lettering sits on arcs.
+- **Hands.** Each hand is a palm and five articulated fingers posed by
+  forward kinematics. Each finger is a tube that swells at the knuckles and
+  tapers to a rounded tip. The hand is drawn as a grey height map, nearer
+  parts lighter, with soft swellings for the knuckles, the wrist bone and the
+  muscle. SVG lighting filters light it, giving the matte, sculpted, grainy
+  finish: a fine and a broad blur, diffuse and specular light, ambient
+  occlusion, and noise. Wrinkles, nails and a soft cast shadow go on top.
+- **Texture.** Paper grain, ink mottling and the postmark's rough edge are
+  SVG filters, painted once.
+
+The frame, the ring, the flower and each hand are separate layers. The ring
+turns and the hands slide on the compositor, and only the flower repaints as
+it morphs. One `requestAnimationFrame` loop drives everything, writing to the
+DOM directly, and it skips any write whose value hasn't changed.
 
 ## Props
 
@@ -73,18 +87,19 @@ tilt, and writes straight to the DOM; React only sees the phase changes.
 | `children` | — | Revealed once the stamp lifts. `inert` until then. Ignored while `loop` is set. |
 | `loop` | `false` | Showcase mode: land, load, cancel, lift, and again. `onComplete` never fires. |
 | `progress` | — | Real progress, `0`–`100`. Leave it out to run a simulated load that surges and stalls. The bloom waits for `100`. |
-| `durationMs` | `5200` | Length of the simulated load. |
-| `word` | `"МИР"` | The word on the ring (spaced with dots) and on the big arcs either side. Three or four letters read best. |
-| `leftText` | `"PAR AVION"` | Up the left edge. |
-| `rightText` | `"POSTAGE"` | Down the right edge. |
-| `year` | `"2026"` | In the four corner tabs and on the postmark. |
+| `durationMs` | `5600` | Length of the simulated load. |
+| `word` | `"МИР"` | The word on the ring: across the top with dots between its letters, and down either side. Three or four letters read best. |
+| `leftText` | `"PAR AVION"` | Up the left panel. Ten letters or fewer fit. |
+| `rightText` | `"POSTE"` | Down the right panel. |
+| `cornerText` | `"PAX"` | In two of the diagonal bands. |
+| `year` | `"2026"` | In the other two bands, and on the postmark. |
 | `value` | `0.68` | Face value. The ring counts up to it with the load. |
 | `currency` | `"€"` | Sign before the value. |
 | `decimal` | `","` | `","` or `"."`. |
 | `postmark` | `"DELIVERED"` | Text round the postmark. `""` for a plain cancellation. |
 | `preset` | `"magenta"` | `magenta` (the picture) · `cobalt` (cobalt and coral) · `olive` (olive and rust, sepia hands). |
 | `palette` | — | Partial overrides, see below. |
-| `tilt` | `7` | Largest tilt toward the pointer, in degrees. `0` holds it flat. |
+| `tilt` | `6` | Largest tilt toward the pointer, in degrees. `0` holds it flat. |
 | `hud` | `true` | The corner read-out and the hint. |
 | `label` | `"Loading"` | Accessible name of the progress bar, and the top-left line. |
 | `serifFamily` / `monoFamily` | system stacks | Faces for the stamp's type and the read-out. Nothing is fetched. |
@@ -96,19 +111,19 @@ tilt, and writes straight to the DOM; React only sees the phase changes.
 
 | Key | Magenta | Used for |
 |---|---|---|
-| `paper` | `#f5f0e4` | The sheet. |
-| `field` | `#e4247c` | The magenta plate: the field and the inner ring. |
-| `band` | `#41b3a1` | The teal plate: the border, the side letters, the outer ring. |
-| `gold` | `#e0b35c` | Hairlines, dots and the guilloche's second ribbon. |
-| `mint` | `#bfe9d9` | Edge of the disc. |
+| `field` | `#e8287a` | The magenta plate: the field, the ring, the scrollwork. |
+| `band` | `#38b8a2` | The teal plate: the perforated edge, the bands, the bars, the spandrels. |
+| `cream` | `#f8e7c5` | Lettering, hairlines, and the paper before it prints. |
+| `gold` | `#dcae5e` | The gold frame line. |
+| `mint` | `#bfe8d8` | Edge of the disc. |
 | `disc` | `#ffffff` | Centre of the disc, where the light is. |
-| `petal` | `#e6bd52` | The flower. |
-| `petalDark` | `#a8741f` | Veins, stamens, and the engraved lines on the leaves. |
-| `leaf` | `#8a9a3a` | Stem and leaves. |
-| `skin` | `#3f82df` | The hands. |
-| `skinDark` | `#1b3f94` | Their shadow side, rims, creases and hatching. |
-| `skinLight` | `#b9d7fb` | Their highlights and nails. |
-| `ink` | `#1d2744` | The postmark. |
+| `petal` | `#e8c461` | The flower. |
+| `petalDark` | `#94641a` | The engraving, the veins, the stamens, the stem's edge. |
+| `leaf` | `#9a8a3a` | The leaves. |
+| `skin` | `#3d84ea` | The hands. |
+| `skinDark` | `#143c94` | Their shadow side, creases and the navy underside. |
+| `skinLight` | `#a9d4ff` | Their highlights and nails. |
+| `ink` | `#1f2547` | The postmark. |
 | `stage` | — | Behind the stamp. Leave out to use the host's `bg-background`. |
 
 ## Notes
@@ -116,13 +131,17 @@ tilt, and writes straight to the DOM; React only sees the phase changes.
 - The stage uses the host's background and foreground tokens, so the stamp
   sits on a light or dark page as it is. Set `palette.stage` to pin it.
 - The default word, lines and value are placeholders in the style of an
-  airmail stamp. Swap in your own.
-- `prefers-reduced-motion` turns the landing, the lift and the postmark into
-  fades, stops the tilt, the drift and the sheen, and fades the hands in
-  where they stand instead of sliding them. The flower still opens with the
-  load.
+  airmail stamp: МИР and PAX both mean peace. Swap in your own.
+- `prefers-reduced-motion` has these effects:
+  - The landing, the lift and the postmark become fades.
+  - The tilt, the sway, the drift and the sheen stop.
+  - The ring stops turning.
+  - The hands fade in where they stand instead of sliding.
+  - The flower still opens with the load.
+- The lighting filters run on the CPU in some browsers. They only re-run
+  while a hand is changing pose. Sliding and idling hands are composited.
 - The gate is a focusable `role="progressbar"` with its value and a status
   text, and works with Enter and Space.
-- All the geometry is exported (`pspPetal`, `pspFlower`, `pspLeaf`,
-  `pspHandOpen`, `pspHandPinch`, `pspFingerMarks`, `pspGuilloche`,
-  `pspPerforationPath`…) so the same drawing can be reused elsewhere.
+- All the geometry is exported, so the same drawing can be reused elsewhere.
+  That includes `pspPetal`, `pspFlower`, `pspLyre`, `pspSScroll`,
+  `pspHandLeft`, `pspHandRight`, `pspFingerOutline` and `pspPerforationPath`.
