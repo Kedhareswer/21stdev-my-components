@@ -14,6 +14,7 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/gilded-lotus-preloader": ["./components/gilded-lotus-preloader/gilded-lotus-preloader.tsx"],
       "@/components/ui/slit-type-faq": ["./components/slit-type-faq/slit-type-faq.tsx"],
       "@/components/ui/plumb-payroll-template": ["./components/plumb-payroll-template/plumb-payroll-template.tsx"],
       "@/components/ui/long-exposure-agency-template": ["./components/long-exposure-agency-template/long-exposure-agency-template.tsx"],
