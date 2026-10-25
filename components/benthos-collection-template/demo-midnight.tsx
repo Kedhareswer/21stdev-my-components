@@ -48,10 +48,10 @@ export default function DemoMidnight() {
           { name: "Fog", hex: "#e6eaec" },
         ]}
         patterns={[
-          { key: "jelly-bloom", name: "Jelly Bloom", note: "medusae in the dark" },
-          { key: "octopus-ink", name: "Octopus Ink", note: "ink octopuses on harbour blue" },
-          { key: "kelp-stripe", name: "Kelp Stripe", note: "feather kelp in columns" },
-          { key: "starfish-dot", name: "Starfish Dot", note: "a small polka" },
+          { key: "night-reef", name: "Night Reef", note: "a seaweed garden below the light" },
+          { key: "octopus-slate", name: "Octopus Slate", note: "octopuses on harbour blue" },
+          { key: "kelp-garden", name: "Kelp Garden", note: "watercolour kelp in columns" },
+          { key: "shell-toss", name: "Shell Toss", note: "scallops and nautilus on bone" },
         ]}
         plates={[
           { title: "Moon jelly", latin: "Aurelia aurita", art: "jellyfish" },

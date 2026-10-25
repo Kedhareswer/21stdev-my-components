@@ -6,20 +6,23 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
 
 /**
  * Benthos Collection Template — a launch page for an illustration collection,
- * drawn the way a naturalist's plate book would be: watercolour creatures on
- * cream paper around a deep-green porthole, then a pinboard of the things the
- * collection makes (palette chips, a line-icon sheet, pattern swatches, a
- * poster, an envelope lined with coral), seamless patterns, framed prints and
- * a licence.
+ * laid out like the plate book it sells: vintage natural-history plates on
+ * cream paper around a deep-green window full of watercolour seaweed, then a
+ * pinboard of the things the collection makes (a Haeckel poster, palette
+ * chips, a line-icon sheet, fabric swatches, a monogram, an envelope lined
+ * with the reef), seamless patterns, framed prints and a licence.
  *
- * - Every creature (whale, octopus, nautilus, jellyfish, sea fan, branching
- *   coral, kelp, scallop, starfish, crab) is generated from a handful of
- *   points and a seed, then painted twice: as a granulated watercolour wash
- *   and as an ink line drawing. The same geometry fills the hero, the icon
- *   sheet, the patterns and the prints, so the whole page is one hand.
- * - The hero porthole is a clip-path. Scrolling morphs it from an oval into
- *   the full-bleed deep, the creatures drift out and the whale swims across
- *   while the collection's contents count up.
+ * - The artwork is real: public-domain and CC BY plates (Haeckel, Scammon,
+ *   Merculiano, Te Papa's Seaweeds of New Zealand) fetched from Wikimedia
+ *   Commons and lifted off their paper at runtime in a Web Worker, so a
+ *   whale or an octopus can break over the window's edge. Every piece is a
+ *   prop; swap in your own scans or cut-outs.
+ * - Seamless pattern tiles are composed on a canvas from the same cut-outs.
+ * - Hand-drawn SVG versions of every creature stand in while plates load, if
+ *   they are blocked, and as the line-icon sheet.
+ * - The window is a clip-path. Scrolling morphs it from a rounded panel into
+ *   the full-bleed deep, the reef drifts out and the whale swims across while
+ *   the collection's contents count up.
  * - Pinned cards swing on their tacks when dragged and spring back.
  * - GSAP + ScrollTrigger run the choreography inside one context; the dive
  *   stage is CSS `position: sticky`, never a pin spacer.
@@ -65,6 +68,47 @@ export type BenthosCreature =
   | "scallop"
   | "starfish"
   | "crab"
+
+/**
+ * One piece of artwork. `src` must be CORS-readable (Wikimedia, Unsplash,
+ * your own CDN). Set `key: false` for a PNG that already has transparency.
+ */
+export type BenthosArt = {
+  src: string
+  /** Fractional crop [x0, y0, x1, y1] of the source. */
+  crop?: number[]
+  /** Longest side of the cut-out in pixels. */
+  max?: number
+  /** Lift the drawing off its paper. Default true. */
+  key?: boolean
+  /** Islands smaller than this fraction of the largest are dropped. */
+  keep?: number
+  /** Key paper pockets enclosed by the drawing larger than this fraction of the image. */
+  holes?: number
+  /** Recolour by luminance: [dark, light]. Good for engravings. */
+  duotone?: string[]
+  alt?: string
+}
+
+export type BenthosArtwork = {
+  whale?: BenthosArt | null
+  octopus?: BenthosArt | null
+  gorgonian?: BenthosArt | null
+  starfish?: BenthosArt | null
+  brittlestar?: BenthosArt | null
+  kelp?: BenthosArt | null
+  kelpLeft?: BenthosArt | null
+  weedBrown?: BenthosArt | null
+  weedGreen?: BenthosArt | null
+  weedRed?: BenthosArt | null
+  weedRose?: BenthosArt | null
+  coral?: BenthosArt | null
+  scallop?: BenthosArt | null
+  nautilus?: BenthosArt | null
+  crab?: BenthosArt | null
+  /** The poster on the moodboard (shown as is, not keyed). */
+  poster?: string | null
+}
 
 export type BenthosNavItem = { label: string; href?: string; section?: "collection" | "moodboard" | "patterns" | "prints" | "licence" }
 
@@ -112,7 +156,7 @@ export type BenthosMoodboard = {
   envelopeDone?: string
 }
 
-export type BenthosPatternKey = "coral-reef" | "shell-toss" | "octopus-ink" | "kelp-stripe" | "jelly-bloom" | "starfish-dot"
+export type BenthosPatternKey = "reef-toile" | "shell-toss" | "octopus-slate" | "kelp-garden" | "night-reef" | "starfish-dot"
 
 export type BenthosPattern = { key: BenthosPatternKey; name: string; note?: string }
 
@@ -122,10 +166,12 @@ export type BenthosPlate = {
   title: string
   latin?: string
   note?: string
-  /** Built-in drawing. Ignored when src is given. */
+  /** Built-in drawing, shown when there is no src or it fails to load. */
   art?: BenthosCreature
-  /** A photo or your own artwork instead of a drawing. */
+  /** The plate itself: a scan, a photo or your own artwork. */
   src?: string
+  /** Who made it, shown in the lightbox. */
+  credit?: string
   alt?: string
 }
 
@@ -138,6 +184,8 @@ export type BenthosFooter = {
   body?: string
   links?: { label: string; href?: string }[]
   legal?: string
+  /** Big letter on the monogram card. Defaults to the brand's first letter. */
+  monogram?: string
 }
 
 export type BenthosCollectionTemplateProps = {
@@ -165,6 +213,12 @@ export type BenthosCollectionTemplateProps = {
   currency?: string
   footer?: BenthosFooter
   socials?: { label: string; href: string }[]
+  /** Replace any default plate or cut-out; null drops one back to the drawing. */
+  artwork?: BenthosArtwork
+  /** "plates" fetches the vintage artwork; "drawn" uses only the built-in SVG drawings (no network). */
+  artMode?: "plates" | "drawn"
+  /** Credit line for the artwork, shown in the footer. null hides it. */
+  credits?: string | null
   onBuy?: (order: BenthosOrder) => void
   onSubscribe?: (email: string) => void
   /** Pointer parallax, idle sway and bubbles. */
@@ -187,6 +241,37 @@ const PALETTES = {
   coralline: { paper: "#f7eee6", ink: "#3a2f33", deep: "#3b3f58", abyss: "#232538", slate: "#7a7290", dusk: "#b2a9bd", sand: "#ecc9ad", coral: "#e0665a", kelp: "#6c8a68", gold: "#d1a657" },
 }
 
+// Public-domain and CC BY plates on Wikimedia Commons (credits in the README).
+// Thumbnail widths are the ones Wikimedia serves: 500, 960, 1280.
+const WM = "https://upload.wikimedia.org/wikipedia/commons/"
+const ASTERIDEA = WM + "thumb/5/5a/Haeckel_Asteridea.jpg/1280px-Haeckel_Asteridea.jpg"
+const KALLYMENIA = WM + "thumb/5/5b/CA0008920080001_Watercolour_illustration_of_the_Kallymeniaceae_algae_Plate_75_from_Seaweeds_of_New_Zealand_Te_Papa_829925_85838.jpg/1280px-CA0008920080001_Watercolour_illustration_of_the_Kallymeniaceae_algae_Plate_75_from_Seaweeds_of_New_Zealand_Te_Papa_829925_85838.jpg"
+const LESSONIA = WM + "thumb/a/ac/CA0008920020003_Watercolour_illustration_of_the_Lessonia_algae_Plate_31_from_Seaweeds_of_New_Zealand_Te_Papa_832679_311768.jpg/1280px-CA0008920020003_Watercolour_illustration_of_the_Lessonia_algae_Plate_31_from_Seaweeds_of_New_Zealand_Te_Papa_832679_311768.jpg"
+const OCTOPUS = WM + "thumb/e/eb/Octopus_macropus_Merculiano.jpg/1280px-Octopus_macropus_Merculiano.jpg"
+const ACTINIAE = WM + "thumb/a/a9/Haeckel_Actiniae.jpg/1280px-Haeckel_Actiniae.jpg"
+
+const DEFAULT_ART = {
+  whale: { src: WM + "thumb/e/eb/Whale_comparison_Public_Domian_photo_by_Charles_Melville_Scammon_for_coast_of_North_America_%281872%29.jpg/1280px-Whale_comparison_Public_Domian_photo_by_Charles_Melville_Scammon_for_coast_of_North_America_%281872%29.jpg", crop: [0.03, 0.13, 0.97, 0.53], max: 1200, alt: "A humpback whale, after C. M. Scammon (1874)" },
+  octopus: { src: OCTOPUS, max: 1000, holes: 0.0012, alt: "Octopus macropus, after C. Merculiano (1896)" },
+  gorgonian: { src: WM + "thumb/a/ad/Fauna_und_Flora_des_Golfes_von_Napel_-_Die_Gorgoniden_-_von_Koch_1887.png/500px-Fauna_und_Flora_des_Golfes_von_Napel_-_Die_Gorgoniden_-_von_Koch_1887.png", crop: [0.06, 0.07, 0.66, 0.95], keep: 0.25, max: 700 },
+  starfish: { src: ASTERIDEA, crop: [0.05, 0.68, 0.4, 0.93], keep: 0.3, max: 600 },
+  brittlestar: { src: ASTERIDEA, crop: [0.2, 0.27, 0.82, 0.67], keep: 0.3, holes: 0.0012, max: 800 },
+  kelp: { src: LESSONIA, crop: [0.48, 0.01, 0.97, 0.985], max: 900 },
+  kelpLeft: { src: LESSONIA, crop: [0.02, 0.01, 0.47, 0.985], max: 900 },
+  weedBrown: { src: WM + "thumb/4/4d/CA0008920070001_Watercolour_illustration_of_the_Landsburgia_algae_Plate_46_from_Seaweeds_of_New_Zealand_Te_Papa_829923_172466.jpg/1280px-CA0008920070001_Watercolour_illustration_of_the_Landsburgia_algae_Plate_46_from_Seaweeds_of_New_Zealand_Te_Papa_829923_172466.jpg", crop: [0.08, 0.06, 0.7, 0.94], holes: 0.0012, max: 900 },
+  weedGreen: { src: WM + "thumb/4/45/CA0008920050001_Watercolour_illustration_of_the_Enteromorpha_algae_Plate_3_from_Seaweeds_of_New_Zealand_Te_Papa_829664_172462.jpg/1280px-CA0008920050001_Watercolour_illustration_of_the_Enteromorpha_algae_Plate_3_from_Seaweeds_of_New_Zealand_Te_Papa_829664_172462.jpg", crop: [0.29, 0.3, 0.6, 0.97], max: 900 },
+  weedRed: { src: KALLYMENIA, crop: [0, 0.06, 0.65, 0.42], holes: 0.0012, max: 900 },
+  weedRose: { src: WM + "thumb/e/ee/CA0008920020001_Watercolour_illustration_of_the_Pachymenia_algae_Plate_71_from_Seaweeds_of_New_Zealand_Te_Papa_832669_311767.jpg/1280px-CA0008920020001_Watercolour_illustration_of_the_Pachymenia_algae_Plate_71_from_Seaweeds_of_New_Zealand_Te_Papa_832669_311767.jpg", crop: [0.5, 0.37, 0.99, 0.93], holes: 0.0012, max: 900 },
+  coral: { src: KALLYMENIA, crop: [0.58, 0.31, 0.98, 0.6], keep: 0.3, holes: 0.0012, max: 700 },
+  scallop: { src: WM + "thumb/7/75/PSM_V49_D563_Scallop_shell.jpg/960px-PSM_V49_D563_Scallop_shell.jpg", duotone: ["#7a3b22", "#f0d2a0"], max: 700 },
+  nautilus: { src: WM + "thumb/f/f7/Schelp%2C_nautilus_pompilius_Schelpen_%28serietitel%29%2C_RP-P-OB-11.659.jpg/1280px-Schelp%2C_nautilus_pompilius_Schelpen_%28serietitel%29%2C_RP-P-OB-11.659.jpg", crop: [0.18, 0.06, 0.75, 0.86], duotone: ["#5b3a2a", "#ecd9b8"], max: 700 },
+  crab: { src: WM + "thumb/d/d9/Kleiner_Taschenkrebs_%28Carcinus_maenas%29.jpg/1280px-Kleiner_Taschenkrebs_%28Carcinus_maenas%29.jpg", crop: [0, 0, 1, 0.9], max: 800 },
+  poster: ACTINIAE,
+} as BenthosArtwork
+
+const DEFAULT_CREDITS =
+  "Plates: E. Haeckel, Kunstformen der Natur (1904) · C. M. Scammon, The Marine Mammals (1874) · C. Merculiano (1896) · A. von Koch (1887) · Popular Science Monthly (1896) · Rijksmuseum (CC0) · N. M. Adams, Seaweeds of New Zealand, Te Papa (CC BY 4.0). Via Wikimedia Commons."
+
 const DEFAULT_NAV = [
   { label: "Collection", section: "collection" },
   { label: "Moodboard", section: "moodboard" },
@@ -208,10 +293,10 @@ const DEFAULT_HERO = {
 
 const DEFAULT_DEEP = {
   kicker: "What's inside",
-  title: "Two hundred and twenty pieces, one hand.",
-  body: "Every creature was painted in watercolour and then drawn again in ink, so the washes and the line work match. Layer them, recolour them, tile them: the files are built to be taken apart.",
+  title: "Two hundred and twenty pieces from the old plate books.",
+  body: "Every plate was restored from a natural-history book, then cut out, cleaned and layered, with a line-drawn twin for every creature. Layer them, recolour them, tile them: the files are built to be taken apart.",
   stats: [
-    { value: 120, label: "Watercolour elements", note: "transparent PNG + layered PSD" },
+    { value: 120, label: "Cut-out elements", note: "transparent PNG + layered PSD" },
     { value: 40, label: "Line icons", note: "SVG, single stroke" },
     { value: 24, label: "Seamless patterns", note: "6000 px tiles" },
     { value: 18, label: "Wall-art prints", note: "A2, 300 dpi" },
@@ -223,13 +308,13 @@ const DEFAULT_DEEP = {
 
 const DEFAULT_MOODBOARD = {
   kicker: "The collection in use",
-  title: "Discover the world of the Underwater Aesthetics collection",
-  body: "Washes, line work, posters and patterns that all come from the same pen. Pin a plate to a wall, line an envelope with coral, print a tote, brand a bathhouse. Start with one creature and the rest of the reef follows.",
+  title: "Discover the world of the Underwater Aesthetics collection!",
+  body: "Loaded with watercolour elements, engraved creatures, posters and patterns, creating art has never been easier. Explore the old plate books of the deep: pin one to a wall, line an envelope with the reef, print a tote, brand a bathhouse. Start your dive now.",
   primary: "Browse the prints",
   secondary: "Copy a colour",
-  posterNumber: "Plate IV",
-  posterTitle: "Medusae",
-  posterNote: "Aurelia aurita · 1 of 18 prints",
+  posterNumber: "Tafel 49",
+  posterTitle: "Actiniae",
+  posterNote: "Sea anemones · after E. Haeckel",
   iconsTitle: "Line icons · 40",
   envelopeTitle: "Letters from the deep",
   envelopeBody: "New plates, free swatches and the occasional tide chart. One letter a month.",
@@ -248,21 +333,22 @@ const DEFAULT_PALETTE = [
 ] as BenthosSwatch[]
 
 const DEFAULT_PATTERNS = [
-  { key: "coral-reef", name: "Coral Reef", note: "branching coral and sea fans on paper" },
-  { key: "shell-toss", name: "Shell Toss", note: "scallops and starfish on sand" },
-  { key: "octopus-ink", name: "Octopus Ink", note: "ink octopuses on slate" },
-  { key: "kelp-stripe", name: "Kelp Stripe", note: "feather kelp in columns" },
-  { key: "jelly-bloom", name: "Jelly Bloom", note: "moon jellies in the deep" },
-  { key: "starfish-dot", name: "Starfish Dot", note: "a tiny polka of starfish" },
+  { key: "reef-toile", name: "Reef Toile", note: "whales, octopus and red coral on paper" },
+  { key: "night-reef", name: "Night Reef", note: "a seaweed garden in deep water" },
+  { key: "shell-toss", name: "Shell Toss", note: "scallops, nautilus and starfish on sand" },
+  { key: "octopus-slate", name: "Octopus Slate", note: "Merculiano's octopus on slate blue" },
+  { key: "kelp-garden", name: "Kelp Garden", note: "watercolour kelp in loose columns" },
+  { key: "starfish-dot", name: "Starfish Dot", note: "a small polka of Haeckel starfish" },
 ] as BenthosPattern[]
 
 const DEFAULT_PLATES = [
-  { title: "Common octopus", latin: "Octopus vulgaris", art: "octopus", note: "Eight arms, each drawn from its own seed." },
-  { title: "Humpback whale", latin: "Megaptera novaeangliae", art: "whale", note: "Throat pleats and a long white pectoral." },
-  { title: "Chambered nautilus", latin: "Nautilus pompilius", art: "nautilus", note: "A logarithmic spiral with its septa." },
-  { title: "Moon jelly", latin: "Aurelia aurita", art: "jellyfish", note: "Four gonad rings under a scalloped bell." },
-  { title: "Venus sea fan", latin: "Gorgonia ventalina", art: "seafan", note: "A lattice grown branch by branch." },
-  { title: "Edible crab", latin: "Cancer pagurus", art: "crab", note: "The pie-crust carapace, claws tucked." },
+  { title: "Sea anemones", latin: "Actiniae", art: "coral", src: ACTINIAE, credit: "E. Haeckel, Kunstformen der Natur, plate 49 (1904). Public domain.", note: "Fifteen anemones in full colour, the plate that started the collection." },
+  { title: "Jellyfish", latin: "Discomedusae", art: "jellyfish", src: WM + "thumb/d/de/Haeckel_Discomedusae_8.jpg/1280px-Haeckel_Discomedusae_8.jpg", credit: "E. Haeckel, Kunstformen der Natur, plate 8 (1904). Public domain.", note: "Desmonema annasethe trailing its frills, Haeckel's most reproduced plate." },
+  { title: "Common octopus", latin: "Octopus macropus", art: "octopus", src: OCTOPUS, credit: "C. Merculiano, Naples (1896). Public domain.", note: "Painted from life at the Naples Zoological Station." },
+  { title: "Starfish", latin: "Asteridea", art: "starfish", src: ASTERIDEA, credit: "E. Haeckel, Kunstformen der Natur, plate 40 (1904). Public domain.", note: "Twelve sea stars from above and below." },
+  { title: "Kelp", latin: "Lessonia variegata", art: "kelp", src: LESSONIA, credit: "N. M. Adams, Seaweeds of New Zealand, plate 31. Te Papa, CC BY 4.0.", note: "Watercolour, the fronds laid out as they dry on paper." },
+  { title: "Siphonophores", latin: "Siphonophorae", art: "jellyfish", src: WM + "thumb/0/05/Haeckel_Siphonophorae_59.jpg/1280px-Haeckel_Siphonophorae_59.jpg", credit: "E. Haeckel, Kunstformen der Natur, plate 59 (1904). Public domain.", note: "A colony that swims as one animal." },
+  { title: "Brown algae", latin: "Fucoideae", art: "kelp", src: WM + "thumb/b/b5/Haeckel_Fucoideae.jpg/1280px-Haeckel_Fucoideae.jpg", credit: "E. Haeckel, Kunstformen der Natur, plate 65 (1904). Public domain.", note: "Engraved, the only plate in the set printed in one ink." },
 ] as BenthosPlate[]
 
 const DEFAULT_LICENSES = [
@@ -281,7 +367,7 @@ const DEFAULT_FOOTER: BenthosFooter = {
     { label: "Journal" },
     { label: "Contact" },
   ],
-  legal: "© 2026 Benthos Studio. All plates drawn by hand.",
+  legal: "© 2026 Benthos Studio. Plates restored from public-domain scans.",
 }
 
 const DEFAULT_SOCIALS = [
@@ -467,13 +553,496 @@ function swingTo(rest: number, grabAngle: number, nowAngle: number, limit = 38) 
 }
 // #endregion
 
+// ---- artwork ----------------------------------------------------------------------
+//
+// Plates are fetched (CORS), cropped, and their paper keyed out so a creature
+// can sit on any background. The work runs in a Web Worker built from
+// keyPaper's own source; where workers or OffscreenCanvas are missing it runs
+// on the main thread. Results are cached per page as blob URLs.
+
+// #region key
+type KeyOpts = { lo?: number; hi?: number; keep?: number; holes?: number; duotone?: string[] }
+
+/**
+ * Lift a drawing off its paper, in place. Self-contained (it is shipped to a
+ * worker as source). Paper is flooded in from the border, so pale highlights
+ * inside the drawing stay opaque; large enclosed pockets of paper are keyed
+ * when \`holes\` is set. Edge pixels get partial alpha with the paper colour
+ * unmixed out of them, and specks smaller than \`keep\` × the largest island
+ * are dropped. Returns the paper colour it found.
+ */
+function keyPaper(px: Uint8ClampedArray, w: number, h: number, o: KeyOpts) {
+  const lo = o.lo ?? 0.05
+  const hi = o.hi ?? 0.13
+  const n = w * h
+  // paper colour: per-channel median along the border
+  const rs: number[] = []
+  const gs: number[] = []
+  const bs: number[] = []
+  const step = Math.max(1, Math.floor((w + h) / 400))
+  const take = (x: number, y: number) => {
+    const i = (y * w + x) * 4
+    rs.push(px[i])
+    gs.push(px[i + 1])
+    bs.push(px[i + 2])
+  }
+  for (let x = 0; x < w; x += step) {
+    take(x, 0)
+    take(x, h - 1)
+  }
+  for (let y = 0; y < h; y += step) {
+    take(0, y)
+    take(w - 1, y)
+  }
+  const med = (a: number[]) => a.sort((p, q) => p - q)[a.length >> 1]
+  const pr = med(rs)
+  const pg = med(gs)
+  const pb = med(bs)
+  // distance from the paper: darker counts fully, lighter (sheen) half
+  const dist = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    const r = px[i * 4]
+    const g = px[i * 4 + 1]
+    const b = px[i * 4 + 2]
+    const dr = r < pr ? pr - r : (r - pr) * 0.5
+    const dg = g < pg ? pg - g : (g - pg) * 0.5
+    const db = b < pb ? pb - b : (b - pb) * 0.5
+    dist[i] = Math.max(dr, dg, db) / 255
+  }
+  // flood the paper in from the border
+  const paper = new Uint8Array(n)
+  const stack = new Int32Array(n)
+  let sp = 0
+  const seed = (i: number) => {
+    if (!paper[i] && dist[i] < hi) {
+      paper[i] = 1
+      stack[sp++] = i
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    seed(x)
+    seed((h - 1) * w + x)
+  }
+  for (let y = 0; y < h; y++) {
+    seed(y * w)
+    seed(y * w + w - 1)
+  }
+  while (sp) {
+    const i = stack[--sp]
+    const x = i % w
+    if (x > 0) seed(i - 1)
+    if (x < w - 1) seed(i + 1)
+    if (i >= w) seed(i - w)
+    if (i < n - w) seed(i + w)
+  }
+  // enclosed pockets of paper (between arms, inside fronds)
+  if (o.holes) {
+    const min = n * o.holes
+    const cut = hi * 0.85
+    const pocket = new Int32Array(n)
+    for (let i = 0; i < n; i++) {
+      if (paper[i] || dist[i] >= cut) continue
+      let size = 0
+      sp = 0
+      stack[sp++] = i
+      paper[i] = 2
+      while (sp) {
+        const j = stack[--sp]
+        pocket[size++] = j
+        const x = j % w
+        if (x > 0 && !paper[j - 1] && dist[j - 1] < cut) { paper[j - 1] = 2; stack[sp++] = j - 1 }
+        if (x < w - 1 && !paper[j + 1] && dist[j + 1] < cut) { paper[j + 1] = 2; stack[sp++] = j + 1 }
+        if (j >= w && !paper[j - w] && dist[j - w] < cut) { paper[j - w] = 2; stack[sp++] = j - w }
+        if (j < n - w && !paper[j + w] && dist[j + w] < cut) { paper[j + w] = 2; stack[sp++] = j + w }
+      }
+      const v = size >= min ? 1 : 3
+      for (let k = 0; k < size; k++) paper[pocket[k]] = v
+    }
+  }
+  // alpha, with the paper colour unmixed from the soft edge
+  for (let i = 0; i < n; i++) {
+    const k = i * 4
+    let a = 1
+    if (paper[i] === 1) {
+      const t = Math.max(0, Math.min(1, (dist[i] - lo) / (hi - lo)))
+      a = t * t * (3 - 2 * t)
+    }
+    if (a <= 0.003) {
+      px[k + 3] = 0
+      continue
+    }
+    if (a < 1) {
+      px[k] = Math.max(0, Math.min(255, pr + (px[k] - pr) / a))
+      px[k + 1] = Math.max(0, Math.min(255, pg + (px[k + 1] - pg) / a))
+      px[k + 2] = Math.max(0, Math.min(255, pb + (px[k + 2] - pb) / a))
+    }
+    px[k + 3] = Math.round(a * px[k + 3])
+  }
+  // islands: keep the big ones (grown by 2 px), drop captions, numbers, dust
+  const keep = o.keep ?? 0.02
+  const label = new Int32Array(n).fill(-1)
+  const sizes: number[] = []
+  for (let i = 0; i < n; i++) {
+    if (label[i] !== -1 || px[i * 4 + 3] < 128) continue
+    const id = sizes.length
+    let size = 0
+    sp = 0
+    stack[sp++] = i
+    label[i] = id
+    while (sp) {
+      const j = stack[--sp]
+      size++
+      const x = j % w
+      if (x > 0 && label[j - 1] === -1 && px[(j - 1) * 4 + 3] >= 128) { label[j - 1] = id; stack[sp++] = j - 1 }
+      if (x < w - 1 && label[j + 1] === -1 && px[(j + 1) * 4 + 3] >= 128) { label[j + 1] = id; stack[sp++] = j + 1 }
+      if (j >= w && label[j - w] === -1 && px[(j - w) * 4 + 3] >= 128) { label[j - w] = id; stack[sp++] = j - w }
+      if (j < n - w && label[j + w] === -1 && px[(j + w) * 4 + 3] >= 128) { label[j + w] = id; stack[sp++] = j + w }
+    }
+    sizes.push(size)
+  }
+  let big = 0
+  for (const v of sizes) if (v > big) big = v
+  let kept = new Uint8Array(n)
+  for (let i = 0; i < n; i++) if (label[i] >= 0 && sizes[label[i]] >= big * keep) kept[i] = 1
+  for (let pass = 0; pass < 2; pass++) {
+    const grow = kept.slice()
+    for (let i = 0; i < n; i++) {
+      if (!kept[i]) continue
+      const x = i % w
+      if (x > 0) grow[i - 1] = 1
+      if (x < w - 1) grow[i + 1] = 1
+      if (i >= w) grow[i - w] = 1
+      if (i < n - w) grow[i + w] = 1
+    }
+    kept = grow
+  }
+  for (let i = 0; i < n; i++) if (!kept[i]) px[i * 4 + 3] = 0
+  if (o.duotone && o.duotone.length > 1) {
+    const hex = (s: string) => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]
+    const d = hex(o.duotone[0])
+    const l = hex(o.duotone[1])
+    for (let i = 0; i < n; i++) {
+      const k = i * 4
+      if (!px[k + 3]) continue
+      const t = (0.299 * px[k] + 0.587 * px[k + 1] + 0.114 * px[k + 2]) / 255
+      px[k] = d[0] + (l[0] - d[0]) * t
+      px[k + 1] = d[1] + (l[1] - d[1]) * t
+      px[k + 2] = d[2] + (l[2] - d[2]) * t
+    }
+  }
+  return [pr, pg, pb]
+}
+
+/** Pixel crop rect and output size for a fractional crop and a longest side. */
+function cropRect(iw: number, ih: number, crop: number[] | undefined, max: number) {
+  const c = crop && crop.length === 4 ? crop : [0, 0, 1, 1]
+  const sx = Math.max(0, Math.min(iw - 1, c[0] * iw))
+  const sy = Math.max(0, Math.min(ih - 1, c[1] * ih))
+  const sw = Math.max(1, Math.min(iw - sx, (c[2] - c[0]) * iw))
+  const sh = Math.max(1, Math.min(ih - sy, (c[3] - c[1]) * ih))
+  const sc = Math.min(1, max / Math.max(sw, sh))
+  return { sx, sy, sw, sh, w: Math.max(1, Math.round(sw * sc)), h: Math.max(1, Math.round(sh * sc)) }
+}
+// #endregion
+
+// #region tiles
+/** Offsets at which an item must be drawn again so a tile wraps seamlessly. */
+function wrapOffsets(x: number, y: number, r: number, W: number, H: number) {
+  const xs = [0]
+  const ys = [0]
+  if (x - r < 0) xs.push(W)
+  if (x + r > W) xs.push(-W)
+  if (y - r < 0) ys.push(H)
+  if (y + r > H) ys.push(-H)
+  const out: number[][] = []
+  for (const dx of xs) for (const dy of ys) out.push([dx, dy])
+  return out
+}
+// #endregion
+
+type Cut = { url: string; w: number; h: number }
+
+// The worker's body. It is turned into source, so it may only use its
+// argument and worker globals.
+function workerMain(key: typeof keyPaper, rect: typeof cropRect) {
+  const images: { [src: string]: Promise<ImageBitmap> } = {}
+  const ctx = self as unknown as { onmessage: ((e: MessageEvent) => void) | null; postMessage: (m: unknown) => void }
+  ctx.onmessage = async (e: MessageEvent) => {
+    const { id, art } = e.data as { id: number; art: BenthosArt }
+    try {
+      images[art.src] =
+        images[art.src] ||
+        fetch(art.src, { mode: "cors", credentials: "omit" }).then((r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status)
+          return r.blob().then((b) => createImageBitmap(b))
+        })
+      const bmp = await images[art.src]
+      const r = rect(bmp.width, bmp.height, art.crop, art.max || 900)
+      const c = new OffscreenCanvas(r.w, r.h)
+      const g = c.getContext("2d") as OffscreenCanvasRenderingContext2D
+      g.drawImage(bmp, r.sx, r.sy, r.sw, r.sh, 0, 0, r.w, r.h)
+      if (art.key !== false || art.duotone) {
+        const d = g.getImageData(0, 0, r.w, r.h)
+        if (art.key !== false) key(d.data, r.w, r.h, { keep: art.keep, holes: art.holes, duotone: art.duotone })
+        else key(d.data, r.w, r.h, { lo: 2, hi: 3, keep: 0, duotone: art.duotone })
+        g.putImageData(d, 0, 0)
+      }
+      const blob = await c.convertToBlob({ type: "image/webp", quality: 0.9 })
+      ctx.postMessage({ id, blob, w: r.w, h: r.h })
+    } catch (err) {
+      ctx.postMessage({ id, error: String(err) })
+    }
+  }
+}
+
+let worker: Worker | null | undefined
+let jobId = 0
+const jobs: { [id: number]: (v: Cut | null) => void } = {}
+const cuts: { [k: string]: Promise<Cut | null> } = {}
+
+function getWorker() {
+  if (worker !== undefined) return worker
+  worker = null
+  try {
+    if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined" || typeof createImageBitmap === "undefined") return null
+    const code = "var K=" + keyPaper.toString() + ";var R=" + cropRect.toString() + ";(" + workerMain.toString() + ")(K,R)"
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }))
+    const w = new Worker(url)
+    w.onmessage = (e: MessageEvent) => {
+      const { id, blob, w: cw, h: ch, error } = e.data as { id: number; blob?: Blob; w: number; h: number; error?: string }
+      const done = jobs[id]
+      delete jobs[id]
+      if (done) done(blob && !error ? { url: URL.createObjectURL(blob), w: cw, h: ch } : null)
+    }
+    w.onerror = () => {
+      // a CSP that refuses blob: workers lands here; finish on the main thread
+      worker = null
+      for (const id of Object.keys(jobs)) jobs[+id](null)
+    }
+    worker = w
+  } catch {
+    worker = null
+  }
+  return worker
+}
+
+function cutOnMain(art: BenthosArt): Promise<Cut | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.decoding = "async"
+    img.onload = () => {
+      try {
+        const r = cropRect(img.naturalWidth, img.naturalHeight, art.crop, art.max || 900)
+        const c = document.createElement("canvas")
+        c.width = r.w
+        c.height = r.h
+        const g = c.getContext("2d")
+        if (!g) return resolve(null)
+        g.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, r.w, r.h)
+        if (art.key !== false || art.duotone) {
+          const d = g.getImageData(0, 0, r.w, r.h)
+          if (art.key !== false) keyPaper(d.data, r.w, r.h, { keep: art.keep, holes: art.holes, duotone: art.duotone })
+          else keyPaper(d.data, r.w, r.h, { lo: 2, hi: 3, keep: 0, duotone: art.duotone })
+          g.putImageData(d, 0, 0)
+        }
+        c.toBlob((b) => resolve(b ? { url: URL.createObjectURL(b), w: r.w, h: r.h } : null), "image/webp", 0.9)
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = art.src
+  })
+}
+
+/** One cut-out, cached for the page. Resolves null when it cannot be made. */
+function cutout(art: BenthosArt): Promise<Cut | null> {
+  const k = [art.src, (art.crop || []).join(","), art.max || 0, art.key !== false, art.keep || 0, art.holes || 0, (art.duotone || []).join(",")].join("|")
+  if (cuts[k] !== undefined) return cuts[k]
+  const w = getWorker()
+  cuts[k] = w
+    ? new Promise<Cut | null>((resolve) => {
+        const id = ++jobId
+        jobs[id] = (v) => (v ? resolve(v) : cutOnMain(art).then(resolve))
+        w.postMessage({ id, art })
+      })
+    : cutOnMain(art)
+  return cuts[k]
+}
+
+/** Cut-outs by name: undefined while pending, null when unavailable. */
+function useCutouts(art: { [k: string]: BenthosArt | null | undefined }, on: boolean, order: string[]) {
+  const [state, setState] = React.useState({} as { [k: string]: Cut | null | undefined })
+  const sig = on ? order.map((k) => (art[k] ? art[k]!.src + (art[k]!.crop || []).join(",") : "-")).join(";") : "off"
+  React.useEffect(() => {
+    if (!on || typeof window === "undefined") {
+      const none: { [k: string]: null } = {}
+      for (const k of order) none[k] = null
+      setState(none)
+      return
+    }
+    let alive = true
+    for (const k of order) {
+      const a = art[k]
+      if (!a) {
+        setState((s) => ({ ...s, [k]: null }))
+        continue
+      }
+      cutout(a).then((c) => {
+        if (alive) setState((s) => ({ ...s, [k]: c }))
+      })
+    }
+    return () => {
+      alive = false
+    }
+  }, [sig])
+  return state
+}
+
+// ---- pattern tiles on canvas ------------------------------------------------------
+
+type TileItem2 = { art: string; x: number; y: number; s: number; r?: number; flip?: boolean; alpha?: number; filter?: string }
+type TileDef = { w: number; h: number; bg: string; items: TileItem2[] }
+
+/** Seamless tiles composed from the cut-outs. Sizes are in tile pixels; s is the cut-out's longest side. */
+const CANVAS_TILES: { [k: string]: TileDef } = {
+  "reef-toile": {
+    w: 900, h: 900, bg: "paper",
+    items: [
+      { art: "whale", x: 280, y: 190, s: 420, r: -6 },
+      { art: "octopus", x: 720, y: 560, s: 330, r: 12 },
+      { art: "gorgonian", x: 170, y: 640, s: 300, r: -10 },
+      { art: "starfish", x: 560, y: 160, s: 140, r: 22 },
+      { art: "scallop", x: 470, y: 760, s: 150, r: -14 },
+      { art: "weedRed", x: 820, y: 120, s: 240, r: 30 },
+      { art: "brittlestar", x: 420, y: 470, s: 170, r: 8 },
+    ],
+  },
+  "night-reef": {
+    w: 900, h: 760, bg: "deep",
+    items: [
+      { art: "kelp", x: 140, y: 380, s: 520, r: -4 },
+      { art: "weedRose", x: 420, y: 520, s: 400, r: 6 },
+      { art: "weedGreen", x: 640, y: 300, s: 420, r: -8 },
+      { art: "gorgonian", x: 820, y: 600, s: 320, r: 4 },
+      { art: "weedBrown", x: 300, y: 120, s: 300, r: 170 },
+      { art: "coral", x: 790, y: 120, s: 220, r: 12 },
+    ],
+  },
+  "shell-toss": {
+    w: 760, h: 760, bg: "sand",
+    items: [
+      { art: "scallop", x: 170, y: 170, s: 230, r: -12 },
+      { art: "nautilus", x: 560, y: 220, s: 230, r: 18 },
+      { art: "starfish", x: 380, y: 450, s: 170, r: 30 },
+      { art: "scallop", x: 610, y: 600, s: 190, r: 160 },
+      { art: "starfish", x: 140, y: 590, s: 140, r: -20 },
+      { art: "nautilus", x: 380, y: 720, s: 130, r: -40 },
+    ],
+  },
+  "octopus-slate": {
+    w: 820, h: 820, bg: "slate",
+    items: [
+      { art: "octopus", x: 220, y: 230, s: 380, r: -8 },
+      { art: "octopus", x: 640, y: 640, s: 340, r: 168 },
+      { art: "crab", x: 640, y: 180, s: 210, r: 18, filter: "grayscale(1) brightness(1.45) contrast(.85)" },
+      { art: "crab", x: 200, y: 660, s: 180, r: -150, filter: "grayscale(1) brightness(1.45) contrast(.85)" },
+    ],
+  },
+  "kelp-garden": {
+    w: 840, h: 760, bg: "paper",
+    items: [
+      { art: "kelpLeft", x: 120, y: 380, s: 620 },
+      { art: "weedGreen", x: 320, y: 400, s: 560, r: 4 },
+      { art: "kelp", x: 540, y: 380, s: 640, r: -3 },
+      { art: "weedBrown", x: 740, y: 390, s: 520, r: 5 },
+    ],
+  },
+  "starfish-dot": {
+    w: 380, h: 380, bg: "paper",
+    items: [
+      { art: "starfish", x: 95, y: 95, s: 110, r: 10 },
+      { art: "starfish", x: 285, y: 285, s: 96, r: 46, alpha: 0.9 },
+    ],
+  },
+}
+
+const tileCache: { [k: string]: Promise<string | null> } = {}
+
+function loadImage(url: string) {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+/** Compose one seamless tile from ready cut-outs; null when one it needs is missing. */
+function composeTile(key: string, have: { [k: string]: Cut | null | undefined }, colors: { [k: string]: string }) {
+  const def = CANVAS_TILES[key]
+  if (!def) return Promise.resolve(null)
+  const need = Array.from(new Set(def.items.map((i) => i.art)))
+  if (need.some((k) => !have[k])) return Promise.resolve(null)
+  const ck = key + "|" + need.map((k) => have[k]!.url).join(",") + "|" + colors[def.bg]
+  if (tileCache[ck] !== undefined) return tileCache[ck]
+  tileCache[ck] = Promise.all(need.map((k) => loadImage(have[k]!.url))).then((imgs) => {
+    if (imgs.some((i) => !i)) return null
+    const by: { [k: string]: HTMLImageElement } = {}
+    need.forEach((k, i) => (by[k] = imgs[i]!))
+    const c = document.createElement("canvas")
+    c.width = def.w
+    c.height = def.h
+    const g = c.getContext("2d")
+    if (!g) return null
+    g.fillStyle = colors[def.bg] || def.bg
+    g.fillRect(0, 0, def.w, def.h)
+    for (const it of def.items) {
+      const img = by[it.art]
+      const sc = it.s / Math.max(img.naturalWidth, img.naturalHeight)
+      const iw = img.naturalWidth * sc
+      const ih = img.naturalHeight * sc
+      const rad = Math.hypot(iw, ih) / 2
+      for (const [dx, dy] of wrapOffsets(it.x, it.y, rad, def.w, def.h)) {
+        g.save()
+        g.globalAlpha = it.alpha ?? 1
+        if (it.filter) g.filter = it.filter
+        g.translate(it.x + dx, it.y + dy)
+        g.rotate(((it.r || 0) * Math.PI) / 180)
+        if (it.flip) g.scale(-1, 1)
+        g.drawImage(img, -iw / 2, -ih / 2, iw, ih)
+        g.restore()
+      }
+    }
+    return new Promise<string | null>((resolve) => c.toBlob((b) => resolve(b ? URL.createObjectURL(b) : null), "image/webp", 0.88))
+  })
+  return tileCache[ck]
+}
+
+function useTiles(keys: string[], have: { [k: string]: Cut | null | undefined }, colors: { [k: string]: string }) {
+  const [tiles, setTiles] = React.useState({} as { [k: string]: string })
+  const sig = keys.join(",") + "|" + Object.keys(have).filter((k) => have[k]).sort().join(",") + "|" + Object.values(colors).join(",")
+  React.useEffect(() => {
+    let alive = true
+    for (const k of keys)
+      composeTile(k, have, colors).then((url) => {
+        if (alive && url) setTiles((t) => (t[k] === url ? t : { ...t, [k]: url }))
+      })
+    return () => {
+      alive = false
+    }
+  }, [sig])
+  return tiles
+}
+
 function validEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim())
 }
 
 function copyText(text: string) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) return navigator.clipboard.writeText(text)
-  return new Promise((resolve, reject) => {
+  const legacy = () =>
+    new Promise((resolve, reject) => {
     try {
       const ta = document.createElement("textarea")
       ta.value = text
@@ -489,6 +1058,12 @@ function copyText(text: string) {
       reject(e)
     }
   })
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) return legacy()
+  // some embeds never settle the permission prompt; give up on it after a moment
+  return Promise.race([
+    navigator.clipboard.writeText(text),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("clipboard timeout")), 700)),
+  ]).catch(() => legacy())
 }
 
 function hexToRgb(hex: string) {
@@ -1069,7 +1644,7 @@ type TileItem = { kind: string; mode: Mode; x: number; y: number; s: number; r?:
 type Tile = { w: number; h: number; bg: string; items: TileItem[] }
 
 const TILES: { [k: string]: Tile } = {
-  "coral-reef": {
+  "reef-toile": {
     w: 280, h: 280, bg: "var(--light)",
     items: [
       { kind: "coral", mode: "wash", x: 78, y: 262, s: 0.5, seed: 9 },
@@ -1091,7 +1666,7 @@ const TILES: { [k: string]: Tile } = {
       { kind: "urchin", mode: "ink", x: 120, y: 112, s: 0.5, color: "var(--dark)" },
     ],
   },
-  "octopus-ink": {
+  "octopus-slate": {
     w: 300, h: 300, bg: "var(--slate)",
     items: [
       { kind: "octopus", mode: "ink", x: 10, y: 0, s: 0.42, r: 0, seed: 3, color: "var(--light)" },
@@ -1100,7 +1675,7 @@ const TILES: { [k: string]: Tile } = {
       { kind: "fish", mode: "ink", x: 80, y: 230, s: 0.55, r: -160, color: "var(--light)" },
     ],
   },
-  "kelp-stripe": {
+  "kelp-garden": {
     w: 260, h: 250, bg: "var(--light)",
     items: [
       { kind: "kelp", mode: "wash", x: 44, y: 248, s: 1.02, seed: 2 },
@@ -1108,7 +1683,7 @@ const TILES: { [k: string]: Tile } = {
       { kind: "kelp", mode: "wash", x: 216, y: 248, s: 1.04, seed: 21, r: -2 },
     ],
   },
-  "jelly-bloom": {
+  "night-reef": {
     w: 300, h: 320, bg: "var(--deep)",
     items: [
       { kind: "jellyfish", mode: "wash", x: 90, y: 90, s: 0.62, seed: 5 },
@@ -1221,6 +1796,9 @@ function Pinned({ className, tilt = 0, pin = ["50%", "6%"], tacks = [["50%", "10
     const el = ref.current
     if (!el) return
     gsap.set(el, { rotate: tilt, transformOrigin: pin[0] + " " + pin[1] })
+    // a press only becomes a drag once it moves; until then the pointer is not
+    // captured, so a plain click still reaches the button under it
+    let pressed = false
     let dragging = false
     let grab = 0
     let px = 0
@@ -1233,19 +1811,25 @@ function Pinned({ className, tilt = 0, pin = ["50%", "6%"], tacks = [["50%", "10
       sx = e.clientX
       sy = e.clientY
       moved = false
+      pressed = true
       const r = el.getBoundingClientRect()
       px = r.left + (r.width * parseFloat(pin[0])) / 100
       py = r.top + (r.height * parseFloat(pin[1])) / 100
       grab = pinAngle(px, py, e.clientX, e.clientY)
-      dragging = true
-      el.setPointerCapture(e.pointerId)
-      el.classList.add("is-drag")
-      onDragChange?.(true)
-      gsap.killTweensOf(el)
     }
     const move = (e: PointerEvent) => {
-      if (!dragging) return
-      if (Math.hypot(e.clientX - sx, e.clientY - sy) > 6) moved = true
+      if (!pressed) return
+      if (!dragging) {
+        if (Math.hypot(e.clientX - sx, e.clientY - sy) < 6) return
+        dragging = true
+        moved = true
+        try {
+          el.setPointerCapture(e.pointerId)
+        } catch {}
+        el.classList.add("is-drag")
+        onDragChange?.(true)
+        gsap.killTweensOf(el)
+      }
       gsap.set(el, { rotate: swingTo(tilt, grab, pinAngle(px, py, e.clientX, e.clientY)) })
     }
     const click = (e: MouseEvent) => {
@@ -1255,6 +1839,7 @@ function Pinned({ className, tilt = 0, pin = ["50%", "6%"], tacks = [["50%", "10
       e.preventDefault()
     }
     const up = () => {
+      pressed = false
       if (!dragging) return
       dragging = false
       el.classList.remove("is-drag")
@@ -1282,15 +1867,58 @@ function Pinned({ className, tilt = 0, pin = ["50%", "6%"], tacks = [["50%", "10
   )
 }
 
-/** A framed plate: wash under ink, or a photo, with a caption. */
-function Plate({ plate, index, className, big }: { plate: BenthosPlate; index: number; className?: string; big?: boolean }) {
-  const num = plate.number ?? "Plate " + roman(index + 1)
+/** A plate cut-out, or its drawn stand-in while it loads or when it cannot. */
+function Art({ cut, kind, seed = 1, flip, className, style, alt, hidePending }: { cut: Cut | null | undefined; kind: BenthosCreature | "fish" | "anchor" | "urchin"; seed?: number; flip?: boolean; className?: string; style?: React.CSSProperties; alt?: string; hidePending?: boolean }) {
+  if (cut)
+    return (
+      <img
+        src={cut.url}
+        width={cut.w}
+        height={cut.h}
+        alt={alt ?? ""}
+        draggable={false}
+        className={"bct-cut" + (flip ? " is-flip" : "") + (className ? " " + className : "")}
+        style={style}
+      />
+    )
+  return <Creature kind={kind} mode="wash" seed={seed} flip={kind === "whale" ? !flip : flip} className={(className ? className + " " : "") + (cut === undefined && hidePending ? "is-pending" : "")} style={style} title={alt} />
+}
+
+/** A box tiled with a pattern: the canvas tile when it is ready, the drawn SVG tile until then. */
+function Swatch({ pattern, tile, size, fallbackScale, className, style, children }: { pattern: string; tile?: string; size: number; fallbackScale?: number; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
+  const def = CANVAS_TILES[pattern]
   return (
-    <figure className={"bct-plate" + (className ? " " + className : "") + (big ? " is-big" : "")}>
+    <div className={"bct-swatch-fill" + (className ? " " + className : "")} style={style}>
+      <PatternFill pattern={pattern} scale={fallbackScale ?? 0.5} />
+      {tile && def && (
+        <i
+          className="bct-tile"
+          style={{ backgroundImage: "url(" + tile + ")", backgroundSize: size + "px " + Math.round((size * def.h) / def.w) + "px" }}
+        />
+      )}
+      {children}
+    </div>
+  )
+}
+
+/** An image that falls back to its drawing when it cannot load. */
+function Scan({ src, alt, kind, lazy = true }: { src?: string | null; alt: string; kind: BenthosCreature; lazy?: boolean }) {
+  const [failed, setFailed] = React.useState(false)
+  if (!src || failed) return <Creature kind={kind} mode="wash" title={alt || undefined} />
+  return <img src={src} alt={alt} loading={lazy ? "lazy" : undefined} decoding="async" onError={() => setFailed(true)} />
+}
+
+/** A framed plate: the scan itself, or the drawing when there is none. */
+function Plate({ plate, index, className, big }: { plate: BenthosPlate; index: number; className?: string; big?: boolean }) {
+  const [failed, setFailed] = React.useState(false)
+  const num = plate.number ?? "Plate " + roman(index + 1)
+  const scan = plate.src && !failed
+  return (
+    <figure className={"bct-plate" + (className ? " " + className : "") + (big ? " is-big" : "") + (scan ? " is-scan" : "")}>
       <div className="bct-plate-mat">
         <div className="bct-plate-art">
-          {plate.src ? (
-            <img src={plate.src} alt={plate.alt ?? plate.title} loading="lazy" decoding="async" />
+          {scan ? (
+            <img src={plate.src} alt={plate.alt ?? plate.title + (plate.latin ? ", " + plate.latin : "")} loading="lazy" decoding="async" onError={() => setFailed(true)} />
           ) : (
             <>
               <Creature kind={plate.art ?? "nautilus"} mode="wash" seed={index + 3} />
@@ -1299,7 +1927,7 @@ function Plate({ plate, index, className, big }: { plate: BenthosPlate; index: n
           )}
         </div>
         <figcaption className="bct-plate-cap">
-          <span className="bct-plate-num">{num}</span>
+          {num && <span className="bct-plate-num">{num}</span>}
           <span className="bct-plate-title">{plate.title}</span>
           {plate.latin && <em className="bct-plate-latin">{plate.latin}</em>}
         </figcaption>
@@ -1308,7 +1936,48 @@ function Plate({ plate, index, className, big }: { plate: BenthosPlate; index: n
   )
 }
 
+/** Text set along an arc (the hero tagline). */
+function ArcText({ text, id, className }: { text: string; id: string; className?: string }) {
+  return (
+    <svg className={"bct-arc" + (className ? " " + className : "")} viewBox="0 0 1000 150" aria-hidden="true" focusable="false">
+      <path id={id} d="M80,40 Q500,170 920,40" fill="none" />
+      <text>
+        <textPath href={"#" + id} startOffset="50%" textAnchor="middle">
+          {text}
+        </textPath>
+      </text>
+    </svg>
+  )
+}
+
+/** A gold-foil emblem: the studio's arch and sun, for the envelope and the slate card. */
+function Emblem({ className, foil }: { className?: string; foil?: string }) {
+  return (
+    <svg className={"bct-emblem" + (className ? " " + className : "")} viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+      {foil && (
+        <defs>
+          <linearGradient id={foil} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#f6e3a6" />
+            <stop offset=".45" stopColor="#c99a3e" />
+            <stop offset=".7" stopColor="#fbecc0" />
+            <stop offset="1" stopColor="#a8792a" />
+          </linearGradient>
+        </defs>
+      )}
+      <g fill="none" stroke={foil ? "url(#" + foil + ")" : "currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18,62 H62 M24,62 C24,48 31,44 40,44 C49,44 56,48 56,62" />
+        <path d="M40,40 V26 M30,43 L22,33 M50,43 L58,33 M27,48 L16,44 M53,48 L64,44 M34,41 L30,29 M46,41 L50,29" />
+        <path d="M30,70 Q40,66 50,70" />
+      </g>
+    </svg>
+  )
+}
+
 const useIso = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect
+
+// the order plates are fetched in: the hero first
+const ART_ORDER = ["whale", "octopus", "gorgonian", "kelp", "weedRose", "weedGreen", "weedBrown", "kelpLeft", "weedRed", "coral", "starfish", "scallop", "brittlestar", "nautilus", "crab"]
+const HERO_ART = ["whale", "octopus", "gorgonian", "kelp", "weedRose", "weedGreen", "weedBrown", "starfish", "scallop", "coral"]
 
 // ---- the template ---------------------------------------------------------------
 
@@ -1334,6 +2003,9 @@ export default function BenthosCollectionTemplate({
   currency = "$",
   footer: footerIn,
   socials = DEFAULT_SOCIALS,
+  artwork,
+  artMode = "plates",
+  credits = DEFAULT_CREDITS,
   onBuy,
   onSubscribe,
   alive = true,
@@ -1343,10 +2015,12 @@ export default function BenthosCollectionTemplate({
   const deep = { ...DEFAULT_DEEP, ...deepIn }
   const board = { ...DEFAULT_MOODBOARD, ...boardIn }
   const pCopy = { kicker: "Seamless patterns", title: "Tile the reef", body: "Every pattern repeats without a seam at 6000 px. Pick one and it lines the envelope on the board above.", ...patternsCopy }
-  const prCopy = { kicker: "Wall art", title: "Eighteen plates, drawn to be framed", body: "Wash first, then ink, the way the old plate books were made. Printed on 300 gsm cotton rag at A2, or yours as a PDF to print anywhere.", ...printsCopy }
+  const prCopy = { kicker: "Wall art", title: "Plates drawn to be framed", body: "Restored from the great natural-history plate books and printed on 300 gsm cotton rag at A2, or yours as a print-ready PDF.", ...printsCopy }
   const lCopy = { kicker: "Licence", title: "Take the whole ocean home", body: "One payment, every file, lifetime updates. Pick the licence that matches where the work will go.", seatsLabel: "Seats", button: "Buy", ...licenceCopy }
   const foot = { ...DEFAULT_FOOTER, ...footerIn }
   const c = { ...PALETTES[preset], ...colors }
+  const art = { ...DEFAULT_ART, ...artwork } as { [k: string]: BenthosArt | null | undefined }
+  const posterSrc = artwork && "poster" in artwork ? artwork.poster : (DEFAULT_ART.poster as string)
 
   const rawId = React.useId()
   const uid = "bct" + rawId.replace(/[^a-zA-Z0-9]/g, "")
@@ -1362,9 +2036,10 @@ export default function BenthosCollectionTemplate({
   const shelf = React.useRef(null as HTMLDivElement | null)
   const closeBtn = React.useRef(null as HTMLButtonElement | null)
   const lastFocus = React.useRef(null as HTMLElement | null)
+  const toastTimer = React.useRef(0)
 
   const [menu, setMenu] = React.useState(false)
-  const [pattern, setPattern] = React.useState((patterns[0]?.key ?? "coral-reef") as string)
+  const [pattern, setPattern] = React.useState((patterns[0]?.key ?? "reef-toile") as string)
   const [prevPattern, setPrevPattern] = React.useState(null as string | null)
   const [envOpen, setEnvOpen] = React.useState(false)
   const [email, setEmail] = React.useState("")
@@ -1375,11 +2050,26 @@ export default function BenthosCollectionTemplate({
   const [tier, setTier] = React.useState(licenses.find((l) => l.featured)?.id ?? licenses[0]?.id ?? "")
   const [seats, setSeats] = React.useState(0)
   const [still, setStill] = React.useState(false)
+  const [heroReady, setHeroReady] = React.useState(false)
 
-  const tileKeys = React.useMemo(() => Array.from(new Set(patterns.map((p) => p.key).concat(["coral-reef", "shell-toss", "starfish-dot"]))), [patterns])
+  const cut = useCutouts(art, artMode === "plates", ART_ORDER)
+  const tileColors = React.useMemo(() => ({ paper: c.paper, deep: c.deep, sand: "#e8d6b6", slate: c.slate }), [c.paper, c.deep, c.slate])
+  const tileKeys = React.useMemo(() => Array.from(new Set(patterns.map((p) => p.key as string).concat(["reef-toile", "shell-toss", "octopus-slate", "kelp-garden", "night-reef"]))), [patterns])
+  const tiles = useTiles(tileKeys, cut, tileColors)
+
+  // the hero's reef enters once its plates are in, or after a short wait
+  const heroPending = HERO_ART.some((k) => cut[k] === undefined && art[k])
+  React.useEffect(() => {
+    if (!heroPending) {
+      setHeroReady(true)
+      return
+    }
+    const t = window.setTimeout(() => setHeroReady(true), 3200)
+    return () => window.clearTimeout(t)
+  }, [heroPending])
+
   const chosen = licenses.find((l) => l.id === tier) ?? licenses[0]
   const total = chosen ? orderTotal(chosen.price, SEAT_TIERS[seats]) : 0
-
   const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
   const go = (section?: string) => {
@@ -1391,14 +2081,14 @@ export default function BenthosCollectionTemplate({
 
   const notify = (msg: string) => {
     setToast(msg)
-    window.clearTimeout((notify as unknown as { t: number }).t)
-    ;(notify as unknown as { t: number }).t = window.setTimeout(() => setToast(""), 1800)
+    window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(""), 1900)
   }
 
   const copySwatch = (sw: BenthosSwatch) => {
     copyText(sw.hex).then(
       () => notify("Copied " + sw.hex + " · " + sw.name),
-      () => notify("Copying is blocked here"),
+      () => notify(sw.name + " is " + sw.hex),
     )
   }
 
@@ -1421,8 +2111,7 @@ export default function BenthosCollectionTemplate({
 
   const buy = () => {
     if (!chosen) return
-    const order = { license: chosen.id, seats: SEAT_TIERS[seats], total, currency }
-    onBuy?.(order)
+    onBuy?.({ license: chosen.id, seats: SEAT_TIERS[seats], total, currency })
     notify(chosen.name + " licence · " + currency + total)
   }
 
@@ -1433,7 +2122,7 @@ export default function BenthosCollectionTemplate({
     el.scrollBy({ left: dir * ((card?.offsetWidth ?? 280) + 28), behavior: reduced() ? "auto" : "smooth" })
   }
 
-  // ---- lightbox focus + escape ----
+  // ---- lightbox focus + keys ----
   React.useEffect(() => {
     if (lightbox === null) return
     lastFocus.current = document.activeElement as HTMLElement | null
@@ -1460,12 +2149,40 @@ export default function BenthosCollectionTemplate({
       return
     }
     const tl = gsap.timeline({ onComplete: () => setPrevPattern(null) })
-    tl.fromTo(nu, { autoAlpha: 0, scale: 1.08 }, { autoAlpha: 1, scale: 1, duration: 0.8, ease: "power3.out" }, 0)
+    tl.fromTo(nu, { autoAlpha: 0, scale: 1.08 }, { autoAlpha: 1, scale: 1, duration: 0.9, ease: "power3.out" }, 0)
     tl.to(el, { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, 0)
     return () => {
       tl.kill()
     }
   }, [pattern])
+
+  // ---- the reef enters ----
+  React.useEffect(() => {
+    const st = stage.current
+    if (!st || !heroReady) return
+    const figs = Array.from(st.querySelectorAll(".bct-scene .bct-fig")) as HTMLElement[]
+    const weeds = Array.from(st.querySelectorAll(".bct-weed")) as HTMLElement[]
+    if (reduced() || still) {
+      gsap.set(figs.concat(weeds), { autoAlpha: 1 })
+      return
+    }
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } })
+    tl.fromTo(weeds, { yPercent: 28, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 1.8, stagger: 0.05 }, 0)
+    tl.fromTo(
+      figs,
+      {
+        x: (i: number, t: Element) => +(t.getAttribute("data-dx") || 0),
+        y: (i: number, t: Element) => +(t.getAttribute("data-dy") || 0),
+        rotate: (i: number, t: Element) => +(t.getAttribute("data-dr") || 0),
+        autoAlpha: 0,
+      },
+      { x: 0, y: 0, rotate: 0, autoAlpha: 1, duration: 2, stagger: 0.07 },
+      0.15,
+    )
+    return () => {
+      tl.kill()
+    }
+  }, [heroReady])
 
   // ---- choreography ----
   useIso(() => {
@@ -1484,100 +2201,95 @@ export default function BenthosCollectionTemplate({
           if (header) header.classList.toggle("is-tucked", self.direction === 1 && self.progress > 0.02 && self.progress < 0.985)
         },
       })
-      ScrollTrigger.create({ trigger: ".bct-envelope", start: "top 72%", once: true, onEnter: () => setEnvOpen(true) })
+      ScrollTrigger.create({ trigger: ".bct-envelope", start: "top 75%", once: true, onEnter: () => setEnvOpen(true) })
 
       const mm = gsap.matchMedia()
-      mm.add(
-        { motion: "(prefers-reduced-motion: no-preference)", wide: "(min-width: 760px)" },
-        (cx) => {
-          const { motion, wide } = cx.conditions as { motion: boolean; wide: boolean }
-          if (!motion) {
-            setStill(true)
-            return
-          }
-          setStill(false)
+      mm.add({ motion: "(prefers-reduced-motion: no-preference)", wide: "(min-width: 760px)" }, (cx) => {
+        const { motion, wide } = cx.conditions as { motion: boolean; wide: boolean }
+        if (!motion) {
+          setStill(true)
+          return
+        }
+        setStill(false)
 
-          // the hero opens
-          const intro = gsap.timeline({ defaults: { ease: "expo.out" } })
-          intro
-            .fromTo(st, { "--in": 0 }, { "--in": 1, duration: 1.9, ease: "expo.inOut" }, 0)
-            .from(".bct-doodle", { autoAlpha: 0, scale: 0.8, duration: 1.2, stagger: 0.05 }, 0.2)
-            .from(".bct-kicker", { y: 30, autoAlpha: 0, duration: 1.1 }, 0.5)
-            .from(".bct-scene .bct-fig", { x: (i: number, t: Element) => +(t.getAttribute("data-dx") || 0), y: (i: number, t: Element) => +(t.getAttribute("data-dy") || 0), rotate: (i: number, t: Element) => +(t.getAttribute("data-dr") || 0), autoAlpha: 0, duration: 1.8, stagger: 0.08, ease: "power3.out" }, 0.55)
-            .fromTo(".bct-grow", { "--draw": 0 }, { "--draw": 1, duration: 1.6, ease: "power2.inOut", stagger: 0.1 }, 0.8)
-            .from(".bct-hero-copy > *", { y: 34, autoAlpha: 0, duration: 1.2, stagger: 0.09 }, 0.9)
-            .from(".bct-badge", { scale: 0, rotate: -40, duration: 1.2, ease: "back.out(2)" }, 1.4)
-            .from(".bct-under > *", { y: 22, autoAlpha: 0, duration: 1, stagger: 0.08 }, 1.5)
-            .from(".bct-peek-card", { y: 120, autoAlpha: 0, duration: 1.3, stagger: 0.05, ease: "expo.out" }, 1.6)
-            .from(".bct-bubble", { autoAlpha: 0, duration: 1 }, 1.4)
+        // the window opens
+        gsap
+          .timeline({ defaults: { ease: "expo.out" } })
+          .fromTo(st, { "--in": 0 }, { "--in": 1, duration: 2, ease: "expo.inOut" }, 0)
+          .from(".bct-doodle", { autoAlpha: 0, scale: 0.8, duration: 1.2, stagger: 0.04 }, 0.3)
+          .from(".bct-kicker", { y: 26, autoAlpha: 0, duration: 1.1 }, 0.5)
+          .from(".bct-hero-copy > *", { y: 34, autoAlpha: 0, duration: 1.3, stagger: 0.09 }, 0.9)
+          .from(".bct-badge", { scale: 0, rotate: -40, duration: 1.2, ease: "back.out(2)" }, 1.4)
+          .from(".bct-arc", { y: 24, autoAlpha: 0, duration: 1.2 }, 1.3)
+          .from(".bct-under > *", { y: 20, autoAlpha: 0, duration: 1, stagger: 0.08 }, 1.45)
+          .from(".bct-strip-card", { y: 140, autoAlpha: 0, duration: 1.4, stagger: 0.05 }, 1.5)
 
-          // the dive: oval → full bleed, creatures out, whale across, contents in
-          const dive = gsap.timeline({ scrollTrigger: { trigger: ".bct-dive", start: "top top", end: "bottom bottom", scrub: 0.9 }, defaults: { ease: "none" } })
-          dive
-            .fromTo(st, { "--open": 0 }, { "--open": 1, duration: 0.42 }, 0)
-            .to(".bct-hero-copy", { scale: 0.78, yPercent: -16, autoAlpha: 0, duration: 0.3, ease: "power1.in" }, 0.03)
-            .to(".bct-badge", { autoAlpha: 0, scale: 0.6, duration: 0.2 }, 0.05)
-            .to(".bct-kicker", { yPercent: -80, autoAlpha: 0, duration: 0.2 }, 0)
-            .to(".bct-under", { yPercent: 60, autoAlpha: 0, duration: 0.26 }, 0)
-            .to(".bct-peek", { yPercent: 130, duration: 0.3, ease: "power1.in" }, 0)
-            .to(".bct-doodle", { autoAlpha: 0, duration: 0.2 }, 0.05)
-            .to(".bct-fig-drift", { y: (i: number, t: Element) => +(t.getAttribute("data-oy") || 160), x: (i: number, t: Element) => +(t.getAttribute("data-ox") || 0), autoAlpha: 0, duration: 0.42, ease: "power1.in" }, 0.02)
-            .to(".bct-fig-octopus", { x: wide ? 220 : 120, y: -260, rotate: 18, autoAlpha: 0, duration: 0.42, ease: "power1.in" }, 0.02)
-            .to(".bct-fig-whale", { xPercent: wide ? 330 : 190, yPercent: wide ? -34 : -60, rotate: -5, duration: 0.5, ease: "power1.inOut" }, 0.16)
-            .fromTo(".bct-deep-copy > *", { y: 70, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.2, stagger: 0.03, ease: "power2.out" }, 0.56)
-            .fromTo(".bct-stat", { y: 50, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.18, stagger: 0.025, ease: "power2.out" }, 0.62)
-            .fromTo(".bct-formats", { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.18 }, 0.8)
+        // the dive: panel → full bleed, the reef drifts out, the whale swims across
+        gsap
+          .timeline({ scrollTrigger: { trigger: ".bct-dive", start: "top top", end: "bottom bottom", scrub: 0.9 }, defaults: { ease: "none" } })
+          .fromTo(st, { "--open": 0 }, { "--open": 1, duration: 0.42 }, 0)
+          .to(".bct-hero-copy", { scale: 0.8, yPercent: -18, autoAlpha: 0, duration: 0.3, ease: "power1.in" }, 0.03)
+          .to(".bct-badge", { autoAlpha: 0, scale: 0.6, duration: 0.2 }, 0.04)
+          .to(".bct-kicker, .bct-arc", { yPercent: -60, autoAlpha: 0, duration: 0.2 }, 0)
+          .to(".bct-under", { yPercent: 60, autoAlpha: 0, duration: 0.22 }, 0)
+          .to(".bct-strip", { yPercent: 120, duration: 0.3, ease: "power1.in" }, 0)
+          .to(".bct-doodle", { autoAlpha: 0, duration: 0.2 }, 0.04)
+          .to(".bct-fig-drift", { y: (i: number, t: Element) => +(t.getAttribute("data-oy") || 160), x: (i: number, t: Element) => +(t.getAttribute("data-ox") || 0), autoAlpha: 0, duration: 0.4, ease: "power1.in" }, 0.02)
+          .to(".bct-fig-octopus", { x: wide ? 260 : 120, y: -300, rotate: 16, autoAlpha: 0, duration: 0.42, ease: "power1.in" }, 0.02)
+          .to(".bct-fig-whale", { xPercent: wide ? 300 : 190, yPercent: wide ? -40 : -60, rotate: -4, duration: 0.5, ease: "power1.inOut" }, 0.14)
+          .to(".bct-forest", { "--rise": 1, duration: 0.42 }, 0)
+          .fromTo(".bct-deep-copy > *", { y: 70, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.2, stagger: 0.03, ease: "power2.out" }, 0.56)
+          .fromTo(".bct-stat", { y: 50, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.18, stagger: 0.025, ease: "power2.out" }, 0.62)
+          .fromTo(".bct-formats", { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.18 }, 0.8)
 
-          // the numbers count once the contents are on screen
-          const counters = Array.from(el.querySelectorAll(".bct-stat-n")) as HTMLElement[]
-          ScrollTrigger.create({
-            trigger: ".bct-dive",
-            start: "62% bottom",
-            once: true,
-            onEnter: () => {
-              counters.forEach((n, i) => {
-                const target = +(n.getAttribute("data-value") || 0)
-                const o = { v: 0 }
-                gsap.to(o, { v: target, duration: 1.7, delay: i * 0.08, ease: "power3.out", onUpdate: () => { n.textContent = String(Math.round(o.v)) } })
-              })
-            },
-          })
+        const counters = Array.from(el.querySelectorAll(".bct-stat-n")) as HTMLElement[]
+        ScrollTrigger.create({
+          trigger: ".bct-dive",
+          start: "62% bottom",
+          once: true,
+          onEnter: () => {
+            counters.forEach((n, i) => {
+              const target = +(n.getAttribute("data-value") || 0)
+              const o = { v: 0 }
+              gsap.to(o, { v: target, duration: 1.7, delay: i * 0.08, ease: "power3.out", onUpdate: () => { n.textContent = String(Math.round(o.v)) } })
+            })
+          },
+        })
 
-          // the board: cards drop onto their tacks
-          gsap.from(".bct-board .bct-pinned", {
-            y: -60,
-            autoAlpha: 0,
-            rotate: (i: number, t: Element) => +(gsap.getProperty(t, "rotate") || 0) + 9,
-            duration: 1.3,
-            stagger: 0.07,
-            ease: "back.out(1.2)",
-            scrollTrigger: { trigger: ".bct-board", start: "top 68%", once: true },
-          })
-          gsap.from(".bct-board .bct-tack", { scale: 0, duration: 0.6, stagger: 0.05, ease: "back.out(3)", scrollTrigger: { trigger: ".bct-board", start: "top 64%", once: true } })
-          gsap.from(".bct-board-copy > *", { y: 28, autoAlpha: 0, duration: 1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: ".bct-board-copy", start: "top 80%", once: true } })
-          gsap.from(".bct-board-whale", { x: -120, autoAlpha: 0, duration: 1.6, ease: "power3.out", scrollTrigger: { trigger: ".bct-board", start: "top 60%", once: true } })
+        // the board: cards drop onto their tacks
+        gsap.from(".bct-board .bct-drop", {
+          y: -70,
+          autoAlpha: 0,
+          rotate: (i: number) => (i % 2 ? 7 : -7),
+          duration: 1.3,
+          stagger: 0.07,
+          ease: "back.out(1.2)",
+          scrollTrigger: { trigger: ".bct-board", start: "top 70%", once: true },
+        })
+        gsap.from(".bct-board .bct-tack", { scale: 0, duration: 0.6, stagger: 0.04, ease: "back.out(3)", scrollTrigger: { trigger: ".bct-board", start: "top 64%", once: true } })
+        gsap.from(".bct-board-copy > *", { y: 28, autoAlpha: 0, duration: 1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: ".bct-board-copy", start: "top 82%", once: true } })
+        gsap.from(".bct-board-whale", { x: -160, autoAlpha: 0, duration: 1.8, ease: "power3.out", scrollTrigger: { trigger: ".bct-board", start: "top 62%", once: true } })
+        gsap.from(".bct-board-shell", { y: 40, rotate: -30, autoAlpha: 0, duration: 1.4, ease: "back.out(1.6)", scrollTrigger: { trigger: ".bct-swatches", start: "top 85%", once: true } })
 
-          // patterns: the wallpaper wipes in, the list deals
-          gsap.from(".bct-pat-stage", { clipPath: "inset(0% 100% 0% 0%)", duration: 1.4, ease: "power3.inOut", scrollTrigger: { trigger: ".bct-patterns", start: "top 70%", once: true } })
-          gsap.from(".bct-pat-item", { x: 40, autoAlpha: 0, duration: 0.9, stagger: 0.07, ease: "power3.out", scrollTrigger: { trigger: ".bct-pat-list", start: "top 80%", once: true } })
+        // patterns: the wallpaper wipes in, the list deals
+        gsap.from(".bct-pat-stage", { clipPath: "inset(0% 100% 0% 0%)", duration: 1.4, ease: "power3.inOut", scrollTrigger: { trigger: ".bct-patterns", start: "top 70%", once: true } })
+        gsap.from(".bct-pat-item", { x: 40, autoAlpha: 0, duration: 0.9, stagger: 0.07, ease: "power3.out", scrollTrigger: { trigger: ".bct-pat-list", start: "top 82%", once: true } })
 
-          // prints: the plates lean in
-          gsap.from(".bct-shelf-item", { y: 60, rotate: (i: number) => (i % 2 ? 3 : -3), autoAlpha: 0, duration: 1.1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: ".bct-shelf", start: "top 78%", once: true } })
+        // prints lean in
+        gsap.from(".bct-shelf-item", { y: 60, rotate: (i: number) => (i % 2 ? 3 : -3), autoAlpha: 0, duration: 1.1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: ".bct-shelf", start: "top 80%", once: true } })
 
-          // licence
-          gsap.from(".bct-lic", { y: 50, autoAlpha: 0, duration: 1, stagger: 0.1, ease: "expo.out", scrollTrigger: { trigger: ".bct-licence", start: "top 70%", once: true } })
-          gsap.from(".bct-licence .bct-fig", { y: 40, rotate: 10, autoAlpha: 0, duration: 1.4, stagger: 0.15, ease: "power3.out", scrollTrigger: { trigger: ".bct-licence", start: "top 60%", once: true } })
+        // licence
+        gsap.from(".bct-lic", { y: 50, autoAlpha: 0, duration: 1, stagger: 0.1, ease: "expo.out", scrollTrigger: { trigger: ".bct-licence", start: "top 70%", once: true } })
+        gsap.from(".bct-licence .bct-lic-fig", { y: 50, rotate: 14, autoAlpha: 0, duration: 1.5, stagger: 0.15, ease: "power3.out", scrollTrigger: { trigger: ".bct-licence", start: "top 62%", once: true } })
 
-          // footer wordmark
-          gsap.from(".bct-foot-mark", { yPercent: 30, autoAlpha: 0, duration: 1.4, ease: "expo.out", scrollTrigger: { trigger: ".bct-footer", start: "top 85%", once: true } })
-          gsap.from(".bct-foot-whale", { xPercent: -30, autoAlpha: 0, duration: 2, ease: "power2.out", scrollTrigger: { trigger: ".bct-footer", start: "top 70%", once: true } })
+        // footer
+        gsap.from(".bct-foot-mark", { yPercent: 30, autoAlpha: 0, duration: 1.4, ease: "expo.out", scrollTrigger: { trigger: ".bct-footer", start: "top 85%", once: true } })
+        gsap.from(".bct-foot-whale", { xPercent: -30, autoAlpha: 0, duration: 2, ease: "power2.out", scrollTrigger: { trigger: ".bct-footer", start: "top 70%", once: true } })
 
-          // section headings everywhere
-          gsap.utils.toArray(".bct-head").forEach((h) => {
-            gsap.from((h as Element).children, { y: 26, autoAlpha: 0, duration: 1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: h as Element, start: "top 82%", once: true } })
-          })
-        },
-      )
+        gsap.utils.toArray(".bct-head").forEach((h) => {
+          gsap.from((h as Element).children, { y: 26, autoAlpha: 0, duration: 1, stagger: 0.08, ease: "power3.out", scrollTrigger: { trigger: h as Element, start: "top 84%", once: true } })
+        })
+      })
     }, el)
     return () => ctx.revert()
   }, [])
@@ -1592,19 +2304,19 @@ export default function BenthosCollectionTemplate({
     let raf = 0
     let nx = 0
     let ny = 0
+    const apply = () => {
+      raf = 0
+      layers.forEach((l, i) => {
+        const d = +(l.getAttribute("data-depth") || 0)
+        xs[i](nx * d * 22)
+        ys[i](ny * d * 14)
+      })
+    }
     const onMove = (e: PointerEvent) => {
       const r = st.getBoundingClientRect()
       nx = ((e.clientX - r.left) / r.width - 0.5) * 2
       ny = ((e.clientY - r.top) / r.height - 0.5) * 2
       if (!raf) raf = requestAnimationFrame(apply)
-    }
-    const apply = () => {
-      raf = 0
-      layers.forEach((l, i) => {
-        const d = +(l.getAttribute("data-depth") || 0)
-        xs[i](nx * d * 18)
-        ys[i](ny * d * 12)
-      })
     }
     const onLeave = () => {
       nx = 0
@@ -1639,23 +2351,44 @@ export default function BenthosCollectionTemplate({
 
   const bubbles = React.useMemo(() => Array.from({ length: 12 }, (_, i) => ({ x: 8 + ((i * 37) % 84), s: 6 + ((i * 13) % 11), d: (i * 1.7) % 9, t: 9 + ((i * 5) % 7) })), [])
   const doodles = [
-    { kind: "fish", l: "6%", t: "14%", w: "4.5cqw", r: -12 },
-    { kind: "nautilus", l: "88%", t: "10%", w: "4cqw", r: 10 },
-    { kind: "anchor", l: "4%", t: "68%", w: "3cqw", r: 8 },
-    { kind: "urchin", l: "90%", t: "60%", w: "3.2cqw", r: 0 },
-    { kind: "fish", l: "84%", t: "34%", w: "3.8cqw", r: 165 },
-    { kind: "starfish", l: "11%", t: "44%", w: "3.4cqw", r: 20 },
-    { kind: "crab", l: "93%", t: "40%", w: "4.2cqw", r: -6 },
-    { kind: "jellyfish", l: "20%", t: "80%", w: "3cqw", r: 14 },
+    { kind: "fish", l: "5%", t: "16%", w: "4.2cqw", r: -12 },
+    { kind: "nautilus", l: "89%", t: "12%", w: "3.6cqw", r: 10 },
+    { kind: "anchor", l: "4%", t: "62%", w: "2.8cqw", r: 8 },
+    { kind: "urchin", l: "92%", t: "56%", w: "3cqw", r: 0 },
+    { kind: "fish", l: "86%", t: "33%", w: "3.6cqw", r: 165 },
+    { kind: "scallop", l: "9%", t: "40%", w: "3cqw", r: 20 },
+    { kind: "crab", l: "93%", t: "78%", w: "4cqw", r: -6 },
+    { kind: "jellyfish", l: "3%", t: "84%", w: "2.6cqw", r: 14 },
+    { kind: "starfish", l: "80%", t: "6%", w: "2.4cqw", r: 30 },
+    { kind: "seafan", l: "13%", t: "4%", w: "3.4cqw", r: -8 },
   ] as { kind: BenthosCreature | "fish" | "anchor" | "urchin"; l: string; t: string; w: string; r: number }[]
   const icons = ["crab", "nautilus", "scallop", "starfish", "anchor", "fish", "urchin", "jellyfish", "seafan", "octopus", "kelp", "whale"] as (BenthosCreature | "fish" | "anchor" | "urchin")[]
-  const swatchClip = React.useMemo(() => zigzag(12, 6), [])
+  const swatchClip = React.useMemo(() => zigzag(14, 5), [])
+  const monogram = (foot.monogram ?? brand.trim()[0] ?? "B").toUpperCase()
+  const showPatterns = patterns.slice(0, 3)
+  const strip = [
+    { t: "tile", k: "reef-toile" },
+    { t: "plate", i: 1 },
+    { t: "tile", k: "night-reef" },
+    { t: "chip", i: 0 },
+    { t: "chip", i: 1 },
+    { t: "chip", i: 2 },
+    { t: "tile", k: "shell-toss" },
+    { t: "plate", i: 3 },
+    { t: "tile", k: "octopus-slate" },
+  ]
+  // the forest inside the window: [cut-out, drawn stand-in, left %, width %, depth]
+  const forest = [
+    ["kelp", "kelp", -2, 22, 0], ["weedBrown", "kelp", 13, 21, 0], ["kelpLeft", "kelp", 29, 18, 0], ["weedGreen", "kelp", 40, 11, 0], ["weedRed", "seafan", 46, 30, 0], ["kelp", "kelp", 66, 21, 0], ["weedBrown", "kelp", 81, 22, 0],
+    ["weedGreen", "kelp", 3, 11, 1], ["weedRose", "coral", 15, 18, 1], ["weedBrown", "kelp", 31, 13, 1], ["weedGreen", "kelp", 57, 10, 1], ["weedRose", "coral", 64, 17, 1], ["coral", "coral", 80, 19, 1],
+    ["gorgonian", "seafan", 6, 13, 2], ["weedGreen", "kelp", 88, 8, 2],
+  ] as [string, BenthosCreature, number, number, number][]
 
   return (
     <IdCtx.Provider value={uid}>
       <div
         ref={root}
-        className={"bct-root" + (theme === "dark" ? " bct-dark" : theme === "light" ? " bct-light" : "") + (alive ? " is-alive" : "") + (still ? " is-still" : "") + (className ? " " + className : "")}
+        className={"bct-root" + (theme === "dark" ? " bct-dark" : theme === "light" ? " bct-light" : "") + (alive ? " is-alive" : "") + (still ? " is-still" : "") + (heroReady ? " is-ready" : "") + (className ? " " + className : "")}
         style={vars}
       >
         {fontHref && <link rel="stylesheet" href={fontHref} />}
@@ -1691,94 +2424,107 @@ export default function BenthosCollectionTemplate({
           <div className="bct-progress" aria-hidden="true"><i /></div>
         </header>
 
-        {/* the dive: hero porthole → the deep */}
+        {/* the dive: the hero window → the deep */}
         <section className="bct-dive" ref={sections.collection} aria-label="Collection">
           <div className="bct-stage" ref={stage}>
             <div className="bct-scene">
-            {doodles.map((d, i) => (
-              <Creature key={i} kind={d.kind} mode="ink" className="bct-doodle" style={{ left: d.l, top: d.t, width: d.w, transform: "rotate(" + d.r + "deg)" }} />
-            ))}
-
-            <p className="bct-kicker">{hero.kicker}</p>
-
-            <div className="bct-porthole" aria-hidden="true">
-              <div className="bct-water" />
-              <div className="bct-caustic bct-caustic-a" />
-              <div className="bct-caustic bct-caustic-b" />
-              <div className="bct-rays" />
-              <div className="bct-silhouettes" data-depth="-0.4">
-                <Creature kind="kelp" mode="wash" seed={4} className="bct-sil bct-sil-a" />
-                <Creature kind="kelp" mode="wash" seed={14} className="bct-sil bct-sil-b" />
-                <Creature kind="seafan" mode="wash" seed={11} className="bct-sil bct-sil-c" />
-                <Creature kind="coral" mode="wash" seed={2} className="bct-sil bct-sil-d" />
-                <Creature kind="kelp" mode="wash" seed={23} className="bct-sil bct-sil-e" />
-              </div>
-              {bubbles.map((b, i) => (
-                <i key={i} className="bct-bubble" style={{ left: b.x + "%", width: b.s, height: b.s, animationDelay: "-" + b.d + "s", animationDuration: b.t + "s" }} />
+              {doodles.map((d, i) => (
+                <Creature key={i} kind={d.kind} mode="ink" className="bct-doodle" style={{ left: d.l, top: d.t, width: d.w, transform: "rotate(" + d.r + "deg)" }} />
               ))}
-              <div className="bct-vignette" />
-            </div>
 
-            <div className="bct-hero-anchor" data-depth="0.15">
-              <div className="bct-hero-copy">
-                <Arch />
-                <h1 className="bct-title">{hero.title}</h1>
-                <p className="bct-script">{hero.script}</p>
-                <Squiggle />
-                <p className="bct-byline">{hero.byline}</p>
+              <p className="bct-kicker">{hero.kicker}</p>
+
+              <div className="bct-porthole" aria-hidden="true">
+                <div className="bct-water" />
+                <div className="bct-caustic bct-caustic-a" />
+                <div className="bct-caustic bct-caustic-b" />
+                <div className="bct-rays" />
+                <div className="bct-forest" data-depth="-0.35">
+                  {forest.map(([k, kind, left, width, depth], i) => (
+                    <div key={i} className={"bct-weed is-d" + depth + (i % 3 === 1 ? " is-late" : "")} style={{ left: left + "%", width: width + "%" }}>
+                      <Art cut={cut[k]} kind={kind} seed={i + 4} hidePending />
+                    </div>
+                  ))}
+                  <i className="bct-haze" />
+                  <i className="bct-dim" />
+                </div>
+                {bubbles.map((b, i) => (
+                  <i key={i} className="bct-bubble" style={{ left: b.x + "%", width: b.s, height: b.s, animationDelay: "-" + b.d + "s", animationDuration: b.t + "s" }} />
+                ))}
+                <div className="bct-vignette" />
               </div>
-            </div>
-            <div className="bct-badge" aria-hidden="true"><span>{hero.badge}</span></div>
 
-            {/* the reef around the porthole */}
-            <div className="bct-fig bct-fig-coral bct-fig-drift bct-grow" data-depth="0.5" data-dx="-60" data-dy="40" data-dr="-12" data-oy="220" data-ox="-80">
-              <Creature kind="coral" mode="wash" seed={9} />
-            </div>
-            <div className="bct-fig bct-fig-kelp-a bct-fig-drift bct-grow" data-depth="0.35" data-dx="-40" data-dy="80" data-oy="260" data-ox="-40">
-              <Creature kind="kelp" mode="wash" seed={2} className="bct-sway" />
-            </div>
-            <div className="bct-fig bct-fig-kelp-b bct-fig-drift bct-grow" data-depth="0.4" data-dx="40" data-dy="-60" data-dr="20" data-oy="-200" data-ox="120">
-              <Creature kind="kelp" mode="wash" seed={7} className="bct-sway bct-sway-late" />
-            </div>
-            <div className="bct-fig bct-fig-fan bct-fig-drift bct-grow" data-depth="0.45" data-dx="80" data-dy="60" data-dr="10" data-oy="240" data-ox="140">
-              <Creature kind="seafan" mode="wash" seed={7} />
-            </div>
-            <div className="bct-fig bct-fig-scallop bct-fig-drift" data-depth="0.6" data-dx="60" data-dy="60" data-dr="30" data-oy="200" data-ox="120">
-              <Creature kind="scallop" mode="wash" />
-            </div>
-            <div className="bct-fig bct-fig-star bct-fig-drift" data-depth="0.55" data-dx="-60" data-dy="60" data-dr="-50" data-oy="220" data-ox="-90">
-              <Creature kind="starfish" mode="wash" seed={4} />
-            </div>
-            <div className="bct-fig bct-fig-crab bct-fig-drift" data-depth="0.7" data-dx="80" data-dy="80" data-dr="8" data-oy="240" data-ox="160">
-              <Creature kind="crab" mode="wash" />
-            </div>
-            <div className="bct-fig bct-fig-fish bct-fig-drift" data-depth="0.8" data-dx="-120" data-dy="0" data-dr="-8" data-oy="-120" data-ox="-220">
-              <Creature kind="fish" mode="wash" />
-            </div>
-            <div className="bct-fig bct-fig-octopus" data-depth="0.3" data-dx="120" data-dy="-120" data-dr="16">
-              <Creature kind="octopus" mode="wash" seed={3} className="bct-octo" />
-            </div>
-            <div className="bct-fig bct-fig-whale" data-depth="0.25" data-dx="-220" data-dy="60" data-dr="-6">
-              <Creature kind="whale" mode="wash" flip className="bct-swim" />
-            </div>
+              <div className="bct-hero-anchor" data-depth="0.12">
+                <div className="bct-hero-copy">
+                  <Arch />
+                  <h1 className="bct-title">{hero.title}</h1>
+                  <p className="bct-script">{hero.script}</p>
+                  <Squiggle />
+                  <p className="bct-byline">{hero.byline}</p>
+                </div>
+              </div>
+              <div className="bct-badge" aria-hidden="true"><span>{hero.badge}</span></div>
 
-            <div className="bct-under">
-              <p className="bct-tagline">{hero.tagline}</p>
-              <div className="bct-under-actions">
+              {/* the reef breaking over the window's edge */}
+              <div className="bct-fig bct-fig-gorgonian bct-fig-drift" data-depth="0.45" data-dx="-50" data-dy="40" data-dr="-10" data-oy="-220" data-ox="-120">
+                <Art cut={cut.gorgonian} kind="coral" seed={9} hidePending className="bct-sway" />
+              </div>
+              <div className="bct-fig bct-fig-kelp bct-fig-drift" data-depth="0.35" data-dx="-40" data-dy="90" data-oy="260" data-ox="-60">
+                <Art cut={cut.weedGreen} kind="kelp" seed={2} hidePending className="bct-sway bct-sway-late" />
+              </div>
+              <div className="bct-fig bct-fig-star bct-fig-drift" data-depth="0.6" data-dx="-60" data-dy="70" data-dr="-50" data-oy="240" data-ox="-100">
+                <Art cut={cut.starfish} kind="starfish" seed={4} hidePending />
+              </div>
+              <div className="bct-fig bct-fig-coral bct-fig-drift" data-depth="0.5" data-dx="70" data-dy="70" data-dr="12" data-oy="250" data-ox="140">
+                <Art cut={cut.coral} kind="coral" seed={5} hidePending className="bct-sway" />
+              </div>
+              <div className="bct-fig bct-fig-scallop bct-fig-drift" data-depth="0.7" data-dx="80" data-dy="60" data-dr="34" data-oy="230" data-ox="150">
+                <Art cut={cut.scallop} kind="scallop" hidePending />
+              </div>
+              <div className="bct-fig bct-fig-rose bct-fig-drift" data-depth="0.4" data-dx="60" data-dy="-40" data-dr="18" data-oy="-160" data-ox="160">
+                <Art cut={cut.weedRose} kind="coral" seed={7} hidePending className="bct-sway bct-sway-late" />
+              </div>
+              <div className="bct-fig bct-fig-octopus" data-depth="0.28" data-dx="140" data-dy="-140" data-dr="18">
+                <Art cut={cut.octopus} kind="octopus" seed={3} hidePending className="bct-octo" alt={art.octopus?.alt} />
+              </div>
+              <div className="bct-fig bct-fig-whale" data-depth="0.22" data-dx="-260" data-dy="50" data-dr="-5">
+                <Art cut={cut.whale} kind="whale" flip hidePending className="bct-swim" alt={art.whale?.alt} />
+              </div>
+
+              <ArcText text={hero.tagline ?? ""} id={uid + "-arc"} />
+              <div className="bct-under">
                 <button type="button" className="bct-btn" onClick={() => go("licence")}>{hero.cta}</button>
                 <button type="button" className="bct-link" onClick={() => go("moodboard")}>{hero.secondary} <span aria-hidden="true">↓</span></button>
               </div>
-            </div>
 
-            <div className="bct-peek" aria-hidden="true">
-              {tileKeys.slice(0, 4).map((k, i) => (
-                <div key={k} className="bct-peek-card" style={{ "--i": i } as React.CSSProperties}><PatternFill pattern={k} scale={0.42} /></div>
-              ))}
-              {palette.slice(0, 3).map((sw, i) => (
-                <div key={sw.hex} className="bct-peek-card bct-peek-chip" style={{ "--i": i + 4, "--sw": sw.hex } as React.CSSProperties}><span /><b>{sw.hex}</b></div>
-              ))}
-            </div>
-
+              <div className="bct-strip" aria-hidden="true">
+                {strip.map((s, i) => {
+                  const st = { "--i": i, "--n": strip.length } as React.CSSProperties
+                  if (s.t === "tile")
+                    return (
+                      <div key={i} className="bct-strip-card is-tile" style={st}>
+                        <Swatch pattern={s.k!} tile={tiles[s.k!]} size={150} fallbackScale={0.36} />
+                      </div>
+                    )
+                  if (s.t === "plate") {
+                    const p = plates[s.i! % Math.max(1, plates.length)]
+                    return (
+                      <div key={i} className="bct-strip-card is-plate" style={st}>
+                        {p && <Scan src={p.src} alt="" kind={p.art ?? "jellyfish"} lazy={false} />}
+                      </div>
+                    )
+                  }
+                  const sw = palette[s.i! % Math.max(1, palette.length)]
+                  return (
+                    <div key={i} className="bct-strip-card is-chip" style={{ ...st, "--sw": sw?.hex } as React.CSSProperties}>
+                      <span />
+                      <b>{sw?.name}</b>
+                      <small>{sw?.hex}</small>
+                      <i className="bct-tack" style={{ left: "50%", top: "9px" }} />
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {/* the deep: what's inside */}
@@ -1807,21 +2553,27 @@ export default function BenthosCollectionTemplate({
 
         {/* the moodboard */}
         <section className="bct-board" ref={sections.moodboard} aria-label="Moodboard">
-          <Pinned className="bct-card bct-poster" tilt={-2.2} tacks={null}>
+          <Pinned className="bct-card bct-poster bct-drop" tilt={-1.6} tacks={[["50%", "10px"]]}>
             <Tape className="bct-tape-a" />
-            <Plate plate={{ number: board.posterNumber, title: board.posterTitle ?? "", latin: board.posterNote, art: "jellyfish" }} index={3} big />
+            <figure className="bct-poster-fig">
+              <Scan src={posterSrc} alt={board.posterTitle + ", " + board.posterNote} kind="jellyfish" />
+              <figcaption>
+                <span>{board.posterNumber}</span>
+                <b>{board.posterTitle}</b>
+                <em>{board.posterNote}</em>
+              </figcaption>
+            </figure>
           </Pinned>
 
-          <Pinned className="bct-card bct-markcard" tilt={1.6} tacks={[["50%", "8px"]]}>
-            <Creature kind="nautilus" mode="ink" className="bct-markcard-icon" />
-            <span>{brand}</span>
+          <Pinned className="bct-card bct-markcard bct-drop" tilt={2.2} tacks={[["50%", "10px"]]}>
+            <Emblem />
           </Pinned>
 
           <div className="bct-board-whale" aria-hidden="true">
-            <Creature kind="whale" mode="wash" className="bct-swim" />
+            <Art cut={cut.whale} kind="whale" className="bct-swim" />
           </div>
 
-          <Pinned className="bct-card bct-icons" tilt={1.4} tacks={[["14px", "12px"], ["calc(100% - 14px)", "12px"]]}>
+          <Pinned className="bct-card bct-icons bct-drop" tilt={1.2} tacks={[["16px", "14px"], ["calc(100% - 16px)", "14px"]]}>
             <p className="bct-card-title">{board.iconsTitle}</p>
             <ul className="bct-icon-grid">
               {icons.map((k) => (
@@ -1843,7 +2595,7 @@ export default function BenthosCollectionTemplate({
           <ul className="bct-chips" aria-label="Palette">
             {palette.map((sw, i) => (
               <li key={sw.hex}>
-                <Pinned className="bct-chipcard" tilt={[-3, 2, -1.5, 2.5, -2, 1][i % 6]} tacks={[["50%", "7px"]]} pin={["50%", "6%"]}>
+                <Pinned className="bct-chipcard bct-drop" tilt={[-3, 2, -1.5, 2.5, -2, 1][i % 6]} tacks={[["50%", "8px"]]} pin={["50%", "6%"]}>
                   <button type="button" className={"bct-chip" + (luminance(sw.hex) < 0.4 ? " is-dark" : "")} style={{ "--sw": sw.hex } as React.CSSProperties} onClick={() => copySwatch(sw)} aria-label={"Copy " + sw.name + " " + sw.hex}>
                     <span className="bct-chip-color" />
                     <span className="bct-chip-name">{sw.name}</span>
@@ -1854,25 +2606,34 @@ export default function BenthosCollectionTemplate({
             ))}
           </ul>
 
+          <Pinned className="bct-card bct-letter-card bct-drop" tilt={-2.4} tacks={[["50%", "10px"]]}>
+            <span className="bct-letter-glyph" aria-hidden="true" style={tiles["reef-toile"] ? { backgroundImage: "url(" + tiles["reef-toile"] + ")" } : undefined}>
+              {monogram}
+            </span>
+            <div className="bct-letter-coral" aria-hidden="true">
+              <Art cut={cut.gorgonian} kind="coral" seed={9} />
+            </div>
+          </Pinned>
+
           <div className="bct-swatches" aria-label="Pattern swatches">
-            {patterns.slice(0, 3).map((p, i) => (
-              <Pinned key={p.key} className={"bct-swatch" + (p.key === pattern ? " is-on" : "")} tilt={[-4, 3, -2][i]} tacks={[["50%", "10px"]]} pin={["50%", "8%"]}>
-                <button type="button" className="bct-swatch-btn" style={{ clipPath: swatchClip }} onClick={() => pickPattern(p.key)} aria-pressed={p.key === pattern} aria-label={"Use " + p.name + " on the envelope"}>
-                  <PatternFill pattern={p.key} scale={0.4} />
-                </button>
+            {showPatterns.map((p, i) => (
+              <Pinned key={p.key} className={"bct-swatch bct-drop" + (p.key === pattern ? " is-on" : "")} tilt={[-4, 3, -2][i]} tacks={[["50%", "10px"]]} pin={["50%", "8%"]}>
+                <span className="bct-swatch-shade">
+                  <button type="button" className="bct-swatch-btn" style={{ clipPath: swatchClip }} onClick={() => pickPattern(p.key)} aria-pressed={p.key === pattern} aria-label={"Use " + p.name + " on the envelope"}>
+                    <Swatch pattern={p.key} tile={tiles[p.key]} size={180} fallbackScale={0.4} />
+                  </button>
+                </span>
                 <span className="bct-swatch-name">{p.name}</span>
               </Pinned>
             ))}
-          </div>
-
-          <div className="bct-board-shell" aria-hidden="true">
-            <Creature kind="scallop" mode="wash" />
-            <Creature kind="starfish" mode="wash" seed={2} />
+            <div className="bct-board-shell" aria-hidden="true">
+              <Art cut={cut.scallop} kind="scallop" />
+            </div>
           </div>
 
           <div className={"bct-envelope" + (envOpen ? " is-open" : "")}>
             <div className="bct-env-back">
-              <PatternFill pattern={pattern} scale={0.38} className="bct-env-lining" />
+              <Swatch pattern={pattern} tile={tiles[pattern]} size={180} fallbackScale={0.36} className="bct-env-lining" />
             </div>
             <div className="bct-env-letter">
               <form className="bct-letter" onSubmit={subscribe} noValidate>
@@ -1894,11 +2655,11 @@ export default function BenthosCollectionTemplate({
               <path d="M0,0 L150,104 L300,0 L300,180 L0,180 Z" className="bct-env-paper" />
               <path d="M0,180 L150,104 L300,180" className="bct-env-seam" />
             </svg>
+            <Emblem className="bct-env-foil" foil={uid + "-foil"} />
             <button type="button" className="bct-env-flap" aria-expanded={envOpen} aria-label={envOpen ? "Close the envelope" : "Open the envelope"} onClick={() => setEnvOpen((o) => !o)}>
               <span className="bct-env-flap-out" />
-              <span className="bct-env-flap-in"><PatternFill pattern={pattern} scale={0.38} /></span>
+              <span className="bct-env-flap-in"><Swatch pattern={pattern} tile={tiles[pattern]} size={180} fallbackScale={0.36} /></span>
             </button>
-            <Creature kind="fish" mode="ink" className="bct-env-fish" />
           </div>
         </section>
 
@@ -1910,8 +2671,8 @@ export default function BenthosCollectionTemplate({
             <p className="bct-lede">{pCopy.body}</p>
           </div>
           <div className="bct-pat-stage" aria-hidden="true">
-            {prevPattern && <PatternFill pattern={prevPattern} scale={0.72} className="bct-pat-old" />}
-            <PatternFill key={pattern} pattern={pattern} scale={0.72} className="bct-pat-new" />
+            {prevPattern && <Swatch pattern={prevPattern} tile={tiles[prevPattern]} size={320} fallbackScale={0.72} className="bct-pat-old" />}
+            <Swatch key={pattern} pattern={pattern} tile={tiles[pattern]} size={320} fallbackScale={0.72} className="bct-pat-new" />
             <div className="bct-pat-label">
               <span>{patterns.find((p) => p.key === pattern)?.name}</span>
               <em>6000 × 6000 px · seamless</em>
@@ -1921,7 +2682,7 @@ export default function BenthosCollectionTemplate({
             {patterns.map((p, i) => (
               <li key={p.key} className="bct-pat-item">
                 <button type="button" role="radio" aria-checked={p.key === pattern} className={"bct-pat-btn" + (p.key === pattern ? " is-on" : "")} onClick={() => pickPattern(p.key)}>
-                  <span className="bct-pat-thumb"><PatternFill pattern={p.key} scale={0.3} /></span>
+                  <Swatch pattern={p.key} tile={tiles[p.key]} size={90} fallbackScale={0.26} className="bct-pat-thumb" />
                   <span className="bct-pat-text">
                     <b>{String(i + 1).padStart(2, "0")} · {p.name}</b>
                     {p.note && <small>{p.note}</small>}
@@ -1994,14 +2755,16 @@ export default function BenthosCollectionTemplate({
             </p>
             <button type="button" className="bct-btn bct-btn-lg" onClick={buy}>{lCopy.button} {chosen?.name}</button>
           </div>
-          <div className="bct-fig bct-lic-fig-a" aria-hidden="true"><Creature kind="nautilus" mode="wash" /></div>
-          <div className="bct-fig bct-lic-fig-b" aria-hidden="true"><Creature kind="starfish" mode="wash" seed={3} /></div>
+          <div className="bct-lic-fig bct-lic-fig-a" aria-hidden="true"><Art cut={cut.nautilus} kind="nautilus" /></div>
+          <div className="bct-lic-fig bct-lic-fig-b" aria-hidden="true"><Art cut={cut.brittlestar} kind="starfish" seed={3} /></div>
         </section>
 
         {/* footer */}
         <footer className="bct-footer">
           <Wave className="bct-footer-wave" />
-          <div className="bct-foot-whale" aria-hidden="true"><Creature kind="whale" mode="ink" /></div>
+          <div className="bct-foot-whale" aria-hidden="true">
+            {cut.whale ? <img src={cut.whale.url} alt="" className="bct-cut" /> : <Creature kind="whale" mode="ink" />}
+          </div>
           <div className="bct-foot-grid">
             <div className="bct-foot-about">
               <p className="bct-foot-mark">{foot.title}</p>
@@ -2019,18 +2782,20 @@ export default function BenthosCollectionTemplate({
             </ul>
           </div>
           <p className="bct-foot-legal">{foot.legal}</p>
+          {credits && artMode === "plates" && <p className="bct-foot-credits">{credits}</p>}
         </footer>
 
         {/* lightbox */}
         {lightbox !== null && plates[lightbox] && (
           <div className="bct-lightbox" role="dialog" aria-modal="true" aria-label={plates[lightbox].title} onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}>
             <div className="bct-lightbox-card">
-              <Plate plate={plates[lightbox]} index={lightbox} big />
+              <Plate key={lightbox} plate={plates[lightbox]} index={lightbox} big />
               <div className="bct-lightbox-text">
                 <p className="bct-eyebrow">{plates[lightbox].number ?? "Plate " + roman(lightbox + 1)} of {plates.length}</p>
                 <h3>{plates[lightbox].title}</h3>
                 {plates[lightbox].latin && <em>{plates[lightbox].latin}</em>}
                 {plates[lightbox].note && <p>{plates[lightbox].note}</p>}
+                {plates[lightbox].credit && <small className="bct-lightbox-credit">{plates[lightbox].credit}</small>}
                 <div className="bct-actions">
                   <button type="button" className="bct-btn" onClick={() => { setLightbox(null); go("licence") }}>Included in every licence</button>
                   <div className="bct-lightbox-nav">
@@ -2053,8 +2818,8 @@ export default function BenthosCollectionTemplate({
 // ---- styles -----------------------------------------------------------------------
 
 const CSS = `
-.bct-root{--paper:var(--c-paper);--ink:var(--c-ink);--deep:var(--c-deep);--abyss:var(--c-abyss);--slate:var(--c-slate);--dusk:var(--c-dusk);--sand:var(--c-sand);--coral:var(--c-coral);--kelp:var(--c-kelp);--gold:var(--c-gold);--light:var(--c-paper);--dark:var(--c-ink);--card:color-mix(in oklab,var(--c-paper) 80%,#fff);--soft:color-mix(in oklab,var(--ink) 72%,var(--paper));--line:color-mix(in oklab,var(--ink) 16%,transparent);--band:color-mix(in oklab,var(--paper) 88%,var(--sand));position:relative;isolation:isolate;width:100%;background:var(--paper);color:var(--ink);font-family:var(--label);container-type:inline-size;overflow-x:clip;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
-.bct-root.bct-dark,:where(.dark) .bct-root:not(.bct-light){--paper:color-mix(in oklab,var(--c-abyss) 78%,#070b0d);--ink:var(--c-paper);--card:color-mix(in oklab,var(--c-abyss) 60%,#243034);--soft:color-mix(in oklab,var(--c-paper) 72%,var(--c-abyss));--line:color-mix(in oklab,var(--c-paper) 16%,transparent);--band:color-mix(in oklab,var(--paper) 86%,var(--c-slate))}
+.bct-root{--paper:var(--c-paper);--ink:var(--c-ink);--deep:var(--c-deep);--abyss:var(--c-abyss);--slate:var(--c-slate);--dusk:var(--c-dusk);--sand:var(--c-sand);--coral:var(--c-coral);--kelp:var(--c-kelp);--gold:var(--c-gold);--light:var(--c-paper);--dark:var(--c-ink);--card:color-mix(in oklab,var(--c-paper) 70%,#fff);--soft:color-mix(in oklab,var(--ink) 72%,var(--paper));--line:color-mix(in oklab,var(--ink) 16%,transparent);--band:color-mix(in oklab,var(--paper) 90%,var(--sand));--shadow:0 1px 1px rgba(30,24,16,.08),0 10px 18px -8px rgba(30,24,16,.18),0 34px 50px -30px rgba(30,24,16,.45);position:relative;isolation:isolate;width:100%;background:var(--paper);color:var(--ink);font-family:var(--label);container-type:inline-size;overflow-x:clip;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+.bct-root.bct-dark,:where(.dark) .bct-root:not(.bct-light){--paper:color-mix(in oklab,var(--c-abyss) 30%,#0b0d10);--ink:var(--c-paper);--card:color-mix(in oklab,var(--c-paper) 92%,#fff);--soft:color-mix(in oklab,var(--c-paper) 72%,var(--c-abyss));--line:color-mix(in oklab,var(--c-paper) 16%,transparent);--band:color-mix(in oklab,var(--paper) 86%,var(--c-slate));--shadow:0 1px 1px rgba(0,0,0,.3),0 12px 20px -8px rgba(0,0,0,.45),0 40px 60px -30px rgba(0,0,0,.8)}
 :where(.bct-root) button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
 :where(.bct-root) :where(p,h1,h2,h3,ul,figure,fieldset){margin:0}
 :where(.bct-root) :where(ul){padding:0;list-style:none}
@@ -2063,164 +2828,184 @@ const CSS = `
 .bct-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .bct-defs{position:absolute;width:0;height:0;overflow:hidden}
 .bct-art{display:block;max-width:none}
+.bct-cut{display:block;width:100%;height:auto;max-width:none;user-select:none;-webkit-user-select:none;animation:bct-fade .9s cubic-bezier(.2,.8,.2,1) both}
+.bct-cut.is-flip{scale:-1 1}
+.bct-root .is-pending{opacity:0}
 .bct-fill{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:hidden}
-.bct-grain{position:absolute;inset:0;z-index:40;pointer-events:none;opacity:.26;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");background-size:240px 240px}
-.bct-dark .bct-grain,:where(.dark) .bct-root:not(.bct-light) .bct-grain{mix-blend-mode:soft-light;opacity:.45}
+.bct-swatch-fill{position:relative;overflow:hidden}
+.bct-tile{position:absolute;inset:0;background-repeat:repeat;background-position:0 0;animation:bct-fade .8s ease both}
+.bct-grain{position:absolute;inset:0;z-index:40;pointer-events:none;opacity:.22;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");background-size:240px 240px}
+.bct-dark .bct-grain,:where(.dark) .bct-root:not(.bct-light) .bct-grain{mix-blend-mode:soft-light;opacity:.4}
 
 /* type + buttons */
-.bct-eyebrow{display:flex;align-items:center;gap:10px;font:500 11px/1.2 var(--label);letter-spacing:.22em;text-transform:uppercase;color:var(--coral)}
+.bct-eyebrow{display:flex;align-items:center;gap:10px;font:500 11px/1.2 var(--label);letter-spacing:.24em;text-transform:uppercase;color:var(--coral)}
 .bct-eyebrow::before{content:"";width:22px;height:1px;background:currentColor;flex:none}
-.bct-h2{font:500 clamp(34px,4.4cqw,62px)/1.02 var(--display);letter-spacing:-.005em;max-width:18ch}
-.bct-lede{font:300 clamp(15px,1.15cqw,17px)/1.65 var(--label);color:var(--soft);max-width:46ch}
+.bct-h2{font:500 clamp(34px,4.2cqw,60px)/1.04 var(--display);letter-spacing:-.005em;max-width:18ch}
+.bct-lede{font:300 clamp(15px,1.12cqw,17px)/1.65 var(--label);color:var(--soft);max-width:46ch}
 .bct-head{display:grid;gap:16px;padding:0 6cqw;margin-bottom:3cqw}
 .bct-actions{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin-top:6px}
-.bct-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 24px;border-radius:999px;background:var(--ink);color:var(--paper);font:500 13px/1 var(--label);letter-spacing:.06em;text-transform:uppercase;transition:background .25s,transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s;white-space:nowrap}
-.bct-btn:hover{background:var(--coral);color:#fff;transform:translateY(-1px)}
-.bct-btn:active{transform:translateY(0) scale(.98)}
-.bct-btn-sm{height:40px;padding:0 18px;font-size:12px}
-.bct-btn-lg{height:54px;padding:0 32px;font-size:14px}
-.bct-link{font:500 13px/1 var(--label);letter-spacing:.06em;text-transform:uppercase;text-decoration:underline;text-underline-offset:6px;text-decoration-color:color-mix(in oklab,currentColor 40%,transparent);transition:text-decoration-color .25s}
+.bct-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 26px;border-radius:999px;background:var(--ink);color:var(--paper);font:500 12.5px/1 var(--label);letter-spacing:.12em;text-transform:uppercase;transition:background .25s,translate .25s cubic-bezier(.2,.8,.2,1),scale .2s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
+.bct-btn:hover{background:var(--coral);color:#fff;translate:0 -1px}
+.bct-btn:active{translate:0 0;scale:.98}
+.bct-btn-sm{height:40px;padding:0 18px;font-size:11.5px}
+.bct-btn-lg{height:54px;padding:0 32px;font-size:13px}
+.bct-link{font:500 12.5px/1 var(--label);letter-spacing:.12em;text-transform:uppercase;text-decoration:underline;text-underline-offset:6px;text-decoration-color:color-mix(in oklab,currentColor 40%,transparent);transition:text-decoration-color .25s}
 .bct-link:hover{text-decoration-color:currentColor}
 
 /* header */
-.bct-header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;height:64px;padding:0 clamp(16px,3cqw,40px);background:color-mix(in oklab,var(--paper) 84%,transparent);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);border-bottom:1px solid var(--line);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.bct-header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;height:64px;padding:0 clamp(16px,3cqw,40px);background:color-mix(in oklab,var(--paper) 82%,transparent);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2);border-bottom:1px solid var(--line);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .bct-header.is-tucked{transform:translateY(-100%)}
 .bct-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;overflow:hidden}
 .bct-progress i{display:block;height:100%;background:var(--coral);transform:scaleX(0);transform-origin:0 50%}
 .bct-brand{display:flex;align-items:center;gap:10px}
 .bct-brand-mark{width:28px;height:28px;color:var(--ink)}
-.bct-brand-name{font:500 24px/1 var(--display);letter-spacing:.04em}
-.bct-brand-note{font:400 10px/1 var(--label);letter-spacing:.26em;text-transform:uppercase;opacity:.6;margin-top:4px}
+.bct-brand-name{font:500 25px/1 var(--display);letter-spacing:.04em}
+.bct-brand-note{font:400 10px/1 var(--label);letter-spacing:.28em;text-transform:uppercase;opacity:.6;margin-top:4px}
 .bct-nav{display:flex;gap:2px;margin-left:auto}
-.bct-nav :where(a,button){display:block;padding:9px 13px;border-radius:999px;font:500 12px/1 var(--label);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;transition:background .2s,color .2s}
+.bct-nav :where(a,button){display:block;padding:9px 13px;border-radius:999px;font:500 11.5px/1 var(--label);letter-spacing:.16em;text-transform:uppercase;text-decoration:none;transition:background .2s,color .2s}
 .bct-nav :where(a,button):hover{background:var(--ink);color:var(--paper)}
-.bct-cta{display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 18px;border-radius:999px;background:var(--ink);color:var(--paper);font:500 12px/1 var(--label);letter-spacing:.08em;text-transform:uppercase;transition:background .25s;white-space:nowrap}
+.bct-cta{display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 18px;border-radius:999px;background:var(--ink);color:var(--paper);font:500 11.5px/1 var(--label);letter-spacing:.12em;text-transform:uppercase;transition:background .25s;white-space:nowrap}
 .bct-cta:hover{background:var(--coral);color:#fff}
-.bct-cta-price{display:inline-grid;place-items:center;height:28px;padding:0 10px;border-radius:999px;background:var(--coral);color:#fff;font-size:11px}
+.bct-cta-price{display:inline-grid;place-items:center;height:28px;padding:0 10px;border-radius:999px;background:var(--coral);color:#fff;font-size:11px;letter-spacing:.04em}
 .bct-cta:hover .bct-cta-price{background:var(--ink)}
 .bct-burger{display:none;width:40px;height:40px;place-items:center;align-content:center;gap:6px;margin-left:auto}
 .bct-burger i{display:block;width:20px;height:2px;background:currentColor;transition:transform .3s}
 .bct-burger[aria-expanded=true] i:first-child{transform:translateY(4px) rotate(45deg)}
 .bct-burger[aria-expanded=true] i:last-child{transform:translateY(-4px) rotate(-45deg)}
 
-/* the dive */
+/* the dive: a rounded window opening into the deep */
 .bct-dive{position:relative;height:calc(var(--h) * 2.3);margin-top:-64px}
-.bct-stage{position:sticky;top:0;height:var(--h);min-height:620px;overflow:hidden;--in:1;--open:0;--rx0:27;--ry0:32;--cy:49%}
+.bct-stage{position:sticky;top:0;height:var(--h);min-height:640px;overflow:hidden;--in:1;--open:0;--wt:15;--wb:27;--wx:22;--wr:13;--k:calc(1 - var(--open));--cy:calc((var(--wt) + (100 - var(--wt) - var(--wb)) / 2) * 1%)}
 .bct-scene{position:absolute;inset:0}
-.bct-doodle{position:absolute;color:var(--ink);opacity:.2;pointer-events:none}
-.bct-porthole{position:absolute;inset:0;background:var(--deep);clip-path:ellipse(calc(max(0, var(--rx0) * var(--in) + (90 - var(--rx0)) * var(--open)) * 1%) calc(max(0, var(--ry0) * var(--in) + (90 - var(--ry0)) * var(--open)) * 1%) at 50% var(--cy))}
-.bct-water{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 12%,color-mix(in oklab,var(--deep) 62%,#8fb3a8) 0%,var(--deep) 46%,var(--abyss) 100%)}
-.bct-caustic{position:absolute;inset:-30%;mix-blend-mode:screen;opacity:.2;pointer-events:none;background:radial-gradient(closest-side,rgba(255,255,255,.55),transparent 70%) 12% 18%/32% 26% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.4),transparent 70%) 70% 30%/40% 30% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.35),transparent 70%) 40% 70%/36% 24% no-repeat}
-.bct-caustic-b{opacity:.14;background:radial-gradient(closest-side,rgba(255,255,255,.5),transparent 70%) 80% 70%/34% 28% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.4),transparent 70%) 24% 60%/42% 30% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.3),transparent 70%) 55% 10%/30% 22% no-repeat}
-.bct-rays{position:absolute;inset:0;mix-blend-mode:screen;opacity:.9;background:conic-gradient(from 160deg at 50% -30%,transparent 0 34%,rgba(255,255,255,.07) 35% 36.5%,transparent 38% 43%,rgba(255,255,255,.05) 44% 45%,transparent 47% 51%,rgba(255,255,255,.08) 52% 53.5%,transparent 55% 60%,rgba(255,255,255,.05) 61% 62%,transparent 64%)}
-.bct-silhouettes{position:absolute;inset:0;--px:0;--py:0;translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
-.bct-sil{position:absolute;bottom:-1%;opacity:.5;filter:saturate(.55) brightness(.62)}
-.bct-sil-a{left:27%;width:9cqw}
-.bct-sil-b{left:62%;width:7cqw;bottom:-3%}
-.bct-sil-c{left:42%;width:13cqw;bottom:-2%}
-.bct-sil-d{left:33%;width:9cqw;bottom:-4%}
-.bct-sil-e{left:70%;width:5.5cqw}
-.bct-bubble{position:absolute;bottom:-24px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.4),rgba(255,255,255,.04) 62%);opacity:0;display:none}
+.bct-doodle{position:absolute;color:var(--ink);opacity:.16;pointer-events:none}
+.bct-porthole{position:absolute;inset:0;background:var(--deep);clip-path:inset(calc((var(--wt) + (50 - var(--wt)) * (1 - var(--in))) * var(--k) * 1%) calc((var(--wx) + (50 - var(--wx)) * (1 - var(--in))) * var(--k) * 1%) calc((var(--wb) + (50 - var(--wb)) * (1 - var(--in))) * var(--k) * 1%) calc((var(--wx) + (50 - var(--wx)) * (1 - var(--in))) * var(--k) * 1%) round calc(var(--wr) * var(--k) * 1cqw))}
+.bct-water{position:absolute;inset:0;background:radial-gradient(90% 70% at 50% 18%,color-mix(in oklab,var(--deep) 58%,#a9c4b6) 0%,var(--deep) 48%,var(--abyss) 100%)}
+.bct-caustic{position:absolute;inset:-30%;mix-blend-mode:screen;opacity:.18;pointer-events:none;background:radial-gradient(closest-side,rgba(255,255,255,.55),transparent 70%) 12% 18%/32% 26% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.4),transparent 70%) 70% 30%/40% 30% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.35),transparent 70%) 40% 70%/36% 24% no-repeat}
+.bct-caustic-b{opacity:.12;background:radial-gradient(closest-side,rgba(255,255,255,.5),transparent 70%) 80% 70%/34% 28% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.4),transparent 70%) 24% 60%/42% 30% no-repeat,radial-gradient(closest-side,rgba(255,255,255,.3),transparent 70%) 55% 10%/30% 22% no-repeat}
+.bct-rays{position:absolute;inset:0;mix-blend-mode:screen;opacity:.85;background:conic-gradient(from 160deg at 50% -30%,transparent 0 34%,rgba(255,255,255,.07) 35% 36.5%,transparent 38% 43%,rgba(255,255,255,.05) 44% 45%,transparent 47% 51%,rgba(255,255,255,.08) 52% 53.5%,transparent 55% 60%,rgba(255,255,255,.05) 61% 62%,transparent 64%)}
+.bct-forest{position:absolute;--rise:0;--px:0;--py:0;top:calc(var(--wt) * var(--k) * 1%);bottom:calc(var(--wb) * var(--k) * 1%);left:calc(var(--wx) * var(--k) * 1%);right:calc(var(--wx) * var(--k) * 1%);translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
+.bct-weed{position:absolute;bottom:-5%;transform-origin:50% 100%}
+.bct-weed .bct-art,.bct-weed .bct-cut{width:100%;height:auto}
+.bct-weed.is-d0{z-index:1;bottom:-8%;filter:brightness(.5) saturate(.6) hue-rotate(-12deg)}
+.bct-weed.is-d1{z-index:3;bottom:-7%;filter:brightness(.7) saturate(.82)}
+.bct-weed.is-d2{z-index:4;bottom:-4%;filter:brightness(.92) saturate(.95)}
+.bct-haze{position:absolute;inset:-10% -10% 0;z-index:2;background:linear-gradient(180deg,color-mix(in oklab,var(--deep) 30%,transparent) 0%,color-mix(in oklab,var(--deep) 32%,transparent) 55%,color-mix(in oklab,var(--abyss) 50%,transparent) 100%)}
+.bct-dim{position:absolute;inset:-10% -10% -2%;z-index:5;background:linear-gradient(90deg,var(--abyss) 0%,color-mix(in oklab,var(--abyss) 60%,transparent) 45%,color-mix(in oklab,var(--abyss) 30%,transparent) 100%);opacity:calc(var(--rise) * .62);pointer-events:none}
+.bct-bubble{position:absolute;bottom:-24px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.4),rgba(255,255,255,.04) 62%);opacity:0;display:none;z-index:5}
 .is-alive .bct-bubble{display:block;animation-name:bct-rise;animation-timing-function:linear;animation-iteration-count:infinite}
-.bct-vignette{position:absolute;inset:0;background:radial-gradient(60% 62% at 50% 48%,transparent 56%,rgba(0,0,0,.38) 100%)}
-.bct-kicker{position:absolute;left:50%;top:calc(var(--cy) - var(--ry0) * 1% - 2.2cqw);transform:translate(-50%,-100%);font:400 clamp(22px,2.6cqw,38px)/1 var(--display);letter-spacing:.02em;white-space:nowrap}
-.bct-hero-anchor{position:absolute;left:0;right:0;top:var(--cy);transform:translateY(-50%);display:grid;place-items:center;pointer-events:none;--px:0;--py:0;translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
+.bct-vignette{position:absolute;inset:0;z-index:6;background:radial-gradient(34% 26% at 50% var(--cy),rgba(6,16,16,.34),transparent 100%),radial-gradient(70% 70% at 50% 50%,transparent 60%,rgba(0,0,0,.3) 100%)}
+.bct-kicker{position:absolute;left:50%;top:calc(var(--wt) * 1% - 1.4cqw);transform:translate(-50%,-100%);font:400 clamp(22px,2.5cqw,38px)/1 var(--display);letter-spacing:.02em;white-space:nowrap}
+.bct-hero-anchor{position:absolute;left:0;right:0;top:var(--cy);transform:translateY(-50%);z-index:7;display:grid;place-items:center;pointer-events:none;--px:0;--py:0;translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
 .bct-hero-copy{display:flex;flex-direction:column;align-items:center;text-align:center;color:var(--c-paper);padding:0 8cqw}
-.bct-arch{width:clamp(34px,3.2cqw,54px);height:auto;opacity:.8;margin-bottom:14px}
-.bct-title{font:500 clamp(36px,5.5cqw,88px)/.95 var(--display);letter-spacing:.14em;text-transform:uppercase;padding-left:.14em;text-shadow:0 2px 30px rgba(0,0,0,.25)}
-.bct-script{font:400 clamp(40px,6.2cqw,96px)/.8 var(--script);margin-top:-.14em;rotate:-4deg;text-shadow:0 2px 30px rgba(0,0,0,.25)}
-.bct-squiggle{width:84px;opacity:.7;margin:18px 0 12px}
-.bct-byline{font:400 11px/1 var(--label);letter-spacing:.32em;text-transform:uppercase;opacity:.78}
-.bct-badge{position:absolute;left:calc(50% + var(--rx0) * 1% - 3.4cqw);top:calc(var(--cy) - 3.4cqw);width:clamp(58px,5.8cqw,88px);aspect-ratio:1;border-radius:50%;background:var(--slate);color:var(--c-paper);display:grid;place-items:center;font:500 clamp(14px,1.5cqw,22px)/1 var(--display);letter-spacing:.02em;box-shadow:0 14px 30px -14px rgba(0,0,0,.55);pointer-events:none}
+.bct-arch{width:clamp(30px,3cqw,48px);height:auto;opacity:.85;margin-bottom:12px}
+.bct-title{font:400 clamp(36px,5.5cqw,86px)/.95 var(--display);letter-spacing:.17em;text-transform:uppercase;padding-left:.17em;text-shadow:0 2px 28px rgba(0,0,0,.3)}
+.bct-script{font:400 clamp(40px,5.6cqw,86px)/.8 var(--script);margin-top:-.12em;rotate:-4deg;text-shadow:0 2px 26px rgba(0,0,0,.3)}
+.bct-squiggle{width:78px;opacity:.75;margin:14px 0 10px}
+.bct-byline{font:400 10.5px/1 var(--label);letter-spacing:.34em;text-transform:uppercase;opacity:.8}
+.bct-badge{position:absolute;z-index:8;left:calc(100% - var(--wx) * 1% - 3.6cqw);top:calc(var(--cy) - 1cqw);width:clamp(60px,6cqw,90px);aspect-ratio:1;border-radius:50%;background:var(--slate);color:var(--c-paper);display:grid;place-items:center;font:500 clamp(15px,1.6cqw,23px)/1 var(--display);letter-spacing:.02em;box-shadow:0 14px 30px -14px rgba(0,0,0,.55);pointer-events:none}
 .bct-badge::after{content:"";position:absolute;inset:5px;border-radius:50%;border:1px dashed color-mix(in oklab,var(--c-paper) 55%,transparent)}
-.bct-fig{position:absolute;pointer-events:none;--px:0;--py:0;translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
-.bct-fig .bct-art{width:100%;height:auto}
-.bct-grow{clip-path:circle(calc(var(--draw,1) * 125%) at 50% 100%)}
-.bct-fig-whale{left:1cqw;top:40%;width:31cqw;filter:drop-shadow(0 12px 14px rgba(0,0,0,.14))}
-.bct-fig-octopus{left:61cqw;top:4%;width:19cqw;filter:drop-shadow(0 12px 14px rgba(0,0,0,.14))}
-.bct-fig-coral{left:21cqw;top:10%;width:12cqw}
-.bct-fig-kelp-a{left:26cqw;top:48%;width:6cqw}
-.bct-fig-kelp-b{left:78cqw;top:38%;width:5.5cqw;rotate:14deg}
-.bct-fig-fan{left:70cqw;top:54%;width:14cqw}
-.bct-fig-scallop{left:83cqw;top:68%;width:6.5cqw}
-.bct-fig-star{left:17cqw;top:66%;width:6cqw}
-.bct-fig-crab{left:86cqw;top:80%;width:8.5cqw}
-.bct-fig-fish{left:8cqw;top:24%;width:5cqw}
-.bct-under{position:absolute;left:0;right:0;top:calc(var(--cy) + var(--ry0) * 1% + 1.6cqw);display:grid;justify-items:center;gap:16px;text-align:center}
-.bct-tagline{font:italic 400 clamp(18px,2cqw,28px)/1.2 var(--display)}
-.bct-under-actions{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:14px 24px}
-.bct-peek{position:absolute;left:50%;bottom:-2.6cqw;transform:translateX(-50%);display:flex;gap:1.2cqw;align-items:flex-end;pointer-events:none}
-.bct-peek-card{position:relative;width:9cqw;height:6.4cqw;background:var(--light);border:3px solid #fff;border-radius:3px;box-shadow:0 14px 26px -14px rgba(0,0,0,.5);rotate:calc((var(--i) - 3) * 2.2deg);translate:0 calc(abs(var(--i) - 3) * .35cqw);overflow:hidden}
-.bct-peek-chip{display:grid;grid-template-rows:1fr auto}
-.bct-peek-chip span{background:var(--sw)}
-.bct-peek-chip b{font:500 9px/1 var(--label);letter-spacing:.08em;padding:5px 7px;color:var(--dark);text-transform:uppercase}
-.bct-deep{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1.15fr;grid-template-areas:"copy stats" "formats formats";align-content:center;gap:2.6cqw 5cqw;padding:calc(64px + 3cqw) 7cqw 9cqw;color:var(--c-paper);pointer-events:none}
+.bct-fig{position:absolute;z-index:9;pointer-events:none;--px:0;--py:0}
+.bct-fig > *{translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}
+.bct-fig :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-root:not(.is-ready) .bct-scene .bct-fig,.bct-root:not(.is-ready) .bct-weed{opacity:0}
+.bct-fig-whale{left:1.5cqw;top:45%;width:34cqw;z-index:11;filter:drop-shadow(0 16px 18px rgba(20,26,26,.28))}
+.bct-fig-octopus{left:65cqw;top:calc(64px + .6cqw);width:16.5cqw;z-index:10;filter:drop-shadow(0 14px 16px rgba(30,20,10,.24))}
+.bct-fig-gorgonian{left:15cqw;top:9%;width:10.5cqw;filter:drop-shadow(0 10px 10px rgba(30,20,10,.18))}
+.bct-fig-kelp{left:18.6cqw;top:37%;width:6.2cqw}
+.bct-fig-star{left:21.5cqw;top:63%;width:7.5cqw;rotate:-14deg;filter:drop-shadow(0 8px 10px rgba(30,20,10,.22))}
+.bct-fig-coral{left:68.5cqw;top:55%;width:12.5cqw;filter:drop-shadow(0 10px 12px rgba(30,20,10,.2))}
+.bct-fig-scallop{left:78.5cqw;top:63.5%;width:8cqw;rotate:12deg;filter:drop-shadow(0 10px 12px rgba(30,20,10,.25))}
+.bct-fig-rose{left:78.6cqw;top:30%;width:7cqw;rotate:10deg}
+.bct-arc{position:absolute;z-index:8;left:50%;top:calc(100% - var(--wb) * 1% + .2cqw);width:min(52cqw,760px);translate:-50% 0;overflow:visible;pointer-events:none}
+.bct-arc text{font:italic 400 44px var(--display);fill:var(--ink);letter-spacing:.01em}
+.bct-under{position:absolute;z-index:8;left:0;right:0;top:calc(100% - var(--wb) * 1% + 6.6cqw);display:flex;justify-content:center;align-items:center;gap:12px 26px;flex-wrap:wrap}
+.bct-strip{position:absolute;z-index:12;left:50%;bottom:-8cqw;translate:-50% 0;display:flex;gap:1.1cqw;align-items:flex-end;pointer-events:none}
+.bct-strip-card{position:relative;width:8.6cqw;height:12cqw;background:#fff;padding:5px;box-shadow:var(--shadow);rotate:calc((var(--i) - 4) * 1.7deg);translate:0 calc(abs(var(--i) - 4) * .55cqw);overflow:visible}
+.bct-strip-card.is-tile > .bct-swatch-fill{position:absolute;inset:5px}
+.bct-strip-card.is-plate img{display:block;width:100%;height:100%;object-fit:cover;max-width:none}
+.bct-strip-card.is-plate .bct-art{width:100%;height:100%}
+.bct-strip-card.is-chip{width:7.4cqw;height:10.4cqw;padding:5px 5px 0;display:grid;grid-template-rows:1fr auto auto;gap:2px;align-self:flex-start;margin-bottom:2.4cqw}
+.bct-strip-card.is-chip span{background:var(--sw)}
+.bct-strip-card.is-chip b{font:600 9px/1.1 var(--label);color:#222;margin-top:4px}
+.bct-strip-card.is-chip small{font:400 8.5px/1 var(--label);color:#666;letter-spacing:.06em;padding-bottom:7px;text-transform:uppercase}
+.bct-deep{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1.15fr;grid-template-areas:"copy stats" "formats formats";align-content:center;gap:2.6cqw 5cqw;padding:calc(64px + 3cqw) 7cqw 11cqw;color:var(--c-paper);pointer-events:none;z-index:13}
 .bct-deep-copy{grid-area:copy;display:grid;gap:18px;align-content:center}
 .bct-deep-copy > *,.bct-stat,.bct-formats{opacity:0}
 .bct-deep .bct-eyebrow{color:var(--sand)}
-.bct-deep .bct-lede{color:color-mix(in oklab,var(--c-paper) 80%,transparent)}
+.bct-deep .bct-lede{color:color-mix(in oklab,var(--c-paper) 82%,transparent)}
 .bct-stats{grid-area:stats;display:grid;grid-template-columns:repeat(3,1fr);gap:1.8cqw 2cqw;align-self:center}
 .bct-stat{display:grid;gap:5px;padding-top:14px;border-top:1px solid color-mix(in oklab,var(--c-paper) 25%,transparent)}
 .bct-stat-n{font:300 clamp(38px,4.6cqw,72px)/1 var(--display);font-variant-numeric:tabular-nums}
 .bct-stat-l{font:500 11px/1.3 var(--label);letter-spacing:.16em;text-transform:uppercase}
-.bct-stat-note{font:300 13px/1.4 var(--label);opacity:.68}
+.bct-stat-note{font:300 13px/1.4 var(--label);opacity:.7}
 .bct-formats{grid-area:formats;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font:500 11px/1 var(--label);letter-spacing:.2em;text-transform:uppercase}
 .bct-formats span{margin-right:8px;opacity:.7}
 .bct-formats em{font-style:normal;padding:8px 12px;border:1px solid color-mix(in oklab,var(--c-paper) 35%,transparent);border-radius:999px;letter-spacing:.12em}
 .is-still .bct-dive{height:auto}
 .is-still .bct-stage{position:relative;height:auto;min-height:0}
-.is-still .bct-scene{position:relative;height:var(--h);min-height:620px}
+.is-still .bct-scene{position:relative;height:var(--h);min-height:640px}
 .is-still .bct-deep{position:relative;inset:auto;background:var(--deep);padding:7cqw 7cqw 8cqw;pointer-events:auto}
 .is-still .bct-deep :where(.bct-deep-copy > *,.bct-stat,.bct-formats){opacity:1}
 
 /* the moodboard */
-.bct-board{position:relative;display:grid;grid-template-columns:repeat(12,1fr);gap:2.6cqw 2cqw;padding:7cqw 6cqw 9cqw;align-items:start}
+.bct-board{position:relative;display:grid;grid-template-columns:repeat(12,1fr);gap:3cqw 2cqw;padding:8cqw 5.5cqw 9cqw;align-items:start}
 .bct-pinned{position:relative;cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .bct-pinned.is-drag{cursor:grabbing;z-index:6}
-.bct-card{background:var(--light);color:var(--dark);box-shadow:0 1px 0 rgba(0,0,0,.05),0 22px 44px -26px rgba(20,30,30,.55);transition:box-shadow .4s}
-.bct-pinned:hover .bct-card,.bct-card.bct-pinned:hover{box-shadow:0 1px 0 rgba(0,0,0,.05),0 32px 56px -28px rgba(20,30,30,.6)}
-.bct-tack{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#fff6d2,var(--gold) 46%,#6d4d14 100%);box-shadow:0 2px 3px rgba(0,0,0,.4),0 8px 12px -5px rgba(0,0,0,.45);z-index:4;pointer-events:none}
-.bct-tape{position:absolute;width:92px;height:26px;left:-22px;top:-9px;background:color-mix(in oklab,var(--sand) 72%,transparent);transform:rotate(-7deg);z-index:4;clip-path:polygon(1% 0,99% 3%,100% 97%,0 100%);pointer-events:none;mix-blend-mode:multiply}
-.bct-poster{grid-column:1/4;grid-row:1/4;width:100%;max-width:340px;justify-self:center}
-.bct-poster .bct-plate{border:0;padding:6%}
-.bct-markcard{grid-column:4/6;grid-row:1;width:clamp(110px,9cqw,140px);aspect-ratio:1;background:var(--slate);color:var(--c-paper);display:grid;place-content:center;justify-items:center;gap:8px;justify-self:center;font:400 10px/1 var(--label);letter-spacing:.28em;text-transform:uppercase}
-.bct-markcard-icon{width:46%;color:var(--c-paper)}
-.bct-board-whale{grid-column:6/9;grid-row:1;align-self:center;width:100%;filter:drop-shadow(0 14px 18px rgba(0,0,0,.14))}
-.bct-board-whale .bct-art{width:100%;height:auto}
-.bct-icons{grid-column:9/13;grid-row:1;padding:30px 18px 12px}
-.bct-card-title{font:500 11px/1 var(--label);letter-spacing:.22em;text-transform:uppercase;margin-bottom:12px;opacity:.7}
-.bct-icon-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.bct-card{background:var(--card);color:var(--dark);box-shadow:var(--shadow)}
+.bct-tack{position:absolute;width:15px;height:15px;margin:-7px 0 0 -7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7d8 0,#e5c46e 22%,var(--gold) 48%,#6d4d14 100%);box-shadow:0 2px 2px rgba(0,0,0,.35),2px 9px 10px -4px rgba(0,0,0,.45);z-index:4;pointer-events:none}
+.bct-tape{position:absolute;width:96px;height:28px;left:-26px;top:-8px;background:color-mix(in oklab,var(--sand) 70%,transparent);transform:rotate(-34deg);z-index:4;clip-path:polygon(2% 0,98% 4%,100% 96%,0 100%);pointer-events:none;mix-blend-mode:multiply;opacity:.9}
+.bct-poster{grid-column:1/4;grid-row:1/3;width:100%;max-width:330px;justify-self:center;padding:12px 12px 14px}
+.bct-poster-fig{display:grid;gap:10px}
+.bct-poster-fig img{display:block;width:100%;height:auto;max-width:none;aspect-ratio:3289/4615;object-fit:cover;background:#e9e2d2}
+.bct-poster-fig .bct-art{width:100%;height:auto;aspect-ratio:.72}
+.bct-poster-fig figcaption{display:grid;justify-items:center;gap:2px;text-align:center}
+.bct-poster-fig figcaption span{font:500 9px/1 var(--label);letter-spacing:.3em;text-transform:uppercase;opacity:.6}
+.bct-poster-fig figcaption b{font:500 20px/1.1 var(--display);letter-spacing:.18em;text-transform:uppercase}
+.bct-poster-fig figcaption em{font:italic 300 13px/1.2 var(--display);opacity:.72}
+.bct-markcard{grid-column:4/6;grid-row:1;width:clamp(120px,10cqw,150px);aspect-ratio:1;background:var(--slate);color:var(--c-paper);display:grid;place-items:center;justify-self:center;margin-top:1.5cqw}
+.bct-markcard .bct-emblem{width:62%;color:var(--c-paper)}
+.bct-board-whale{grid-column:6/9;grid-row:1;align-self:center;width:100%;filter:drop-shadow(0 18px 18px rgba(20,26,26,.22))}
+.bct-board-whale :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-icons{grid-column:9/13;grid-row:1;padding:30px 20px 14px;position:relative;overflow:hidden}
+.bct-icons::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='420'><filter id='c' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='.006 .009' numOctaves='4' seed='7'/><feDiffuseLighting lighting-color='%23ffffff' surfaceScale='2.6'><feDistantLight azimuth='235' elevation='58'/></feDiffuseLighting></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>") center/cover}
+.bct-card-title{position:relative;font:500 10.5px/1 var(--label);letter-spacing:.24em;text-transform:uppercase;margin-bottom:10px;opacity:.65}
+.bct-icon-grid{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .bct-icon-grid li{position:relative;aspect-ratio:1;min-width:0}
-.bct-icon-grid .bct-art{position:absolute;left:9px;top:9px;width:calc(100% - 18px);height:calc(100% - 18px)}
-.bct-board-copy{grid-column:4/9;grid-row:2/4;align-self:center;display:grid;justify-items:center;gap:18px;text-align:center;padding:1cqw 2cqw}
-.bct-board-copy .bct-h2{font-size:clamp(30px,3.6cqw,52px);text-transform:uppercase;letter-spacing:.04em;max-width:none;font-weight:400}
-.bct-board-copy .bct-lede{font:italic 300 clamp(14px,1.1cqw,16px)/1.7 var(--display);max-width:52ch}
-.bct-chips{grid-column:9/13;grid-row:2;display:grid;grid-template-columns:repeat(3,1fr);gap:18px 10px;padding:14px 4px 0}
-.bct-chipcard{aspect-ratio:5/6.2;background:var(--light);color:var(--dark);box-shadow:0 1px 0 rgba(0,0,0,.05),0 18px 34px -22px rgba(20,30,30,.55)}
-.bct-chip{display:grid;grid-template-rows:1fr auto auto;width:100%;height:100%;padding:5px 5px 7px;gap:2px}
+.bct-icon-grid .bct-art{position:absolute;left:10px;top:10px;width:calc(100% - 20px);height:calc(100% - 20px);color:#3b4448}
+.bct-board-copy{grid-column:4/10;grid-row:2;align-self:center;display:grid;justify-items:center;gap:18px;text-align:center;padding:0 2cqw}
+.bct-board-copy .bct-eyebrow{justify-content:center}
+.bct-board-copy .bct-h2{font-size:clamp(28px,3cqw,44px);line-height:1.12;text-transform:uppercase;letter-spacing:.06em;max-width:24ch;font-weight:400}
+.bct-board-copy .bct-lede{font:italic 400 clamp(14px,1.15cqw,17px)/1.7 var(--display);max-width:56ch}
+.bct-chips{grid-column:10/13;grid-row:2;display:grid;grid-template-columns:repeat(3,1fr);gap:18px 10px;padding:10px 4px 0;align-self:start}
+.bct-chipcard{aspect-ratio:5/6.4;background:var(--card);color:var(--dark);box-shadow:var(--shadow)}
+.bct-chip{display:grid;grid-template-rows:1fr auto auto;width:100%;height:100%;padding:5px 5px 8px;gap:2px}
 .bct-chip-color{background:var(--sw);min-height:0;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .bct-chip:hover .bct-chip-color{transform:scale(1.03)}
-.bct-chip-name{font:500 10px/1.1 var(--label);margin-top:5px;padding:0 2px}
-.bct-chip-hex{font:300 9.5px/1 var(--label);letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:0 2px}
-.bct-swatches{grid-column:4/8;grid-row:4;display:flex;gap:2cqw;align-items:flex-end;justify-content:center;padding-top:1cqw}
-.bct-swatch{width:clamp(96px,9.4cqw,136px);display:grid;justify-items:center;gap:8px}
-.bct-swatch-btn{position:relative;display:block;width:100%;aspect-ratio:1;background:var(--light);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.bct-chip-name{font:600 10px/1.1 var(--label);margin-top:6px;padding:0 2px}
+.bct-chip-hex{font:400 9.5px/1 var(--label);letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:0 2px}
+.bct-letter-card{grid-column:1/4;grid-row:3/5;width:min(100%,290px);aspect-ratio:1/1.05;justify-self:center;align-self:end;display:grid;place-items:center;overflow:visible;margin-top:2cqw;background:var(--c-deep);background-image:radial-gradient(80% 70% at 40% 30%,color-mix(in oklab,var(--c-deep) 70%,#9fbcae),var(--c-deep))}
+.bct-letter-glyph{display:block;font:600 clamp(190px,19.5cqw,290px)/.86 var(--display);margin-top:-.04em;background-color:var(--c-paper);background-repeat:repeat;background-size:210px auto;background-position:22% 30%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:0 .04em;filter:drop-shadow(0 2px 1px rgba(0,0,0,.25)) drop-shadow(0 12px 16px rgba(0,0,0,.25))}
+.bct-letter-coral{position:absolute;right:-9%;bottom:-6%;width:46%;rotate:14deg;pointer-events:none;filter:drop-shadow(0 8px 8px rgba(30,20,10,.2))}
+.bct-letter-coral :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-swatches{grid-column:4/9;grid-row:3/5;display:flex;gap:1.8cqw;align-items:flex-end;justify-content:center;align-self:end;padding-top:1cqw}
+.bct-swatch{width:clamp(96px,9cqw,132px);display:grid;justify-items:center;gap:9px}
+.bct-swatch-shade{display:block;width:100%;filter:drop-shadow(0 1px 1px rgba(30,24,16,.25)) drop-shadow(0 12px 12px rgba(30,24,16,.22))}
+.bct-swatch-btn{position:relative;display:block;width:100%;aspect-ratio:1;background:#fff;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .bct-swatch-btn:hover{transform:scale(1.04)}
-.bct-swatch-btn .bct-fill{inset:5px;width:calc(100% - 10px);height:calc(100% - 10px)}
-.bct-swatch-name{font:500 10px/1 var(--label);letter-spacing:.18em;text-transform:uppercase;opacity:.7;display:flex;gap:6px;align-items:center}
+.bct-swatch-btn > .bct-swatch-fill{position:absolute;inset:0}
+.bct-swatch-name{font:500 10px/1 var(--label);letter-spacing:.18em;text-transform:uppercase;opacity:.7;display:flex;gap:6px;align-items:center;white-space:nowrap}
 .bct-swatch.is-on .bct-swatch-name{opacity:1}
 .bct-swatch.is-on .bct-swatch-name::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--coral)}
-.bct-board-shell{grid-column:8/9;grid-row:4;display:grid;gap:4px;align-self:end;justify-items:center}
-.bct-board-shell .bct-art{width:6cqw;max-width:88px;height:auto}
-.bct-board-shell .bct-art-starfish{width:4.6cqw;max-width:70px;rotate:22deg}
-.bct-envelope{grid-column:9/13;grid-row:3/5;position:relative;width:min(100%,360px);aspect-ratio:300/180;justify-self:center;align-self:end;margin-top:36%;perspective:1100px;filter:drop-shadow(0 26px 30px rgba(20,30,30,.28))}
-.bct-env-back{position:absolute;inset:0;background:color-mix(in oklab,var(--sand) 88%,#000);border-radius:3px;overflow:hidden}
-.bct-env-lining{clip-path:polygon(0 0,100% 0,50% 60%)}
+.bct-board-shell{width:clamp(90px,8.5cqw,128px);align-self:center;rotate:-12deg;margin-left:.6cqw;filter:drop-shadow(0 14px 12px rgba(60,30,10,.3))}
+.bct-board-shell :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-envelope{grid-column:9/13;grid-row:3/5;position:relative;width:min(100%,370px);aspect-ratio:300/190;justify-self:center;align-self:end;margin-top:30%;perspective:1100px;filter:drop-shadow(0 26px 28px rgba(20,30,40,.3))}
+.bct-env-back{position:absolute;inset:0;background:var(--abyss);border-radius:3px;overflow:hidden}
+.bct-env-lining{position:absolute;inset:0;clip-path:polygon(0 0,100% 0,50% 58%)}
 .bct-env-letter{position:absolute;left:5%;right:5%;top:7%;bottom:0;z-index:1;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
-.bct-envelope.is-open .bct-env-letter{transform:translateY(-78%)}
-.bct-letter{display:grid;gap:8px;min-height:100%;padding:18px 18px 16px;background:var(--light);color:var(--dark);border-radius:2px;box-shadow:0 10px 24px -14px rgba(0,0,0,.5)}
-.bct-letter-title{font:500 20px/1.1 var(--display);text-transform:uppercase;letter-spacing:.08em}
-.bct-letter-body{font:300 12.5px/1.5 var(--label);opacity:.8}
+.bct-envelope.is-open .bct-env-letter{transform:translateY(-80%)}
+.bct-letter{display:grid;gap:8px;min-height:100%;padding:18px 18px 16px;background:var(--card);color:var(--dark);border-radius:2px;box-shadow:0 10px 24px -14px rgba(0,0,0,.5)}
+.bct-letter-title{font:500 19px/1.1 var(--display);text-transform:uppercase;letter-spacing:.1em}
+.bct-letter-body{font:300 12.5px/1.5 var(--label);opacity:.82}
 .bct-letter-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px}
 .bct-letter-row input{min-width:0;height:40px;padding:0 12px;border:1px solid color-mix(in oklab,var(--dark) 28%,transparent);border-radius:999px;background:#fff;color:var(--dark);font:400 13px var(--label)}
 .bct-letter-row input::placeholder{color:color-mix(in oklab,var(--dark) 45%,transparent)}
@@ -2229,39 +3014,41 @@ const CSS = `
 .bct-letter-err{font:400 11.5px/1.3 var(--label);color:var(--coral)}
 .bct-letter-done{font:italic 400 15px/1.3 var(--display);color:var(--dark);padding:10px 0 4px}
 .bct-env-front{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
-.bct-env-paper{fill:var(--sand)}
-.bct-env-seam{fill:none;stroke:rgba(0,0,0,.16);stroke-width:1}
-.bct-env-flap{position:absolute;left:0;right:0;top:0;height:60%;transform-origin:50% 0;transform-style:preserve-3d;transition:transform .95s cubic-bezier(.45,0,.2,1),z-index 0s .42s;z-index:3}
+.bct-env-paper{fill:color-mix(in oklab,var(--dusk) 78%,var(--slate))}
+.bct-env-seam{fill:none;stroke:rgba(0,0,0,.18);stroke-width:1}
+.bct-env-foil{position:absolute;z-index:3;left:50%;top:70%;width:15%;translate:-50% -50%;pointer-events:none;filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
+.bct-env-flap{position:absolute;left:0;right:0;top:0;height:58%;transform-origin:50% 0;transform-style:preserve-3d;transition:transform .95s cubic-bezier(.45,0,.2,1),z-index 0s .42s;z-index:3}
 .bct-envelope.is-open .bct-env-flap{transform:rotateX(180deg);z-index:0}
 .bct-env-flap-out,.bct-env-flap-in{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;clip-path:polygon(0 0,100% 0,50% 100%);overflow:hidden}
-.bct-env-flap-out{background:linear-gradient(180deg,color-mix(in oklab,var(--sand) 94%,#fff),color-mix(in oklab,var(--sand) 86%,#000))}
-.bct-env-flap-in{transform:rotateX(180deg);background:var(--light)}
-.bct-env-fish{position:absolute;right:7%;bottom:9%;width:36px;color:var(--dark);opacity:.55;z-index:2;pointer-events:none}
-.bct-plate{background:var(--light);color:var(--dark);padding:4.5%;border:7px solid color-mix(in oklab,var(--c-ink) 82%,#000);box-shadow:0 1px 0 rgba(0,0,0,.08),0 26px 44px -28px rgba(0,0,0,.6)}
-.bct-plate-mat{display:grid;gap:10px;padding:7% 7% 8%;border:1px solid color-mix(in oklab,var(--dark) 24%,transparent)}
-.bct-plate-art{position:relative;aspect-ratio:1/1.08}
+.bct-env-flap-out{background:linear-gradient(180deg,color-mix(in oklab,var(--dusk) 92%,#fff),color-mix(in oklab,var(--dusk) 70%,var(--slate)))}
+.bct-env-flap-in{transform:rotateX(180deg);background:var(--abyss)}
+.bct-env-flap-in > .bct-swatch-fill{position:absolute;inset:0}
+
+/* plates */
+.bct-plate{background:var(--card);color:var(--dark);padding:4.5%;border:7px solid #1d2326;box-shadow:var(--shadow)}
+.bct-plate-mat{display:grid;gap:10px;padding:7% 7% 8%;border:1px solid color-mix(in oklab,var(--dark) 22%,transparent)}
+.bct-plate-art{position:relative;aspect-ratio:1/1.32;background:color-mix(in oklab,var(--c-paper) 70%,#fff)}
 .bct-plate-art .bct-art,.bct-plate-art img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover}
+.bct-plate.is-scan .bct-plate-art{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
 .bct-plate-ink{opacity:.82}
 .bct-plate-cap{display:grid;justify-items:center;gap:3px;text-align:center}
 .bct-plate-num{font:500 9.5px/1 var(--label);letter-spacing:.3em;text-transform:uppercase;opacity:.7}
-.bct-plate-num:empty{display:none}
-.bct-plate-title{font:500 clamp(15px,1.4cqw,21px)/1.1 var(--display);text-transform:uppercase;letter-spacing:.1em;max-width:100%;overflow-wrap:anywhere}
-.bct-poster .bct-plate-title{font-size:clamp(20px,1.9cqw,28px);letter-spacing:.16em}
+.bct-plate-title{font:500 clamp(15px,1.3cqw,20px)/1.1 var(--display);text-transform:uppercase;letter-spacing:.12em;max-width:100%;overflow-wrap:anywhere}
 .bct-plate-latin{font:italic 300 13px/1.2 var(--display);opacity:.72}
 
 /* patterns */
 .bct-patterns{position:relative;display:grid;grid-template-columns:1.25fr .9fr;grid-template-areas:"head head" "stage list";gap:2cqw 4cqw;padding:7cqw 6cqw 8cqw;background:var(--band)}
 .bct-patterns .bct-head{grid-area:head;padding:0}
-.bct-pat-stage{grid-area:stage;position:relative;aspect-ratio:4/3;background:var(--light);box-shadow:0 1px 0 rgba(0,0,0,.06),0 36px 60px -40px rgba(0,0,0,.6);overflow:hidden}
-.bct-pat-stage .bct-fill{inset:12px;width:calc(100% - 24px);height:calc(100% - 24px)}
-.bct-pat-label{position:absolute;left:30px;bottom:30px;display:grid;gap:3px;padding:12px 16px;background:var(--light);color:var(--dark);box-shadow:0 10px 24px -14px rgba(0,0,0,.5)}
+.bct-pat-stage{grid-area:stage;position:relative;aspect-ratio:4/3;background:#fff;box-shadow:var(--shadow);overflow:hidden}
+.bct-pat-stage > .bct-swatch-fill{position:absolute;inset:12px}
+.bct-pat-label{position:absolute;left:30px;bottom:30px;display:grid;gap:3px;padding:12px 16px;background:var(--card);color:var(--dark);box-shadow:0 10px 24px -14px rgba(0,0,0,.5)}
 .bct-pat-label span{font:500 16px/1 var(--display);letter-spacing:.16em;text-transform:uppercase}
-.bct-pat-label em{font:300 10px/1 var(--label);letter-spacing:.14em;text-transform:uppercase;font-style:normal;opacity:.7}
+.bct-pat-label em{font:400 10px/1 var(--label);letter-spacing:.14em;text-transform:uppercase;font-style:normal;opacity:.7}
 .bct-pat-list{grid-area:list;display:grid;gap:4px;align-self:center}
-.bct-pat-btn{display:grid;grid-template-columns:58px 1fr;gap:16px;align-items:center;width:100%;padding:10px;border-radius:8px;border:1px solid transparent;transition:background .25s,border-color .25s}
+.bct-pat-btn{display:grid;grid-template-columns:62px 1fr;gap:16px;align-items:center;width:100%;padding:10px;border-radius:8px;border:1px solid transparent;transition:background .25s,border-color .25s}
 .bct-pat-btn:hover{background:color-mix(in oklab,var(--ink) 6%,transparent)}
 .bct-pat-btn.is-on{border-color:var(--ink)}
-.bct-pat-thumb{position:relative;width:58px;height:58px;border-radius:4px;overflow:hidden;border:3px solid var(--light);box-shadow:0 0 0 1px var(--line)}
+.bct-pat-thumb{width:62px;height:62px;border-radius:4px;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .bct-pat-text{display:grid;gap:3px}
 .bct-pat-text b{font:500 15px/1.2 var(--label)}
 .bct-pat-text small{font:300 12.5px/1.4 var(--label);color:var(--soft)}
@@ -2275,7 +3062,8 @@ const CSS = `
 .bct-shelf-nav button:hover,.bct-lightbox-nav button:hover{background:var(--ink);color:var(--paper)}
 .bct-shelf{display:flex;align-items:flex-end;gap:2.2cqw;padding:2.5cqw 6cqw 2cqw;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;scroll-padding:0 6cqw}
 .bct-shelf::-webkit-scrollbar{display:none}
-.bct-shelf-item{flex:0 0 clamp(220px,21cqw,300px);scroll-snap-align:start;transition:translate .5s cubic-bezier(.2,.8,.2,1),rotate .5s cubic-bezier(.2,.8,.2,1)}
+.bct-shelf-item{flex:0 0 clamp(220px,19cqw,290px);scroll-snap-align:start;transition:translate .5s cubic-bezier(.2,.8,.2,1),rotate .5s cubic-bezier(.2,.8,.2,1)}
+.bct-shelf-item:nth-child(3n+2){flex-basis:clamp(240px,21cqw,320px)}
 .bct-shelf-item:hover{translate:0 -10px;rotate:-.6deg}
 .bct-shelf-edge{height:12px;margin:0 6cqw;border-top:2px solid color-mix(in oklab,var(--ink) 40%,transparent);background:linear-gradient(180deg,color-mix(in oklab,var(--ink) 14%,transparent),transparent)}
 
@@ -2283,7 +3071,7 @@ const CSS = `
 .bct-licence{position:relative;padding:7cqw 6cqw 9cqw;background:var(--band);overflow:hidden}
 .bct-licence .bct-head{padding:0}
 .bct-lic-grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:1.6cqw;margin-top:3cqw;z-index:1}
-.bct-lic{position:relative;display:grid;gap:14px;align-content:start;padding:28px 24px 26px;background:var(--light);color:var(--dark);border:1px solid var(--line);cursor:pointer;transition:translate .4s cubic-bezier(.2,.8,.2,1),box-shadow .4s,border-color .25s}
+.bct-lic{position:relative;display:grid;gap:14px;align-content:start;padding:28px 24px 26px;background:var(--card);color:var(--dark);border:1px solid var(--line);cursor:pointer;transition:translate .4s cubic-bezier(.2,.8,.2,1),box-shadow .4s,border-color .25s}
 .bct-lic:hover{translate:0 -3px}
 .bct-lic.is-on{border-color:var(--coral);box-shadow:0 0 0 1.5px var(--coral),0 34px 54px -40px rgba(0,0,0,.55);translate:0 -5px}
 .bct-lic:focus-within{outline:2px solid var(--coral);outline-offset:3px}
@@ -2305,30 +3093,35 @@ const CSS = `
 .bct-total{margin-left:auto;display:grid;text-align:right;gap:4px}
 .bct-total span{font:400 11px/1 var(--label);letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
 .bct-total b{font:300 clamp(28px,2.6cqw,40px)/1 var(--display)}
-.bct-lic-fig-a{right:4cqw;top:3cqw;width:9cqw;rotate:-12deg}
-.bct-lic-fig-b{left:3cqw;bottom:3cqw;width:6cqw;rotate:18deg}
+.bct-lic-fig{position:absolute;pointer-events:none;filter:drop-shadow(0 14px 14px rgba(40,25,10,.22))}
+.bct-lic-fig :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-lic-fig-a{right:4cqw;top:2.5cqw;width:11cqw;rotate:-12deg}
+.bct-lic-fig-b{right:20cqw;top:4cqw;width:9cqw;rotate:18deg}
 
 /* footer */
 .bct-footer{position:relative;background:var(--deep);color:var(--c-paper);padding:9cqw 6cqw 3cqw;overflow:hidden}
 .bct-footer-wave{position:absolute;left:0;right:0;top:-1px;width:100%;height:4cqw;color:var(--band);transform:scaleY(-1)}
 .bct-wave{display:block}
-.bct-foot-whale{position:absolute;right:-6cqw;bottom:4cqw;width:40cqw;color:var(--c-paper);opacity:.2;pointer-events:none}
-.bct-foot-whale .bct-art{width:100%;height:auto}
+.bct-foot-whale{position:absolute;right:-5cqw;bottom:6cqw;width:42cqw;color:var(--c-paper);opacity:.22;pointer-events:none}
+.bct-foot-whale :where(.bct-art,.bct-cut){width:100%;height:auto}
+.bct-foot-whale .bct-cut{filter:grayscale(1) brightness(1.9) contrast(.9);mix-blend-mode:screen;opacity:.8}
 .bct-foot-grid{position:relative;display:grid;grid-template-columns:1.5fr .8fr .8fr;gap:4cqw;align-items:start}
 .bct-foot-mark{font:400 clamp(72px,11cqw,172px)/.9 var(--script);rotate:-3deg;transform-origin:0 100%;margin-bottom:14px;margin-left:.1em}
-.bct-foot-body{font:300 15px/1.6 var(--label);max-width:34ch;opacity:.85}
+.bct-foot-body{font:300 15px/1.6 var(--label);max-width:34ch;opacity:.86}
 .bct-foot-links,.bct-foot-social{display:grid;gap:12px;font:400 14px/1 var(--label);padding-top:1cqw}
-.bct-foot-links :where(a,button),.bct-foot-social a{opacity:.85;text-decoration:none;transition:opacity .2s}
+.bct-foot-links :where(a,button),.bct-foot-social a{opacity:.86;text-decoration:none;transition:opacity .2s}
 .bct-foot-links :where(a,button):hover,.bct-foot-social a:hover{opacity:1;text-decoration:underline;text-underline-offset:5px}
-.bct-foot-legal{position:relative;margin-top:5cqw;padding-top:16px;border-top:1px solid color-mix(in oklab,var(--c-paper) 18%,transparent);font:300 12px/1.4 var(--label);opacity:.65}
+.bct-foot-legal{position:relative;margin-top:5cqw;padding-top:16px;border-top:1px solid color-mix(in oklab,var(--c-paper) 18%,transparent);font:300 12px/1.4 var(--label);opacity:.72}
+.bct-foot-credits{position:relative;margin-top:8px;font:300 11px/1.5 var(--label);opacity:.55;max-width:110ch}
 
 /* lightbox + toast */
-.bct-lightbox{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:4vmin;background:color-mix(in oklab,var(--c-abyss) 82%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-.bct-lightbox-card{position:relative;display:grid;grid-template-columns:minmax(240px,400px) minmax(240px,340px);gap:36px;align-items:center;padding:30px;max-width:min(96vw,900px);max-height:92vh;overflow:auto;background:var(--paper);color:var(--ink);box-shadow:0 50px 90px -40px rgba(0,0,0,.7)}
+.bct-lightbox{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:4vmin;background:color-mix(in oklab,var(--c-abyss) 84%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.bct-lightbox-card{position:relative;display:grid;grid-template-columns:minmax(240px,420px) minmax(240px,340px);gap:36px;align-items:center;padding:30px;max-width:min(96vw,920px);max-height:92vh;overflow:auto;background:var(--paper);color:var(--ink);box-shadow:0 50px 90px -40px rgba(0,0,0,.7)}
 .bct-lightbox-text{display:grid;gap:6px}
 .bct-lightbox-text h3{font:500 clamp(26px,3cqw,40px)/1.05 var(--display);margin-top:6px}
 .bct-lightbox-text em{font:italic 300 16px/1.2 var(--display);color:var(--soft)}
 .bct-lightbox-text p{font:300 15px/1.6 var(--label);color:var(--soft);margin-top:10px}
+.bct-lightbox-credit{font:400 11.5px/1.5 var(--label);color:var(--soft);opacity:.85;margin-bottom:6px}
 .bct-lightbox-nav{display:flex;gap:6px}
 .bct-lightbox-close{position:absolute;right:12px;top:10px;width:40px;height:40px;border-radius:50%;font:300 28px/1 var(--display);display:grid;place-items:center;transition:background .2s,color .2s}
 .bct-lightbox-close:hover{background:var(--ink);color:var(--paper)}
@@ -2339,53 +3132,55 @@ const CSS = `
 .is-alive .bct-caustic-a{animation:bct-drift-a 17s ease-in-out infinite alternate}
 .is-alive .bct-caustic-b{animation:bct-drift-b 23s ease-in-out infinite alternate}
 .is-alive .bct-rays{animation:bct-rays 15s ease-in-out infinite alternate}
+.is-alive .bct-weed > *{animation:bct-sway 8s ease-in-out infinite alternate;transform-origin:50% 100%}
+.is-alive .bct-weed.is-late > *{animation-delay:-4s;animation-duration:10s}
 .is-alive .bct-sway{animation:bct-sway 7s ease-in-out infinite alternate;transform-origin:50% 100%}
 .is-alive .bct-sway-late{animation-delay:-3.5s;animation-duration:8.5s}
 .is-alive .bct-octo{animation:bct-float 9s ease-in-out infinite alternate;transform-origin:50% 30%}
 .is-alive .bct-swim{animation:bct-swim 8s ease-in-out infinite alternate}
-.is-alive .bct-sil{animation:bct-sway 9s ease-in-out infinite alternate;transform-origin:50% 100%}
-.is-alive .bct-sil-b,.is-alive .bct-sil-d{animation-delay:-4s;animation-duration:11s}
+@keyframes bct-fade{from{opacity:0}to{opacity:1}}
 @keyframes bct-rise{0%{transform:translate(0,0);opacity:0}8%{opacity:.85}100%{transform:translate(18px,calc(var(--h) * -1.05));opacity:0}}
 @keyframes bct-drift-a{from{transform:translate(-3%,-2%) scale(1)}to{transform:translate(4%,3%) scale(1.12)}}
 @keyframes bct-drift-b{from{transform:translate(3%,2%) scale(1.1)}to{transform:translate(-4%,-3%) scale(1)}}
 @keyframes bct-rays{from{transform:rotate(-2deg) scaleX(1);opacity:.7}to{transform:rotate(2deg) scaleX(1.06);opacity:1}}
-@keyframes bct-sway{from{transform:rotate(-2.5deg) skewX(1.5deg)}to{transform:rotate(2.5deg) skewX(-1.5deg)}}
+@keyframes bct-sway{from{transform:rotate(-2.2deg) skewX(1.4deg)}to{transform:rotate(2.2deg) skewX(-1.4deg)}}
 @keyframes bct-float{from{transform:translateY(-1.5%) rotate(-1.5deg)}to{transform:translateY(1.5%) rotate(1.5deg)}}
 @keyframes bct-swim{from{transform:translateY(-2%) rotate(-1deg)}to{transform:translateY(2%) rotate(1.2deg)}}
-@media (prefers-reduced-motion:reduce){.bct-root :where(.bct-caustic,.bct-rays,.bct-sway,.bct-octo,.bct-swim,.bct-sil,.bct-bubble){animation:none}.bct-root .bct-bubble{display:none}.bct-root :where(.bct-env-letter,.bct-env-flap,.bct-header,.bct-lic,.bct-shelf-item,.bct-toast){transition-duration:0s}}
+@media (prefers-reduced-motion:reduce){.bct-root :where(.bct-caustic,.bct-rays,.bct-sway,.bct-octo,.bct-swim,.bct-bubble,.bct-weed > *,.bct-cut,.bct-tile){animation:none}.bct-root .bct-bubble{display:none}.bct-root :where(.bct-env-letter,.bct-env-flap,.bct-header,.bct-lic,.bct-shelf-item,.bct-toast){transition-duration:0s}}
 
 /* tablet */
 @container (max-width: 1100px){
-.bct-stage{--rx0:36;--ry0:32}
-.bct-fig-whale{left:-7cqw;top:38%;width:46cqw}
-.bct-fig-octopus{left:60cqw;top:-3%;width:27cqw}
-.bct-fig-coral{left:10cqw;top:9%;width:16cqw}
-.bct-fig-kelp-a{left:17cqw;top:50%;width:8cqw}
-.bct-fig-kelp-b{left:78cqw;top:10%;width:7cqw}
-.bct-fig-fan{left:70cqw;top:50%;width:19cqw}
-.bct-fig-scallop{left:86cqw;top:70%;width:8cqw}
-.bct-fig-star{left:8cqw;top:70%;width:8cqw}
-.bct-fig-crab{display:none}
-.bct-fig-fish{left:5cqw;top:22%;width:7cqw}
-.bct-badge{left:calc(50% + var(--rx0) * 1% - 3.4cqw)}
-.bct-peek-card{width:12cqw;height:8.4cqw}
+.bct-stage{--wx:14;--wt:16;--wb:29;--wr:12}
+.bct-fig-whale{left:-6cqw;top:47%;width:42cqw}
+.bct-fig-octopus{left:62cqw;top:7%;width:25cqw}
+.bct-fig-gorgonian{left:6cqw;top:10%;width:14cqw}
+.bct-fig-kelp{left:10.5cqw;top:38%;width:8cqw}
+.bct-fig-star{left:13cqw;top:63%;width:9.5cqw}
+.bct-fig-coral{left:72cqw;top:56%;width:15cqw}
+.bct-fig-scallop{left:84cqw;top:64%;width:10cqw}
+.bct-fig-rose{left:84cqw;top:24%;width:9cqw}
+.bct-arc{width:70cqw}
+.bct-under{top:calc(100% - var(--wb) * 1% + 10.5cqw)}
+.bct-strip{bottom:-9cqw}
+.bct-strip-card{width:11cqw;height:15cqw}
+.bct-strip-card.is-chip{width:9.4cqw;height:13cqw}
 .bct-deep{grid-template-columns:1fr;grid-template-areas:"copy" "stats" "formats";gap:3cqw;padding:calc(64px + 2cqw) 6cqw 6cqw}
-.bct-stats{gap:1.6cqw 2.4cqw}
-.bct-board{gap:3cqw 2.4cqw}
+.bct-board{gap:3.4cqw 2.4cqw}
 .bct-poster{grid-column:1/5;grid-row:1/3}
 .bct-markcard{grid-column:5/7;grid-row:1}
-.bct-board-whale{grid-column:7/9;grid-row:1}
-.bct-icons{grid-column:9/13;grid-row:1}
-.bct-board-copy{grid-column:5/13;grid-row:2;padding:1cqw 0}
-.bct-chips{grid-column:1/7;grid-row:3;grid-template-columns:repeat(6,1fr);align-self:start}
-.bct-swatches{grid-column:7/13;grid-row:3;justify-content:flex-start}
-.bct-board-shell{grid-column:1/3;grid-row:4;justify-items:start}
-.bct-envelope{grid-column:4/11;grid-row:4;margin-top:22%;justify-self:center}
+.bct-board-whale{grid-column:7/13;grid-row:1;width:100%;margin:0}
+.bct-icons{grid-column:5/13;grid-row:2}
+.bct-board-copy{grid-column:1/13;grid-row:3;padding:2cqw 4cqw}
+.bct-chips{grid-column:1/7;grid-row:4;grid-template-columns:repeat(3,1fr)}
+.bct-swatches{grid-column:7/13;grid-row:4;align-self:center;flex-wrap:wrap}
+.bct-letter-card{grid-column:1/6;grid-row:5;align-self:center}
+.bct-envelope{grid-column:6/13;grid-row:5;margin-top:22%}
 .bct-patterns{grid-template-columns:1fr;grid-template-areas:"head" "stage" "list"}
 .bct-pat-list{grid-template-columns:1fr 1fr}
 .bct-head-row{grid-template-columns:1fr 1fr}
 .bct-shelf-nav{grid-column:1/-1}
 .bct-lic-grid{gap:2cqw}
+.bct-lic-fig-b{display:none}
 .bct-foot-grid{grid-template-columns:1.4fr 1fr 1fr}
 }
 
@@ -2393,73 +3188,76 @@ const CSS = `
 @container (max-width: 760px){
 .bct-header{gap:12px}
 .bct-nav{display:none}
-.bct-nav.is-open{display:grid;position:absolute;left:0;right:0;top:100%;padding:10px 16px 16px;background:color-mix(in oklab,var(--paper) 94%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bct-nav.is-open{display:grid;position:absolute;left:0;right:0;top:100%;padding:10px 16px 16px;background:color-mix(in oklab,var(--paper) 94%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .bct-nav.is-open :where(a,button){padding:12px 10px;border-radius:0;border-bottom:1px solid var(--line)}
 .bct-cta{display:none}
 .bct-burger{display:grid}
 .bct-brand-note{display:none}
 .bct-dive{height:calc(var(--h) * 2.1)}
-.bct-stage{--rx0:46;--ry0:29;--cy:46%;min-height:600px}
-.bct-kicker{font-size:19px;top:calc(var(--cy) - var(--ry0) * 1% - 14px);left:6cqw;transform:translate(0,-100%)}
-.bct-title{font-size:clamp(34px,11cqw,60px);letter-spacing:.1em}
-.bct-script{font-size:clamp(40px,11cqw,64px)}
-.bct-arch{width:30px;margin-bottom:8px}
-.bct-squiggle{width:64px;margin:10px 0 8px}
-.bct-byline{font-size:9.5px;letter-spacing:.26em}
-.bct-badge{left:auto;right:3cqw;top:calc(var(--cy) + 14%);width:56px;font-size:14px}
-.bct-fig-whale{left:-14cqw;top:55%;width:72cqw}
-.bct-fig-octopus{left:58cqw;top:6%;width:44cqw}
-.bct-fig-coral{left:0;top:16%;width:24cqw}
-.bct-fig-kelp-a{display:none}
-.bct-fig-kelp-b{left:82cqw;top:24%;width:11cqw}
-.bct-fig-fan{left:66cqw;top:62%;width:30cqw}
-.bct-fig-scallop{left:4cqw;top:78%;width:13cqw;display:block}
-.bct-fig-star,.bct-fig-crab,.bct-fig-fish{display:none}
+.bct-stage{--wx:5;--wt:17;--wb:31;--wr:22;min-height:620px}
+.bct-kicker{font-size:19px;top:calc(var(--wt) * 1% - 12px);left:6cqw;transform:translate(0,-100%)}
+.bct-title{font-size:clamp(30px,10cqw,52px);letter-spacing:.12em;padding-left:.12em}
+.bct-script{font-size:clamp(38px,12cqw,62px)}
+.bct-arch{width:28px;margin-bottom:8px}
+.bct-squiggle{width:58px;margin:10px 0 8px}
+.bct-byline{font-size:9px;letter-spacing:.28em}
+.bct-badge{left:auto;right:2cqw;top:calc(var(--cy) + 12%);width:56px;font-size:14px}
+.bct-fig-whale{left:-16cqw;top:51%;width:66cqw}
+.bct-fig-octopus{left:60cqw;top:calc(64px + 4px);width:38cqw}
+.bct-fig-gorgonian{left:-3cqw;top:25%;width:19cqw}
+.bct-fig-kelp,.bct-fig-rose,.bct-fig-star{display:none}
+.bct-fig-coral{left:68cqw;top:56%;width:28cqw}
+.bct-fig-scallop{display:none}
 .bct-doodle{display:none}
-.bct-under{top:calc(var(--cy) + var(--ry0) * 1% + 14px);padding:0 6cqw;gap:12px}
-.bct-tagline{font-size:17px}
-.bct-under-actions{gap:10px 16px}
-.bct-peek{display:none}
+.bct-arc{width:96cqw}
+.bct-arc text{font-size:54px}
+.bct-under{top:calc(100% - var(--wb) * 1% + 17cqw);padding:0 6cqw;flex-direction:column;gap:16px}
+.bct-strip{display:none}
 .bct-deep{grid-template-columns:1fr;grid-template-areas:"copy" "stats" "formats";gap:22px;padding:calc(64px + 14px) 6cqw 22px;align-content:center}
 .bct-deep .bct-lede{font-size:14px}
 .bct-stats{grid-template-columns:1fr 1fr;gap:14px 16px}
 .bct-stat-n{font-size:34px}
 .bct-stat-note{display:none}
 .bct-formats em{padding:6px 9px}
-.bct-board{grid-template-columns:1fr;gap:26px;padding:56px 6cqw 72px}
+.bct-board{grid-template-columns:1fr;gap:30px;padding:60px 6cqw 72px}
 .bct-board > *{grid-column:1 !important;grid-row:auto !important}
 .bct-board-copy{order:1;padding:0;text-align:left;justify-items:start}
-.bct-poster{order:2;max-width:320px;justify-self:start}
-.bct-markcard,.bct-board-whale,.bct-board-shell{display:none}
-.bct-icons{order:3}
-.bct-chips{order:4;grid-template-columns:repeat(3,1fr);gap:16px 10px;padding:8px 0 0}
-.bct-swatches{order:5;justify-content:flex-start;gap:14px;padding-top:4px}
-.bct-swatch{width:30%}
-.bct-envelope{order:6;margin-top:34%;justify-self:center;width:min(100%,340px)}
+.bct-board-copy .bct-eyebrow{justify-content:flex-start}
+.bct-board-copy .bct-h2{font-size:clamp(26px,8cqw,34px)}
+.bct-poster{order:2;max-width:300px;justify-self:start}
+.bct-board-whale{order:3;width:100%;margin:0}
+.bct-markcard{display:none}
+.bct-icons{order:4}
+.bct-chips{order:5;grid-template-columns:repeat(3,1fr);gap:16px 10px;padding:8px 0 0}
+.bct-swatches{order:6;justify-content:flex-start;gap:14px;padding-top:4px;flex-wrap:wrap}
+.bct-swatch{width:28%}
+.bct-board-shell{width:24%}
+.bct-letter-card{order:7;width:min(100%,280px);justify-self:start}
+.bct-envelope{order:8;margin-top:36%;justify-self:center;width:min(100%,340px)}
 .bct-letter{padding:14px}
-.bct-letter-title{font-size:17px}
+.bct-letter-title{font-size:16px}
 .bct-letter-row{grid-template-columns:1fr;gap:8px}
 .bct-patterns{grid-template-columns:1fr;grid-template-areas:"head" "stage" "list";gap:22px;padding:56px 6cqw 64px}
 .bct-pat-stage{aspect-ratio:1/1}
-.bct-pat-stage .bct-fill{inset:8px;width:calc(100% - 16px);height:calc(100% - 16px)}
+.bct-pat-stage > .bct-swatch-fill{inset:8px}
 .bct-pat-label{left:18px;bottom:18px;padding:9px 12px}
 .bct-pat-list{grid-template-columns:1fr}
 .bct-prints{padding:56px 0 48px}
 .bct-head{gap:12px;margin-bottom:22px}
 .bct-head-row{grid-template-columns:1fr}
 .bct-shelf{gap:16px;padding:16px 6cqw 14px}
-.bct-shelf-item{flex-basis:72cqw}
+.bct-shelf-item,.bct-shelf-item:nth-child(3n+2){flex-basis:72cqw}
 .bct-licence{padding:56px 6cqw 64px}
 .bct-lic-grid{grid-template-columns:1fr;gap:22px;margin-top:26px}
 .bct-order{gap:18px;margin-top:28px;padding-top:22px}
 .bct-total{margin-left:0;text-align:left;width:100%}
 .bct-order .bct-btn{width:100%}
-.bct-lic-fig-a,.bct-lic-fig-b{display:none}
+.bct-lic-fig-a{width:24cqw;top:30px;right:4cqw}
 .bct-footer{padding:64px 6cqw 24px}
 .bct-footer-wave{height:28px}
 .bct-foot-grid{grid-template-columns:1fr;gap:28px}
 .bct-foot-mark{font-size:clamp(64px,20cqw,96px)}
-.bct-foot-whale{width:70cqw;right:-20cqw;bottom:40px;opacity:.14}
+.bct-foot-whale{width:80cqw;right:-24cqw;bottom:60px;opacity:.16}
 .bct-foot-legal{margin-top:36px}
 .bct-lightbox-card{grid-template-columns:1fr;gap:22px;padding:20px;max-height:94vh}
 .bct-lightbox-card .bct-plate{max-width:320px;margin:0 auto}

@@ -1,4 +1,4 @@
-// Install-safety, curve, coral, order and pin-swing checks for
+// Install-safety, paper-keying, tiling, curve, coral, order and pin-swing checks for
 // components/benthos-collection-template.
 // Run: node tests/benthos-collection-template.test.mjs
 import assert from "node:assert/strict"
@@ -61,6 +61,15 @@ for (const rule of css.matchAll(/(?:^|\})\s*(?!@)([^{}\s][^{}]*)\{/g)) {
 // .is-* rules only ever qualify a .bct- element
 for (const m of css.matchAll(/(?:^|\})\s*(\.is-[a-z-]+)[^{]*\{/g)) assert.match(css.slice(m.index, m.index + m[0].length), /\.is-[a-z-]+ \.bct-/, "a bare state class must scope to .bct-: " + m[0])
 assert.ok(css.includes("prefers-reduced-motion"), "CSS honours reduced motion")
+// GSAP owns `transform` on what it tweens; a CSS transform transition there makes a
+// re-run .from() record a half-transitioned value as the resting state
+for (const cls of ["bct-btn", "bct-link", "bct-stat", "bct-lic", "bct-shelf-item", "bct-fig", "bct-weed", "bct-strip-card", "bct-pinned", "bct-chipcard", "bct-swatch"])
+  for (const m of css.matchAll(new RegExp("\\." + cls + "\\{[^}]*\\}", "g")))
+    assert.doesNotMatch(m[0], /transition:[^;}]*\btransform\b/, cls + " must not transition transform")
+// GSAP writes translate:none inline on what it tweens, so parallax lives on a child
+assert.doesNotMatch(css, /\.bct-fig\{[^}]*translate:/, "no CSS translate on a GSAP-tweened figure")
+assert.ok(css.includes(".bct-fig > *{translate:calc(var(--px) * 1px) calc(var(--py) * 1px)}"), "figure parallax rides on the child")
+assert.ok(src.includes('setTimeout(() => reject(new Error("clipboard timeout")), 700)'), "a clipboard that never answers falls back")
 assert.ok(src.includes('motion: "(prefers-reduced-motion: no-preference)"'), "GSAP choreography only runs with motion allowed")
 assert.ok(src.includes("setStill(true)"), "reduced motion gets the static layout")
 assert.ok(css.includes("@container"), "layout answers the component's width, not the window")
@@ -68,9 +77,12 @@ assert.ok(css.includes(":where(.dark) .bct-root"), "dark mode follows a .dark an
 
 // Preflight: artwork, fills and plate images must not be clamped.
 assert.ok(/\.bct-art\{display:block;max-width:none\}/.test(css), "artwork guards max-width")
+assert.ok(/\.bct-cut\{[^}]*max-width:none/.test(css), "cut-outs guard max-width")
+assert.ok(/\.bct-poster-fig img\{[^}]*max-width:none/.test(css), "the poster guards max-width")
+assert.ok(/\.bct-strip-card\.is-plate img\{[^}]*max-width:none/.test(css), "strip plates guard max-width")
 assert.ok(/\.bct-plate-art \.bct-art,\.bct-plate-art img\{[^}]*max-width:none/.test(css), "plate images guard max-width")
 assert.ok(css.includes("--light:var(--c-paper);--dark:var(--c-ink)"), "artwork paints with fixed light/dark so it keeps its colours in dark mode")
-const art = src.slice(src.indexOf("// ---- the creatures"), src.indexOf("// ---- small parts"))
+const art = src.slice(src.indexOf("// ---- the creatures"), src.indexOf("// ---- patterns ---"))
 assert.doesNotMatch(art, /var\(--paper\)|var\(--ink\)/, "creatures never use the page's inverting paper/ink")
 
 // 21st's CLI tokenizer hangs on generics before the first JSX close tag.
@@ -83,14 +95,28 @@ for (const gone of [
   'window.removeEventListener("keydown", key)', "tl.kill()",
 ]) assert.ok(src.includes(gone), "cleanup is missing " + gone)
 assert.ok(src.includes("navigator.clipboard?.writeText"), "copies with the clipboard API")
+// artwork pipeline: fetched CORS-readable, keyed off the main thread, cached, with a drawn fallback
+assert.ok(src.includes('fetch(art.src, { mode: "cors", credentials: "omit" })'), "the worker fetches plates with CORS")
+assert.ok(src.includes('img.crossOrigin = "anonymous"'), "the main-thread fallback reads images cross-origin")
+assert.ok(src.includes("new Worker(url)") && src.includes("keyPaper.toString()"), "keying runs in a worker built from keyPaper's own source")
+assert.ok(src.includes('typeof OffscreenCanvas === "undefined"'), "no OffscreenCanvas falls back to the main thread")
+assert.ok(src.includes("w.onerror"), "a worker refused by CSP falls back too")
+assert.ok(src.includes("if (cuts[k] !== undefined) return cuts[k]"), "cut-outs are cached per page")
+assert.ok(/return <Creature kind=\{kind\} mode="wash"/.test(src), "a missing or blocked plate shows the drawn creature")
+assert.ok(src.includes('artMode === "plates"'), "artMode drawn skips the network")
+assert.ok(src.includes("onError={() => setFailed(true)}"), "a plate that fails falls back to its drawing")
+assert.ok(src.includes("setTimeout(() => setHeroReady(true), 3200)"), "the hero never waits on the network for long")
 assert.ok(src.includes('document.execCommand("copy")'), "and falls back where it is blocked")
 assert.ok(src.includes('e.key === "Escape"'), "Esc closes the lightbox")
 assert.ok(src.includes('role="dialog" aria-modal="true"'), "the lightbox is a dialog")
 assert.ok(src.includes('role="radiogroup"'), "patterns are a radio group")
 assert.ok(/useId\(\)/.test(src), "ids are per instance")
-for (const m of src.matchAll(/https:\/\/([a-z0-9.-]+)\//g))
-  assert.ok(["fonts.googleapis.com", "www.w3.org", "instagram.com", "pinterest.com", "www.behance.net"].includes(m[1]), "unexpected host " + m[1])
-assert.doesNotMatch(src, /images\.unsplash\.com/, "the default artwork is generated, not fetched")
+for (const m of src.matchAll(/https?:\/\/([a-z0-9.-]+)\//g))
+  assert.ok(["fonts.googleapis.com", "www.w3.org", "upload.wikimedia.org", "instagram.com", "pinterest.com", "www.behance.net"].includes(m[1]), "unexpected host " + m[1])
+// Wikimedia only serves fixed thumbnail widths; anything else is a 400
+for (const m of src.matchAll(/\/(\d+)px-[^"]+"/g)) assert.ok(["500", "960", "1280"].includes(m[1]), "unserved Wikimedia thumbnail width " + m[1])
+assert.ok(src.includes("CC BY 4.0"), "CC BY plates are credited")
+assert.ok(src.includes("{credits && artMode === \"plates\" && <p className=\"bct-foot-credits\">{credits}</p>}"), "credits show in the footer")
 
 // ---- the lifted logic ---------------------------------------------------------------
 const region = (name) => {
@@ -168,6 +194,74 @@ const lift = (names, exports) =>
   const coral = T.growTree(9, T.RED_CORAL)
   assert.ok(coral.length > 20 && coral.length < 200, "branching coral is sparser: " + coral.length)
   assert.ok(coral[0].w > fan[0].w, "and thicker")
+}
+
+{
+  const K = await lift(["key"], "keyPaper, cropRect")
+  // a 60×40 cream page with a dark disc in the middle, a pale highlight inside it,
+  // and a small dark speck in a corner
+  const W = 60
+  const H = 40
+  const img = () => {
+    const px = new Uint8ClampedArray(W * H * 4)
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4
+        const d = Math.hypot(x - 30, y - 20)
+        let c = [240, 232, 214]
+        if (d < 12) c = [60, 70, 80]
+        if (d < 3) c = [238, 230, 212]
+        if (x >= 2 && x < 4 && y >= 2 && y < 4) c = [40, 40, 40]
+        px.set([...c, 255], i)
+      }
+    return px
+  }
+  const a = (px, x, y) => px[(y * W + x) * 4 + 3]
+  const px = img()
+  const paper = K.keyPaper(px, W, H, {})
+  assert.deepEqual(paper, [240, 232, 214], "finds the paper colour on the border")
+  assert.equal(a(px, 0, 0), 0, "paper is transparent")
+  assert.equal(a(px, 30, 12), 255, "ink is opaque")
+  assert.equal(a(px, 30, 20), 255, "a paper-coloured highlight inside the drawing is kept")
+  assert.equal(a(px, 2, 2), 0, "specks are dropped")
+  for (let i = 3; i < px.length; i += 4) assert.ok(px[i] === 0 || px[i] === 255 || (px[i] > 0 && px[i] < 255))
+  const holes = img()
+  K.keyPaper(holes, W, H, { holes: 0.001 })
+  assert.equal(a(holes, 30, 20), 0, "with holes set, an enclosed paper pocket is keyed")
+  const duo = img()
+  K.keyPaper(duo, W, H, { duotone: ["#000000", "#ff0000"] })
+  const k = (20 * W + 22) * 4
+  assert.ok(duo[k] > 0 && duo[k + 1] === 0 && duo[k + 2] === 0, "duotone maps luminance onto the two inks")
+  // the same input twice gives the same output
+  const x1 = img()
+  const x2 = img()
+  K.keyPaper(x1, W, H, { holes: 0.001 })
+  K.keyPaper(x2, W, H, { holes: 0.001 })
+  assert.deepEqual(x1, x2, "deterministic")
+
+  const r = K.cropRect(1000, 500, [0.1, 0.2, 0.5, 0.8], 200)
+  assert.deepEqual([r.sx, r.sy, r.sw, r.sh].map(Math.round), [100, 100, 400, 300])
+  assert.equal(r.w, 200, "the longest side is held to max")
+  assert.equal(r.h, 150)
+  assert.deepEqual(K.cropRect(300, 200, undefined, 900), { sx: 0, sy: 0, sw: 300, sh: 200, w: 300, h: 200 }, "never upscales")
+  const c = K.cropRect(100, 100, [0.9, 0.9, 1.4, 1.4], 50)
+  assert.ok(c.sx + c.sw <= 100 && c.sy + c.sh <= 100, "crops clamp to the image")
+}
+
+{
+  const T = await lift(["tiles"], "wrapOffsets")
+  assert.deepEqual(T.wrapOffsets(50, 50, 10, 100, 100), [[0, 0]], "an item well inside is drawn once")
+  assert.deepEqual(T.wrapOffsets(5, 50, 10, 100, 100), [[0, 0], [100, 0]], "over the left edge, drawn again on the right")
+  assert.equal(T.wrapOffsets(5, 95, 10, 100, 100).length, 4, "over a corner, drawn four times")
+  for (const [dx, dy] of T.wrapOffsets(98, 2, 6, 100, 80)) assert.ok(Math.abs(dx) <= 100 && Math.abs(dy) <= 80)
+  // every canvas tile item names a cut-out the template fetches
+  const order = src.match(/const ART_ORDER = \[([^\]]+)\]/)[1]
+  const tiles = src.slice(src.indexOf("const CANVAS_TILES"), src.indexOf("const tileCache"))
+  for (const m of tiles.matchAll(/art: "([a-zA-Z]+)"/g)) assert.ok(order.includes('"' + m[1] + '"'), "tile uses an unfetched cut-out " + m[1])
+  for (const key of ["reef-toile", "night-reef", "shell-toss", "octopus-slate", "kelp-garden", "starfish-dot"]) {
+    assert.ok(tiles.includes('"' + key + '"'), "canvas tile missing: " + key)
+    assert.equal(src.split('"' + key + '": {\n    w: ').length - 1, 2, "needs a canvas tile and a drawn fallback tile: " + key)
+  }
 }
 
 {
