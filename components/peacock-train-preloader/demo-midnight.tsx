@@ -15,6 +15,7 @@ export default function DemoMidnight() {
       subtitle="Vol. II"
       meta={["Autumn 2026", "Selected work · after dark"]}
       message="Good evening."
+      signature="©NOCTURNE"
       label="Opening"
     />
   )

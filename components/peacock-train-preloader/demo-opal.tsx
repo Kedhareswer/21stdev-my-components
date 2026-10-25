@@ -19,6 +19,7 @@ export default function DemoOpal() {
       title="Maya Iyer"
       subtitle="Studio"
       meta={["Spring 2026", "Textile · Print · Pattern"]}
+      signature="©MAYA IYER"
       onComplete={() => setReady(true)}
     >
       <main
