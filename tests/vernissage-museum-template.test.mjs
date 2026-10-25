@@ -21,7 +21,7 @@ for (const f of readdirSync(dir))
 
 assert.ok(src.includes('height = "100svh"'), "hero height defaults to a definite length")
 assert.ok(src.includes('"--h": height'), "the height prop feeds --h")
-assert.ok(src.includes(".vmt-hero{position:relative;height:calc(var(--h) - var(--tb))"), "the hero takes its height from the prop")
+assert.ok(src.includes(".vmt-hero{position:relative;height:max(540px,min(calc(var(--h) - var(--tb))"), "the hero takes its height from the prop")
 assert.doesNotMatch(src, /className=["'][^"']*\bh-full\b/, "no h-full")
 assert.doesNotMatch(src, /pin:\s*true/, "no ScrollTrigger pinning (it rewrites React's DOM)")
 assert.ok(src.includes("ctx.revert()"), "every trigger and tween is reverted on unmount")
@@ -60,8 +60,9 @@ assert.ok(css.includes(".vmt-page{container-type:inline-size"), "the container i
 assert.ok(css.includes(":where(.dark) .vmt-root"), "dark mode follows a .dark ancestor")
 
 // Preflight: images and canvases must not be clamped.
-assert.ok(/\.vmt-frame-img\{[^}]*max-width:none/.test(css), "frame images guard max-width")
-assert.ok(/\.vmt-hero-img\{[^}]*max-width:none/.test(css), "hero images guard max-width")
+for (const cls of ["vmt-hero-img", "vmt-ex-img", "vmt-visit-img", "vmt-art-img", "vmt-drawing"])
+  assert.ok(new RegExp("\\." + cls + "\\{[^}]*max-width:none").test(css), cls + " guards max-width")
+assert.ok(/\.vmt-lb-media img\{[^}]*max-width:none/.test(css), "lightbox image guards max-width")
 assert.ok(/\.vmt-sketch-cv\{[^}]*max-width:none/.test(css), "sketch canvas guards max-width")
 assert.ok(/\.vmt-sketch-flat\{[^}]*max-width:none/.test(css), "sketch fallback guards max-width")
 // Resets must not outrank component classes (that once hid the hero CTA label).
@@ -75,12 +76,19 @@ assert.doesNotMatch(head, /use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<
 assert.ok(src.includes('img.crossOrigin = "anonymous"'), "the study's photo is read cross-origin")
 assert.ok(src.includes('setState("flat")'), "a tainted or failed photo falls back to a duotone")
 assert.ok(src.includes("Math.min(window.devicePixelRatio || 1, 2)"), "cap DPR at 2")
-for (const gone of ["ro.disconnect()", "cancelAnimationFrame(raf)", "clearInterval(id)", "tw.kill()", 'document.removeEventListener("keydown", onKey)', 'document.removeEventListener("pointerdown", onDown)'])
+for (const gone of ['hang.removeEventListener("pointermove", onMove)', 'window.removeEventListener("resize", onResize)', "slideTl.current?.kill()", "ro.disconnect()", "cancelAnimationFrame(raf)", "clearInterval(id)", "tw.kill()", 'document.removeEventListener("keydown", onKey)', 'document.removeEventListener("pointerdown", onDown)'])
   assert.ok(src.includes(gone), "cleanup is missing " + gone)
 for (const m of src.matchAll(/https:\/\/([a-z0-9.-]+)\//g))
   assert.ok(["images.unsplash.com", "fonts.googleapis.com"].includes(m[1]), "unexpected host " + m[1])
 assert.ok(/aria-modal="true"/.test(src) && src.includes('e.key === "Escape"'), "the lightbox is a modal that Escape closes")
 assert.ok(src.includes("aria-expanded={open}"), "accordion buttons expose their state")
+// The fixed layers sit outside the container, or position: fixed would bind to it.
+assert.ok(src.indexOf('className="vmt-cursor"') > src.indexOf("</footer>") && src.indexOf('className="vmt-lb"') > src.indexOf("</footer>"), "cursor and lightbox live outside .vmt-page")
+// The lightbox morphs from the thumbnail it was opened from and flies back on close.
+assert.ok(src.includes("fromRect.current = from ? from.getBoundingClientRect() : null"), "opening records the thumbnail rect")
+assert.ok(/scaleX: r\.width \/ to\.width/.test(src), "the morph scales between the two rects")
+// The welcome drawing is laid down by an ink mask that defaults to fully drawn.
+assert.ok(css.includes("var(--ink,1)"), "the ink mask is finished without JavaScript")
 
 // ---- the lifted logic ---------------------------------------------------------------
 const region = (name) => {
