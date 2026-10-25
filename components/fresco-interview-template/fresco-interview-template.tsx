@@ -46,6 +46,20 @@ export type FitFigure = {
   /** Stand in front of the copy instead of behind it. */
   front?: boolean
 }
+export type FitBackdrop = {
+  src: string
+  alt?: string
+  /** Crop before grading, as fractions: x, y, width, height. */
+  crop?: [number, number, number, number]
+  /** How much of the painting's own colour survives the grade, 0 to 1. */
+  keep?: number
+  gamma?: number
+  /** object-position of the cover crop, e.g. "50% 40%". */
+  focus?: string
+  /** How the edges dissolve into the sky: `hero` fades the top a little and the bottom fully, `stage` fades both, `none` keeps it square. */
+  mask?: "hero" | "stage" | "none"
+  opacity?: number
+}
 export type FitQA = { q: string; a: string }
 export type FitIconName = "instagram" | "x" | "linkedin" | "youtube" | "link"
 export type FitLink = { label: string; href: string; icon?: FitIconName }
@@ -57,15 +71,20 @@ export type FitStory = {
   deck: string
   cta?: FitLink | null
   figures: FitFigure[]
+  /** A painting behind the hero: a fresco photograph, graded to the palette. */
+  backdrop?: FitBackdrop | null
 }
-export type FitQuote = { text: string; cite?: string; figure?: FitFigure | null }
+export type FitQuote = { text: string; cite?: string; figure?: FitFigure | null; backdrop?: FitBackdrop | null }
 export type FitQASection = { title: string; items: FitQA[]; ornament?: "pearl" | "none" | FitFigure }
-export type FitNext = { label: string; title: string[]; blurb?: string; href: string; figure?: FitFigure | null }
+export type FitNext = { label: string; title: string[]; blurb?: string; href: string; figure?: FitFigure | null; backdrop?: FitBackdrop | null }
 export type FitCloudColors = { shadow: string; mid: string; light: string; rim: string }
 export type FitTone = { a: string; b: string; c: string; sunX: number; sunY: number; sun: number; banks: number }
 export type FitPalette = {
   cloud: FitCloudColors
   marble: [string, string, string]
+  /** The ramp paintings are graded through, and how much of their own colour they keep. */
+  fresco: [string, string, string]
+  frescoKeep: number
   ink: string
   muted: string
   gold: string
@@ -104,6 +123,14 @@ export const DEFAULT_STORY: FitStory = {
   subject: "Tomas Reyes, founder of Loud Quiet",
   deck: "**Loud Quiet** _got a locked-down city singing to itself from the rooftops._",
   cta: { label: "See Loud Quiet's site", href: "#" },
+  backdrop: {
+    src: UNSPLASH + "1768296100606-72e7ff614831",
+    alt: "A Baroque ceiling fresco: figures and cherubs on clouds around a burst of light",
+    crop: [0, 0.16, 1, 0.64],
+    focus: "50% 45%",
+    mask: "hero",
+    gamma: 1.12,
+  },
   figures: [
     {
       src: UNSPLASH + "1782897955905-fb23f7db40bd",
@@ -133,6 +160,39 @@ export const DEFAULT_STORY: FitStory = {
       depth: 0.55,
       rotate: 10,
       drift: 8,
+    },
+    {
+      src: UNSPLASH + "1552420226-d747b0765a84",
+      alt: "A bronze faun leaping with a flute",
+      key: "edges",
+      range: [0.1, 0.26],
+      crop: [0.25, 0, 0.6, 1],
+      fade: 0.3,
+      keep: 0.12,
+      x: 4,
+      y: 44,
+      w: 17,
+      depth: 0.22,
+      rotate: -4,
+      flip: true,
+      drift: 7,
+      front: true,
+    },
+    {
+      src: UNSPLASH + "1561593074-6a8c9d822cef",
+      alt: "A bronze dancer with one arm raised, holding a shell",
+      key: "edges",
+      range: [0.16, 0.32],
+      crop: [0.1, 0, 0.8, 1],
+      fade: 0.3,
+      keep: 0.1,
+      x: 79,
+      y: 46,
+      w: 18,
+      depth: 0.22,
+      rotate: 4,
+      drift: 7,
+      front: true,
     },
     {
       src: UNSPLASH + "1571033690858-b336bfa1dd0f",
@@ -227,6 +287,15 @@ export const DEFAULT_SECTIONS: FitQASection[] = [
 export const DEFAULT_QUOTE: FitQuote = {
   text: "**Breath, harmony** _and a little company are more important than ever._",
   cite: "Tomas Reyes",
+  backdrop: {
+    src: UNSPLASH + "1780821637422-4a5703aea411",
+    alt: "A pale ceiling fresco of angels and cherubs on cream clouds",
+    crop: [0.08, 0.2, 0.84, 0.44],
+    focus: "50% 45%",
+    mask: "stage",
+    keep: 0.42,
+    opacity: 0.92,
+  },
   figure: {
     src: UNSPLASH + "1775309678950-4d087e17d140",
     alt: "A painted angel with wings folded, seated on a rock",
@@ -235,9 +304,9 @@ export const DEFAULT_QUOTE: FitQuote = {
     crop: [0.04, 0.03, 0.92, 0.9],
     fade: 0.28,
     keep: 0.45,
-    x: 64,
-    y: 16,
-    w: 34,
+    x: 70,
+    y: 20,
+    w: 28,
     depth: 0.5,
     drift: 9,
   },
@@ -248,6 +317,14 @@ export const DEFAULT_NEXT: FitNext = {
   title: ["Ines", "Varga"],
   blurb: "The stage designer who built a theatre in a multi-storey car park.",
   href: "#",
+  backdrop: {
+    src: UNSPLASH + "1583119912267-cc97c911e416",
+    alt: "A ceiling fresco of cherubs in peach robes on a pale sky",
+    crop: [0, 0.05, 1, 0.9],
+    focus: "50% 60%",
+    mask: "stage",
+    keep: 0.5,
+  },
   figure: {
     src: UNSPLASH + "1782897955905-fb23f7db40bd",
     alt: "A marble angel with open wings",
@@ -287,8 +364,10 @@ export const DEFAULT_LABELS = {
 
 export const PALETTES = {
   dusk: {
-    cloud: { shadow: "#5a2619", mid: "#ad5a3c", light: "#f2c096", rim: "#fff3e0" },
+    cloud: { shadow: "#4a1d1e", mid: "#8e5347", light: "#e4c0ad", rim: "#fbeee4" },
     marble: ["#3a140f", "#b86e4a", "#ffe7c9"],
+    fresco: ["#1c0608", "#8a3728", "#f8d2ab"],
+    frescoKeep: 0.58,
     ink: "#fbeee2",
     muted: "#e6c6b1",
     gold: "#e8b36c",
@@ -296,15 +375,17 @@ export const PALETTES = {
     ribbonDark: "#731a15",
     veil: "#2a0c0a",
     tones: {
-      hero: { a: "#3a110f", b: "#812f1e", c: "#cf7a42", sunX: 50, sunY: 118, sun: 0.9, banks: 1 },
-      qa: { a: "#2a0c0b", b: "#4f1912", c: "#7b2f1b", sunX: 85, sunY: 100, sun: 0.35, banks: 0.5 },
-      quote: { a: "#4b1a12", b: "#9a4428", c: "#e6a66a", sunX: 50, sunY: 70, sun: 1, banks: 1 },
-      next: { a: "#2e0f0d", b: "#6e2719", c: "#c46f3c", sunX: 50, sunY: 112, sun: 0.9, banks: 1 },
+      hero: { a: "#1f0709", b: "#521818", c: "#a4422c", sunX: 50, sunY: 118, sun: 0.8, banks: 0.9 },
+      qa: { a: "#1c0708", b: "#3f1111", c: "#6a271b", sunX: 85, sunY: 100, sun: 0.3, banks: 0.45 },
+      quote: { a: "#3d1210", b: "#8a3a24", c: "#e0a068", sunX: 50, sunY: 70, sun: 1, banks: 0.9 },
+      next: { a: "#220a0b", b: "#5a1e19", c: "#b8603a", sunX: 50, sunY: 112, sun: 0.9, banks: 0.9 },
     },
   } as FitPalette,
   dawn: {
-    cloud: { shadow: "#8c6a55", mid: "#d7b49a", light: "#fbead6", rim: "#ffffff" },
+    cloud: { shadow: "#9a7865", mid: "#d5b9a4", light: "#f7e9da", rim: "#ffffff" },
     marble: ["#5a3b2c", "#c99a7a", "#fff4e6"],
+    fresco: ["#4a2a22", "#c99a7c", "#fff4e8"],
+    frescoKeep: 0.7,
     ink: "#2c1a14",
     muted: "#6b4b3c",
     gold: "#a8702f",
@@ -319,8 +400,10 @@ export const PALETTES = {
     },
   } as FitPalette,
   nocturne: {
-    cloud: { shadow: "#1f2340", mid: "#565b88", light: "#cfcbe2", rim: "#fff7ea" },
+    cloud: { shadow: "#23264a", mid: "#5c5f8c", light: "#c9c6dc", rim: "#f6f1f2" },
     marble: ["#121428", "#6c6f99", "#f2ecf6"],
+    fresco: ["#0c0e22", "#5a5a8c", "#f1e8f2"],
+    frescoKeep: 0.3,
     ink: "#f1edf7",
     muted: "#c3bdd6",
     gold: "#e9c87a",
@@ -630,6 +713,37 @@ export function paintCloudPixels(W: number, H: number, seed: number, pal: FitClo
   return out
 }
 
+/** Map luminance through a three-stop ramp, keeping some of the photo's own colour. */
+export function gradePixels(d: Uint8ClampedArray, W: number, H: number, ramp: [string, string, string], keep: number, gamma = 1) {
+  const sh = hexRgb(ramp[0])
+  const md = hexRgb(ramp[1])
+  const lt = hexRgb(ramp[2])
+  for (let i = 0; i < W * H; i++) {
+    const r = d[i * 4]
+    const g = d[i * 4 + 1]
+    const b = d[i * 4 + 2]
+    let L = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    if (gamma !== 1) L = Math.pow(L, gamma)
+    let cr: number
+    let cg: number
+    let cb: number
+    if (L < 0.5) {
+      const t = L * 2
+      cr = sh[0] + (md[0] - sh[0]) * t
+      cg = sh[1] + (md[1] - sh[1]) * t
+      cb = sh[2] + (md[2] - sh[2]) * t
+    } else {
+      const t = (L - 0.5) * 2
+      cr = md[0] + (lt[0] - md[0]) * t
+      cg = md[1] + (lt[1] - md[1]) * t
+      cb = md[2] + (lt[2] - md[2]) * t
+    }
+    d[i * 4] = cr + (r - cr) * keep
+    d[i * 4 + 1] = cg + (g - cg) * keep
+    d[i * 4 + 2] = cb + (b - cb) * keep
+  }
+}
+
 /**
  * Lift a photographed figure off its background, in place, and grade it to
  * the fresco: `edges` reads the background colour off the left and right
@@ -886,11 +1000,11 @@ export function wrapY(base: number, speed: number, scrolled: number, stage: numb
 }
 
 export const SKY_BANKS = [
-  { seed: 3, left: 4, width: 38, base: 0.02, speed: 0.09, alpha: 0.6 },
-  { seed: 11, left: 52, width: 46, base: 0.3, speed: 0.16, alpha: 0.72 },
-  { seed: 19, left: -10, width: 64, base: 0.58, speed: 0.26, alpha: 0.9 },
-  { seed: 23, left: 46, width: 58, base: 0.96, speed: 0.4, alpha: 1 },
-  { seed: 31, left: -14, width: 84, base: 1.34, speed: 0.56, alpha: 1 },
+  { seed: 3, left: 4, width: 38, base: 0.02, speed: 0.09, alpha: 0.5 },
+  { seed: 11, left: 52, width: 46, base: 0.3, speed: 0.16, alpha: 0.62 },
+  { seed: 19, left: -10, width: 64, base: 0.58, speed: 0.26, alpha: 0.8 },
+  { seed: 23, left: 46, width: 58, base: 0.96, speed: 0.4, alpha: 0.9 },
+  { seed: 31, left: -14, width: 84, base: 1.34, speed: 0.56, alpha: 0.92 },
 ]
 // #endregion logic
 
@@ -1093,6 +1207,70 @@ function Figure(props: { fig: FitFigure; ramp: [string, string, string]; classNa
   )
 }
 
+/**
+ * A painting behind a stage: a fresco photograph, cropped, graded through the
+ * palette's ramp and dissolved into the sky at its edges. A host without CORS
+ * shows it plain with a CSS grade instead.
+ */
+function Backdrop(props: { bd: FitBackdrop; ramp: [string, string, string]; keep: number; className?: string }) {
+  const { bd, ramp, keep, className } = props
+  const ref = React.useRef(null as HTMLCanvasElement | null)
+  const [state, setState] = React.useState("loading" as "loading" | "ready" | "plain" | "failed")
+  const [cors, setCors] = React.useState(true)
+  const rampKey = ramp.join()
+  const k = bd.keep == null ? keep : bd.keep
+  React.useEffect(() => {
+    let live = true
+    setState("loading")
+    const img = new Image()
+    if (cors) img.crossOrigin = "anonymous"
+    img.decoding = "async"
+    img.onload = () => {
+      if (!live) return
+      const c = ref.current
+      if (!c) return
+      const crop = bd.crop || [0, 0, 1, 1]
+      const sx = Math.round(img.naturalWidth * crop[0])
+      const sy = Math.round(img.naturalHeight * crop[1])
+      const sw = Math.max(1, Math.round(img.naturalWidth * crop[2]))
+      const shh = Math.max(1, Math.round(img.naturalHeight * crop[3]))
+      const scale = Math.min(1, 1600 / Math.max(sw, shh))
+      const W = Math.max(1, Math.round(sw * scale))
+      const H = Math.max(1, Math.round(shh * scale))
+      c.width = W
+      c.height = H
+      const g = c.getContext("2d", { willReadFrequently: true })
+      if (!g) return setState("failed")
+      g.drawImage(img, sx, sy, sw, shh, 0, 0, W, H)
+      let im: ImageData | null = null
+      try {
+        im = g.getImageData(0, 0, W, H)
+      } catch {
+        im = null // a host without CORS taints the canvas
+      }
+      if (!im) return setState("plain")
+      gradePixels(im.data, W, H, ramp, k, bd.gamma || 1)
+      g.putImageData(im, 0, 0)
+      setState("ready")
+    }
+    img.onerror = () => {
+      if (!live) return
+      if (cors) setCors(false)
+      else setState("failed")
+    }
+    img.src = sized(bd.src, 1800)
+    return () => {
+      live = false
+    }
+  }, [bd.src, bd.crop && bd.crop.join(), bd.gamma, k, rampKey, cors])
+  return (
+    <div className={"fit-bd" + (className ? " " + className : "")} data-state={state} data-mask={bd.mask || "stage"} style={{ opacity: bd.opacity == null ? 1 : bd.opacity }} aria-hidden="true">
+      <canvas ref={ref} className="fit-bd-canvas" style={{ objectPosition: bd.focus, display: state === "plain" ? "none" : undefined }} />
+      {state === "plain" && <img className="fit-bd-img" src={sized(bd.src, 1800)} alt="" style={{ maxWidth: "none", objectPosition: bd.focus }} />}
+    </div>
+  )
+}
+
 function Icon({ name }: { name: FitIconName }) {
   if (name === "instagram") {
     return (
@@ -1235,7 +1413,7 @@ const FIT_CSS = `
 .fit-banks{position:absolute;inset:0;opacity:var(--fit-banks-a,1)}
 .fit-bank{position:absolute;top:0;will-change:transform}
 .fit-bank-drift{will-change:transform}
-.fit-cloud{width:100%;height:auto;opacity:0;transition:opacity 1.1s ease}
+.fit-cloud{width:100%;height:auto;opacity:0;transition:opacity 1.1s ease;filter:blur(.7px)}
 .fit-cloud[data-ready]{opacity:1}
 .fit-grain{position:absolute;inset:0;width:100%;height:100%;opacity:.09;mix-blend-mode:soft-light;pointer-events:none}
 .fit-page{position:relative;z-index:1}
@@ -1259,6 +1437,14 @@ const FIT_CSS = `
 .fit-progress{position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--fit-gold);transform:scaleX(0);transform-origin:left;opacity:.9}
 .fit-hero{position:relative;min-height:max(var(--fit-h),640px);display:grid;place-items:center;padding:calc(var(--fit-head) + 4vh) 16px 14vh}
 .fit-stage{position:absolute;inset:0;pointer-events:none}
+.fit-bd{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.fit-bd-canvas,.fit-bd-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none;opacity:0;transition:opacity 1.6s ease}
+.fit-bd[data-state="ready"] .fit-bd-canvas,.fit-bd[data-state="plain"] .fit-bd-img{opacity:1}
+.fit-bd-img{filter:sepia(.55) saturate(.8) contrast(1.05) brightness(.85)}
+.fit-bd[data-mask="hero"]{-webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.5),#000 24%,#000 66%,transparent 100%);mask-image:linear-gradient(180deg,rgba(0,0,0,.5),#000 24%,#000 66%,transparent 100%)}
+.fit-bd[data-mask="stage"]{-webkit-mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent)}
+.fit-hero-veil{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 46% 40% at 50% 46%,color-mix(in srgb,var(--fit-veil) 42%,transparent),transparent 100%)}
+.fit-quote-veil{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 54% 44% at 50% 44%,color-mix(in srgb,var(--fit-veil) 58%,transparent),color-mix(in srgb,var(--fit-veil) 22%,transparent) 60%,transparent 100%)}
 .fit-fig{position:absolute;width:var(--fit-w);pointer-events:none;will-change:transform}
 .fit-fig-rot{transform:rotate(var(--fit-rot)) scaleX(var(--fit-flip))}
 .fit-fig-float{animation:fit-float 7.5s ease-in-out infinite alternate}
@@ -1273,7 +1459,8 @@ const FIT_CSS = `
 .fit-kicker{display:inline-flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--fit-gold);margin-bottom:clamp(16px,3vh,32px)}
 .fit-kicker:before,.fit-kicker:after{content:"";width:28px;height:1px;background:currentColor;opacity:.8}
 .fit-hero-copy{position:relative;z-index:2;text-align:center}
-.fit-hero-front{position:absolute;left:-14%;right:-14%;bottom:-22%;height:42%;z-index:3;pointer-events:none}
+.fit-hero .fit-stage{z-index:1}
+.fit-hero-front{position:absolute;left:-14%;right:-14%;bottom:-26%;height:34%;z-index:3;pointer-events:none;opacity:.94}
 .fit-stage-front{position:absolute;inset:0;z-index:4;pointer-events:none}
 .fit-hero-front .fit-bank{top:auto}
 .fit-cue{position:absolute;left:50%;bottom:3.5vh;transform:translateX(-50%);z-index:4;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;opacity:.8}
@@ -1306,7 +1493,7 @@ const FIT_CSS = `
 .fit-quote-text .fit-w{display:inline-block;will-change:transform,opacity}
 .fit-cite{margin-top:clamp(18px,3vh,30px);font-family:var(--fit-sans);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--fit-gold);display:flex;justify-content:center;align-items:center;gap:12px}
 .fit-cite:before{content:"";width:28px;height:1px;background:currentColor}
-.fit-quote-front{position:absolute;left:-14%;right:-14%;bottom:-18%;height:36%;z-index:3;pointer-events:none}
+.fit-quote-front{position:absolute;left:-14%;right:-14%;bottom:-24%;height:30%;z-index:3;pointer-events:none;opacity:.94}
 .fit-quote-front .fit-bank{top:auto}
 .fit-next{position:relative;z-index:2;min-height:max(var(--fit-h),640px);display:grid;grid-template-rows:1fr auto;overflow:hidden}
 .fit-next-link{position:relative;display:grid;place-items:center;padding:calc(var(--fit-head) + 8vh) 20px 6vh;text-align:center;cursor:pointer}
@@ -1323,7 +1510,7 @@ const FIT_CSS = `
 .fit-next-go{position:relative;z-index:5;margin-top:clamp(18px,3vh,30px);display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border:1px solid color-mix(in srgb,var(--fit-ink) 55%,transparent);border-radius:999px;background:color-mix(in srgb,var(--fit-veil) 55%,transparent);font-family:var(--fit-sans);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;transition:background-color .35s,color .35s}
 .fit-next-link:hover .fit-next-go,.fit-next-link:focus-visible .fit-next-go{background:var(--fit-ink);color:var(--fit-veil)}
 .fit-next-stage{position:absolute;inset:0;z-index:1;pointer-events:none;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
-.fit-next-front{position:absolute;left:-14%;right:-14%;bottom:-16%;height:32%;z-index:3;pointer-events:none;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.fit-next-front{position:absolute;left:-14%;right:-14%;bottom:-20%;height:28%;opacity:.94;z-index:3;pointer-events:none;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
 .fit-next-stage-front{position:absolute;inset:0;z-index:4;pointer-events:none;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
 .fit-next-link:hover ~ .fit-next-stage-front,.fit-next-link:focus-visible ~ .fit-next-stage-front{transform:translateY(-4%)}
 .fit-next-front .fit-bank{top:auto}
@@ -1353,7 +1540,8 @@ const FIT_CSS = `
 .fit-head-mid{display:none}
 .fit-hero{padding-bottom:10vh}
 .fit-qa-grid{columns:1}
-.fit-stage .fit-fig,.fit-stage-front .fit-fig,.fit-next-stage .fit-fig,.fit-next-stage-front .fit-fig{width:calc(var(--fit-w) * 1.7)}
+.fit-stage .fit-fig,.fit-stage-front .fit-fig,.fit-next-stage .fit-fig,.fit-next-stage-front .fit-fig{width:calc(var(--fit-w) * 1.5)}
+.fit-hero .fit-stage .fit-fig{width:calc(var(--fit-w) * 1.3)}
 .fit-banks .fit-bank{min-width:560px}
 .fit-hero-front .fit-bank,.fit-quote-front .fit-bank,.fit-next-front .fit-bank{min-width:150%}
 .fit-hero-front .fit-bank + .fit-bank,.fit-quote-front .fit-bank + .fit-bank,.fit-next-front .fit-bank + .fit-bank{left:-20%!important}
@@ -1504,8 +1692,10 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
         const front = heroEl.querySelectorAll(".fit-hero-front .fit-bank")
         const figs = Array.from(heroEl.querySelectorAll(".fit-stage > .fit-fig, .fit-stage-front > .fit-fig")) as HTMLElement[]
         const cue = heroEl.querySelector(".fit-cue")
+        const hbd = heroEl.querySelector(".fit-bd")
         if (!R) {
           const tl = gsap.timeline({ scrollTrigger: { trigger: heroEl, scroller, start: "top top", end: "bottom top", scrub: true } })
+          if (hbd) tl.fromTo(hbd, { yPercent: 0, scale: 1 }, { yPercent: 14, scale: 1.06, ease: "none", duration: 1 }, 0)
           if (copy) tl.fromTo(copy, { yPercent: 0 }, { yPercent: -34, ease: "none", duration: 1 }, 0)
           if (title) tl.fromTo(title, { opacity: 1 }, { opacity: 0, ease: "power1.in", duration: 0.55 }, 0.25)
           front.forEach((b, i) => tl.fromTo(b, { yPercent: 0 }, { yPercent: -36 - i * 10, ease: "none", duration: 1 }, 0))
@@ -1615,11 +1805,13 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
         const cite = stick.querySelector(".fit-cite")
         const qfig = stick.querySelectorAll(".fit-stage > .fit-fig, .fit-stage-front > .fit-fig")
         const qfront = stick.querySelectorAll(".fit-quote-front .fit-bank")
+        const qbd = stick.querySelector(".fit-bd")
         if (!R) {
           const tl = gsap.timeline({ scrollTrigger: { trigger: quoteEl, scroller, start: "top top", end: "bottom bottom", scrub: 0.5, onRefreshInit: size } })
           tl.fromTo(words, { opacity: 0, y: 44, rotate: 1.5 }, { opacity: 1, y: 0, rotate: 0, duration: 0.42, ease: "power2.out", stagger: { each: 0.34 / Math.max(1, words.length) } }, 0.06)
           if (cite) tl.fromTo(cite, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.16, ease: "power2.out" }, 0.5)
           tl.to(rib, { p: 1, duration: 0.62, ease: "none" }, 0.02)
+          if (qbd) tl.fromTo(qbd, { scale: 1.08, yPercent: -3 }, { scale: 1, yPercent: 3, duration: 1, ease: "none" }, 0)
           qfig.forEach((f) => tl.fromTo(f, { yPercent: 26 }, { yPercent: -18, duration: 1, ease: "none" }, 0))
           qfront.forEach((b, i) => tl.fromTo(b, { yPercent: 14 + i * 5 }, { yPercent: -10 - i * 5, duration: 1, ease: "none" }, 0))
           ScrollTrigger.create({
@@ -1643,7 +1835,9 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
         const nfig = nextEl.querySelectorAll(".fit-next-stage .fit-fig, .fit-next-stage-front .fit-fig")
         const nfront = nextEl.querySelectorAll(".fit-next-front .fit-bank")
         const rest = nextEl.querySelectorAll(".fit-next-label,.fit-next-blurb,.fit-next-go")
+        const nbd = nextEl.querySelector(".fit-bd")
         const tl = gsap.timeline({ scrollTrigger: { trigger: nextEl, scroller, start: "top 85%", end: "top 12%", scrub: 0.5 } })
+        if (nbd) tl.fromTo(nbd, { yPercent: -10, scale: 1.08 }, { yPercent: 0, scale: 1, duration: 1, ease: "none" }, 0)
         tl.fromTo(lines, { yPercent: 108 }, { yPercent: 0, duration: 1, ease: "power2.out", stagger: 0.14 }, 0)
         nfig.forEach((f) => tl.fromTo(f, { yPercent: 38, opacity: 0.4 }, { yPercent: 0, opacity: 1, duration: 1, ease: "none" }, 0))
         nfront.forEach((b, i) => tl.fromTo(b, { yPercent: 24 + i * 6 }, { yPercent: 0, duration: 1, ease: "none" }, 0))
@@ -1723,6 +1917,8 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
   const quoteStage = quote ? (
     <section ref={quoteRef} className="fit-quote" aria-label={plain(quote.text)}>
       <div ref={stickRef} className="fit-quote-stick">
+        {quote.backdrop ? <Backdrop bd={quote.backdrop} ramp={pal.fresco} keep={pal.frescoKeep} /> : null}
+        <div className="fit-quote-veil" aria-hidden="true" />
         <svg ref={ribbonRef} className="fit-ribbon" viewBox="0 0 1000 420" preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <linearGradient ref={ribGrad} id={uid + "-rib"} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1000" y2="0">
@@ -1821,6 +2017,8 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
 
         <main>
           <section ref={heroRef} className="fit-hero" aria-labelledby={uid + "-title"}>
+            {story.backdrop ? <Backdrop bd={story.backdrop} ramp={pal.fresco} keep={pal.frescoKeep} /> : null}
+            <div className="fit-hero-veil" aria-hidden="true" />
             <div className="fit-stage">
               {story.figures.map((f, i) => (f.front ? null : <Figure key={i} fig={f} ramp={pal.marble} className="fit-fig-s1" />))}
             </div>
@@ -1888,6 +2086,7 @@ export default function FrescoInterviewTemplate(props: FrescoInterviewTemplatePr
 
         {next ? (
           <section ref={nextRef} className="fit-next" aria-label={next.label}>
+            {next.backdrop ? <Backdrop bd={next.backdrop} ramp={pal.fresco} keep={pal.frescoKeep} /> : null}
             <a className="fit-next-link" href={next.href} onClick={goNext}>
               <span className="fit-next-label">{next.label}</span>
               <span className="fit-next-title" role="heading" aria-level={2}>

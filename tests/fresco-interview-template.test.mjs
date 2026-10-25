@@ -88,6 +88,10 @@ assert.match(src, /<main>/, "a main landmark")
 assert.match(src, /aria-labelledby=\{uid \+ "-title"\}/, "the hero is labelled by its headline")
 assert.match(src, /role="heading" aria-level=\{2\}/, "the next story is a heading inside its link")
 assert.match(src, /crossOrigin = "anonymous"/, "photos ask for CORS so they can be keyed")
+assert.match(src, /function Backdrop\(/, "paintings are graded on a canvas")
+assert.match(src, /gradePixels\(im\.data, W, H, ramp, k, bd\.gamma \|\| 1\)/, "through the palette's fresco ramp")
+assert.match(src, /\.fit-bd-canvas,\.fit-bd-img\{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none/, "and cover their stage, guarded against Preflight")
+assert.match(src, /\.fit-bd\[data-mask="hero"\]\{-webkit-mask-image:linear-gradient/, "the hero painting dissolves into the sky")
 assert.match(src, /if \(cors\) setCors\(false\)/, "and retry without it for hosts that refuse")
 assert.match(src, /im = null \/\/ a host without CORS taints the canvas/, "a tainted canvas falls back to the plain photo")
 assert.match(src, /onNext\(next\)/, "onNext is called with the next story")
@@ -109,8 +113,31 @@ assert.match(noc, /front: true/, "and places a figure in front of the copy")
 const code = region("content") + region("logic")
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
+// default content: paintings behind the stages, graded to the palette
+for (const bd of [L.DEFAULT_STORY.backdrop, L.DEFAULT_QUOTE.backdrop, L.DEFAULT_NEXT.backdrop]) {
+  assert.match(bd.src, /^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]{12}$/, "bare Unsplash URL " + bd.src)
+  assert.ok(bd.alt && bd.alt.length > 8, "alt for " + bd.src)
+  assert.ok(["hero", "stage"].includes(bd.mask), "a mask for " + bd.src)
+}
+for (const name of ["dusk", "dawn", "nocturne"]) {
+  const p = L.PALETTES[name]
+  assert.equal(p.fresco.length, 3, name + " has a fresco ramp")
+  assert.ok(p.frescoKeep > 0 && p.frescoKeep < 1, name + " keeps some of the painting")
+}
+// grading: a grey ramp maps black to the first stop and white to the last
+const gp = new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255, 128, 128, 128, 255, 200, 40, 40, 255])
+L.gradePixels(gp, 4, 1, ["#102030", "#808080", "#f0e0d0"], 0)
+assert.deepEqual([...gp.slice(0, 3)], [0x10, 0x20, 0x30], "black takes the shadow stop")
+assert.deepEqual([...gp.slice(4, 7)], [0xf0, 0xe0, 0xd0], "white takes the light stop")
+assert.ok(Math.abs(gp[8] - 0x80) < 3, "mid grey takes the middle stop")
+const gk = new Uint8ClampedArray([200, 40, 40, 255])
+L.gradePixels(gk, 1, 1, ["#000000", "#808080", "#ffffff"], 1)
+assert.deepEqual([...gk.slice(0, 3)], [200, 40, 40], "keep 1 leaves the photo alone")
+
 // default content: real photos, alt text, a way to key each one
 const figs = [...L.DEFAULT_STORY.figures, L.DEFAULT_QUOTE.figure, L.DEFAULT_NEXT.figure, L.DEFAULT_SECTIONS[1].ornament]
+assert.ok(L.DEFAULT_STORY.figures.length >= 5, "the hero is crowded, like a ceiling")
+assert.ok(L.DEFAULT_STORY.figures.filter((f) => f.front).length >= 3, "with figures in front of the headline")
 for (const f of figs) {
   assert.match(f.src, /^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]{12}$/, "bare Unsplash URL " + f.src)
   assert.ok(f.alt && f.alt.length > 8, "alt for " + f.src)
