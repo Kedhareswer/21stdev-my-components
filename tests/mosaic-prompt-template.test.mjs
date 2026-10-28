@@ -117,7 +117,7 @@ for (const ch of "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 for (const ch of "gjpqy") assert.equal(L.GLYPHS[ch].split("/").length, 8, `${ch} descends`)
 assert.equal(L.GLYPHS["."].split("/")[6], "#", "the full stop sits on the baseline")
 
-const defaults = ["Describe an app", "We'll build it", "Built to ship", "Simple plans", "Fastshot", "Describe the tool", "Ship it by lunch", "Less glue", "Per team", "Foundry"]
+const defaults = ["Describe an app", "We'll build it", "Built to ship", "Simple plans", "Frameloom", "Describe the tool", "Ship it by lunch", "Less glue", "Per team", "Foundry"]
 for (const line of defaults) for (const ch of line) assert.ok(ch === " " || L.GLYPHS[ch], `"${ch}" in "${line}" has a glyph`)
 
 const one = L.layoutPixels("I")

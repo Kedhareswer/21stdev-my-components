@@ -56,7 +56,7 @@ are illustrative. Wire `onSubmit` to your own generator.
 import MosaicPromptTemplate from "@/components/ui/mosaic-prompt-template"
 
 <MosaicPromptTemplate
-  brand="Fastshot"
+  brand="Frameloom"
   accent="ice"
   headline={["Describe an app", "We'll build it"]}
   onSubmit={({ prompt, platform, model, files }) => startBuild(prompt, { platform, model })}
@@ -68,7 +68,7 @@ import MosaicPromptTemplate from "@/components/ui/mosaic-prompt-template"
 
 | Prop | Default | What it does |
 |---|---|---|
-| `brand` | `"Fastshot"` | Wordmark beside the mark, and the pixel word in the footer. |
+| `brand` | `"Frameloom"` | Wordmark beside the mark, and the pixel word in the footer. |
 | `headline` | `["Describe an app", "We'll build it"]` | One entry per line. Lines share one pixel size and are scaled down together if the longest would not fit. |
 | `prompts` | four examples | What the placeholder types. |
 | `platforms` | Mobile app, Web app, Dashboard, Game | `{ label, icon }` chips. |

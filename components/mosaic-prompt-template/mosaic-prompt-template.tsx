@@ -478,7 +478,7 @@ const BUILD_STEPS = ["Reading your idea", "Sketching the screens", "Writing comp
 /* ------------------------------------------------------------------ */
 
 export default function MosaicPromptTemplate({
-  brand = "Fastshot",
+  brand = "Frameloom",
   headline = ["Describe an app", "We'll build it"],
   prompts = DEFAULT_PROMPTS,
   platforms = DEFAULT_PLATFORMS,
@@ -1678,8 +1678,8 @@ const MPT_CSS = `
 @keyframes mpt-ready{50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 4px 26px var(--mpt-glow),0 0 0 6px rgba(255,255,255,.04)}}
 .mpt-send:hover{transform:scale(1.07)}
 .mpt-send:active{transform:scale(.94)}
-.mpt-hint{font-size:12px;color:var(--mpt-dim);letter-spacing:.01em}
-.mpt-hint kbd{font:inherit;font-size:11px;padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#b6b6bd}
+.mpt-hint{font-size:12px;color:var(--mpt-mute);letter-spacing:.01em;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.mpt-hint kbd{font:inherit;font-size:11px;padding:1px 6px;border-radius:5px;background:rgba(20,20,24,.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#e2e2e7}
 
 .mpt-build{display:flex;flex-direction:column;gap:14px;padding:2px 6px 0 0}
 .mpt-build-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
@@ -1731,6 +1731,7 @@ const MPT_CSS = `
 @keyframes mpt-bob{50%{transform:translateY(5px)}}
 
 .mpt-section{position:relative;z-index:1;padding:clamp(96px,16svh,170px) clamp(16px,4vw,40px)}
+.mpt-features{padding-bottom:clamp(56px,9svh,110px)}
 .mpt-inner{width:min(1140px,100%);margin:0 auto;container-type:inline-size}
 .mpt-sec-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;margin-bottom:clamp(44px,7svh,72px)}
 .mpt-kicker{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#d8d8dd;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
@@ -1739,11 +1740,11 @@ const MPT_CSS = `
 .mpt-sec-title{width:min(calc(var(--mpt-pxs) * .8 * var(--w)),100cqi)}
 .mpt-lede{max-width:54ch;font-size:clamp(15px,1.25vw,17px);color:#c4c4cb;text-shadow:0 1px 12px rgba(0,0,0,.5)}
 
-.mpt-glass{--mx:50%;--my:50%;position:relative;border-radius:22px;background:radial-gradient(360px circle at var(--mx) var(--my),rgba(255,255,255,.09),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03));backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.12),0 20px 50px rgba(0,0,0,.28);transform-style:preserve-3d;will-change:transform}
+.mpt-glass{--mx:50%;--my:50%;position:relative;border-radius:22px;background:radial-gradient(360px circle at var(--mx) var(--my),rgba(255,255,255,.09),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03)),rgba(12,12,16,.46);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.12),0 20px 50px rgba(0,0,0,.28);transform-style:preserve-3d;will-change:transform}
 .mpt-features-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .mpt-feature{padding:26px 24px 28px;display:flex;flex-direction:column;gap:10px;min-height:220px}
 .mpt-feature h3{font-size:18px;font-weight:600;letter-spacing:-.015em;margin-top:10px}
-.mpt-feature p{font-size:14.5px;line-height:1.6;color:#b3b4bc}
+.mpt-feature p{font-size:14.5px;line-height:1.6;color:#c9cad1}
 .mpt-feature-num{position:absolute;top:22px;right:22px;font-size:12px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.32);letter-spacing:.06em}
 .mpt-feature-icon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.2)}
 .mpt-feature-icon .mpt-picon{width:20px;height:20px;fill:#fff;transition:fill .3s,transform .5s cubic-bezier(.16,1,.3,1)}
