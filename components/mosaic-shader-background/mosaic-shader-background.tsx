@@ -330,7 +330,7 @@ export default function MosaicShaderBackground({
 }
 
 const MSB_CSS = `
-.msb-root{position:relative;isolation:isolate;height:var(--msb-h);min-height:320px;overflow:hidden;color:#f5f5f6;background:radial-gradient(60% 50% at 50% 55%,#2a2b33,transparent 70%),#050506;transition:background .8s ease}
+.msb-root{position:relative;isolation:isolate;width:100%;height:var(--msb-h);min-height:320px;overflow:hidden;color:#f5f5f6;background:radial-gradient(60% 50% at 50% 55%,#2a2b33,transparent 70%),#050506;transition:background .8s ease}
 .msb-root[data-scene="prism"]{background:linear-gradient(120deg,#0f1420,#2b3a52 50%,#0f1420)}
 .msb-root[data-scene="waves"]{background:radial-gradient(80% 60% at 50% 60%,#33192f,transparent 70%),#120a12}
 .msb-root :where(canvas){display:block;max-width:none}

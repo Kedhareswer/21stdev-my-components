@@ -318,7 +318,7 @@ export default function GlassFeatureGrid({
 type CardEvent = React.PointerEvent<HTMLElement>
 
 const GFG_CSS = `
-.gfg-root{position:relative;padding:clamp(72px,12svh,140px) clamp(16px,4vw,40px);background:var(--gfg-bg);color:#f5f5f6;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;text-align:left}
+.gfg-root{position:relative;width:100%;box-sizing:border-box;padding:clamp(72px,12svh,140px) clamp(16px,4vw,40px);background:var(--gfg-bg);color:#f5f5f6;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;text-align:left}
 .gfg-root :where(svg){display:block;max-width:none}
 .gfg-root :where(h2,h3,p,ul,li){margin:0;padding:0}
 .gfg-root :where(ul){list-style:none}

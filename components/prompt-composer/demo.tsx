@@ -6,6 +6,7 @@ export default function Demo() {
   return (
     <div
       style={{
+        width: "100%",
         minHeight: "100svh",
         display: "grid",
         placeItems: "center",

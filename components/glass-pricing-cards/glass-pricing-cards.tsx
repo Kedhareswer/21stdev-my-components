@@ -393,7 +393,7 @@ export default function GlassPricingCards({
 type CardEvent = React.PointerEvent<HTMLElement>
 
 const GPC_CSS = `
-.gpc-root{position:relative;padding:clamp(72px,12svh,140px) clamp(16px,4vw,40px);background:var(--gpc-bg);color:#f5f5f6;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;text-align:left}
+.gpc-root{position:relative;width:100%;box-sizing:border-box;padding:clamp(72px,12svh,140px) clamp(16px,4vw,40px);background:var(--gpc-bg);color:#f5f5f6;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;text-align:left}
 .gpc-root :where(svg){display:block;max-width:none}
 .gpc-root :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
 .gpc-root :where(h2,h3,p,ul,li){margin:0;padding:0}

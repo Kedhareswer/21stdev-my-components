@@ -247,7 +247,7 @@ export default function PixelWordmarkFooter({
 }
 
 const PWF_CSS = `
-.pwf-root{position:relative;padding:clamp(64px,12svh,130px) clamp(16px,4vw,40px) 36px;background:var(--pwf-bg);color:#a3a3ab;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+.pwf-root{position:relative;width:100%;box-sizing:border-box;padding:clamp(64px,12svh,130px) clamp(16px,4vw,40px) 36px;background:var(--pwf-bg);color:#a3a3ab;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
 .pwf-root :where(svg){display:block;max-width:none}
 .pwf-root :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
 .pwf-root :where(a,button):focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:6px}

@@ -50,6 +50,7 @@ for (const [slug, { prefix, imports }] of Object.entries(KIT)) {
   }
   assert.match(css[1], new RegExp(`\\.${prefix}-root :where\\((svg|canvas)\\)\\{display:block;max-width:none\\}`), at("media guarded against Preflight"))
   assert.match(css[1], /@media \(prefers-reduced-motion:reduce\)\{/, at("reduced motion in CSS too"))
+  assert.match(css[1], new RegExp(`\\.${prefix}-root\\{[^}]*width:(100%|min\\(720px,100%\\))`), at("root claims its width: 21st centres demos in a flex wrapper that would shrink it"))
   for (const m of css[1].matchAll(/([.\w>*\s,:()-]+)\{[^}]*\bheight:100%/g)) assert.match(m[0], /position:absolute|inset:0/, at(`percentage height only on absolute layers: ${m[1].trim()}`))
 
   if (imports.includes("gsap")) {
