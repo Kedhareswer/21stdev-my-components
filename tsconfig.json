@@ -26,6 +26,7 @@
       "@/components/ui/darwaza-preloader": ["./components/darwaza-preloader/darwaza-preloader.tsx"],
       "@/components/ui/honey-label-footer": ["./components/honey-label-footer/honey-label-footer.tsx"],
       "@/components/ui/slit-type-faq": ["./components/slit-type-faq/slit-type-faq.tsx"],
+      "@/components/ui/vernissage-museum-template": ["./components/vernissage-museum-template/vernissage-museum-template.tsx"],
       "@/components/ui/plumb-payroll-template": ["./components/plumb-payroll-template/plumb-payroll-template.tsx"],
       "@/components/ui/long-exposure-agency-template": ["./components/long-exposure-agency-template/long-exposure-agency-template.tsx"],
       "@/components/ui/maroon-fintech-landing": ["./components/maroon-fintech-landing/maroon-fintech-landing.tsx"],
