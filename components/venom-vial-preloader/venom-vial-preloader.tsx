@@ -72,6 +72,8 @@ export interface VenomVialPreloaderProps {
   doneLabel?: string
   /** Upload mode: shown while the empty vial waits for a file. */
   idleLabel?: string
+  /** Upload loop: name under the file the showcase drags in (its size is `total`). */
+  demoFile?: string
   /** Shown at the foot while the full vial waits. */
   hint?: string
   /** Shown at the foot while loading. null hides it. */
@@ -414,6 +416,9 @@ const VV_CSS = `
   transition: opacity 0.45s steps(3, end), color 0.3s ease;
 }
 .vvp-label { color: var(--vvp-muted); letter-spacing: 0.04em; }
+.vvp-file { position: absolute; left: 0; top: 0; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.1em; font-family: var(--vvp-font); line-height: 1.15; white-space: nowrap; pointer-events: none; transition: opacity 0.2s; }
+.vvp-file span:first-child { color: var(--vvp-text); }
+.vvp-file span:last-child { color: var(--vvp-muted); font-size: 0.85em; }
 .vvp-label[data-on="true"] { opacity: 1; }
 .vvp-label[data-tone="done"] { color: var(--vvp-text); }
 .vvp-label[data-tone="drop"] { color: var(--vvp-venom-hi); text-shadow: 0 0 12px var(--vvp-venom); }
@@ -522,6 +527,7 @@ export default function VenomVialPreloader({
   unit = "MB",
   doneLabel,
   idleLabel = "Drop a file into the potion",
+  demoFile = "spells.zip",
   hint = "Pull the stopper to enter",
   tip = "Tug the gem · drop a file in",
   dropLabel = "Release to drop it in",
@@ -594,6 +600,7 @@ export default function VenomVialPreloader({
   const spiderRef = React.useRef({ x: 0, y: -40, head: Math.PI / 2, gait: 0, mode: 0, vx: 0, hop: 0, hv: 0, landed: false, rideAt: 0, ride: 0 })
   // upload loop: a phantom file dragged in from the corner and dropped
   const autoRef = React.useRef({ stage: 0, at: 0, x: 0, y: 0 })
+  const capRef = React.useRef(null as HTMLParagraphElement | null)
   const sloshRef = React.useRef({ a: 0, va: 0 })
   const sparksRef = React.useRef([] as Spark[])
   const puffsRef = React.useRef([] as Puff[])
@@ -1681,7 +1688,14 @@ export default function VenomVialPreloader({
                 }
               }
               pointerRef.current = { x: auto.x, y: auto.y, vx: 0, t: now }
-              drawFile(auto.x, auto.y, 1)
+              drawFile(auto.x, auto.y, 1.25)
+              const cap = capRef.current
+              if (cap) {
+                cap.style.opacity = dragRef.current ? "0.75" : "1"
+                cap.style.transform = "translate(" + Math.round(auto.x * s) + "px," + Math.round((auto.y + 15) * s) + "px) translateX(-50%)"
+              }
+            } else if (capRef.current && capRef.current.style.opacity !== "0") {
+              capRef.current.style.opacity = "0"
             }
           }
 
@@ -1900,23 +1914,43 @@ export default function VenomVialPreloader({
         }
       }
 
+      // a zip file the way a desktop draws one: a page with a dog-eared corner,
+      // a zipper down its middle and a green "zip" tag across the foot
       function drawFile(fx: number, fy: number, sc: number) {
-        const w = Math.max(2, Math.round(10 * sc))
-        const h = Math.max(3, Math.round(13 * sc))
+        const w = Math.max(3, Math.round(15 * sc))
+        const h = Math.max(4, Math.round(19 * sc))
         const x1 = Math.round(fx - w / 2)
         const y1 = Math.round(fy - h / 2)
-        const fold = Math.max(1, Math.round(3 * sc))
+        const fold = Math.max(1, Math.round(5 * sc))
+        const zx = Math.round(w * 0.42)
+        const tagY = Math.round(h * 0.66)
+        const tagH = Math.max(1, Math.round(4 * sc))
         for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
-            if (x >= w - fold && y < fold - (w - 1 - x)) continue
-            let col = x === 0 || y === h - 1 ? c.paperD : c.paper
-            if (x >= w - fold && y < fold) col = c.paperD
-            if (y >= Math.round(h * 0.6) && y < Math.round(h * 0.6) + Math.max(1, Math.round(3 * sc)) && x > 0 && x < w - 1) col = c.v0
-            if (x === Math.round(w * 0.45) && y > 0 && y < h * 0.5 && y % 2 === 0) col = c.paperD
+            const inFold = x >= w - fold && y < fold
+            if (inFold && x - (w - fold) > y) continue
+            let col = c.paper
+            // a rounded outline, darker down the right and along the foot
+            if (x === 0 || y === 0 || (inFold && x - (w - fold) === y)) col = c.paperD
+            if (x === w - 1 || y === h - 1) col = c.paperD
+            if ((x === 0 || x === w - 1) && (y === 0 || y === h - 1)) continue
+            // the turned-down corner
+            if (inFold && x - (w - fold) < y) col = mixPk(c.paper, c.paperD, 0.6)
+            // the zipper: alternating teeth down the middle of the top half
+            if (sc >= 0.6 && y >= 2 && y < tagY - 2 && (x === zx || x === zx + 1)) {
+              if ((y + (x === zx ? 0 : 1)) % 2 === 0) col = c.paperD
+            }
+            // the green tag, with "zip" picked out in its darker shade
+            if (y >= tagY && y < tagY + tagH && x >= 2 && x < w - 2) {
+              col = c.v0
+              if (sc >= 0.9 && y === tagY + 1 && tagH >= 3 && x >= Math.round(w / 2) - 3 && x <= Math.round(w / 2) + 3 && x % 2 === 0) col = c.vd2
+            }
             put(x1 + x, y1 + y, col)
-            glow(x1 + x, y1 + y, col === c.v0 ? c.v0 : 0)
+            if (col === c.v0) glow(x1 + x, y1 + y, c.v0)
           }
         }
+        // a soft drop shadow so it reads as lifted off the dark
+        for (let x = 1; x < w; x++) blend(x1 + x, y1 + h, c.void, 0.6)
       }
     }
     raf = requestAnimationFrame(tick)
@@ -2188,6 +2222,12 @@ export default function VenomVialPreloader({
             </p>
           ) : null}
 
+          {upload && loop ? (
+            <p ref={capRef} className="vvp-file" style={{ fontSize: Math.max(10, Math.round(s * 3.2)), opacity: 0 }} aria-hidden="true">
+              <span>{demoFile}</span>
+              <span>{total > 0 ? total.toFixed(1) + (unit ? " " + unit : "") : ""}</span>
+            </p>
+          ) : null}
           <span className="vvp-sr" aria-live="polite">
             {brewed ? (upload ? doneText + "." : doneText + " " + hint + ".") : ""}
           </span>
