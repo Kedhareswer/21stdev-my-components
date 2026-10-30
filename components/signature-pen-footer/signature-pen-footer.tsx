@@ -278,18 +278,19 @@ export const layoutWord = (text: string): { strokes: Stroke[]; box: Box } => {
   }
   const all = [...runs, ...late]
   if (!all.length) return { strokes: [], box: { x: 0, y: 0, w: 0, h: 0 } }
+  const strokes = all.map(buildStroke)
   let x0 = Infinity
   let y0 = Infinity
   let x1 = -Infinity
   let y1 = -Infinity
-  for (const p of all)
-    for (const [a, b] of p) {
-      x0 = Math.min(x0, a)
-      y0 = Math.min(y0, b)
-      x1 = Math.max(x1, a)
-      y1 = Math.max(y1, b)
+  for (const k of strokes)
+    for (let i = 0; i < k.pts.length; i += 2) {
+      x0 = Math.min(x0, k.pts[i])
+      y0 = Math.min(y0, k.pts[i + 1])
+      x1 = Math.max(x1, k.pts[i])
+      y1 = Math.max(y1, k.pts[i + 1])
     }
-  return { strokes: all.map(buildStroke), box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } }
+  return { strokes, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } }
 }
 
 /** Point at arc length `l` along a stroke. */
@@ -325,7 +326,7 @@ const ends = (s: Stroke): [P, P] => [
  * `duration` is the time spent with the nib on the paper.
  */
 export const planTimeline = (strokes: Stroke[], box: Box, duration: number = 2.6): Plan => {
-  const rest: P = [box.x + box.w + 170, box.y + box.h * 0.32]
+  const rest: P = [box.x + box.w + 70, box.y + box.h * 0.26]
   const start: P = [rest[0] + 2400, rest[1] - 1500]
   const segs: Seg[] = []
   if (!strokes.length) return { segs, total: 0, writeEnd: 0, rest, start }
@@ -343,7 +344,7 @@ export const planTimeline = (strokes: Stroke[], box: Box, duration: number = 2.6
     if (i === 0) fly(a, 4, 0, 0.9, 0)
     else {
       const dist = Math.hypot(a[0] - at[0], a[1] - at[1])
-      fly(a, 0, 0, Math.min(0.42, Math.max(0.14, dist / (speed * 1.7))), Math.min(1, 0.35 + dist / 2400))
+      fly(a, 0, 0, Math.min(0.42, Math.max(0.14, dist / (speed * 1.7))), Math.min(1, 0.08 + dist / 1400))
     }
     const dur = s.len / speed
     segs.push({ kind: "draw", i, t0: t, t1: t + dur })
@@ -484,11 +485,12 @@ const CSS =
   ".spf-glow{position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 55% at 50% 38%,rgba(255,255,255,.55),transparent 70%);}" +
   ".spf[data-theme=dark] .spf-glow,.dark .spf[data-theme=auto] .spf-glow{background:radial-gradient(60% 55% at 50% 38%,rgba(255,255,255,.045),transparent 70%);}" +
   ".spf-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(40px,7cqw,96px) 20px clamp(36px,5cqw,64px);text-align:center;}" +
-  ".spf-stage{position:relative;width:min(100%,calc(clamp(150px,24cqw,250px) * var(--spf-ar)));aspect-ratio:var(--spf-ar);margin-bottom:clamp(10px,2cqw,22px);touch-action:pan-y;}" +
+  ".spf-stage{position:relative;width:min(100%,calc(clamp(120px,17cqw,200px) * var(--spf-ar)));aspect-ratio:var(--spf-ar);margin-bottom:clamp(10px,2cqw,22px);touch-action:pan-y;}" +
   ".spf-stage[data-live]{cursor:none;}" +
   ".spf-svg{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;overflow:visible;}" +
   ".spf-guide{transition:opacity .9s ease;}" +
   ".spf[data-signed] .spf-guide{opacity:0;}" +
+  ".spf[data-theme=dark] .spf-inkg,.dark .spf[data-theme=auto] .spf-inkg{filter:brightness(1.4) saturate(1.1);}" +
   ".spf-scrib{transition:opacity 1.4s ease;}" +
   ".spf-scrib[data-dry]{opacity:0;}" +
   ".spf-again{position:absolute;right:0;bottom:-6px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.01em;color:var(--spf-muted);background:var(--spf-card);box-shadow:0 0 0 1px var(--spf-line),0 6px 18px -10px rgba(0,0,0,.25);opacity:0;transform:translateY(4px);transition:opacity .35s ease,transform .35s ease,color .2s ease;pointer-events:none;cursor:pointer;}" +
@@ -523,7 +525,7 @@ const CSS =
   ".spf-r{opacity:0;transform:translateY(12px);filter:blur(6px);transition:opacity .9s ease,transform 1.1s cubic-bezier(.2,.75,.15,1),filter .9s ease;transition-delay:calc(var(--i,0) * 70ms);}" +
   ".spf[data-revealed] .spf-r{opacity:1;transform:none;filter:blur(0);}" +
   ".spf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}" +
-  "@container (max-width: 640px){.spf-bar{flex-direction:column;align-items:flex-start;}.spf-actions{width:100%;}.spf-btn{flex:1 1 140px;}}" +
+  "@container (max-width: 640px){.spf-line{stroke-width:13px;}.spf-bar{flex-direction:column;align-items:flex-start;}.spf-actions{width:100%;}.spf-btn{flex:1 1 140px;}}" +
   "@media (prefers-reduced-motion: reduce){.spf-r,.spf-stamp,.spf-guide,.spf-again,.spf-btn,.spf-scrib,.spf-link::after{transition:none;}.spf-r{opacity:1;transform:none;filter:none;}}"
 
 const reducedMotion = (): boolean =>
@@ -668,6 +670,7 @@ export default function SignaturePenFooter({
       paint()
       setRevealed(true)
       setSigned(true)
+      setStampText(formatStamp(word))
       return
     }
 
@@ -987,8 +990,8 @@ export default function SignaturePenFooter({
             </g>
 
             {/* Ink: a soft bleed under a crisp line, both drawn on by dash offset. */}
-            <g ref={inkGroupRef} style={{ transition: "opacity .45s ease" }} fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <g filter={"url(#" + ids.wet + ")"} opacity=".35" stroke={"url(#" + ids.ink + ")"} strokeWidth="20">
+            <g ref={inkGroupRef} className="spf-inkg" style={{ transition: "opacity .45s ease" }} fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <g filter={"url(#" + ids.wet + ")"} opacity=".2" stroke={"url(#" + ids.ink + ")"} strokeWidth="18">
                 {strokes.map((s, i) => (
                   <path
                     key={"b" + i}
@@ -1002,7 +1005,7 @@ export default function SignaturePenFooter({
                   />
                 ))}
               </g>
-              <g stroke={"url(#" + ids.ink + ")"} strokeWidth="11">
+              <g className="spf-line" stroke={"url(#" + ids.ink + ")"} strokeWidth="9">
                 {strokes.map((s, i) => (
                   <path
                     key={i}
@@ -1017,7 +1020,7 @@ export default function SignaturePenFooter({
                 ))}
               </g>
             </g>
-            <g ref={scribRef} fill="none" stroke={"url(#" + ids.ink + ")"} strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+            <g ref={scribRef} className="spf-inkg spf-line" fill="none" stroke={"url(#" + ids.ink + ")"} strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
 
             {/* Cast shadow: a broad soft fall-off and a tight contact shadow at the nib. */}
             <g aria-hidden="true" pointerEvents="none">
