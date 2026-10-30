@@ -117,4 +117,4 @@ to the monospace stack.
 - The gate exposes `role="progressbar"` with its value. It's focusable and
   works with Enter and Space. The brewed state is announced.
 - `21st render` capture blocks off-site fonts, so supply the cover with
-  `--preview` when publishing (`media/venom-vial-preloader/cover.png`).
+  `--preview` when publishing (`media/venom-vial-preloader/cover.jpg`).
