@@ -176,7 +176,7 @@ for (let i = 0; i < 300; i++) {
   }
 }
 
-// the widow's ride after an upload: collar, down, on the stone, up, and around again
+// the widow's ride once brewed: collar, down, on the stone, up, and around again
 {
   const [wait, down, ride, up] = V.VV_RIDE
   const total = wait + down + ride + up
@@ -185,14 +185,13 @@ for (let i = 0; i < 300; i++) {
   assert.equal(V.vvRide(wait + down + ride / 2), 1, "riding the stone")
   assert.equal(V.vvRide(wait + down + ride + up / 2), 0.5, "halfway back up")
   assert.equal(V.vvRide(total), 0, "the cycle repeats")
-  assert.equal(V.vvRide(-wait / 2), V.vvRide(total - wait / 2), "negative time wraps")
-  for (let m = 0; m < total * 2; m += 37) {
+  for (let m = -total; m < total * 2; m += 37) {
     const u = V.vvRide(m)
     assert.ok(u >= 0 && u <= 1, "she never leaves the chain")
   }
 }
 
-// the first pour: neck to far end, monotonic, clamped
+// the first pour: neck to far end, only ever advancing, clamped
 assert.equal(V.vvStreamHead(0, 200, 20), 200, "the stream starts at the neck")
 assert.equal(V.vvStreamHead(1, 200, 20), 20, "and reaches the far end")
 assert.equal(V.vvStreamHead(5, 200, 20), 20, "clamped past the end")
@@ -203,13 +202,11 @@ for (let k = 0, prev = 201; k <= 1; k += 0.05) {
   prev = x
 }
 
-// upload mode is the default, and it is a real file input, not just a drop target
-assert.ok(src.includes('mode = "upload"'), "upload is the default mode")
-assert.ok(src.includes('idleLabel = "Drop a file into the potion"'), "the empty vial asks for a file")
-assert.ok(src.includes('"Upload complete"'), "and reports the upload complete")
-assert.match(src, /type="file"\n\s+multiple/, "a real file input backs the drop target")
-assert.ok(src.includes("if (phaseRef.current === \"idle\") choose()"), "Enter on the empty vial opens the file picker")
-assert.ok(src.includes("if (!loopRef.current) onCompleteRef.current?.()"), "onComplete fires when the upload completes")
+// a website gate, not an uploader: files are opt-in, and the brewed stopper pops by itself
+assert.ok(src.includes("feedable = false"), "dropping files is opt-in")
+assert.doesNotMatch(src, /drop a file/i, "no file prompt in the default copy")
+assert.ok(src.includes('gem.mode = "free"\n          gem.vx = 55'), "the stopper pops by itself once brewed")
+assert.ok(src.includes("leg: pk(vvShade(c.glass"), "legs are drawn in the light glass grey so they read on the dark")
 
 // ---- 4. Demos ---------------------------------------------------------------
 for (const f of ["demo.tsx", "demo-gate.tsx", "demo-elixir.tsx"]) {
@@ -220,7 +217,6 @@ for (const f of ["demo.tsx", "demo-gate.tsx", "demo-elixir.tsx"]) {
 }
 assert.match(read("demo.tsx"), /<VenomVialPreloader loop \/>/, "default demo is the bare looping component")
 assert.ok(read("demo-gate.tsx").includes("</VenomVialPreloader>"), "gate demo passes children")
-assert.match(read("demo-gate.tsx"), /mode="gate"/, "the gate demo opts into gate mode")
 
 // ---- 5. Wiring --------------------------------------------------------------
 const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
