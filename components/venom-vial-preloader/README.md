@@ -1,41 +1,44 @@
 # Venom Vial Preloader
 
-A loading gate in pixel art. A glass vial fills with glowing venom while a
-black widow walks along it and wraps it in silk. When it's full you pull the
-emerald stopper, venom fog floods the screen, and the fog clears onto your
-portfolio.
+A loading gate in pixel art for a website. A glass vial fills with glowing
+venom while a black widow walks along it and wraps it in silk. When it's full
+the emerald stopper pops off and swings on its chain, the widow climbs down to
+ride it, then venom fog floods the screen and clears onto your site.
 
 1. **Arrive.** Spores and stars fade up out of the dark. A scanning pixel
    draws the glass left to right. The steel ring and brass collar click on,
    the stopper pops into place and its chain settles. The widow abseils down
    on a thread onto the rounded end.
-2. **Fill.** Venom pours in as a glowing plug. It swirls in four dithered
+2. **Pour.** A mottled stream of venom runs from the neck all the way to the
+   rounded end, then thins away as the fill takes over.
+3. **Fill.** Venom fills from the far end as a glowing plug. It swirls in four dithered
    shades, froths at the front and sends vapour creeping up the empty glass
    ahead of it. The widow walks the glass with the meniscus and wraps silk
    round everything behind her, one strand at a time. A toxic haze of curling
    ribbons thickens behind the vial. A chunky pixel count and a size readout
    (`21.1 of 48.2 MB`) sit underneath.
-3. **Brewed.** At 100% the venom flashes and sparks fly off the glass. The
-   widow climbs onto the collar. The vial waits with *Pull the stopper to
-   enter*. Otherwise it goes in on its own.
-4. **Uncork.** The stopper pops and swings on its chain. A jet of venom
-   bursts from the neck and the fog floods out from it across the whole
-   screen. The widow climbs away up her thread. The fog thins out in a
-   blotchy dither onto whatever the gate was guarding. With `loop`, the dark
-   closes back in and it brews again.
+4. **Brewed.** At 100% the venom flashes, and the stopper pops off by itself
+   in a spray of sparks and swings on its chain. The widow climbs onto the
+   collar, down the chain, and rides the swinging stone, throwing silk over
+   it, then climbs back. *Click to enter* waits at the foot; otherwise it goes
+   in on its own after a few seconds.
+5. **Exit.** A jet of venom bursts from the open neck and the fog floods out
+   from it across the whole screen. The widow climbs away up her thread. The
+   fog thins out in a blotchy dither onto whatever the gate was guarding.
+   With `loop`, the dark closes back in and it brews again.
 
 You can play with it while it loads:
 
 - **Grab the gem.** It comes off on its chain (a verlet rope that swings and
   sags). Mist pours from the open neck while it's off, and it snaps home when
-  you let go. Once the vial is full, pulling it well clear opens the gate.
+  you let go. Once it has popped, bat it with the pointer to set it swinging,
+  or pull it well clear to open the gate.
 - **Swipe across the glass** to slosh the venom. The front tilts and the
   bubbles pick up. Tapping the glass knocks it too.
 - **Poke the widow** and she hops.
-- **Drag a file over it.** The stopper pops, the label reads *Release to drop
-  it in*, and a dropped file flies into the neck and rushes the load to 100%.
-  `onFeed` gets the files.
-- **Enter or Space** rushes the load, then uncorks.
+- **Enter or Space** rushes the load, then opens the gate.
+- Optional, off by default: with `feedable`, a file dragged over pops the
+  stopper and a dropped one rushes the load to 100% (`onFeed` gets the files).
 
 ```tsx
 import VenomVialPreloader from "@/components/ui/venom-vial-preloader"
@@ -77,10 +80,10 @@ to the monospace stack.
 | `total` | `48.2` | Size for the readout under the count. `0` hides it. |
 | `unit` | `"MB"` | Unit for `total`. |
 | `doneLabel` | `"Brewed. Ready when you are."` | Shown under the count once the vial is full. |
-| `hint` | `"Pull the stopper to enter"` | Shown at the foot while the full vial waits. |
-| `tip` | `"Tug the gem · drop a file in"` | Shown at the foot while loading. `null` hides it. |
+| `hint` | `"Click to enter"` | Shown at the foot while the full vial waits. |
+| `tip` | `"Tug the gem"` | Shown at the foot while loading. `null` hides it. |
 | `dropLabel` | `"Release to drop it in"` | Shown while a file is dragged over. |
-| `feedable` | `true` | Accept dropped files (they rush the load). |
+| `feedable` | `false` | Accept dropped files (they rush the load). |
 | `onFeed` | — | Called with the dropped `File[]`. |
 | `palette` | see below | Partial overrides, as hex colours. Shades are derived from each one. |
 | `pixel` | `1` | Pixel size multiplier. `0.75` is finer and `1.5` chunkier. |
