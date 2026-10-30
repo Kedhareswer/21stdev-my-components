@@ -8,7 +8,7 @@ export default function DemoGate() {
   const [run, setRun] = React.useState(0)
 
   return (
-    <VenomVialPreloader key={run} total={18.6} doneLabel="Everything is brewed.">
+    <VenomVialPreloader key={run} mode="gate" total={18.6} doneLabel="Everything is brewed.">
       <main className="flex min-h-full flex-col items-center justify-center gap-6 bg-background px-6 py-16 text-center text-foreground">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Selected work · 2019 — 2026</p>
         <h1 className="text-5xl font-semibold tracking-tight sm:text-7xl">Potent things, carefully made.</h1>
