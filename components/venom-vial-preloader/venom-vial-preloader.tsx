@@ -48,9 +48,17 @@ export interface VenomVialPalette {
 }
 
 export interface VenomVialPreloaderProps {
-  /** Content revealed once the fog clears. Ignored while `loop` is set. */
+  /**
+   * `upload` (default): the vial waits empty for a file. Drop one in (or click
+   * to choose) and it pours, fills with the upload, reads "Upload complete",
+   * pops its stopper and the widow rides the swinging stone.
+   * `gate`: a page preloader. It fills on its own, waits for the stopper to be
+   * pulled, then venom fog clears onto `children`.
+   */
+  mode?: "upload" | "gate"
+  /** Content revealed once the fog clears (gate mode). Ignored while `loop` is set. */
   children?: React.ReactNode
-  /** Brew → uncork → clear → close back in, forever. `onComplete` never fires. */
+  /** Gate: brew → uncork → clear, forever. Upload: plays a file being dragged in and the upload, forever. `onComplete` never fires. */
   loop?: boolean
   /** Real loading progress, 0–100. Leave undefined for a simulated load that surges and stalls. */
   progress?: number
@@ -60,8 +68,10 @@ export interface VenomVialPreloaderProps {
   total?: number
   /** Unit for `total`. */
   unit?: string
-  /** Shown under the count once the vial is full. */
+  /** Shown under the count once the vial is full. Defaults to "Upload complete" (upload) or "Brewed. Ready when you are." (gate). */
   doneLabel?: string
+  /** Upload mode: shown while the empty vial waits for a file. */
+  idleLabel?: string
   /** Shown at the foot while the full vial waits. */
   hint?: string
   /** Shown at the foot while loading. null hides it. */
@@ -86,7 +96,7 @@ export interface VenomVialPreloaderProps {
   font?: string
   /** Root height. A definite length, never a percentage. */
   height?: string
-  /** Fired once, after the fog has cleared. */
+  /** Fired once: when the upload completes (upload), or after the fog has cleared (gate). */
   onComplete?: () => void
   /** Extra root class names. */
   className?: string
@@ -276,6 +286,27 @@ export function vvAmount(pct: number, total: number, unit: string) {
 export function vvVeil(n: number, b: number, k: number) {
   return n * 0.55 + b * 0.45 < k
 }
+
+// The widow's ride once an upload lands: she waits on the collar, climbs down
+// the chain, rides the swinging stone, climbs back. Returns how far down the
+// chain she is (0 collar, 1 on the stone) `ms` into the cycle.
+export const VV_RIDE = [1200, 1500, 3200, 1500]
+export function vvRide(ms: number) {
+  const [wait, down, ride, up] = VV_RIDE
+  const total = wait + down + ride + up
+  const m = ((ms % total) + total) % total
+  if (m < wait) return 0
+  if (m < wait + down) return (m - wait) / down
+  if (m < wait + down + ride) return 1
+  return 1 - (m - wait - down - ride) / up
+}
+
+// The first pour: the stream runs from the neck to the far end. Returns its
+// head's x, `k` (0 to 1) into the pour, easing out as it reaches the end.
+export function vvStreamHead(k: number, from: number, to: number) {
+  const e = 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3)
+  return from + (to - from) * e
+}
 // #endregion
 
 const VV_CSS = `
@@ -424,7 +455,7 @@ const VV_CSS = `
 
 // ---- component ----------------------------------------------------------------
 
-type Phase = "load" | "full" | "hold" | "lift" | "rest" | "refill" | "done"
+type Phase = "idle" | "pour" | "load" | "full" | "hold" | "lift" | "rest" | "refill" | "done"
 type Lay = {
   s: number
   BW: number
@@ -454,6 +485,10 @@ const FLOOD_AT = 380
 const CLEAR_AT = 1650
 const REST_MS = 1500
 const REFILL_MS = 900
+const POUR_MS = 800
+const SHOW_MS = 9000
+const AUTO_AT = 1400
+const AUTO_HOVER = 1500
 const CHAIN_LEN = 30
 const CHAIN_N = 12
 const GEM_A = [-6, 10]
@@ -478,13 +513,15 @@ const mixPk = (a: number, b: number, t: number) => {
 }
 
 export default function VenomVialPreloader({
+  mode = "upload",
   children,
   loop = false,
   progress,
   durationMs = 5600,
   total = 48.2,
   unit = "MB",
-  doneLabel = "Brewed. Ready when you are.",
+  doneLabel,
+  idleLabel = "Drop a file into the potion",
   hint = "Pull the stopper to enter",
   tip = "Tug the gem · drop a file in",
   dropLabel = "Release to drop it in",
@@ -500,7 +537,10 @@ export default function VenomVialPreloader({
   onComplete,
   className = "",
 }: VenomVialPreloaderProps) {
-  const [phase, setPhase] = React.useState("load" as Phase)
+  const upload = mode !== "gate"
+  const doneText = doneLabel ?? (upload ? "Upload complete" : "Brewed. Ready when you are.")
+  const firstPhase = (upload ? "idle" : "load") as Phase
+  const [phase, setPhase] = React.useState(firstPhase)
   const [pct, setPct] = React.useState(0)
   const [arrived, setArrived] = React.useState(false)
   const [dragging, setDragging] = React.useState(false)
@@ -512,7 +552,10 @@ export default function VenomVialPreloader({
   const destRef = React.useRef(null as HTMLDivElement | null)
   const canvasRef = React.useRef(null as HTMLCanvasElement | null)
   const glowRef = React.useRef(null as HTMLCanvasElement | null)
-  const phaseRef = React.useRef("load" as Phase)
+  const phaseRef = React.useRef(firstPhase)
+  const uploadRef = React.useRef(upload)
+  uploadRef.current = upload
+  const fileRef = React.useRef(null as HTMLInputElement | null)
   const phaseAtRef = React.useRef(0)
   const shownRef = React.useRef(0)
   const rushRef = React.useRef(false)
@@ -548,7 +591,9 @@ export default function VenomVialPreloader({
     pulled: 0,
   })
   const chainRef = React.useRef([] as { x: number; y: number; ox: number; oy: number }[])
-  const spiderRef = React.useRef({ x: 0, y: -40, head: Math.PI / 2, gait: 0, mode: 0, vx: 0, hop: 0, hv: 0, landed: false })
+  const spiderRef = React.useRef({ x: 0, y: -40, head: Math.PI / 2, gait: 0, mode: 0, vx: 0, hop: 0, hv: 0, landed: false, rideAt: 0, ride: 0 })
+  // upload loop: a phantom file dragged in from the corner and dropped
+  const autoRef = React.useRef({ stage: 0, at: 0, x: 0, y: 0 })
   const sloshRef = React.useRef({ a: 0, va: 0 })
   const sparksRef = React.useRef([] as Spark[])
   const puffsRef = React.useRef([] as Puff[])
@@ -711,6 +756,11 @@ export default function VenomVialPreloader({
     destRef.current?.toggleAttribute("inert", phase !== "done" && phase !== "lift")
   }, [phase, children])
 
+  // switching mode starts the vial over in that mode's first phase
+  React.useEffect(() => {
+    if (phaseRef.current !== firstPhase) go(firstPhase)
+  }, [mode])
+
   // ---- reduced motion, tracked live -------------------------------------------------------
   const stillRef = React.useRef(false)
   React.useEffect(() => {
@@ -739,6 +789,7 @@ export default function VenomVialPreloader({
     let nextBubble = 0
     let glintAt = 0
     let flash = 0
+    let cone = 0
     let arrivedSent = false
     phaseAtRef.current = performance.now()
 
@@ -763,7 +814,20 @@ export default function VenomVialPreloader({
       const v = layRef.current
       const gem = gemRef.current
       const sp = spiderRef.current
-      if (ph === "load") {
+      const up = uploadRef.current
+      if (up && (ph === "pour" || ph === "load")) {
+        puffsRef.current = []
+        if (gem.mode === "free") gem.mode = "ret"
+        shownRef.current = 0
+        rushRef.current = false
+        lastPct = -1
+        setPct(0)
+      }
+      if (ph === (up ? "idle" : "load")) {
+        autoRef.current.stage = 0
+        autoRef.current.at = now
+        sp.rideAt = 0
+        sp.ride = 0
         shownRef.current = 0
         rushRef.current = false
         lastPct = -1
@@ -792,6 +856,18 @@ export default function VenomVialPreloader({
         flash = 1
         if (!stillRef.current) burst(v.x0 + v.L * 0.55, v.cy, 46, 120, now, v.L * 0.5)
         sloshRef.current.va += 2.2
+        if (up) {
+          // the upload is in: the stopper pops off in a spray of sparks and swings on its chain
+          gem.mode = "free"
+          gem.vx = 55
+          gem.vy = -150
+          gem.va = 7
+          if (!stillRef.current) {
+            burst(v.xb + 8, v.cy - 6, 70, 170, now, 5)
+            for (const s of sparksRef.current) if (s.born === now) s.vy -= 40
+          }
+          if (!loopRef.current) onCompleteRef.current?.()
+        }
       }
       if (ph === "lift" && v) {
         if (gateRef.current) gateRef.current.style.background = "transparent"
@@ -821,10 +897,32 @@ export default function VenomVialPreloader({
       }
       const ph = phaseRef.current
       const since = now - phaseAtRef.current
-      const intro = still ? 0 : INTRO_MS
+      const up = uploadRef.current
+      const arrival = up ? "idle" : "load"
+      // in upload mode the arrival happens while idle, so the fill starts at once
+      const intro = still || (up && ph === "load") ? 0 : INTRO_MS
 
       // -- progress, and the phase machine
-      if (ph === "load") {
+      if (ph === "idle") {
+        if (!arrivedSent && since > intro * 0.8) {
+          arrivedSent = true
+          setArrived(true)
+        }
+        // the showcase drags a file in by itself
+        const auto = autoRef.current
+        if (loopRef.current && auto.stage === 0 && since > intro + AUTO_AT && !dragRef.current) {
+          auto.stage = 1
+          auto.at = now
+        } else if (auto.stage === 1 && now - auto.at > AUTO_HOVER + 900) {
+          auto.stage = 2
+          dragRef.current = false
+          setDragging(false)
+          flyersRef.current.push({ x: auto.x, y: auto.y, born: now })
+          // the file is let go: the stone snaps back into the neck as it drops in
+          if (gemRef.current.mode === "free") gemRef.current.mode = "ret"
+        }
+      } else if (ph === "pour" && since > (still ? 0 : POUR_MS)) go("load")
+      else if (ph === "load") {
         const external = progressRef.current
         let target =
           external !== undefined
@@ -848,7 +946,9 @@ export default function VenomVialPreloader({
         }
         if (shown >= 1 && since > intro) go("full")
       } else if (ph === "full" && since > FULL_MS) go("hold")
-      else if (ph === "hold" && since > HOLD_MS && gemRef.current.mode !== "held") go("lift")
+      else if (up && ph === "hold") {
+        if (loopRef.current && since > SHOW_MS && gemRef.current.mode !== "held") go("rest")
+      } else if (ph === "hold" && since > HOLD_MS && gemRef.current.mode !== "held") go("lift")
       else if (ph === "lift" && since > LIFT_MS) {
         if (loopRef.current) go("rest")
         else {
@@ -857,7 +957,7 @@ export default function VenomVialPreloader({
           return
         }
       } else if (ph === "rest" && since > REST_MS) go("refill")
-      else if (ph === "refill" && since > REFILL_MS) go("load")
+      else if (ph === "refill" && since > REFILL_MS) go(arrival)
 
       if (!v || !cv || !gl) {
         raf = requestAnimationFrame(tick)
@@ -925,8 +1025,9 @@ export default function VenomVialPreloader({
         }
       }
 
-      const shown = ph === "load" ? shownRef.current : ph === "rest" || ph === "refill" ? 0 : 1
-      const introP = ph === "load" ? (still ? 1 : clamp01((since - 80) / 1000)) : 1
+      const shown = ph === "load" ? shownRef.current : ph === "rest" || ph === "refill" || ph === "idle" || ph === "pour" ? 0 : 1
+      const loadLike = ph === "load" || ph === "idle" || ph === "pour"
+      const introP = ph === arrival ? (still ? 1 : clamp01((since - 80) / 1000)) : 1
       const lifting = ph === "lift"
       flash = Math.max(0, flash - dt * 1.4)
 
@@ -946,7 +1047,8 @@ export default function VenomVialPreloader({
       const ay = cy + 8
       const homeX = v.xg + GEM_A[0]
       const homeY = cy + GEM_A[1]
-      const gemIn = ph === "load" ? (still ? 1 : clamp01((since - 980) / 420)) : 1
+      const gemIn = ph === arrival ? (still ? 1 : clamp01((since - 980) / 420)) : 1
+      const doneUp = up && (ph === "full" || ph === "hold")
       if (gem.mode === "seat") {
         gem.x = homeX
         gem.y = homeY
@@ -962,6 +1064,8 @@ export default function VenomVialPreloader({
         gem.x = nx
         gem.y = ny
       } else if (gem.mode === "free") {
+        // after an upload the loose stone keeps a lazy swing going
+        if (doneUp && !still) gem.vx += Math.sin(t * 1.35) * 16 * dt
         gem.vy += GRAVITY * dt
         gem.vx *= Math.pow(0.55, dt)
         gem.vy *= Math.pow(0.55, dt)
@@ -1080,10 +1184,44 @@ export default function VenomVialPreloader({
           sp.landed = true
           slosh.va -= 0.6
         }
+      } else if (sp.mode === 1 && doneUp && Math.abs(sp.x - (xb + 3)) < 1.5 && since > 1400) {
+        // on the collar after an upload: start the ride down the chain
+        sp.mode = 3
+        sp.rideAt = now
+      } else if (sp.mode === 3) {
+        // down the chain, onto the swinging stone, and back up
+        const u = still ? 0 : vvRide(now - sp.rideAt)
+        const pts = chain.length === CHAIN_N ? chain : [{ x: ax, y: ay }]
+        const f = u * (pts.length - 1)
+        const i0 = Math.min(pts.length - 1, Math.floor(f))
+        const i1 = Math.min(pts.length - 1, i0 + 1)
+        const k = f - i0
+        let px = pts[i0].x + (pts[i1].x - pts[i0].x) * k
+        let py = pts[i0].y + (pts[i1].y - pts[i0].y) * k
+        let dir = Math.atan2(pts[i1].y - pts[i0].y, pts[i1].x - pts[i0].x)
+        if (u >= 1) {
+          // sitting on the stone, head down its face
+          px = gcx
+          py = gcy - 6
+          dir = Math.PI / 2
+        }
+        const goingUp = u > sp.ride + 1e-4 ? false : u < sp.ride - 1e-4
+        sp.gait += Math.abs(u - sp.ride) * 40
+        sp.ride = u
+        sp.x = px
+        sp.y = py
+        const head = goingUp ? dir + Math.PI : dir
+        let d = head - sp.head
+        d = Math.atan2(Math.sin(d), Math.cos(d))
+        sp.head += d * Math.min(1, dt * 10)
+        if (!doneUp) {
+          sp.mode = 1
+          sp.x = xb + 3
+        }
       } else if (sp.mode === 1) {
-        const tx = ph === "load" ? Math.max(x0 + 9, Math.min(xn - 2, xf + 1)) : xb + 3
+        const tx = loadLike ? Math.max(x0 + 9, Math.min(xn - 2, xf + 1)) : xb + 3
         const want = Math.max(-1, Math.min(1, (tx - sp.x) / 6))
-        const maxV = ph === "load" ? 58 : 40
+        const maxV = loadLike ? 58 : 40
         sp.vx += (want * maxV - sp.vx) * Math.min(1, dt * 7)
         if (still) {
           sp.x = tx
@@ -1114,7 +1252,7 @@ export default function VenomVialPreloader({
         gbuf.fill(0)
 
         // spores and stars
-        const starOn = ph === "load" ? clamp01(since / 700) : 1
+        const starOn = ph === arrival ? clamp01(since / 700) : 1
         for (const st of starsRef.current) {
           const tw = 0.5 + 0.5 * Math.sin(t * st.sp + st.ph)
           if (tw * starOn < 0.25) continue
@@ -1177,7 +1315,10 @@ export default function VenomVialPreloader({
 
           // -- the vial
           const revealX = x0 + introP * (xb + 8 - x0)
-          const wrapX = ph === "load" ? (sp.landed ? sp.x - 5 : x0 - 20) : xn + 2
+          const wrapX = loadLike ? (sp.landed && sp.mode === 1 ? sp.x - 5 : x0 - 20) : xn + 2
+          // the first pour: a stream runs from the neck to the far end, then thins as the fill takes over
+          const streamA = !up ? 0 : ph === "pour" ? 1 : ph === "load" ? clamp01(1 - shown * 3.2) : 0
+          const streamHead = ph === "pour" ? vvStreamHead(since / POUR_MS, xn + 2, fillStart + 2) : fillStart + 2
           const P = 15
           const sl = slosh.a
           const wob = still ? 0 : 0.45 + Math.min(1.2, Math.abs(slosh.va) * 0.35)
@@ -1216,6 +1357,19 @@ export default function VenomVialPreloader({
                   }
                 } else {
                   buf[i] = c.glassIn
+                  if (streamA > 0 && x >= streamHead && x < xn + 3) {
+                    // a mottled ribbon of venom low in the glass, fattest at the neck
+                    const n = vvNoise(x * 0.09 - t * 2.4, y * 0.3 + t * 0.6)
+                    const thick = (0.22 + 0.3 * n + 0.18 * clamp01((x - streamHead) / 30)) * streamA
+                    const mid = 0.32 + Math.sin(x * 0.07 - t * 3) * 0.12
+                    const dd = Math.abs(ny - mid)
+                    if (dd < thick && n + (b - 0.5) * 0.3 > 0.22) {
+                      const q = n - dd * 0.8 + (x - streamHead < 3 ? 0.4 : 0)
+                      buf[i] = q > 0.75 ? c.v2 : q > 0.5 ? c.v1 : q > 0.3 ? c.v0 : c.vd1
+                      gbuf[i] = c.v0
+                      continue
+                    }
+                  }
                   // vapour creeping ahead of the front
                   if (shown > 0.005) {
                     const ahead = x - front
@@ -1303,7 +1457,29 @@ export default function VenomVialPreloader({
           })
 
           // -- mist pours from the open neck
-          if (!still && (open || lifting) && now > nextPuff) {
+          // upload: while a file hovers, a soft cone of venom light fans out of the open neck
+          cone += ((up && ph === "idle" && dragRef.current ? 1 : 0) - cone) * Math.min(1, dt * 7)
+          if (up && cone > 0.01) {
+            const mx = xb + 7
+            const len = 46
+            for (let x = mx; x < mx + len && x < BW; x++) {
+              const d = (x - mx) / len
+              const half = 3 + d * 17
+              for (let y = Math.floor(cy - half); y <= cy + half; y++) {
+                if (y < 0 || y >= BH) continue
+                const ey = Math.abs(y + 0.5 - cy) / half
+                const a = (1 - d) * (1 - ey * ey) * cone
+                if (a <= 0) continue
+                const i = y * BW + x
+                gbuf[i] = a > 0.45 ? c.v1 : a > 0.2 ? c.v0 : c.vd1
+                // a fine drift of motes in the beam
+                const n = vvNoise(x * 0.35 - t * 3.2, y * 0.35 + t * 0.8)
+                if (n * a > 0.42 + vvBayer(x, y) * 0.25) buf[i] = n > 0.75 ? c.v2 : c.v1
+                else if (a > 0.3) buf[i] = mixPk(buf[i], c.vd1, a * 0.5)
+              }
+            }
+          }
+          if (!still && !up && (open || lifting) && now > nextPuff) {
             const jet = lifting && since < 1000
             nextPuff = now + (jet ? 12 : 45)
             const mx = xb + 7
@@ -1449,6 +1625,28 @@ export default function VenomVialPreloader({
             }
           }
 
+          // -- silk she throws over the stone while she rides it
+          if (sp.mode === 3 && sp.ride >= 1) {
+            const strands = [
+              [-10, -4, 9, 6],
+              [-9, 5, 8, -6],
+              [-3, -9, 2, 9],
+              [-11, 1, 11, -1],
+            ]
+            for (const [a1, b1, a2, b2] of strands) {
+              const p1x = gcx + a1 * ca - b1 * sa
+              const p1y = gcy + a1 * sa + b1 * ca
+              const p2x = gcx + a2 * ca - b2 * sa
+              const p2y = gcy + a2 * sa + b2 * ca
+              const n = Math.max(1, Math.round(Math.hypot(p2x - p1x, p2y - p1y)))
+              for (let q = 0; q <= n; q++) {
+                const px = Math.round(p1x + ((p2x - p1x) * q) / n)
+                const py = Math.round(p1y + ((p2y - p1y) * q) / n)
+                if (q % 3 !== 1) blend(px, py, c.silk, 0.55)
+              }
+            }
+          }
+
           // -- the widow, and her thread
           if (sp.mode === 0 || sp.mode === 2) {
             const tx = Math.round(sp.x)
@@ -1460,12 +1658,41 @@ export default function VenomVialPreloader({
             drawSpider(sp.x, sp.y, sp.head, still ? 0 : sp.gait, near ? c.v1 : c.mark)
           }
 
+          // -- the showcase's phantom file: dragged up from the corner, hovered at the neck, dropped
+          {
+            const auto = autoRef.current
+            if (auto.stage === 1 && ph === "idle") {
+              const k = still ? 1 : clamp01((now - auto.at) / 900)
+              const e = ease(k)
+              const sx0 = Math.max(6, x0 - 40)
+              const sy0 = Math.min(BH - 12, cy + 70)
+              const hx = xb + 22 + Math.sin(t * 2.2) * 2
+              const hy = cy + 4 + Math.sin(t * 3.1) * 1.5
+              auto.x = sx0 + (hx - sx0) * e
+              auto.y = sy0 + (hy - sy0) * e - Math.sin(k * Math.PI) * 14
+              if (k > 0.7 && !dragRef.current) {
+                // close enough: the neck opens for it
+                dragRef.current = true
+                setDragging(true)
+                if (gem.mode === "seat" || gem.mode === "ret") {
+                  gem.mode = "free"
+                  gem.vx = 60
+                  gem.vy = -70
+                }
+              }
+              pointerRef.current = { x: auto.x, y: auto.y, vx: 0, t: now }
+              drawFile(auto.x, auto.y, 1)
+            }
+          }
+
           // -- a fed file, falling into the neck
           if (flyersRef.current.length) {
             flyersRef.current = flyersRef.current.filter((f) => {
               const k = clamp01((now - f.born) / 700)
               if (k >= 1) {
-                rushRef.current = true
+                if (up) {
+                  if (phaseRef.current === "idle") go("pour")
+                } else rushRef.current = true
                 sloshRef.current.va += 3
                 burst(xb + 8, cy, 18, 90, now, 3)
                 if (gemRef.current.mode === "free") gemRef.current.mode = "ret"
@@ -1512,7 +1739,7 @@ export default function VenomVialPreloader({
           }
 
           // -- the count
-          const showCount = counterRef.current && !dragRef.current && (ph === "load" || ph === "full" || ph === "hold")
+          const showCount = counterRef.current && !dragRef.current && (ph === "pour" || ph === "load" || ph === "full" || ph === "hold")
           if (showCount && (ph !== "load" || since > intro * 0.75)) {
             const blink = ph === "full" && since < 520 && Math.floor(since / 90) % 2 === 0
             if (!blink) {
@@ -1712,11 +1939,23 @@ export default function VenomVialPreloader({
   }
   const live = () => {
     const ph = phaseRef.current
-    return ph === "load" || ph === "full" || ph === "hold"
+    return ph === "idle" || ph === "pour" || ph === "load" || ph === "full" || ph === "hold"
   }
   const uncork = () => {
     const ph = phaseRef.current
-    if (ph === "full" || ph === "hold") go("lift")
+    if (!uploadRef.current && (ph === "full" || ph === "hold")) go("lift")
+  }
+  // upload: a file goes in from wherever it came from, and the vial is only fed while it waits
+  const feed = (files: File[], from: { x: number; y: number } | null) => {
+    const v = layRef.current
+    if (!live() || (uploadRef.current && phaseRef.current !== "idle")) return
+    const p = from || (v ? { x: v.x0 + (v.end - v.x0) / 2, y: v.cy + VV_R + 40 } : null)
+    if (p) flyersRef.current.push({ x: p.x, y: p.y, born: performance.now() })
+    if (uploadRef.current && gemRef.current.mode === "free") gemRef.current.mode = "ret"
+    if (files.length) onFeedRef.current?.(files)
+  }
+  const choose = () => {
+    if (uploadRef.current && phaseRef.current === "idle" && feedable) fileRef.current?.click()
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -1743,7 +1982,11 @@ export default function VenomVialPreloader({
       sp.hop = -0.01
       return
     }
-    if (phaseRef.current === "load") {
+    if (phaseRef.current === "idle") {
+      choose()
+      return
+    }
+    if (phaseRef.current === "load" || phaseRef.current === "pour") {
       if (Math.abs(p.y - v.cy) < 18 && p.x > v.x0 && p.x < v.xn) sloshRef.current.va += p.x < v.x0 + (v.xn - v.x0) / 2 ? 2.4 : -2.4
       return
     }
@@ -1763,6 +2006,14 @@ export default function VenomVialPreloader({
       gem.gy = p.y + gem.offY
       return
     }
+    // a loose stone can be batted about
+    if (gem.mode === "free" && pointerRef.current) {
+      const gc = gemCentre()
+      if (Math.hypot(p.x - gc.x, p.y - gc.y) < 13) {
+        gem.vx += Math.max(-160, Math.min(160, pointerRef.current.vx * 0.35))
+        gem.vy -= 25
+      }
+    }
     if (gateRef.current) {
       const gc = gemCentre()
       const over = live() && Math.hypot(p.x - gc.x, p.y - gc.y) < 15
@@ -1775,7 +2026,9 @@ export default function VenomVialPreloader({
     const gem = gemRef.current
     if (gem.mode !== "held") return
     const ph = phaseRef.current
-    if ((ph === "full" || ph === "hold") && gem.pulled > CHAIN_LEN * 0.5) {
+    const done = ph === "full" || ph === "hold"
+    if (uploadRef.current && done) gem.mode = "free"
+    else if (done && gem.pulled > CHAIN_LEN * 0.5) {
       gem.mode = "free"
       go("lift")
     } else gem.mode = dragRef.current ? "free" : "ret"
@@ -1785,7 +2038,8 @@ export default function VenomVialPreloader({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "Enter" && e.key !== " ") return
     e.preventDefault()
-    if (phaseRef.current === "load") rushRef.current = true
+    if (phaseRef.current === "idle") choose()
+    else if (phaseRef.current === "load") rushRef.current = true
     else uncork()
   }
 
@@ -1793,6 +2047,7 @@ export default function VenomVialPreloader({
   const hasFiles = (e: React.DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf("Files") > -1
   const onDragOver = (e: React.DragEvent) => {
     if (!feedable || !hasFiles(e) || !live()) return
+    if (uploadRef.current && phaseRef.current !== "idle") return
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
     const p = toArt(e)
@@ -1828,21 +2083,20 @@ export default function VenomVialPreloader({
     const p = toArt(e)
     dragRef.current = false
     setDragging(false)
-    if (!live()) return
-    if (p) flyersRef.current.push({ x: p.x, y: p.y, born: performance.now() })
-    if (files.length) onFeedRef.current?.(files)
+    feed(files, p)
   }
 
   // ---- render -------------------------------------------------------------------------------------
   const ready = !!lay && fontsReady
-  const loading = phase === "load"
+  const idle = phase === "idle"
+  const loading = phase === "load" || phase === "pour"
   const brewed = phase === "full" || phase === "hold"
   const amount = vvAmount(pct, total, unit)
-  const labelText = dragging ? dropLabel : loading ? amount : brewed ? doneLabel : ""
+  const labelText = dragging ? dropLabel : idle ? idleLabel : loading ? amount : brewed ? doneText : ""
   const labelTone = dragging ? "drop" : brewed ? "done" : "load"
-  const hintText = brewed ? hint : loading && tip ? tip : ""
+  const hintText = upload ? "" : brewed ? hint : loading && tip ? tip : ""
   const s = lay ? lay.s : 3
-  const labelTop = lay ? (lay.cy + VV_R + 12 + (counter && !dragging ? 22 : 2)) * s : 0
+  const labelTop = lay ? (lay.cy + VV_R + 12 + (counter && !dragging && !idle ? 22 : 2)) * s : 0
   const labelSize = Math.max(11, Math.round(s * 4.2))
   const hintTop = lay ? Math.min(lay.BH * s - labelSize * 3.4, labelTop + labelSize * 4.2 + s * 18) : 0
 
@@ -1883,7 +2137,7 @@ export default function VenomVialPreloader({
 
       {loop ? (
         <div className="vvp-after" aria-hidden="true">
-          <div className="vvp-after-big">{doneLabel}</div>
+          <div className="vvp-after-big">{doneText}</div>
           <div className="vvp-after-small">Brewing again</div>
         </div>
       ) : null}
@@ -1893,11 +2147,11 @@ export default function VenomVialPreloader({
           ref={gateRef}
           className="vvp-gate"
           role="progressbar"
-          aria-label={label + " is loading"}
+          aria-label={upload ? label + " upload" : label + " is loading"}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={pct}
-          aria-valuetext={loading ? pct + "%" : "Loaded. Press Enter to continue."}
+          aria-valuetext={idle ? idleLabel + ". Press Enter to choose a file." : loading ? pct + "%" : upload ? doneText : "Loaded. Press Enter to continue."}
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -1914,7 +2168,7 @@ export default function VenomVialPreloader({
           {lay ? (
             <p
               className="vvp-label"
-              data-on={ready && !!labelText && (arrived || !loading)}
+              data-on={ready && !!labelText && (arrived || (!loading && !idle))}
               data-tone={labelTone}
               style={{ top: labelTop, fontSize: labelSize }}
               aria-hidden="true"
@@ -1935,8 +2189,23 @@ export default function VenomVialPreloader({
           ) : null}
 
           <span className="vvp-sr" aria-live="polite">
-            {brewed ? doneLabel + " " + hint + "." : ""}
+            {brewed ? (upload ? doneText + "." : doneText + " " + hint + ".") : ""}
           </span>
+          {upload && feedable ? (
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="vvp-sr"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || [])
+                e.target.value = ""
+                if (files.length) feed(files, null)
+              }}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>
