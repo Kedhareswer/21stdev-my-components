@@ -20,7 +20,7 @@ assert.ok(start > -1 && end > start, "cutout region markers missing")
 const C = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end))))
 
 // the default content sits outside the region; lift it the same way
-const dStart = src.indexOf("export const HARBOUR_SENTENCE")
+const dStart = src.indexOf("export const FLOCK_SRC")
 const dEnd = src.indexOf("export type CutoutSentenceProps")
 assert.ok(dStart > -1 && dEnd > dStart, "default content missing")
 const D = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(dStart, dEnd))))
@@ -29,17 +29,17 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps
 
 // ---- sentence parsing ----------------------------------------------------
 {
-  const { groups, order, segCount } = C.parseSentence("Painted boats {b} doze by the pier {p}, quietly {x} done.", ["b", "p"])
-  assert.deepEqual(order, ["b", "p"], "pieces in reading order, unknown ids dropped")
+  const { groups, order, words } = C.parseSentence("A {k}kaleidoscope of {p}painted wings {x}dance, under sky{s}.", ["k", "p", "s"])
+  assert.deepEqual(order, ["k", "p", "s"], "pieces in reading order, unknown ids dropped")
   const flat = groups.map((g) => g.map((t) => (t.kind === "word" ? t.text : "{" + t.id + "}")).join("|"))
-  assert.deepEqual(flat, ["Painted", "boats|{b}", "doze", "by", "the", "pier|{p}|,", "quietly", "done."])
-  const words = groups.flat().filter((t) => t.kind === "word")
-  assert.deepEqual(words.map((w) => w.seg), [0, 0, 1, 1, 1, 1, 2, 2, 2], "each word knows the flight it leads into")
-  assert.deepEqual(segCount, [2, 4, 3])
-  for (let s = 0; s < segCount.length; s++)
-    assert.deepEqual(words.filter((w) => w.seg === s).map((w) => w.j), [...Array(segCount[s]).keys()], "j counts within a run")
-  const lead = C.parseSentence("{a} opens it", ["a"])
-  assert.equal(lead.groups[0][0].kind, "piece", "a sentence may start with a piece")
+  assert.deepEqual(flat, ["A", "{k}|kaleidoscope", "of", "{p}|painted", "wings", "dance,", "under", "sky|{s}|."], "a piece written flush hugs its word")
+  assert.equal(words, 9)
+  const all = groups.flat()
+  assert.deepEqual(all.filter((t) => t.kind === "word").map((t) => t.w), [...Array(9).keys()], "words numbered in reading order")
+  assert.deepEqual(all.filter((t) => t.kind === "piece").map((t) => t.at), [1, 3, 8], "each piece knows how many words come before it")
+  const spaced = C.parseSentence("boats {b} doze", ["b"])
+  assert.equal(spaced.groups.length, 3, "a spaced placeholder stands on its own")
+  assert.equal(C.parseSentence("{a}opens it", ["a"]).groups[0][0].kind, "piece", "a sentence may start with a piece")
   assert.deepEqual(C.parseSentence("twice {a} and {a}", ["a"]).order, ["a"], "an id is used once")
 }
 
@@ -56,7 +56,9 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps
   const n = C.placeImage(1.5, nb, [0.03, 0.4, 0.95, 0.33], 10, true)
   assert.ok(n.w <= nb.w, "shrinks instead of cropping cuts away")
   assert.ok(near(n.x, (nb.w - n.w) / 2), "centred when narrower")
-  assert.ok(near(n.y + n.h, nb.y + nb.h), "sits on the bottom edge when shorter")
+  assert.ok(near(n.y, nb.y), "sits on the top edge when shorter (the default)")
+  const nbot = C.placeImage(1.5, nb, [0.03, 0.4, 0.95, 0.33], 10, true, "bottom")
+  assert.ok(near(nbot.y + nbot.h, nb.y + nb.h), "…or the bottom edge when asked")
   const full = C.placeImage(1.5, { x: 0, y: 0, w: 390, h: 844 }, bb, 0, false)
   assert.ok(full.w >= 390 && full.h >= 844, "the opening frame always covers")
   const i = C.intersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: -5, w: 10, h: 10 })
@@ -123,40 +125,41 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps
       prev = a
     }
   }
-  const n = 7
-  for (let seg = 0; seg <= n; seg++)
-    for (let j = 0; j < 6; j++) {
-      const [s, e] = C.wordWindow(seg, j, 6, n)
-      assert.ok(s >= 0 && e <= 1 && e > s)
-      if (seg < n) assert.ok(e <= C.flightWindow(seg, n)[1], "words are up before their piece lands")
-      else assert.ok(s >= C.flightWindow(n - 1, n)[0], "the tail follows the last flight")
-    }
+  const total = 14
+  let prevS = -1
+  for (let w = 0; w < total; w++) {
+    const [s0, e0] = C.wordWindow(w, total)
+    assert.ok(s0 >= C.TYPE[0] - 1e-9 && e0 <= C.TYPE[1] + 1e-9 && e0 > s0, "words type inside their beat")
+    assert.ok(s0 > prevS, "left to right")
+    prevS = s0
+  }
+  assert.ok(C.TYPE[0] >= C.LOWER[0] && C.TYPE[1] <= C.FLY[0] + 1e-9, "the sentence is written, braces empty, before anything drops")
+  assert.ok(C.SCORE[1] <= C.FLY[0] + 1e-9 && C.SCORE[0] >= C.LOWER[1], "cuts are traced after the photo settles, before the first lift")
   assert.equal(C.ramp(0.5, 0.2, 0.2), 1, "a zero-length ramp is a step, not NaN")
   assert.ok(near(C.easeOutBack(1), 1) && near(C.easeOutBack(0), 0))
   assert.ok(Math.max(...[...Array(50).keys()].map((k) => C.easeOutBack(k / 50))) > 1, "the landing overshoots")
 }
 
-// ---- default harbour pieces ---------------------------------------------
+// ---- default flock pieces ------------------------------------------------
 {
-  const ids = D.HARBOUR_PIECES.map((p) => p.id)
-  const { order } = C.parseSentence(D.HARBOUR_SENTENCE, ids)
+  const ids = D.FLOCK_PIECES.map((p) => p.id)
+  const { order } = C.parseSentence(D.FLOCK_SENTENCE, ids)
   assert.deepEqual([...order].sort(), [...ids].sort(), "every default piece has a place in the sentence")
-  for (const p of D.HARBOUR_PIECES) {
+  for (const p of D.FLOCK_PIECES) {
     const [x, y, w, h] = p.region
-    assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, p.id + " is inside the picture")
-    assert.ok(D.HARBOUR_SENTENCE.toLowerCase().includes(p.word.toLowerCase() + " {" + p.id + "}"), p.id + " sits right after the word it shows")
+    assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, p.id + " is inside the photo")
+    assert.ok(D.FLOCK_SENTENCE.includes("{" + p.id + "}" + p.word), p.id + " hugs the word it shows")
   }
-  const R = D.HARBOUR_PIECES.map((p) => p.region)
+  const R = D.FLOCK_PIECES.map((p) => p.region)
   for (let i = 0; i < R.length; i++)
     for (let j = i + 1; j < R.length; j++) {
       const [ax, ay, aw, ah] = R[i], [bx, by, bw, bh] = R[j]
       assert.ok(ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay, ids[i] + " and " + ids[j] + " must not share pixels")
     }
-  const bb = C.regionsBox(R)
-  // a 16:10 desktop stage with the sentence on top keeps the picture full-bleed
-  const W = 1440, H = 900, top = 500
-  const c = C.placeImage(1.5, { x: 0, y: top, w: W, h: H - top }, bb, 17, true)
-  assert.ok(c.w >= W, "the default cuts fit a full-bleed picture on desktop")
+  // a 16:10 desktop stage with the photo on top keeps it full-bleed
+  const c = C.placeImage(1.5, { x: 0, y: 0, w: 1440, h: 468 }, C.regionsBox(R), 17, true)
+  assert.ok(c.w >= 1440, "the default cuts fit a full-bleed photo on desktop")
+  assert.match(D.FLOCK_SRC, /^https:\/\/cdn\.jsdelivr\.net\/gh\/Kedhareswer\/21stdev-my-components@main\/media\/cutout-sentence\/flock\.jpg$/)
 }
 
 // ---- install safety ---------------------------------------------------------
@@ -175,7 +178,7 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps
   assert.match(styleBlock, /\.cs-card img\{[^}]*max-width:none/, "…or a piece's copy of it")
   assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "reduced motion handled in JS")
   assert.doesNotMatch(src, /window\.scrollY|pageYOffset/, "progress comes off the element, not the window")
-  assert.doesNotMatch(src, /https?:\/\/(?!www\.w3\.org)/, "loads nothing from anywhere")
+  assert.deepEqual([...src.matchAll(/https?:\/\/[^\s"']+/g)].map((m) => m[0]), [D.FLOCK_SRC], "the default photo is the only thing loaded")
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
   for (const m of src.matchAll(/from "([^".][^"]*)"/g)) {
     const name = m[1].startsWith("@") ? m[1].split("/").slice(0, 2).join("/") : m[1].split("/")[0]
