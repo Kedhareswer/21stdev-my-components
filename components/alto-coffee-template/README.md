@@ -5,9 +5,11 @@ journey from the top of a volcano down into the cup, so a roaster could ship it
 this season: the harvest story, its origins on a map, the whole bean, the
 instant stick, a limited-edition shop block and a footer.
 
-Every picture is drawn in SVG or canvas, so it renders without any photos.
-Every picture slot also takes a real photo through props; the layout is built
-photo-first (the reference is photographic), so a photo drops straight in.
+The hero volcano, the coffee rows after the white-out, the harvest card and the
+six farm-to-cup steps are Unsplash photographs (credited below). The clouds, the
+New Crop cherries, the packs, the sticks, the map and the mark are drawn in SVG or
+canvas. Every picture slot takes your own photo through props, and `hero.image: null`
+or `hero.fieldImage: null` brings back the drawn volcano or rows.
 
 ```
 section       what happens
@@ -43,7 +45,8 @@ footer        the cup-and-volcano mark draws itself in red; newsletter with vali
 - **Clouds** are painted once at mount: seamless value-noise fbm with domain warping,
   lit from above, in three bands that drift sideways forever on the compositor and
   rise past the camera on scroll. A canvas that can't be read leaves a clear sky.
-- **The volcano and the coffee rows** are generated from a seed: 46 gullies down the
+- **The drawn volcano and coffee rows** (`hero.image: null`, `hero.fieldImage: null`)
+  are generated from a seed: 46 gullies down the
   cone and two tree lines, then fifteen terraced hedgerows, each a band of leaf clumps
   lit on top with a dark gap below, shrinking into the mist, with ripe cherries in
   the near rows. Film grain sits over the scene.
@@ -60,8 +63,8 @@ footer        the cup-and-volcano mark draws itself in red; newsletter with vali
   collapses to a still layout, the map shows the chosen origin, and brewing and
   adding to the bag happen instantly.
 - **Dark mode** (a `.dark` ancestor, or `theme="dark"`) turns the hero into a night
-  descent: stars, a moon, moonlit clouds and blue mist. The other bands are dark
-  already.
+  descent: the volcano photo dims, the clouds turn moonlit and the mist blue (the drawn
+  volcano also gets stars and a moon). The other bands are dark already.
 - **Layout** answers the component's own width through container queries. Phone
   layouts are designed, not squeezed: the map card moves under the country, and the
   year tabs move to the top.
@@ -97,7 +100,9 @@ import AltoCoffeeTemplate from "@/components/ui/alto-coffee-template"
 | `fonts` | — | `sans` (everything) and `display` (the thin ALTO BEAN / STICK titles) font-family stacks. |
 | `brand` | `{ name: "ALTO" }` | Wordmark on the header, packs, sticks, outlined titles and footer. |
 | `nav` | 4 in-page links | `{ label, href }[]`. `#origins`, `#bean`, `#stick`, `#limited`, `#process`, `#crop`, `#top` scroll; other hrefs go to `onNavigate`. |
-| `hero` | Guatemala Antigua | `title`, `peak: { name, altitude }`, `farmAltitude`, `coords`, `soil`, `caption`, `snow`, `smoke`, `fieldImage`. |
+| `hero` | Guatemala Antigua | `title`, `peak: { name, altitude }`, `farmAltitude`, `coords`, `soil`, `caption`, `snow`, `smoke`, `image`, `fieldImage`. |
+| `hero.image` | a volcano photo | The picture behind the clouds; it rises and zooms on the descent. `null` draws the volcano, with `snow` and `smoke`. |
+| `hero.fieldImage` | a coffee-rows photo | The plantation after the white-out. `null` draws the rows. |
 | `crop` | 2026 New Crop | `year`, `title`, `body`, `stats: { value, label }[]`. |
 | `origins` | Colombia, Ethiopia, Guatemala | `kicker`, `title`, `intro`, `steps: { year, country, name?, region, altitude, process, notes, blurb? }[]`. Built-in countries: colombia, ethiopia, guatemala, brazil, kenya, costa-rica, honduras, rwanda, peru, or `{ name, d, box }` in the map's 1000 × 394 equirectangular space. |
 | `bean` | — | `title`, `kicker`, `sub`, `lead`, `body`, `bags`, `cards`, `stepsTitle`, `stepsBody`, `steps`. |
@@ -130,16 +135,31 @@ The mark is exported as `AltoMark` for use elsewhere on the site.
 
 - Land (1:110m) and country outlines (1:50m): [Natural Earth](https://www.naturalearthdata.com/)
   (public domain), via `world-atlas`, simplified and embedded.
-- All illustration, packaging and the mark are original and drawn in code.
+- All other illustration, packaging and the mark are original and drawn in code.
+
+### Photo credits (Unsplash)
+
+Each photo is hotlinked from `images.unsplash.com` under the Unsplash License.
+
+| Slot | Photographer | Photo | |
+|---|---|---|---|
+| `hero.image` | Kim Tayona | `photo-1660144910841-b9b16aa62de7` | A conical volcano in evening light against a blue sky |
+| `hero.fieldImage` | Colin Roe | `photo-1593335663758-4da70281a917` | Close rows of green bushes on a sloping hillside |
+| `bean.cards[4]` (The harvest) | Allec Gomes | `photo-1694558334826-a371e09fae1d` | Ripe coffee cherries on a branch, dark background |
+| `bean.steps[0]` Picked ripe | Carlos Felipe Ramírez Mesa | `photo-1662559102063-a665b04771fd` | A hand picking red coffee cherries |
+| `bean.steps[1]` Floated | Faris Ristiansyah | `photo-1786431851952-8526c4bf7ca7` | Red coffee cherries soaking in a wooden tank |
+| `bean.steps[2]` Fermented & washed | Delightin Dee | `photo-1616672500735-7015803d497f` | Pulped coffee falling from a wooden pulper into a basket |
+| `bean.steps[3]` Sun-dried | Trevin Jensen | `photo-1761318543563-f5c211a99195` | A worker raking coffee across a drying patio |
+| `bean.steps[4]` Rested & hulled | stephan de MARANTHI | `photo-1789419773211-075a4c400b4b` | Green coffee beans in a woven basket |
+| `bean.steps[5]` Roasted to order | Tim Mossholder | `photo-1607681034540-2c46cc71896d` | Roasted beans pouring into a roaster's cooling tray |
+
+The `huila` demo keeps the drawn snow-capped volcano (`hero.image: null`): there was
+no free photo of Nevado del Huila to stand in for it.
 
 The roaster, farms, lots and copy are fictional.
 
 ## Notes for publishing
 
-- **Open:** the default pictures are still drawn because this was built without network
-  access to Unsplash. `media/alto-coffee-template/HANDOFF.md` lists each photo slot,
-  how to wire photos in and how to verify them.
-
-- 21st's capture sandbox blocks external origins (the font), so supply
+- 21st's capture sandbox blocks external origins (the font and the Unsplash photos), so supply
   `media/alto-coffee-template/default.png` as `--preview`.
 - Reference image: `media/alto-coffee-template/reference.webp` (local only).

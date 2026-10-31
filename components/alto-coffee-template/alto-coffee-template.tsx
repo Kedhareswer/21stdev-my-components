@@ -181,8 +181,10 @@ export type AltoCoffeeTemplateProps = {
     snow?: boolean
     /** A smoking neighbour on the far ridge. */
     smoke?: boolean
-    /** Replace the drawn plantation with a photo. */
-    fieldImage?: AltoImage
+    /** The volcano photo behind the clouds. Default: a photo; `null` draws the volcano (with `snow` and `smoke`). */
+    image?: AltoImage | null
+    /** The plantation after the white-out. Default: a photo; `null` draws the rows. */
+    fieldImage?: AltoImage | null
   }
   crop?: { year?: string; title?: string; body?: string; stats?: { value: string; label: string }[] }
   origins?: { kicker?: string; title?: string; intro?: string; steps?: AltoOrigin[] }
@@ -303,12 +305,16 @@ const BAGS: AltoBag[] = [
   { name: "Antigua", sub: "Drip bag × 10", weight: "10 × 10 g", kind: "box" },
 ]
 
+// Unsplash photos, credited in the README.
+const DEFAULT_PEAK: AltoImage = { src: "https://images.unsplash.com/photo-1660144910841-b9b16aa62de7?auto=format&fit=crop&w=1600&q=80", alt: "A conical volcano in evening light against a blue sky", focus: [0.5, 0.35] }
+const DEFAULT_FIELD: AltoImage = { src: "https://images.unsplash.com/photo-1593335663758-4da70281a917?auto=format&fit=crop&w=1600&q=80", alt: "Close rows of green bushes curving down a hillside" }
+
 const BEAN_CARDS: AltoCard[] = [
   { label: "Whole bean", name: "Antigua 200 g", body: "Medium roast, rested five days before it ships.", color: "#6A3626", art: "bag", ink: "#F5ECE1" },
   { label: "Note 01", name: "Caramel", body: "Brown sugar from the first sip, still there as the cup cools.", color: "#EDB43C", pattern: "wave" },
   { label: "Note 02", name: "Red plum", body: "Ripe stone fruit as the cup opens up.", color: "#E7907C", pattern: "chevron" },
   { label: "Note 03", name: "Green apple", body: "A crisp, malic brightness from the cool nights at altitude.", color: "#8EC23B", pattern: "scale" },
-  { label: "The harvest", name: "Red Bourbon", body: "Picked only when the cherry turns deep red, in four passes.", color: "#2A1210", art: "cherries", ink: "#F5ECE1" },
+  { label: "The harvest", name: "Red Bourbon", body: "Picked only when the cherry turns deep red, in four passes.", color: "#2A1210", art: "cherries", ink: "#F5ECE1", image: { src: "https://images.unsplash.com/photo-1694558334826-a371e09fae1d?auto=format&fit=crop&w=900&q=80", alt: "Ripe coffee cherries on a branch against a dark background", focus: [0.6, 0.2] } },
 ]
 
 const STICK_CARDS: AltoCard[] = [
@@ -319,12 +325,12 @@ const STICK_CARDS: AltoCard[] = [
 ]
 
 const STEPS: AltoStep[] = [
-  { icon: "pick", title: "Picked ripe", body: "Only red cherries, by hand, in four passes from January to March.", stat: "4 passes" },
-  { icon: "float", title: "Floated", body: "Cherries float in spring water; the light ones never reach the mill.", stat: "8% removed" },
-  { icon: "ferment", title: "Fermented & washed", body: "Thirty-six hours of dry fermentation, then washed down stone channels.", stat: "36 hours" },
-  { icon: "dry", title: "Sun-dried", body: "Raked across the patio every hour, under the volcano, for two weeks.", stat: "14 days" },
-  { icon: "hull", title: "Rested & hulled", body: "Parchment rests sixty days before hulling and sorting by hand.", stat: "60 days" },
-  { icon: "roast", title: "Roasted to order", body: "Small batches, roasted within twenty-one days of landing.", stat: "12 min" },
+  { icon: "pick", title: "Picked ripe", body: "Only red cherries, by hand, in four passes from January to March.", stat: "4 passes", image: { src: "https://images.unsplash.com/photo-1662559102063-a665b04771fd?auto=format&fit=crop&w=900&q=80", alt: "A hand picking ripe red coffee cherries from the branch" } },
+  { icon: "float", title: "Floated", body: "Cherries float in spring water; the light ones never reach the mill.", stat: "8% removed", image: { src: "https://images.unsplash.com/photo-1786431851952-8526c4bf7ca7?auto=format&fit=crop&w=900&q=80", alt: "Red coffee cherries soaking in a wooden water tank" } },
+  { icon: "ferment", title: "Fermented & washed", body: "Thirty-six hours of dry fermentation, then washed down stone channels.", stat: "36 hours", image: { src: "https://images.unsplash.com/photo-1616672500735-7015803d497f?auto=format&fit=crop&w=900&q=80", alt: "Pulped coffee falling from a wooden pulper into a basket" } },
+  { icon: "dry", title: "Sun-dried", body: "Raked across the patio every hour, under the volcano, for two weeks.", stat: "14 days", image: { src: "https://images.unsplash.com/photo-1761318543563-f5c211a99195?auto=format&fit=crop&w=900&q=80", alt: "A worker raking coffee across a drying patio" } },
+  { icon: "hull", title: "Rested & hulled", body: "Parchment rests sixty days before hulling and sorting by hand.", stat: "60 days", image: { src: "https://images.unsplash.com/photo-1789419773211-075a4c400b4b?auto=format&fit=crop&w=900&q=80", alt: "Hulled green coffee beans in a woven basket" } },
+  { icon: "roast", title: "Roasted to order", body: "Small batches, roasted within twenty-one days of landing.", stat: "12 min", image: { src: "https://images.unsplash.com/photo-1607681034540-2c46cc71896d?auto=format&fit=crop&w=900&q=80", alt: "Freshly roasted beans pouring into a roaster's cooling tray" } },
 ]
 
 const BLENDS: AltoBlend[] = [
@@ -1105,7 +1111,8 @@ export default function AltoCoffeeTemplate({
     caption: hero?.caption || "Shade-grown under grevillea on the lower slopes, where cool nights slow the cherries down and the ash keeps the roots fed.",
     snow: hero?.snow ?? preset === "huila",
     smoke: hero?.smoke ?? preset === "antigua",
-    fieldImage: hero?.fieldImage,
+    image: hero?.image === undefined ? DEFAULT_PEAK : hero.image,
+    fieldImage: hero?.fieldImage === undefined ? DEFAULT_FIELD : hero.fieldImage,
   }
   const C = {
     year: crop?.year || "2026",
@@ -1322,7 +1329,10 @@ export default function AltoCoffeeTemplate({
           if (marker) marker.style.transform = "translateY(" + (e * 100).toFixed(2) + "%)"
         }
         gsap.from(qa(".ac-hero-char"), { yPercent: 110, opacity: 0, duration: 1.1, ease: "power4.out", stagger: 0.035, delay: 0.15 })
-        gsap.from(q(".ac-peak"), { yPercent: 6, scale: 1.04, duration: 1.8, ease: "power3.out" })
+        // Either the volcano photo or the drawn scene (peak, far ridge, sun) is mounted, never both.
+        const photo = q(".ac-hero-photo")
+        const scene = photo ? [photo] : qa(".ac-peak, .ac-far, .ac-sun")
+        gsap.from(photo || q(".ac-peak"), { yPercent: 6, scale: 1.04, duration: 1.8, ease: "power3.out" })
         gsap.from(q(".ac-hud-read"), { opacity: 0, x: 20, duration: 1, delay: 0.8, ease: "power3.out" })
 
         const tl = gsap.timeline({
@@ -1332,15 +1342,12 @@ export default function AltoCoffeeTemplate({
         })
         tl.to(q(".ac-hero-title"), { yPercent: -60, opacity: 0, duration: 2.2, ease: "power1.in" }, 0.6)
           .to(q(".ac-hero-cue"), { opacity: 0, duration: 0.6 }, 0)
-          .to(q(".ac-peak"), { yPercent: -16, scale: 1.4, duration: 5.5 }, 0)
-          .to(q(".ac-far"), { yPercent: -9, duration: 5.5 }, 0)
-          .to(q(".ac-sun"), { yPercent: -60, duration: 5.5 }, 0)
           .fromTo(q(".ac-cloud-back"), { yPercent: 6 }, { yPercent: -60, duration: 5.5 }, 0)
           .fromTo(q(".ac-cloud-mid"), { yPercent: 28 }, { yPercent: -70, duration: 5.5 }, 0)
           .fromTo(q(".ac-cloud-front"), { yPercent: 62, scale: 1 }, { yPercent: -40, scale: 1.6, duration: 5.5 }, 0)
           .to(q(".ac-veil"), { opacity: 1, duration: 1.6, ease: "power1.in" }, 2.4)
           .fromTo(q(".ac-alt-cap"), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 1.2, ease: "power2.out" }, 3.4)
-          .set([q(".ac-peak"), q(".ac-far"), q(".ac-sun")], { opacity: 0 }, 4.6)
+          .set(scene, { opacity: 0 }, 4.6)
           .set(qa(".ac-cloud"), { opacity: 0 }, 4.6)
           .set(q(".ac-field"), { opacity: 1 }, 4.6)
           .to(q(".ac-alt-cap"), { opacity: 0, y: -50, duration: 1, ease: "power2.in" }, 5.6)
@@ -1349,6 +1356,11 @@ export default function AltoCoffeeTemplate({
           .fromTo(q(".ac-field-cap"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, 7.2)
           .to(q(".ac-hud"), { color: "#ffffff", duration: 0.6 }, 5.4)
           .to({}, { duration: 1.6 }, 8.2)
+        if (photo) tl.to(photo, { yPercent: -16, scale: 1.3, duration: 5.5 }, 0)
+        else
+          tl.to(q(".ac-peak"), { yPercent: -16, scale: 1.4, duration: 5.5 }, 0)
+            .to(q(".ac-far"), { yPercent: -9, duration: 5.5 }, 0)
+            .to(q(".ac-sun"), { yPercent: -60, duration: 5.5 }, 0)
         writeAlt(0)
 
         // ---- new crop ----------------------------------------------------------------
@@ -1741,14 +1753,20 @@ export default function AltoCoffeeTemplate({
         {/* ---- hero: the descent ---- */}
         <section className="ac-hero" data-sec="top" aria-label={H.title.join(" ")}>
           <div className="ac-hero-stage">
-            <div className="ac-sky" />
-            <Stars />
-            <div className="ac-sun" />
-            <FarRidge smoke={H.smoke} />
+            {H.image ? (
+              <Photo image={H.image} className="ac-hero-photo" />
+            ) : (
+              <>
+                <div className="ac-sky" />
+                <Stars />
+                <div className="ac-sun" />
+                <FarRidge smoke={H.smoke} />
+              </>
+            )}
             <div className="ac-cloud ac-cloud-back" style={{ opacity: clouds[0] ? 0.9 : 0 }}>
               <i style={{ backgroundImage: clouds[0] ? "url(" + clouds[0] + ")" : undefined }} />
             </div>
-            <VolcanoArt snow={H.snow} uid={uid} />
+            {!H.image && <VolcanoArt snow={H.snow} uid={uid} />}
             <h1 className="ac-hero-title" aria-label={H.title.join(" ")}>
               <span className="ac-line">{chars(H.title[0], "ac-hero-char")}</span>
               <span className="ac-line">{chars(H.title[1], "ac-hero-char")}</span>
@@ -2255,6 +2273,7 @@ const CSS = `
 .ac-stars,.ac-far,.ac-peak,.ac-field-art{position:absolute;left:0;bottom:0;width:100%;height:100%;max-width:none}
 .ac-stars{opacity:0}
 .ac-peak{transform-origin:50% 62%}
+.ac-hero-photo{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;transform-origin:50% 62%}
 .ac-sun{position:absolute;right:14%;top:9%;width:min(30cqi,340px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(255,251,240,.96) 0 14%,rgba(255,244,222,.42) 34%,rgba(255,244,222,0) 68%)}
 .ac-smoke{animation:ac-smoke 7s ease-in-out infinite alternate}
 @keyframes ac-smoke{from{transform:translate(0,0);opacity:.85}to{transform:translate(14px,-10px);opacity:1}}
@@ -2298,6 +2317,7 @@ const CSS = `
 /* dark: the hero becomes a night ascent (the other bands are dark already) */
 :where(.dark) .ac-root:not(.ac-light) .ac-hero,.ac-root.ac-dark .ac-hero{--ac-skyTop:#0A1322;--ac-skyBottom:#3A4859;--ac-peak:#435760;--ac-peakShade:#1D2930;--ac-ridge:#2A394A;--ac-leaf:#2C4930;--ac-leafDark:#142518}
 :where(.dark) .ac-root:not(.ac-light) .ac-stars,.ac-root.ac-dark .ac-stars{opacity:.9}
+:where(.dark) .ac-root:not(.ac-light) .ac-hero-photo,.ac-root.ac-dark .ac-hero-photo{filter:brightness(.55) saturate(.8)}
 :where(.dark) .ac-root:not(.ac-light) .ac-sun,.ac-root.ac-dark .ac-sun{width:min(12cqi,120px);background:radial-gradient(circle,#F3EFE4 0 34%,rgba(243,239,228,.22) 38%,rgba(243,239,228,0) 70%)}
 :where(.dark) .ac-root:not(.ac-light) .ac-cloud,.ac-root.ac-dark .ac-cloud{filter:brightness(.5) saturate(.7)}
 :where(.dark) .ac-root:not(.ac-light) .ac-veil,.ac-root.ac-dark .ac-veil{background:radial-gradient(ellipse at 50% 52%,#5A6676 0 38%,#2B3644 100%)}

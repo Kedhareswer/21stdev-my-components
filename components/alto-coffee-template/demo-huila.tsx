@@ -12,6 +12,8 @@ export default function DemoHuila() {
         preset="huila"
         brand={{ name: "Cumbre" }}
         hero={{
+          // The drawn snow-capped volcano: no free photo of Nevado del Huila to stand in for it.
+          image: null,
           title: ["Colombia", "Huila"],
           peak: { name: "Nevado del Huila", altitude: 5364 },
           farmAltitude: 1780,

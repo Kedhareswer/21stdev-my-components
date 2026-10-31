@@ -8,12 +8,6 @@ Authoring source for React components published to [21st.dev/@kedhareswer](https
 
 [CONTRIBUTING.md](CONTRIBUTING.md) is the full authoring/publishing guide — read it before publishing. The rest of this file is the parts that bite.
 
-## Open handoffs
-
-Unfinished work left for the next agent. Read the file before starting anything else; it says when it's done and what to delete.
-
-- [media/alto-coffee-template/HANDOFF.md](media/alto-coffee-template/HANDOFF.md): put real Unsplash photos into `alto-coffee-template` (the network was blocked when it was built).
-
 ## Commands
 
 ```bash
