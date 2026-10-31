@@ -213,7 +213,8 @@
       "@/components/ui/wild-hunt-footer": ["./components/wild-hunt-footer/wild-hunt-footer.tsx"],
       "@/components/ui/old-masters-preloader": ["./components/old-masters-preloader/old-masters-preloader.tsx"],
       "@/components/ui/venom-vial-preloader": ["./components/venom-vial-preloader/venom-vial-preloader.tsx"],
-      "@/components/ui/silk-spider-cursor": ["./components/silk-spider-cursor/silk-spider-cursor.tsx"]
+      "@/components/ui/silk-spider-cursor": ["./components/silk-spider-cursor/silk-spider-cursor.tsx"],
+      "@/components/ui/crab-perch-buttons": ["./components/crab-perch-buttons/crab-perch-buttons.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
