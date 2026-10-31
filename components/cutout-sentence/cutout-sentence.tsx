@@ -386,8 +386,11 @@ export default function CutoutSentence({
   const last = React.useRef<Map<Element, string>>(new Map())
   const player = React.useRef<gsap.core.Animation | null>(null)
 
+  const photo = React.useRef<HTMLImageElement | null>(null)
   React.useEffect(() => {
-    setLoaded(false)
+    // a cached photo can fire onLoad before this runs, so read it instead of assuming it is pending
+    const im = photo.current
+    setLoaded(!!(im && im.complete && im.naturalWidth))
   }, [src])
 
   // the sentence, in reading order; pieces drop in that order
@@ -692,6 +695,7 @@ export default function CutoutSentence({
         <div ref={frameRef} className="cs-frame">
           <div ref={imgBoxRef} style={{ position: "absolute", left: 0, top: 0 }}>
             <img
+              ref={photo}
               className="cs-img"
               src={src}
               alt={alt}
