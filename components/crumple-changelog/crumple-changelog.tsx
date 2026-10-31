@@ -657,7 +657,8 @@ void main() {
   float bend = sin(PI * c);
   float r = length(p);
   float e = r / RMAX;
-  float th = atan(p.y, p.x);
+  // offset: software GL (21st's capture) breaks atan on the exact y = 0 row
+  float th = atan(p.y + 1e-5, p.x + 1e-5);
 
   // wrinkles take up slack, so the sheet shrinks a little as it crumples
   float shrink = 1.0 - 0.17 * smoothstep(0.0, 0.7, c);
@@ -666,11 +667,14 @@ void main() {
   float lump = 1.0 + c * (0.09 * sin(3.0 * th + uSeed * 6.283) + 0.06 * sin(5.0 * th - uSeed * 17.0));
   float phi = Phi * e * lump;
   float R = RMAX * shrink / Phi;
-  float a = th + (uSeed - 0.5) * 2.6 * bend * e;
-  vec2 dir = vec2(cos(a), sin(a));
+  float tw = (uSeed - 0.5) * 2.6 * bend * e;
+  vec2 pr = vec2(p.x * cos(tw) - p.y * sin(tw), p.x * sin(tw) + p.y * cos(tw));
+  vec2 dir = pr / max(r, 1e-5);
   float sp = sin(phi);
   float hs = sin(phi * 0.5);
-  vec3 P = vec3(dir * R * sp, -2.0 * R * hs * hs);
+  // R * sin(phi) / r without the angle, so the flat sheet maps exactly onto itself
+  float sinc = phi < 1e-4 ? 1.0 : sp / phi;
+  vec3 P = vec3(pr * shrink * lump * sinc, -2.0 * R * hs * hs);
   vec3 N = vec3(dir * sp, cos(phi));
 
   // big buckles mid-crumple, then the crease map
@@ -1360,36 +1364,44 @@ export default function CrumpleChangelog({
     const controls = controlsRef.current
     const intro = gsap.timeline({ paused: true })
     let trigger: ScrollTrigger | null = null
-    gsap.set(knob, { scale: 0 })
-    if (reduce) {
-      gsap.set(lines, { yPercent: 0 })
-      gsap.set([by, meta, controls], { opacity: 0 })
-      intro
-        .to(st, { opacity: 1, ticksIn: 1, c: 0, duration: 0.5 }, 0)
-        .to(jump, { c: 0, duration: 0.01 }, 0)
-        .to([by, meta, controls], { opacity: 1, duration: 0.5 }, 0)
-        .set(knob, { scale: 1 }, 0)
-    } else {
-      gsap.set(lines, { yPercent: 115, rotate: 4 })
-      gsap.set(by, { opacity: 0, y: 8 })
-      gsap.set(meta, { opacity: 0, y: 14, scale: 0.96 })
-      gsap.set(controls, { opacity: 0, y: 10 })
-      st.drop = L.h * 0.55
-      st.spin = 1.6
-      intro
-        .to(lines, { yPercent: 0, rotate: 0, duration: 1.1, ease: "expo.out", stagger: 0.09 }, 0)
-        .to(by, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, 0.35)
-        // the first poster arrives as a ball, lands, and opens
-        .to(st, { opacity: 1, duration: 0.25, ease: "none" }, 0.1)
-        .to(st, { drop: 0, duration: 0.7, ease: "power2.in" }, 0.1)
-        .to(st, { drop: L.h * 0.035, duration: 0.16, ease: "power1.out" }, 0.8)
-        .to(st, { drop: 0, duration: 0.2, ease: "power1.in" }, 0.96)
-        .to(st, { spin: 0, duration: 1.9, ease: "power3.out" }, 0.1)
-        .to(jump, { c: 0, duration: 1.25, ease: "power3.out" }, 1.0)
-        .to(st, { ticksIn: 1, duration: 1.3, ease: "power2.out" }, 0.55)
-        .to(knob, { scale: 1, duration: 0.7, ease: "back.out(2.2)" }, 1.0)
-        .to(meta, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "expo.out" }, 1.45)
-        .to(controls, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 1.6)
+    // software GL (21st's capture sandbox, old machines) can't animate this
+    // smoothly, and a screenshot taken mid-entrance would be blank: land settled
+    const gl = renderer?.getContext()
+    const dbg = gl?.getExtension("WEBGL_debug_renderer_info")
+    const software = !renderer || /swiftshader|llvmpipe|software/i.test(dbg ? String(gl!.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "")
+    // the hidden start state is set only when the entrance actually runs
+    const build = () => {
+      gsap.set(knob, { scale: 0 })
+      if (reduce) {
+        gsap.set(lines, { yPercent: 0 })
+        gsap.set([by, meta, controls], { opacity: 0 })
+        intro
+          .to(st, { opacity: 1, ticksIn: 1, c: 0, duration: 0.5 }, 0)
+          .to(jump, { c: 0, duration: 0.01 }, 0)
+          .to([by, meta, controls], { opacity: 1, duration: 0.5 }, 0)
+          .set(knob, { scale: 1 }, 0)
+      } else {
+        gsap.set(lines, { yPercent: 115, rotate: 4 })
+        gsap.set(by, { opacity: 0, y: 8 })
+        gsap.set(meta, { opacity: 0, y: 14, scale: 0.96 })
+        gsap.set(controls, { opacity: 0, y: 10 })
+        st.drop = L.h * 0.55
+        st.spin = 1.6
+        intro
+          .to(lines, { yPercent: 0, rotate: 0, duration: 1.1, ease: "expo.out", stagger: 0.09 }, 0)
+          .to(by, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, 0.35)
+          // the first poster arrives as a ball, lands, and opens
+          .to(st, { opacity: 1, duration: 0.25, ease: "none" }, 0.1)
+          .to(st, { drop: 0, duration: 0.7, ease: "power2.in" }, 0.1)
+          .to(st, { drop: L.h * 0.035, duration: 0.16, ease: "power1.out" }, 0.8)
+          .to(st, { drop: 0, duration: 0.2, ease: "power1.in" }, 0.96)
+          .to(st, { spin: 0, duration: 1.9, ease: "power3.out" }, 0.1)
+          .to(jump, { c: 0, duration: 1.25, ease: "power3.out" }, 1.0)
+          .to(st, { ticksIn: 1, duration: 1.3, ease: "power2.out" }, 0.55)
+          .to(knob, { scale: 1, duration: 0.7, ease: "back.out(2.2)" }, 1.0)
+          .to(meta, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "expo.out" }, 1.45)
+          .to(controls, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 1.6)
+      }
     }
     intro.eventCallback("onComplete", () => {
       mode = "scrub"
@@ -1411,7 +1423,13 @@ export default function CrumpleChangelog({
       dirty = true
       gsap.delayedCall(0.1, () => {
         if (!disposed)
-          trigger = ScrollTrigger.create({ trigger: root, start: "top 78%", once: true, onEnter: () => intro.play() })
+          trigger = ScrollTrigger.create({ trigger: root, start: "top 78%", once: true,
+            onEnter: () => {
+              build()
+              if (software) intro.progress(1)
+              else intro.play()
+            },
+          })
       })
     })
 
