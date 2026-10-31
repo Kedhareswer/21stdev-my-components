@@ -140,9 +140,18 @@ import BiryaniLegendsTemplate from "@/components/ui/biryani-legends-template"
 
   The paper grain and book cloth are generated the same way. Nothing is
   fetched except the font stylesheet.
-- **Real images.** For photographs and scanned engravings, see
-  `media/biryani-legends-template/ASSETS.md`. It holds the prompts, the specs
-  and the processing steps.
+- **Real images.** `demo-photos.tsx` is the same book with real assets:
+  - three generated top-down photographs of the pots, cut out to transparency
+  - three public-domain engravings (Tellicherry 1736, Ambur 1806, Lucknow
+    1803), turned into ink on a transparent ground
+  - a generated laid-paper tile
+
+  They are embedded as AVIF and WebP `data:` URIs, so the demo fetches nothing
+  and stays under 21st's 200 KB demo limit. AVIF needs Safari 16 or later.
+  The full-size files are in `media/biryani-legends-template/legends/`, with
+  their origins, prompts and processing in
+  `media/biryani-legends-template/ASSETS.md`. In your own app, serve them from
+  `public/` and pass the URLs as shown there.
 - **Performance.**
   - Only the leaves next to the open spread are visible. Every other leaf is
     `visibility: hidden`.
@@ -162,3 +171,4 @@ import BiryaniLegendsTemplate from "@/components/ui/biryani-legends-template"
   - Text exists once: each block is rendered only on the page that shows it.
 - **21st covers.** The demos load Google Fonts, which the capture sandbox
   blocks. Supply `media/biryani-legends-template/cover.png` as `--preview`.
+  The cover is shot from `demo-photos.tsx`, which is the demo to publish.
