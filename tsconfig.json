@@ -23,6 +23,7 @@
       "@/components/ui/strobe-diva-footer": ["./components/strobe-diva-footer/strobe-diva-footer.tsx"],
       "@/components/ui/mosaic-shader-background": ["./components/mosaic-shader-background/mosaic-shader-background.tsx"],
       "@/components/ui/pixel-headline": ["./components/pixel-headline/pixel-headline.tsx"],
+      "@/components/ui/cutout-sentence": ["./components/cutout-sentence/cutout-sentence.tsx"],
       "@/components/ui/prompt-composer": ["./components/prompt-composer/prompt-composer.tsx"],
       "@/components/ui/glass-feature-grid": ["./components/glass-feature-grid/glass-feature-grid.tsx"],
       "@/components/ui/glass-pricing-cards": ["./components/glass-pricing-cards/glass-pricing-cards.tsx"],
