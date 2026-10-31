@@ -21,8 +21,15 @@ assert.deepEqual(imports, ["react", "gsap", "gsap/ScrollTrigger"], "react and gs
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
 assert.ok(pkg.dependencies.gsap, "gsap is declared at the root")
 assert.match(read("README.md"), /requires `gsap`/i, "the README says it needs gsap")
-assert.doesNotMatch(src, /@import|@font-face|<link\b|fetch\(|new Image\(|<img\b/, "nothing loads at runtime")
+assert.doesNotMatch(src, /@import|@font-face|<link\b|fetch\(|<img\b/, "no fonts, stylesheets or requests")
 assert.doesNotMatch(src, /https?:\/\//, "no URLs, so it renders in the capture sandbox")
+const photo = src.match(/const OVS_PHOTO =\n  "(data:image\/avif;base64,[A-Za-z0-9+/=]+)"/)
+assert.ok(photo, "the canopy photo is embedded as a data URI")
+assert.ok(photo[1].length < 300000, "and stays under 300 KB of source")
+assert.match(src, /photo = OVS_PHOTO,/, "it is the default")
+assert.match(src, /onFail=\{\(\) => setPhotoFail\(true\)\}/, "a photo that cannot decode falls back to the generated canopy")
+assert.match(src, /\}, \[usePhoto\]\)/, "and the storyboard rebuilds for it")
+assert.match(src, /setPortrait\(el\.clientHeight > el\.clientWidth \* 1\.05\)/, "phones get the photo turned a quarter")
 assert.ok(src.includes('height = "100svh"'), "height defaults to a definite length")
 assert.match(src, /"--ovs-h": height/, "the height prop reaches the root")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
@@ -86,7 +93,7 @@ assert.ok(tsconfig.includes(`"@/components/ui/${SLUG}": ["./components/${SLUG}/$
 
 /* ---------- logic, executed ---------- */
 
-const code = region("logic") + "\nexport { SEASONS, SKIES, LAYERS, clamp, smoothstep, mulberry32, noise2, fbm, ellipse, distAt, reachAt, canopyPlan, leafColor, skyAt, formatNumber, planPrice, isEmail, manifestoParts, stepAt }\n"
+const code = region("logic") + "\nexport { skyAmount, gradePixel, SEASONS, SKIES, LAYERS, clamp, smoothstep, mulberry32, noise2, fbm, ellipse, distAt, reachAt, canopyPlan, leafColor, skyAt, formatNumber, planPrice, isEmail, manifestoParts, stepAt }\n"
 const L = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(code)))
 
 // noise is bounded, smooth and deterministic
@@ -151,6 +158,24 @@ assert.ok(lum(L.leafColor(pal, 0.8, [0, 0, 0], 0, L.SKIES.dark.leaf)) < lum(L.le
 for (const k of ["summer", "autumn", "blossom"]) assert.match(L.SEASONS[k].accent, /^#[0-9a-f]{6}$/, `${k} has an accent`)
 assert.deepEqual(L.skyAt(L.SKIES.light.stops, 0), L.SKIES.light.stops[0][1])
 assert.deepEqual(L.skyAt(L.SKIES.light.stops, 1), L.SKIES.light.stops[2][1])
+
+// the photo grade: sky stays sky, leaves turn with the season, dusk darkens
+assert.ok(L.skyAmount(120, 160, 230) > 0.9, "blue is sky")
+assert.ok(L.skyAmount(245, 247, 250) > 0.8, "a white cloud is sky")
+assert.ok(L.skyAmount(90, 140, 40) < 0.05, "a green leaf is not")
+const same = L.gradePixel([90, 140, 40], 0.5, "summer", false)
+same.forEach((v, i) => assert.ok(Math.abs(v - [90, 140, 40][i]) < 1, "summer in daylight is the photo itself"))
+const fall = L.gradePixel([90, 140, 40], 0.5, "autumn", false)
+assert.ok(fall[0] > fall[1] * 0.9 && fall[0] > 90, "autumn turns green leaves gold")
+const blossom = L.gradePixel([90, 140, 40], 0.5, "blossom", false)
+assert.ok(blossom[0] > blossom[1], "blossom turns them pink")
+const skyFall = L.gradePixel([120, 160, 230], 0.5, "autumn", false)
+assert.ok(skyFall[2] > skyFall[0], "and leaves the sky blue")
+const duskLeaf = L.gradePixel([90, 140, 40], 0.5, "summer", true)
+assert.ok(lum(duskLeaf) < lum([90, 140, 40]) * 0.45, "dusk leaves are silhouettes")
+const duskTop = L.gradePixel([120, 160, 230], 0, "summer", true)
+const duskLow = L.gradePixel([120, 160, 230], 1, "summer", true)
+assert.ok(duskTop[2] > duskTop[0] && lum(duskTop) < lum(duskLow), "the dusk sky is deep blue overhead and glows lower down")
 
 // small helpers
 assert.equal(L.formatNumber(14000), "14,000")

@@ -10,18 +10,18 @@ the top layer of a forest, the leaves that meet the sky.
 ## The storyboard
 
 - **Arrival.** The nav drops in and the headline rises line by line out of a
-  mask. Then the trees close in around the patch of sky: four depth layers
-  start wide and tilted and settle into a ring, far ones first. The serif word
+  mask. Then the canopy comes into focus: the photo starts close, tilted and
+  blurred, and settles into a sharp ring of trees, like eyes adjusting to the
+  light. The condensed serif word
   on the second line morphs every few seconds (SAAS, AI, Fintech, DevTool),
   letters flipping out and in while the line reflows to the new width.
-- **Alive.** Each layer sways on its own slow loop, leaves drift down across
-  the sky, and the layers shift against the pointer with real depth parallax.
-  **Click the sky** and a gust swings the branches and shakes a handful of
-  leaves loose.
-- **Rise.** Scrolling lifts you up through the canopy on a sticky stage. The
-  near leaves fly past and spin out first, the far ones last, the headline
-  blurs away, and a bank of mist rolls up. You come out *above the canopy*,
-  which is where the page continues.
+- **Alive.** The canopy breathes on a slow loop, leaves drift down across
+  the sky, and it shifts against the pointer. **Click the sky** and a gust
+  swings the branches and shakes a handful of leaves loose.
+- **Rise.** Scrolling lifts you up into the gap in the trees on a sticky
+  stage: the photo zooms and turns, an out-of-focus copy of its rim rushes past
+  like the nearest leaves, the headline blurs away, and a bank of mist rolls
+  up. You come out *above the canopy*, which is where the page continues.
 - **Manifesto.** The statement fills in word by word as you read, with two
   inline pictures that pop in (the team, a growth line), then counters run
   up over rules that draw themselves.
@@ -36,23 +36,52 @@ the top layer of a forest, the leaves that meet the sky.
 - **Process.** A tree grows beside the four steps (Seed, Sapling, Branch,
   Canopy): stem and branches draw themselves as you scroll, leaves pop out at
   each stage, the sun climbs, and the step you are reading lights up.
-- **Quotes.** In the shade: a dark forest band with dappled light drifting
-  across it. Quotes change on a timer you can see, pause while you hover or
+- **Quotes.** In the shade: the canopy photo, turned and darkened, under a
+  dark forest band with dappled light drifting across it. Quotes change on a timer you can see, pause while you hover or
   focus, and their words rise in.
 - **Pricing.** Three plans with a monthly / quarterly switch whose price rolls
   to the new number. Cards tilt toward the pointer with a spotlight, and the
   featured plan has a light running around its border.
 - **Questions.** An accordion that opens smoothly, next to a card that copies
   your email.
-- **Finale.** The bookend. A framed window of trees opens to full bleed while
-  the canopy closes back in around you, from wide and tilted to settled, and
-  the call to action rises in the patch of sky.
+- **Finale.** The bookend. A framed window opens to full bleed while you drop
+  back down out of the sky, through the near leaves, into the ring of trees
+  (the same photo, turned upside down), and the call to action rises in the
+  patch of sky.
 - **Footer.** A newsletter, link columns, a live local clock, and a wordmark
   the width of the page that rises letter by letter.
 
-## The canopy is generated
+## The canopy photo
 
-There is no photo. The sky (gradient, sun glow, clouds and, at dusk, stars)
+The hero, the finale and the quotes use one real photograph, looking straight
+up through plane trees into a gap of sky. It is embedded in the file as a
+1600 x 900 AVIF (about 200 KB), so nothing loads from another host and the page
+still renders in 21st's capture sandbox.
+
+The photo is **Adobe Stock #303147850** (free collection), licensed through the
+owner's Adobe account, then cropped, graded toward summer green and encoded.
+Check the Adobe Stock license terms before redistributing it outside your own
+projects, or pass your own photo.
+
+It is graded in canvas at runtime, so one photo covers every look:
+
+- `season="summer"`: the photo as embedded.
+- `season="autumn"`: the leaves turn gold and amber, the sky stays blue.
+- `season="blossom"`: the leaves turn pink.
+- Dusk (dark scheme): the sky becomes a deep blue to violet evening, clouds
+  catch the glow, and the leaves become silhouettes.
+
+Sky and leaves are told apart per pixel (blue-dominant or bright cloud is sky),
+so a season never tints the sky. On a portrait screen the photo is turned a
+quarter (looking up, any way round is still the sky), so a phone gets a full
+ring of trees instead of a slice.
+
+- `photo`: your own photo (URL or data URI), shot looking straight up with
+  sky in the middle. `photo={null}` uses the generated canopy instead.
+
+## The generated canopy (fallback)
+
+When `photo` is `null` or fails to decode, the canopy is generated. The sky (gradient, sun glow, clouds and, at dusk, stars)
 and the four leaf layers are drawn once to canvas from a seed. Branches reach
 in from beyond the frame and end in clusters at the edge of the sky. Masses
 fill the band behind them, with gaps of sky shaped by noise. Leaves facing the
@@ -101,7 +130,7 @@ daylight / dusk switch.
 |---|---|---|
 | `brand` | `string` | `"Overstory"`. Nav, footer wordmark, copyright. |
 | `links` | `{ label, href }[]` | Work, Services, Process, Pricing, FAQ. `#work`, `#services`, `#process`, `#pricing`, `#faq`, `#contact` and `#about` scroll within the page, and the current one is marked in the nav. |
-| `status` | `string \| null` | `"Booking two build slots for Q1"` |
+| `status` | `string \| null` | `null`. A small pill above the headline. |
 | `hero` | `{ lead, words, tail, trusted, cue }` | `"Design and Eng For"`, `["SAAS", "AI", "Fintech", "DevTool"]`, `"Startups."`. Screen readers get the first word only. |
 | `logos` | `OvsLogo[]` | watchup, Salesive, ScribeAI, Salesbase, Venn. Two on the first row, the rest on the second. |
 | `manifesto` | `{ kicker, text } \| null` | `[team]`, `[chart]` and `[leaf]` in `text` become inline pictures. |
@@ -116,7 +145,8 @@ daylight / dusk switch.
 | `footer` | `{ columns, city, timeZone, note } \| null` | Lisbon, `Europe/Lisbon`. |
 | `email` | `string` | `"hello@overstory.studio"`. Copy buttons and `mailto:`. |
 | `currency` | `string` | `"$"` |
-| `season` | `"summer" \| "autumn" \| "blossom"` | `"summer"` |
+| `photo` | `string \| null` | The embedded canopy photo. `null` grows the generated canopy. |
+| `season` | `"summer" \| "autumn" \| "blossom"` | `"summer"`. Grades the photo (or colours the generated leaves) and sets the accent. |
 | `seed` | `number` | `7` |
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` follows the host's `.dark` class. |
 | `themeToggle` | `boolean` | `true` |
@@ -149,7 +179,9 @@ Types: `OvsLogo { name, mark?, type? }` (marks: `watch`, `slash`, `scribe`,
   phone menu that Escape closes, and visible focus rings in the accent.
 - **Install-safe.** Styles are one scoped `<style>` block (every selector
   starts with `.ovs-`), no `h-full`, no fonts loaded (Inter Display or the
-  system sans, and a Didone serif stack for the morphing word), no URLs.
+  system sans, and a Didone serif stack, condensed, for the morphing word),
+  no URLs. The photo is a data URI. The file is about 420 KB because of it;
+  pass your own `photo` URL and delete `OVS_PHOTO` if you want it small.
 - **Copy and data are placeholders.** The studio, clients, numbers and quotes
   are invented, and the client names follow the reference. Replace them through
   props.
