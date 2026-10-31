@@ -136,6 +136,10 @@ The roaster, farms, lots and copy are fictional.
 
 ## Notes for publishing
 
+- **Open:** the default pictures are still drawn because this was built without network
+  access to Unsplash. `media/alto-coffee-template/HANDOFF.md` lists each photo slot,
+  how to wire photos in and how to verify them.
+
 - 21st's capture sandbox blocks external origins (the font), so supply
   `media/alto-coffee-template/default.png` as `--preview`.
 - Reference image: `media/alto-coffee-template/reference.webp` (local only).
