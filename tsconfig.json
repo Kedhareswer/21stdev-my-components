@@ -15,6 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/halftone-dissolve-hero": ["./components/halftone-dissolve-hero/halftone-dissolve-hero.tsx"],
+      "@/components/ui/repair-bay-concept-template": ["./components/repair-bay-concept-template/repair-bay-concept-template.tsx"],
       "@/components/ui/alto-coffee-template": ["./components/alto-coffee-template/alto-coffee-template.tsx"],
       "@/components/ui/gilded-gaze-footer": ["./components/gilded-gaze-footer/gilded-gaze-footer.tsx"],
       "@/components/ui/biryani-legends-template": ["./components/biryani-legends-template/biryani-legends-template.tsx"],
