@@ -28,14 +28,14 @@ const demos = Object.entries(modules)
 
 const nameOf = (slug: string) => slug.replace(/(^|-)(\w)/g, (_, dash, c) => (dash ? " " : "") + c.toUpperCase())
 
-// slug -> unix seconds it was first committed (vite.config.ts). A folder git
+// slug -> unix seconds it was last committed (vite.config.ts). A folder git
 // hasn't seen yet is the newest thing here, so it sorts to the top.
-declare const __ADDED__: Record<string, number>
-const addedAt = (slug: string) => __ADDED__[slug] ?? Number.MAX_SAFE_INTEGER
+declare const __UPDATED__: Record<string, number>
+const updatedAt = (slug: string) => __UPDATED__[slug] ?? Number.MAX_SAFE_INTEGER
 
-// One card per component, newest first (name breaks ties), its default demo first.
+// One card per component, most recently updated first (name breaks ties), its default demo first.
 const components = [...new Set(demos.map((d) => d.slug))]
-  .sort((a, b) => addedAt(b) - addedAt(a) || a.localeCompare(b))
+  .sort((a, b) => updatedAt(b) - updatedAt(a) || a.localeCompare(b))
   .map((slug) => ({
     slug,
     name: nameOf(slug),

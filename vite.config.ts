@@ -6,32 +6,38 @@ import tailwindcss from "@tailwindcss/vite"
 
 const root = fileURLToPath(new URL(".", import.meta.url)).replace(/[\\/]$/, "")
 
-// When each component folder first landed in git, so the index can list newest
-// first. Vercel clones shallow, which would stamp every older folder with the
-// clone's oldest commit — deepen first. No git at all just means no dates.
-function addedDates() {
+// When each component folder last changed in git, so the index can list the
+// most recently updated first. Vercel clones shallow, which would stamp every
+// older folder with the clone's oldest commit, and its clone has no usable
+// origin to deepen from — so fall back to the public repo. No git at all just
+// means no dates.
+const PUBLIC_REPO = "https://github.com/Kedhareswer/21stdev-my-components.git"
+function updatedDates() {
   const git = (args: string) =>
     execSync("git " + args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
-  const added: Record<string, number> = {}
-  try {
-    if (git("rev-parse --is-shallow-repository").trim() === "true") git("fetch --unshallow --quiet")
-  } catch {}
+  const shallow = () => git("rev-parse --is-shallow-repository").trim() === "true"
+  const updated: Record<string, number> = {}
+  for (const from of ["", PUBLIC_REPO + " HEAD"]) {
+    try {
+      if (shallow()) git("fetch --unshallow --quiet " + from)
+    } catch {}
+  }
   try {
     let at = 0
-    // newest commit first, so the last date written for a slug is its oldest
-    for (const line of git("log --diff-filter=A --format=%at --name-only -- components").split("\n")) {
+    // newest commit first, so the first date seen for a slug is its latest
+    for (const line of git("log --format=%ct --name-only -- components").split("\n")) {
       if (/^\d+$/.test(line)) at = +line
       const slug = line.match(/^components\/([^/]+)\//)?.[1]
-      if (slug) added[slug] = at
+      if (slug && !(slug in updated)) updated[slug] = at
     }
   } catch {}
-  return added
+  return updated
 }
 
 export default defineConfig({
   // The harness lives in dev/ so the repo root stays just components/ + library/.
   root: "dev",
-  define: { __ADDED__: JSON.stringify(addedDates()) },
+  define: { __UPDATED__: JSON.stringify(updatedDates()) },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
