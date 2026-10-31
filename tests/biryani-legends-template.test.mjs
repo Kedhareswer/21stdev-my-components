@@ -32,7 +32,12 @@ assert.doesNotMatch(
   "no generics before the first JSX close tag (the 21st CLI tokenizer hangs on them)",
 )
 const files = readdirSync(dir).sort()
-assert.deepEqual(files, ["README.md", "biryani-legends-template.tsx", "demo-midnight.tsx", "demo.tsx"], "folder holds only the component, demos and README")
+assert.deepEqual(files, ["README.md", "biryani-legends-template.tsx", "demo-midnight.tsx", "demo-photos.tsx", "demo.tsx"], "folder holds only the component, demos and README")
+// The photo demo embeds its images: 21st's capture refuses off-origin requests and rejects demo files over 200,000 bytes.
+const photos = readFileSync(new URL("demo-photos.tsx", dir), "utf8")
+assert.ok(Buffer.byteLength(photos) < 200_000, "demo-photos.tsx is " + Buffer.byteLength(photos) + " bytes, over 21st's 200,000")
+assert.doesNotMatch(photos, /https?:\/\//, "demo-photos.tsx fetches nothing")
+assert.equal((photos.match(/"data:image\/(avif|webp);base64,/g) || []).length, 7, "three pots, three plates and the paper are embedded")
 for (const f of files.filter((f) => f.startsWith("demo"))) {
   const d = readFileSync(new URL(f, dir), "utf8")
   const di = [...d.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
