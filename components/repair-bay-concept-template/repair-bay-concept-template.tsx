@@ -27,10 +27,17 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
  * - Credits: a marquee, the credits and the signature.
  * - Reduced motion: no camera moves, no loops; phases change with fades.
  *
- * The scene is drawn here as layered SVG and nothing is fetched apart from
- * the optional Google Fonts stylesheet. Pass `sceneImage` (a 16:9 render) to
- * show your own artwork; the poster morph, hotspots, details and viewer then
- * work on it the same way.
+ * With no images, the scene is drawn here as layered SVG and nothing is
+ * fetched apart from the optional Google Fonts stylesheet. To show real
+ * artwork, pass:
+ * - `sceneImage`: a 16:9 render
+ * - `posterImage`: the same composition on a flat backdrop
+ * - `posterCutout`: its foreground with the backdrop keyed out, which goes
+ *   in front of the title
+ * - `fx`: live sparks and glows on top of the render
+ * - a `src` on any crop, for a close-up
+ * The poster morph, hotspots, details, viewer and film work the same way on
+ * either.
  *
  * GSAP and ScrollTrigger run inside one gsap.context, reverted on unmount.
  * The stage is CSS-sticky inside a tall section, with no ScrollTrigger
@@ -44,9 +51,26 @@ if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger)
 /** A point of interest in scene coordinates (the scene is 1600 × 900). */
 export type RbHotspot = { x: number; y: number; label: string; note: string }
 /** A square crop of the scene, in scene coordinates. */
-export type RbCrop = { x: number; y: number; size: number; caption: string }
+export type RbCrop = {
+  x: number
+  y: number
+  size: number
+  caption: string
+  /** A separate close-up to show for this tile instead of the crop. x/y/size still mark where it sits in the scene. */
+  src?: string
+  alt?: string
+}
 export type RbCredit = { role: string; name: string }
-export type RbMood = { name: string; tint: string | null }
+/** A colour grade for the film frame: a hue rotation in degrees and the swatch shown for it. */
+export type RbMood = { name: string; hue: number; swatch: string }
+/** Live light on top of a `sceneImage`, in scene coordinates. */
+export type RbGlow = { x: number; y: number; r: number; color: string }
+export type RbFx = {
+  /** Where the sparks fly (the soldering iron's tip). */
+  sparks?: { x: number; y: number }
+  /** Screens and bulbs that flicker and go dark with the power switch. */
+  glows?: RbGlow[]
+}
 export type RbRect = { x: number; y: number; w: number; h: number }
 
 export type RepairBayConceptTemplateProps = {
@@ -76,6 +100,17 @@ export type RepairBayConceptTemplateProps = {
   accents?: string[]
   /** A 16:9 render to use instead of the drawn scene (cover-fit to 1600 × 900). */
   sceneImage?: string
+  /** The same composition on a flat poster backdrop. It is the hero, and shrinks into `windowRect`. */
+  posterImage?: string
+  /**
+   * The poster's foreground (bench, characters, hanging things) with the backdrop keyed out,
+   * cropped from the top. It sits in front of the title, so the title reads as behind the scene.
+   */
+  posterCutout?: string
+  /** Height of `posterCutout` in scene units (the scene is 900 tall). */
+  posterCutoutHeight?: number
+  /** Live light for `sceneImage`: sparks and flickering glows. */
+  fx?: RbFx
   sceneAlt?: string
   /** Where the poster shrinks into, in scene coordinates. Set it when you use `sceneImage`. */
   windowRect?: RbRect
@@ -253,10 +288,10 @@ export const RB_CREDITS: RbCredit[] = [
 ]
 
 export const RB_MOODS: RbMood[] = [
-  { name: "Amber", tint: null },
-  { name: "Abyss", tint: "#1fc8c0" },
-  { name: "Coral", tint: "#ff5a6e" },
-  { name: "Ultra", tint: "#7f62ff" },
+  { name: "Amber", hue: 0, swatch: "#e9b518" },
+  { name: "Abyss", hue: 150, swatch: "#1fc8c0" },
+  { name: "Coral", hue: -38, swatch: "#ff5a6e" },
+  { name: "Ultra", hue: 215, swatch: "#7f62ff" },
 ]
 
 const RB_FONTS =
@@ -267,10 +302,29 @@ const RB_FONTS =
 const INK = "#080c0d"
 const SH = "#0d1415"
 
-type ArtProps = { p: string; image?: string; imageAlt?: string; win: RbRect }
+type ArtProps = { p: string; image?: string; imageAlt?: string; win: RbRect; fx?: RbFx }
+
+function RbSparks({ x, y, u }: { x: number; y: number; u: (id: string) => string }) {
+  return (
+    <g className="rb-sparks" transform={"translate(" + x + " " + y + ")"}>
+      <circle r="20" fill={u("spark")} className="rb-spark-core" />
+      {[-160, -130, -95, -60, -30, 10, -110, -75].map((a, i) => (
+        <path
+          key={i}
+          className="rb-spark"
+          d={"M0 0 L" + r1(Math.cos((a * Math.PI) / 180) * (18 + (i % 3) * 10)) + " " + r1(Math.sin((a * Math.PI) / 180) * (18 + (i % 3) * 10))}
+          stroke="#e9fbff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          style={{ animationDelay: -i * 0.13 + "s" }}
+        />
+      ))}
+    </g>
+  )
+}
 
 /** Gradients and the four depth layers, as <defs> content. */
-function RbArt({ p, image, imageAlt, win }: ArtProps) {
+function RbArt({ p, image, imageAlt, win, fx }: ArtProps) {
   const u = (id: string) => "url(#" + p + "-" + id + ")"
   const jellies = React.useMemo(() => rbJellies(11, win), [win])
   const dust = React.useMemo(() => rbDust(5, 70), [])
@@ -424,8 +478,6 @@ function RbArt({ p, image, imageAlt, win }: ArtProps) {
               <path d={"M" + (win.x + 80) + " " + (win.y + win.h) + " L" + (win.x + 260) + " " + win.y} stroke="#fff6cf" strokeOpacity="0.12" strokeWidth="40" />
               <path d={"M" + (win.x + 330) + " " + (win.y + win.h) + " L" + (win.x + 420) + " " + win.y} stroke="#fff6cf" strokeOpacity="0.08" strokeWidth="18" />
             </g>
-            {/* mood tint: a per-instance colour wash over the tank */}
-            <rect x={win.x} y={win.y} width={win.w} height={win.h} className="rb-tint" />
             {/* window frame and mullions */}
             <rect x={win.x} y={win.y} width={win.w} height={win.h} fill="none" stroke={INK} strokeWidth="22" />
             <rect x={win.x - 14} y={win.y - 14} width={win.w + 28} height={win.h + 28} fill="none" stroke="#16211f" strokeWidth="6" />
@@ -608,21 +660,7 @@ function RbArt({ p, image, imageAlt, win }: ArtProps) {
               <circle cx="752" cy="477" r="3.5" fill="#ff5a3c" className="rb-blink" />
               <path d="M712 558 L708 566 M744 558 L748 566" stroke="#2b3a35" strokeWidth="5" />
             </g>
-            {/* sparks at the iron tip */}
-            <g className="rb-sparks" transform="translate(754 530)">
-              <circle r="20" fill={u("spark")} className="rb-spark-core" />
-              {[-160, -130, -95, -60, -30, 10, -110, -75].map((a, i) => (
-                <path
-                  key={i}
-                  className="rb-spark"
-                  d={"M0 0 L" + r1(Math.cos((a * Math.PI) / 180) * (18 + (i % 3) * 10)) + " " + r1(Math.sin((a * Math.PI) / 180) * (18 + (i % 3) * 10))}
-                  stroke="#e9fbff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  style={{ animationDelay: -i * 0.13 + "s" }}
-                />
-              ))}
-            </g>
+            <RbSparks x={754} y={530} u={u} />
             {/* apprentice fox */}
             <g>
               <path d="M662 556 C700 560 712 530 690 520 C676 514 668 530 680 536" fill="none" stroke={u("fox")} strokeWidth="12" strokeLinecap="round" />
@@ -728,7 +766,41 @@ function RbArt({ p, image, imageAlt, win }: ArtProps) {
 
       {/* ---- L3: foreground, haze and dust --------------------------------- */}
       <g id={p + "-L3"}>
-        {image ? null : (
+        {image ? (
+          <>
+            {/* light moving through the tank water */}
+            <g clipPath={u("winclip")} className="rb-power">
+              <ellipse className="rb-caustic" cx={win.x + win.w * 0.3} cy={win.y + win.h * 0.4} rx={win.w * 0.32} ry={win.h * 0.5} fill={u("haze")} />
+              <ellipse className="rb-caustic b" cx={win.x + win.w * 0.72} cy={win.y + win.h * 0.55} rx={win.w * 0.28} ry={win.h * 0.45} fill={u("haze")} />
+            </g>
+            {(fx?.glows ?? []).map((g, i) => (
+              <circle
+                key={i}
+                className="rb-glow"
+                cx={g.x}
+                cy={g.y}
+                r={g.r}
+                fill={g.color}
+                style={{ animationDelay: -i * 0.7 + "s", animationDuration: 3 + (i % 4) * 0.9 + "s" }}
+              />
+            ))}
+            {fx?.sparks ? <RbSparks x={fx.sparks.x} y={fx.sparks.y} u={u} /> : null}
+            <g className="rb-dust-all">
+              {dust.map((m, i) => (
+                <circle
+                  key={i}
+                  className="rb-dust"
+                  cx={m.x}
+                  cy={m.y}
+                  r={m.r}
+                  fill="#fff1c0"
+                  opacity={m.o * 0.8}
+                  style={{ animationDuration: m.d + "s", animationDelay: m.delay + "s" }}
+                />
+              ))}
+            </g>
+          </>
+        ) : (
           <>
             {/* chair */}
             <g>
@@ -815,6 +887,7 @@ const RB_CSS = `
 .rb-black{position:absolute;inset:0;background:#030404;opacity:0;pointer-events:none}
 
 .rb-poster{position:absolute;left:0;right:0;top:9%;height:44%;pointer-events:none}
+.rb-ghost{visibility:hidden}
 .rb-titlebox{position:absolute;left:50%;top:0;transform:translateX(-50%);width:min(88vw,1240px)}
 .rb-title{display:flex;justify-content:center;font-family:var(--rb-display);font-weight:900;color:#fffdf4;font-size:clamp(64px,15.5vw,250px);line-height:.82;letter-spacing:-.045em;margin:0;white-space:nowrap;text-shadow:0 .02em 0 rgba(120,80,0,.25)}
 .rb-ch{display:inline-block;overflow:hidden;padding:.04em .005em .08em}
@@ -947,11 +1020,21 @@ const RB_CSS = `
 .rb-wave{stroke-dasharray:.25 .75;animation:rb-wave 2.4s linear infinite;animation-play-state:var(--rb-play,running);opacity:var(--rb-lamp,1)}
 .rb-crt{animation:rb-crt 4s steps(1) infinite;animation-play-state:var(--rb-play,running)}
 .rb-power{opacity:var(--rb-lamp,1)}
+.rb-ptint{mix-blend-mode:color;transition:opacity .6s ease,fill .6s ease}
+.rb-glow{mix-blend-mode:screen;filter:blur(14px);opacity:calc(var(--rb-lamp,1) * .55);animation:rb-flick 3.4s steps(1) infinite;animation-play-state:var(--rb-play,running)}
+.rb-caustic{mix-blend-mode:screen;transform-box:fill-box;transform-origin:center;animation:rb-caustic 11s ease-in-out infinite alternate;animation-play-state:var(--rb-play,running)}
+.rb-caustic.b{animation-duration:14s;animation-direction:alternate-reverse}
+.rb-tile-in img,.rb-shot img,.rb-lb-img{width:100%;height:100%;object-fit:cover;display:block;max-width:none}
+.rb-shot{position:absolute;inset:0;opacity:0;transform:scale(1.001);transition:opacity 1s ease,transform .1s linear}
+.rb-shot svg{width:100%;height:100%;display:block}
+.rb-shot.is-on{opacity:1;transform:scale(1.07);transition:opacity 1s ease,transform 9s linear}
+.rb-film-media{position:absolute;inset:0;transition:filter 1s ease}
+.rb-lb-img{position:absolute;inset:0;opacity:0;transition:opacity .6s ease;pointer-events:none}
+.rb-lb-img.is-on{opacity:1}
 .rb-cone{mix-blend-mode:screen}
 .rb-blink{animation:rb-blink 1.4s steps(2) infinite;animation-play-state:var(--rb-play,running)}
 .rb-fan{transform-box:fill-box;transform-origin:center;animation:rb-spin .5s linear infinite;animation-play-state:var(--rb-play,running)}
 .rb-glint{animation:rb-glint 5s ease-in-out infinite;animation-play-state:var(--rb-play,running)}
-.rb-tint{fill:var(--rb-tint,transparent);mix-blend-mode:color;opacity:.85}
 .rb-dark{fill:#02060a;opacity:var(--rb-dark,0);pointer-events:none}
 
 @keyframes rb-jelly{0%,100%{transform:translateY(0) scale(1,1)}25%{transform:translateY(-14px) scale(1.04,.94)}50%{transform:translateY(-30px) scale(.97,1.05)}75%{transform:translateY(-12px) scale(1.02,.97)}}
@@ -964,6 +1047,8 @@ const RB_CSS = `
 @keyframes rb-wave{to{stroke-dashoffset:-1}}
 @keyframes rb-crt{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.55}49%{opacity:1}83%{opacity:.8}84%{opacity:1}}
 @keyframes rb-blink{to{opacity:.15}}
+@keyframes rb-flick{0%,100%{opacity:calc(var(--rb-lamp,1) * .55)}41%{opacity:calc(var(--rb-lamp,1) * .3)}43%{opacity:calc(var(--rb-lamp,1) * .6)}77%{opacity:calc(var(--rb-lamp,1) * .42)}}
+@keyframes rb-caustic{0%{transform:translate(-4%,2%) scale(1,1)}50%{transform:translate(3%,-3%) scale(1.15,.9)}100%{transform:translate(6%,3%) scale(.92,1.1)}}
 @keyframes rb-spin{to{transform:rotate(360deg)}}
 @keyframes rb-glint{0%,70%,100%{opacity:.3}80%{opacity:1}}
 @keyframes rb-ping{0%{transform:scale(.9);opacity:.9}100%{transform:scale(2.1);opacity:0}}
@@ -989,8 +1074,9 @@ const RB_CSS = `
 .rb-sig{flex-direction:column;align-items:flex-start}
 }
 @media (prefers-reduced-motion:reduce){
-.rb-jelly,.rb-tent,.rb-swing,.rb-dust,.rb-steam,.rb-spark,.rb-spark-core,.rb-wave,.rb-crt,.rb-blink,.rb-fan,.rb-glint,.rb-grain,.rb-hot .rb-ring,.rb-rec i,.rb-scrollhint span{animation:none}
-.rb-tile-in,.rb-tile-cap{transition:none}
+.rb-glow,.rb-caustic,.rb-jelly,.rb-tent,.rb-swing,.rb-dust,.rb-steam,.rb-spark,.rb-spark-core,.rb-wave,.rb-crt,.rb-blink,.rb-fan,.rb-glint,.rb-grain,.rb-hot .rb-ring,.rb-rec i,.rb-scrollhint span{animation:none}
+.rb-tile-in,.rb-tile-cap,.rb-shot,.rb-shot.is-on{transition:none}
+.rb-shot.is-on{transform:none}
 }
 `
 
@@ -1048,6 +1134,10 @@ export default function RepairBayConceptTemplate({
   accent = "#e9b518",
   accents = ["#ff6b3d", "#36c9b5", "#f2f0e6"],
   sceneImage,
+  posterImage,
+  posterCutout,
+  posterCutoutHeight = 558,
+  fx,
   sceneAlt = "Concept art: an old badger mechanic and a fox apprentice repairing a small radio at a cluttered bench, in front of a glowing tank of jellyfish",
   windowRect = RB_WINDOW,
   height = "100svh",
@@ -1080,7 +1170,11 @@ export default function RepairBayConceptTemplate({
   const [mood, setMood] = React.useState(0)
   const [open, setOpen] = React.useState(-1)
   const [zoomOut, setZoomOut] = React.useState(false)
+  const [shot, setShot] = React.useState(0)
+  const shots = React.useMemo(() => [null, ...crops.filter((c) => c.src)], [crops])
 
+  // the poster's bounds before it shrinks into the window
+  const pb = posterImage ? { x: 0, y: 0, w: RB_W, h: RB_H } : { x: -60, y: 58, w: RB_W + 120, h: win.y + win.h - 58 }
   const palette = [accent, ...accents]
   const acc = palette[accentIdx % palette.length]
   const phaseRef = React.useRef(0)
@@ -1107,6 +1201,9 @@ export default function RepairBayConceptTemplate({
       const hudBits = q(".rb-hud-bit")
       const bubbleEl = q(".rb-bubble")
       const poster = q(".rb-yellow")
+      const pclip = q(".rb-pclip")
+      const cut = q(".rb-cut")
+      const fxl = posterImage ? q(".rb-fxl") : []
       const cam = q(".rb-cam")
       const black = q(".rb-black")
       const brush = q(".rb-brush")
@@ -1125,7 +1222,8 @@ export default function RepairBayConceptTemplate({
       } else {
         intro
           .from(q(".rb-cam > svg"), { opacity: 0, duration: 1.4, ease: "power2.out" }, 0)
-          .from(poster, { attr: { height: 0 }, duration: 0.9, ease: "power4.inOut" }, 0)
+          .from(pclip, { attr: { height: 0 }, duration: 1.1, ease: "power4.inOut" }, 0)
+          .from(cut, { y: -60, opacity: 0, duration: 1.4, ease: "power3.out" }, 0.5)
           .from(inner, { yPercent: 115, rotate: 8, duration: 0.9, stagger: 0.05 }, 0.35)
           .to(hudLines, { strokeDashoffset: 0, duration: 1.1, stagger: 0.06, ease: "power2.inOut" }, 0.6)
           .from(hudBits, { opacity: 0, y: 14, duration: 0.6, stagger: 0.06 }, 0.9)
@@ -1160,12 +1258,13 @@ export default function RepairBayConceptTemplate({
       })
       tl.set({}, {}, 1)
       if (rm) {
-        tl.to([chars, hudBits, bubbleEl, q(".rb-hud")], { opacity: 0, duration: 0.1 }, 0.06)
+        tl.to([chars, hudBits, bubbleEl, q(".rb-hud"), cut], { opacity: 0, duration: 0.1 }, 0.06)
           .to(black, { opacity: 1, duration: 0.08 }, 0.18)
           .to(brush, { opacity: 1, duration: 0.06 }, 0.28)
           .to(brush, { opacity: 0, duration: 0.06 }, 0.5)
           .to(poster, { opacity: 0, duration: 0.01 }, 0.45)
           .to(black, { opacity: 0, duration: 0.08 }, 0.58)
+          .fromTo(fxl, { opacity: 0 }, { opacity: 1, duration: 0.05 }, 0.58)
           .to(panel, { opacity: 1, duration: 0.05 }, 0.82)
           .fromTo(hots, { opacity: 0 }, { opacity: 1, duration: 0.05 }, 0.82)
       } else {
@@ -1175,6 +1274,8 @@ export default function RepairBayConceptTemplate({
           .to(q(".rb-hud"), { opacity: 0, y: -40, duration: 0.1 }, 0.05)
           .to(hudBits, { opacity: 0, y: -24, duration: 0.08, stagger: 0.008 }, 0.04)
           .to(bubbleEl, { scale: 0, rotate: 25, duration: 0.06 }, 0.05)
+          .to(cut, { y: -50, duration: 0.2 }, 0)
+          .to(cut, { opacity: 0, duration: 0.04 }, 0.21)
           .to(black, { opacity: 1, duration: 0.08 }, 0.17)
           .set(brush, { opacity: 1 }, 0.24)
           .fromTo(brushIn, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.12, ease: "power2.out" }, 0.25)
@@ -1184,9 +1285,10 @@ export default function RepairBayConceptTemplate({
           .to(brushChars, { yPercent: -60, opacity: 0, rotate: 10, duration: 0.07, stagger: { each: 0.004, from: "random" } }, 0.48)
           .to(brushTag, { opacity: 0, duration: 0.04 }, 0.48)
           // the poster shrinks into the window while the room is dark
-          .to(poster, { attr: { x: win.x, y: win.y, width: win.w, height: win.h }, duration: 0.16, ease: "power2.inOut" }, 0.3)
-          .set(cam, { scale: 1.4 }, 0.52)
+          .to(pclip, { attr: { x: win.x, y: win.y, width: win.w, height: win.h }, duration: 0.16, ease: "power2.inOut" }, 0.3)
+          .set(cam, { scale: posterImage ? 1.22 : 1.4 }, 0.52)
           .to(black, { opacity: 0, duration: 0.1 }, 0.56)
+          .fromTo(fxl, { opacity: 0 }, { opacity: 1, duration: 0.12 }, 0.58)
           .to(cam, { scale: 1, duration: 0.26, ease: "power2.out" }, 0.56)
           .to(poster, { opacity: 0, duration: 0.14, ease: "power1.in" }, 0.6)
           .fromTo(hots, { scale: 0, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.05, stagger: 0.015, ease: "back.out(3)" }, 0.8)
@@ -1251,7 +1353,7 @@ export default function RepairBayConceptTemplate({
       alive = false
       ctx.revert()
     }
-  }, [rm, win.x, win.y, win.w, win.h])
+  }, [rm, win.x, win.y, win.w, win.h, posterImage])
 
   // pointer parallax on the four layers of the stage
   React.useEffect(() => {
@@ -1263,8 +1365,7 @@ export default function RepairBayConceptTemplate({
     const depth = [6, 14, 22, 36]
     const xs = layers.map((el) => gsap.quickTo(el, "x", { duration: 1, ease: "power3.out" }))
     const ys = layers.map((el) => gsap.quickTo(el, "y", { duration: 1, ease: "power3.out" }))
-    const titleEl = root.querySelector(".rb-titlebox")
-    const tx = titleEl ? gsap.quickTo(titleEl, "x", { duration: 1.2, ease: "power3.out" }) : null
+    const txs = Array.from(root.querySelectorAll(".rb-titlebox")).map((el) => gsap.quickTo(el, "x", { duration: 1.2, ease: "power3.out" }))
     const onMove = (e: PointerEvent) => {
       const r = stage.getBoundingClientRect()
       const nx = (e.clientX - r.left) / r.width - 0.5
@@ -1274,7 +1375,7 @@ export default function RepairBayConceptTemplate({
         xs[i](-nx * d)
         ys[i](-ny * d * 0.6)
       })
-      tx?.(nx * 18)
+      txs.forEach((t) => t(nx * 18))
     }
     stage.addEventListener("pointermove", onMove)
     return () => stage.removeEventListener("pointermove", onMove)
@@ -1300,6 +1401,13 @@ export default function RepairBayConceptTemplate({
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [frozen])
+
+  // the film cuts between its shots on its own
+  React.useEffect(() => {
+    if (frozen || rm || shots.length < 2) return
+    const id = window.setInterval(() => setShot((n) => n + 1), 7000)
+    return () => window.clearInterval(id)
+  }, [frozen, rm, shots.length])
 
   // power: a flicker down or up, tweened on the film's CSS variables
   const flip = React.useCallback(
@@ -1402,9 +1510,10 @@ export default function RepairBayConceptTemplate({
   const film = {
     "--rb-play": frozen ? "paused" : "running",
     "--rb-sparks": sparks ? 1 : 0,
-    "--rb-tint": moods[mood]?.tint ?? "transparent",
   } as React.CSSProperties
   const oc = open >= 0 ? crops[open] : null
+  const md = moods[mood]
+  const grade = md && md.hue ? "hue-rotate(" + md.hue + "deg) saturate(1.15)" : "none"
 
   return (
     <div
@@ -1438,7 +1547,7 @@ export default function RepairBayConceptTemplate({
             <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
             <feColorMatrix type="saturate" values="0" />
           </filter>
-          <RbArt p={p} image={sceneImage} imageAlt={sceneAlt} win={win} />
+          <RbArt p={p} image={sceneImage} imageAlt={sceneAlt} win={win} fx={fx} />
         </defs>
       </svg>
 
@@ -1450,7 +1559,23 @@ export default function RepairBayConceptTemplate({
               <g className="rb-par" data-depth="0">
                 <use href={L(0)} />
               </g>
-              <rect className="rb-yellow" x="-60" y="58" width={RB_W + 120} height={win.y + win.h - 58} fill={acc} />
+              <clipPath id={p + "-pclip"}>
+                <rect className="rb-pclip" x={pb.x} y={pb.y} width={pb.w} height={pb.h} />
+              </clipPath>
+              <g className="rb-par" data-depth="1">
+                <g className="rb-yellow" clipPath={"url(#" + p + "-pclip)"}>
+                  {posterImage ? (
+                    <>
+                      <image href={posterImage} width={RB_W} height={RB_H} preserveAspectRatio="xMidYMid slice" />
+                      {posterCutout ? (
+                        <rect width={RB_W} height={posterCutoutHeight} fill={acc} className="rb-ptint" style={{ opacity: accentIdx % palette.length ? 0.92 : 0 }} />
+                      ) : null}
+                    </>
+                  ) : (
+                    <rect x={pb.x} y={pb.y} width={pb.w} height={pb.h} fill={acc} />
+                  )}
+                </g>
+              </g>
             </svg>
             <div className="rb-poster">
               <div className="rb-titlebox">
@@ -1459,48 +1584,19 @@ export default function RepairBayConceptTemplate({
                   <path className="rb-draw" d="M0 0 L100 100 M100 0 L0 100" stroke="#fffdf4" strokeOpacity="0.4" strokeWidth="1" pathLength={1} />
                   <path className="rb-draw" d="M0 62 H100 M34 0 V100" stroke="#fffdf4" strokeOpacity="0.3" strokeWidth="1" pathLength={1} />
                 </svg>
-                <div className="rb-issue rb-hud-bit">
-                  <b>{issue}</b>
-                  <i>{kicker}</i>
-                </div>
-                <svg className="rb-hud-bit rb-barcode" viewBox="0 0 200 14" style={{ position: "absolute", right: "3%", top: "-14%", width: "min(28vw, 300px)", height: "auto" }} aria-hidden="true">
-                  <rect x="0" y="0" width="96" height="14" fill="#fffdf4" />
-                  {[104, 112, 118, 130, 134, 146, 150, 154, 166, 172, 180, 186, 194].map((x, i) => (
-                    <rect key={x} x={x} y="0" width={i % 3 ? 2.5 : 5} height="14" fill="#fffdf4" />
-                  ))}
-                </svg>
                 <h1 className="rb-title" aria-label={title}>
                   <Chars text={title} className="rb-ch" />
                 </h1>
-                <div className="rb-date rb-hud-bit">
-                  {year}
-                  <small>{date}</small>
-                </div>
-                <div className="rb-icons rb-hud-bit">
-                  <button type="button" className="rb-icon" aria-label="Jump to the details" onClick={() => scrollToSel(".rb-details")}>
-                    <Arrow />
-                  </button>
-                  <button type="button" className="rb-icon" aria-label="Change the poster colour" onClick={() => setAccentIdx((i) => i + 1)}>
-                    <Star />
-                  </button>
-                  <button
-                    type="button"
-                    className="rb-icon"
-                    aria-label={frozen ? "Resume the animation" : "Freeze the animation"}
-                    aria-pressed={frozen}
-                    onClick={() => setFrozen((f) => !f)}
-                  >
-                    <Cross />
-                  </button>
-                </div>
-                {bubble ? <div className="rb-bubble">{bubble}</div> : null}
-                <p className="rb-note rb-hud-bit">{note}</p>
-                <div className="rb-record rb-hud-bit">
-                  {recordLabel} <em>{signature}</em>
-                </div>
               </div>
             </div>
             <svg className="rb-front" viewBox={"0 0 " + RB_W + " " + RB_H} preserveAspectRatio="xMidYMid slice" aria-hidden={phase < 3}>
+              {posterImage && posterCutout ? (
+                <g className="rb-par" data-depth="1">
+                  <g className="rb-cut">
+                    <image href={posterCutout} width={RB_W} height={posterCutoutHeight} preserveAspectRatio="none" />
+                  </g>
+                </g>
+              ) : null}
               <g className="rb-par" data-depth="1">
                 <use href={L(1)} />
               </g>
@@ -1508,7 +1604,9 @@ export default function RepairBayConceptTemplate({
                 <use href={L(2)} />
               </g>
               <g className="rb-par" data-depth="3">
-                <use href={L(3)} />
+                <g className="rb-fxl">
+                  <use href={L(3)} />
+                </g>
               </g>
               <g className="rb-par" data-depth="2" style={{ visibility: phase >= 3 ? "visible" : "hidden" }}>
                 {hotspots.map((s, i) => (
@@ -1537,6 +1635,49 @@ export default function RepairBayConceptTemplate({
                 ))}
               </g>
             </svg>
+            <div className="rb-poster rb-over">
+              <div className="rb-titlebox">
+                <div className="rb-title rb-ghost" aria-hidden="true">
+                  {title}
+                </div>
+                <div className="rb-issue rb-hud-bit">
+                  <b>{issue}</b>
+                  <i>{kicker}</i>
+                </div>
+                <svg className="rb-hud-bit rb-barcode" viewBox="0 0 200 14" style={{ position: "absolute", right: "3%", top: "-14%", width: "min(28vw, 300px)", height: "auto" }} aria-hidden="true">
+                  <rect x="0" y="0" width="96" height="14" fill="#fffdf4" />
+                  {[104, 112, 118, 130, 134, 146, 150, 154, 166, 172, 180, 186, 194].map((x, i) => (
+                    <rect key={x} x={x} y="0" width={i % 3 ? 2.5 : 5} height="14" fill="#fffdf4" />
+                  ))}
+                </svg>
+                <div className="rb-date rb-hud-bit">
+                  {year}
+                  <small>{date}</small>
+                </div>
+                <div className="rb-icons rb-hud-bit">
+                  <button type="button" className="rb-icon" aria-label="Jump to the details" onClick={() => scrollToSel(".rb-details")}>
+                    <Arrow />
+                  </button>
+                  <button type="button" className="rb-icon" aria-label="Change the poster colour" onClick={() => setAccentIdx((i) => i + 1)}>
+                    <Star />
+                  </button>
+                  <button
+                    type="button"
+                    className="rb-icon"
+                    aria-label={frozen ? "Resume the animation" : "Freeze the animation"}
+                    aria-pressed={frozen}
+                    onClick={() => setFrozen((f) => !f)}
+                  >
+                    <Cross />
+                  </button>
+                </div>
+                {bubble ? <div className="rb-bubble">{bubble}</div> : null}
+                <p className="rb-note rb-hud-bit">{note}</p>
+                <div className="rb-record rb-hud-bit">
+                  {recordLabel} <em>{signature}</em>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="rb-black" />
           <div className="rb-brush" aria-hidden={phase !== 1}>
@@ -1596,9 +1737,13 @@ export default function RepairBayConceptTemplate({
           {crops.map((c, i) => (
             <button key={i} type="button" className="rb-tile" aria-label={"Open detail " + (i + 1) + ": " + c.caption} onClick={(e) => openAt(i, e.currentTarget)}>
               <div className="rb-tile-in">
-                <svg viewBox={c.x + " " + c.y + " " + c.size + " " + c.size} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                  <use href={scene} width={RB_W} height={RB_H} />
-                </svg>
+                {c.src ? (
+                  <img src={c.src} alt="" loading="lazy" decoding="async" />
+                ) : (
+                  <svg viewBox={c.x + " " + c.y + " " + c.size + " " + c.size} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                    <use href={scene} width={RB_W} height={RB_H} />
+                  </svg>
+                )}
               </div>
               <span className="rb-tile-no">{String(i + 1).padStart(2, "0")}</span>
               <span className="rb-tile-cap">
@@ -1615,9 +1760,19 @@ export default function RepairBayConceptTemplate({
         <h2 className="rb-label">{motionLabel}</h2>
         <div className="rb-motion">
           <div className="rb-film" ref={filmRef} style={film}>
-            <svg viewBox={"0 0 " + RB_W + " " + RB_H} preserveAspectRatio="xMidYMid slice" role="img" aria-label={sceneAlt}>
-              <use href={scene} width={RB_W} height={RB_H} />
-            </svg>
+            <div className="rb-film-media" style={{ filter: grade }}>
+              {shots.map((s, i) => (
+                <div key={i} className={"rb-shot" + (shot % shots.length === i ? " is-on" : "")}>
+                  {s ? (
+                    <img src={s.src} alt={s.alt ?? s.caption} />
+                  ) : (
+                    <svg viewBox={"0 0 " + RB_W + " " + RB_H} preserveAspectRatio="xMidYMid slice" role="img" aria-label={sceneAlt}>
+                      <use href={scene} width={RB_W} height={RB_H} />
+                    </svg>
+                  )}
+                </div>
+              ))}
+            </div>
             <div className="rb-bars t" style={{ top: 0 }} />
             <div className="rb-bars b" style={{ bottom: 0 }} />
             <div className="rb-film-hud" aria-hidden="true">
@@ -1628,7 +1783,7 @@ export default function RepairBayConceptTemplate({
                 00:00:00:00
               </span>
               <span className="rb-meta">
-                {issue} · {title.toUpperCase()} · 24 FPS · {moods[mood]?.name.toUpperCase()}
+                {issue} · {title.toUpperCase()} · SHOT {String((shot % shots.length) + 1).padStart(2, "0")} · {md?.name.toUpperCase()}
               </span>
               <span className="rb-corner a" />
               <span className="rb-corner b" />
@@ -1644,6 +1799,11 @@ export default function RepairBayConceptTemplate({
               <button type="button" className="rb-tog" aria-pressed={sparks} onClick={() => setSparks((s) => !s)}>
                 <i /> Sparks
               </button>
+              {shots.length > 1 ? (
+                <button type="button" className="rb-tog" onClick={() => setShot((n) => n + 1)}>
+                  <i /> Cut {String((shot % shots.length) + 1).padStart(2, "0")}/{String(shots.length).padStart(2, "0")}
+                </button>
+              ) : null}
               <button type="button" className="rb-tog" aria-pressed={!frozen} onClick={() => setFrozen((f) => !f)}>
                 <i /> {frozen ? "Frozen" : "Playing"}
               </button>
@@ -1657,7 +1817,7 @@ export default function RepairBayConceptTemplate({
                   className="rb-sw"
                   aria-label={m.name}
                   aria-pressed={mood === i}
-                  style={{ background: m.tint ?? "radial-gradient(circle at 40% 35%, #fff3b8, #e2a113 70%)" }}
+                  style={{ background: m.swatch }}
                   onClick={() => setMood(i)}
                 />
               ))}
@@ -1722,6 +1882,9 @@ export default function RepairBayConceptTemplate({
               <use href={scene} width={RB_W} height={RB_H} />
               {oc && zoomOut ? <rect className="rb-lb-mark" x={oc.x} y={oc.y} width={oc.size} height={oc.size} /> : null}
             </svg>
+            {crops.map((c, i) =>
+              c.src ? <img key={i} className={"rb-lb-img" + (open === i && !zoomOut ? " is-on" : "")} src={c.src} alt={c.alt ?? c.caption} /> : null,
+            )}
           </div>
           <div className="rb-lb-bar">
             <div>

@@ -37,7 +37,12 @@ assert.doesNotMatch(
   "no generics before the first JSX close tag (the 21st CLI tokenizer hangs on them)",
 )
 const files = readdirSync(dir).sort()
-assert.deepEqual(files, ["README.md", "demo-abyss.tsx", "demo.tsx", slug + ".tsx"], "folder holds only the component, demos and README")
+assert.deepEqual(files, ["README.md", "demo-drawn.tsx", "demo.tsx", slug + ".tsx"], "folder holds only the component, demos and README")
+// The rendered demo embeds its images: 21st's capture refuses off-origin requests.
+const photos = readFileSync(new URL("demo.tsx", dir), "utf8")
+assert.doesNotMatch(photos, /https?:\/\//, "demo.tsx fetches nothing")
+assert.equal((photos.match(/"data:image\/avif;base64,/g) || []).length, 4, "scene, poster, cut-out and close-up are embedded")
+for (const prop of ["sceneImage={SCENE}", "posterImage={POSTER}", "posterCutout={CUTOUT}", "fx={fx}", "src: MECHANIC"]) assert.ok(photos.includes(prop), "demo.tsx passes " + prop)
 for (const f of files.filter((f) => f.startsWith("demo"))) {
   const d = readFileSync(new URL(f, dir), "utf8")
   const di = [...d.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
@@ -61,10 +66,10 @@ assert.ok(css.includes("max-width:none"), "svgs are guarded against Preflight")
 assert.ok(css.includes(".rb-cam>svg{"), "only the stage's own svgs are stretched, not the HUD and icons inside it")
 assert.ok(css.includes(".rb-root :where(button)"), "the button reset has no more weight than the button styles")
 const rm = css.slice(css.indexOf("@media (prefers-reduced-motion:reduce)"))
-for (const cls of ["rb-jelly", "rb-tent", "rb-swing", "rb-dust", "rb-steam", "rb-spark", "rb-wave", "rb-fan", "rb-grain"])
+for (const cls of ["rb-glow", "rb-caustic", "rb-shot", "rb-jelly", "rb-tent", "rb-swing", "rb-dust", "rb-steam", "rb-spark", "rb-wave", "rb-fan", "rb-grain"])
   assert.ok(rm.includes("." + cls), "reduced motion forgets ." + cls)
 // Per-instance switches must be custom properties: <use> clones ignore class selectors from their host.
-for (const v of ["var(--rb-play,running)", "var(--rb-lamp,1)", "var(--rb-sparks,1)", "var(--rb-tint,transparent)", "var(--rb-dark,0)"])
+for (const v of ["var(--rb-play,running)", "var(--rb-lamp,1)", "var(--rb-sparks,1)", "var(--rb-dark,0)"])
   assert.ok(css.includes(v), "scene switch " + v + " is a custom property")
 
 // ---- the art region, executed ---------------------------------------------------
@@ -108,7 +113,11 @@ assert.equal(L.rbView({ x: 1, y: 2, w: 3, h: 4 }), "1 2 3 4")
 // ---- structure ---------------------------------------------------------------
 for (const id of ['"-L0"', '"-L1"', '"-L2"', '"-L3"', '"-scene"']) assert.ok(src.includes("id={p + " + id + "}"), "layer " + id + " is defined once in defs")
 assert.ok(src.includes("sceneImage") && src.includes("<image href={image}"), "a real render can replace the drawn scene")
-assert.ok(src.includes('attr: { x: win.x, y: win.y, width: win.w, height: win.h }'), "the poster morphs into the window")
+assert.ok(src.includes('.to(pclip, { attr: { x: win.x, y: win.y, width: win.w, height: win.h }'), "the poster's clip shrinks into the window")
+assert.ok(src.includes('<image href={posterCutout}') && src.indexOf('className="rb-front"') < src.indexOf('<image href={posterCutout}'), "the cut-out sits in the front layer, over the title")
+assert.ok(src.indexOf('<h1 className="rb-title"') < src.indexOf('className="rb-front"') && src.indexOf('className="rb-poster rb-over"') > src.indexOf('className="rb-front"'), "title behind the cut-out, HUD bits in front of it")
+assert.ok(src.includes('.fromTo(fxl, { opacity: 0 }'), "live light waits for the room, so it never floats over the poster")
+assert.ok(src.includes('hue-rotate(" + md.hue + "deg)'), "moods grade the film by hue")
 assert.ok(/role="dialog"[\s\S]{0,80}aria-modal="true"/.test(src), "the viewer is a modal dialog")
 for (const n of ["Brass goggles", "The patient", "Chain hoist"]) assert.ok(src.includes('label: "' + n + '"'), n + " is a hotspot")
 

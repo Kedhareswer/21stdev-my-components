@@ -2,9 +2,9 @@
 
 import RepairBayConceptTemplate, { RB_HOTSPOTS } from "@/components/ui/repair-bay-concept-template"
 
-// The same scene re-skinned through props only: a teal poster, new copy, and the
-// window moods reordered so the tank opens in "Abyss".
-export default function DemoAbyss() {
+// No images at all: the scene is the SVG drawn inside the component. Re-skinned
+// through props only: a teal poster, new copy, and the film's grades reordered.
+export default function DemoDrawn() {
   return (
     <div className="w-full">
       <RepairBayConceptTemplate
@@ -20,9 +20,9 @@ export default function DemoAbyss() {
         accents={["#e9b518", "#ff5a6e"]}
         hotspots={RB_HOTSPOTS.slice(0, 4)}
         moods={[
-          { name: "Abyss", tint: "#1fc8c0" },
-          { name: "Amber", tint: null },
-          { name: "Ultra", tint: "#7f62ff" },
+          { name: "Abyss", hue: 150, swatch: "#1fc8c0" },
+          { name: "Amber", hue: 0, swatch: "#e9b518" },
+          { name: "Ultra", hue: 215, swatch: "#7f62ff" },
         ]}
         credits={[
           { role: "Concept", name: "Ines Varga" },
