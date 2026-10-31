@@ -40,11 +40,19 @@ import CrabButton, { CrabToggle, CrabDropdown, CrabMascot } from "@/components/u
 <CrabButton crab="#ff7ab6" tone="#1b4d3e" ink="#fdf6e3">Any hex works</CrabButton>
 ```
 
-**Requires only React** and Tailwind's preflight is fine. There are no
-images, fonts or network requests. The crab is SVG, built once at module load
-from a few curves: a smooth shell with soft teeth, tapered jointed legs, and
-glossy eyes. Its body sits *behind* the button's top edge and its claws hang
-*in front*, so it really looks perched. Labels use your page's font.
+**Requires only React.** There are no images, fonts or network requests. The
+crab is SVG, built once at module load: a saw-edged carapace, a broad tan
+front with plated mouthparts, big glossy eyes in their sockets, jointed legs
+with dark tips, and swollen claws with open pincers. A relief filter (a
+blurred silhouette for volume, soft noise for the pebbled shell, then diffuse
+and specular light from the top left) gives every part real depth and
+texture. The body sits *behind* the button's top edge and the claws and legs
+hang *in front*, so it really looks perched.
+
+Each moving part (eyes, each arm, each hand, each pincer finger, each set of
+legs) is its own SVG plane, moved with CSS transforms. The lighting renders
+once, and every motion after that runs on the compositor, so a page full of
+crabs stays at 60fps. Labels use your page's font.
 
 ## `CrabButton` props
 
@@ -56,7 +64,7 @@ Every native `<button>` attribute passes through, and the ref goes to the `<butt
 | `size` | `"md"` | `sm` 44px · `md` 56px · `lg` 68px tall. |
 | `icon` | — | Leading icon. |
 | `trailing` | arrow | Trailing icon. `null` hides it. For `icon`, the glyph in the circle. |
-| `crab` | `"red"` | Shell: `red` `blue` `gold` `pearl` `violet` `mint`, or any hex. Every shade is derived from it. |
+| `crab` | `"red"` | Shell: `red` `blue` `gold` `pearl` `violet` `mint`, or any hex. Every shade (face, plates, palms, tips) is derived from it. |
 | `tone` | `"moss"` | Button: `moss` `ink` `clay` `sea` `plum` `sand`, or any hex. |
 | `ink` | auto | Label colour. Picked for contrast with `tone` when left out. |
 | `crabAt` | `0.42` | Where the crab rests along the edge, 0–1. |
@@ -87,7 +95,7 @@ and native button attributes. Give it an `aria-label`.
 ## Notes
 
 - **Leave room above.** The crab sits on top of the button, outside its box,
-  about 0.85× the button's height. Give the row above some breathing space
+  about 0.9× the button's height. Give the row above some breathing space
   (the demos use `pt-20`).
 - The crab is `aria-hidden` and ignores the pointer, so the hit area is the
   button and nothing else. Focus rings sit on the button face, and

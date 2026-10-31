@@ -38,7 +38,9 @@ assert.equal(generic, null, "no generics before the first JSX close tag: " + (ge
 // ---- 2. Scoped CSS ---------------------------------------------------------
 const css = src.match(/const CPB_CSS = `([\s\S]*?)`/)[1]
 assert.doesNotMatch(css, /\$\{|`/, "no interpolation or backticks in the CSS string")
-assert.match(css, /\.cpb-art \{[^}]*max-width: none/, "the crab art overrides Preflight's max-width")
+assert.match(css, /\.cpb-plane \{[^}]*max-width: none/, "the crab planes override Preflight's max-width")
+for (const part of ["cpb-eyes", "cpb-arm", "cpb-hand", "cpb-finger", "cpb-legs-l"]) assert.ok(css.includes("." + part), part + " is its own animated plane")
+assert.ok(src.includes("<feTurbulence") && src.includes("<feSpecularLighting") && src.includes("<feDiffuseLighting"), "the crab is lit by the relief filter")
 let rules = 0
 for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s*([^{}]+?)\s*\{/g)) {
   const sel = m[1].trim()
@@ -74,7 +76,8 @@ assert.equal(C.cpbPick(C.CPB_CRABS, "toString", "red"), C.CPB_CRABS.red, "no pro
 for (const shell of Object.values(C.CPB_CRABS)) {
   const t = C.cpbCrabTones(shell)
   assert.ok(C.cpbLuma(t.hi) > C.cpbLuma(t.base) && C.cpbLuma(t.base) > C.cpbLuma(t.dark) && C.cpbLuma(t.dark) > C.cpbLuma(t.deep), "shell shades are ordered for " + shell)
-  assert.ok(C.cpbLuma(t.tip) > C.cpbLuma(t.base), "claw tips are paler than the shell")
+  assert.ok(C.cpbLuma(t.nail) < C.cpbLuma(t.dark), "leg and claw tips are the darkest shade for " + shell)
+  assert.ok(C.cpbLuma(t.cream) > C.cpbLuma(t.base) && C.cpbLuma(t.face) > C.cpbLuma(t.base), "the face and palm undersides are paler than the shell for " + shell)
 }
 // label contrast on every preset tone (WCAG AA, large text 3:1)
 const contrast = (x, y) => {
@@ -100,8 +103,17 @@ assert.equal(C.cpbMirror(C.cpbMirror(sq)), sq, "mirroring twice is the identity"
 assert.equal(C.cpbMirror("M10 5"), "M" + (C.CPB_W - 10) + " 5")
 assert.equal(C.cpbPlace("M1 0", 0, 0, 90), "M0 1", "rotation is clockwise in screen space")
 assert.equal(C.cpbPlace("M1 2C3 4 5 6 7 8", 10, 20, 0), "M11 22C13 24 15 26 17 28", "every pair moves")
-const shell = C.cpbShell()
-assert.match(shell, /^M[\d.\s-]+(C[\d.\s-]+)+Z$/, "the shell is one closed smooth path")
+const shell = C.cpbCarapace()
+assert.match(shell, /^M[\d.\s-]+(C[\d.\s-]+)+Z$/, "the carapace is one closed smooth path")
+const front = C.cpbFront()
+assert.match(front, /^M.*Z$/, "the face is one closed path")
+const leg = C.cpbLeg([[0, 0], [10, -10], [20, 0], [22, 20]], [10, 9, 7, 0])
+assert.ok(/^M.*Z$/.test(leg.body) && /^M.*Z$/.test(leg.nail), "a leg has a body and a dark tip")
+const teeth = C.cpbSerrate([[0, 0], [60, 0]], 4, 3)
+assert.equal(teeth.length, 25)
+assert.ok(Math.max(...teeth.map((p) => Math.abs(p[1]))) <= 3 + 1e-9 && Math.min(...teeth.map((p) => p[1])) < -2.9, "teeth stand out by amp on one side")
+assert.deepEqual(C.cpbAlong([[0, 0], [10, 0], [10, 10]], 0.75).p, [10, 5], "along walks by length")
+assert.deepEqual(C.cpbPoint(1, 0, 5, 5, 90, 2).map((v) => +v.toFixed(6)), [5, 7], "points scale, turn and move like paths")
 const nums = shell.match(/-?\d+(\.\d+)?/g).map(Number)
 const xs = nums.filter((_, i) => i % 2 === 0)
 const ys = nums.filter((_, i) => i % 2 === 1)
@@ -109,7 +121,7 @@ assert.ok(Math.min(...xs) > 0 && Math.max(...xs) < C.CPB_W, "the shell fits the 
 assert.ok(Math.min(...ys) > 20 && Math.max(...ys) <= C.CPB_EDGE + 6, "the shell sits on the edge, not through the button")
 const limb = C.cpbLimb([[0, 0], [10, 0], [20, 0]], [4, 4, 0])
 assert.match(limb, /^M.*Z$/, "a limb is a closed path")
-assert.ok(!/NaN/.test(limb) && !/NaN/.test(shell), "no NaN in the geometry")
+assert.ok(![limb, shell, front, leg.body, leg.nail].some((d) => /NaN/.test(d)), "no NaN in the geometry")
 
 // ---- 4. Demos --------------------------------------------------------------
 for (const f of ["demo.tsx", "demo-playground.tsx"]) {

@@ -48,12 +48,12 @@ export const CPB_H = 150
 export const CPB_EDGE = 104
 
 export const CPB_CRABS = {
-  red: "#e4562c",
-  blue: "#3f7fcf",
-  gold: "#e3a43b",
-  pearl: "#e6d7c3",
-  violet: "#8d5bd2",
-  mint: "#41b38a",
+  red: "#cc3c18",
+  blue: "#3a76c4",
+  gold: "#d99a2b",
+  pearl: "#e4d3bd",
+  violet: "#8550c8",
+  mint: "#38a77f",
 }
 
 export const CPB_TONES = {
@@ -115,15 +115,18 @@ export function cpbPick(table: { [k: string]: string }, v: string | undefined, f
 export function cpbCrabTones(shell: string) {
   const pale = cpbLuma(shell) > 0.45
   return {
-    hi: cpbShade(shell, 0.42),
-    light: cpbShade(shell, 0.2),
+    hi: cpbShade(shell, 0.34),
+    light: cpbShade(shell, 0.13),
     base: shell,
-    dark: cpbShade(shell, pale ? -0.32 : -0.3),
-    deep: cpbShade(shell, pale ? -0.55 : -0.58),
-    belly: cpbMix(shell, "#f8dfc4", 0.72),
-    bellyDark: cpbMix(shell, "#c98d62", 0.55),
-    tip: cpbMix(shell, "#fbf1e4", 0.86),
-    spot: cpbShade(shell, 0.32),
+    dark: cpbShade(shell, pale ? -0.3 : -0.3),
+    deep: cpbShade(shell, pale ? -0.55 : -0.6),
+    nail: cpbShade(shell, pale ? -0.62 : -0.74),
+    face: cpbMix(shell, pale ? "#fff7ec" : "#f1cda4", 0.78),
+    faceEdge: cpbMix(shell, "#c47a4a", 0.5),
+    plate: cpbMix(shell, pale ? "#fffaf2" : "#f3d3ad", 0.86),
+    plateDark: cpbMix(shell, "#c99062", 0.74),
+    crease: cpbMix(shell, "#6e3219", 0.6),
+    cream: cpbMix(shell, pale ? "#fffaf3" : "#fbe3c8", 0.8),
   }
 }
 
@@ -142,7 +145,7 @@ export function cpbFace(surface: string, ink?: string) {
 
 /** Range of x (px, crab centre) the crab may walk on a button this wide. */
 export function cpbRange(width: number, crabW: number): [number, number] {
-  const inset = crabW * 0.36
+  const inset = crabW * 0.34
   if (width <= inset * 2) return [width / 2, width / 2]
   return [inset, width - inset]
 }
@@ -165,18 +168,25 @@ export function cpbMirror(d: string) {
   return cpbMap(d, (x, y) => [CPB_W - x, y])
 }
 
-/** Rotate a path (degrees, about the local origin), then move it. */
-export function cpbPlace(d: string, dx: number, dy: number, deg: number) {
+/** Scale, rotate (degrees, about the local origin), then move a path. */
+export function cpbPlace(d: string, dx: number, dy: number, deg: number, s = 1) {
   const r = (deg * Math.PI) / 180
   const c = Math.cos(r)
-  const s = Math.sin(r)
-  return cpbMap(d, (x, y) => [x * c - y * s + dx, x * s + y * c + dy])
+  const n = Math.sin(r)
+  return cpbMap(d, (x, y) => [x * s * c - y * s * n + dx, x * s * n + y * s * c + dy])
+}
+
+/** Same transform, for a single point. */
+export function cpbPoint(x: number, y: number, dx: number, dy: number, deg: number, s = 1) {
+  const r = (deg * Math.PI) / 180
+  return [x * s * Math.cos(r) - y * s * Math.sin(r) + dx, x * s * Math.sin(r) + y * s * Math.cos(r) + dy]
 }
 
 /** A smooth closed path through points (Catmull-Rom → cubic Bézier). */
 export function cpbSmooth(pts: number[][]) {
   const n = pts.length
-  let d = "M" + pts[0][0].toFixed(2) + " " + pts[0][1].toFixed(2)
+  const f = (v: number) => v.toFixed(2)
+  let d = "M" + f(pts[0][0]) + " " + f(pts[0][1])
   for (let i = 0; i < n; i++) {
     const p0 = pts[(i - 1 + n) % n]
     const p1 = pts[i]
@@ -184,148 +194,180 @@ export function cpbSmooth(pts: number[][]) {
     const p3 = pts[(i + 2) % n]
     const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6]
     const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6]
-    d += "C" + [c1[0], c1[1], c2[0], c2[1], p2[0], p2[1]].map((v) => v.toFixed(2)).join(" ")
+    d += "C" + [c1[0], c1[1], c2[0], c2[1], p2[0], p2[1]].map(f).join(" ")
   }
   return d + "Z"
 }
 
-/** A tapered limb along a polyline: widths per point, last one usually 0. */
+/** A point at fraction t (by length) along a polyline, and its direction. */
+export function cpbAlong(pts: number[][], t: number) {
+  const seg: number[] = []
+  let total = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
+    seg.push(l)
+    total += l
+  }
+  let d = cpbClamp(t, 0, 1) * total
+  for (let i = 0; i < seg.length; i++) {
+    if (d <= seg[i] || i === seg.length - 1) {
+      const u = seg[i] ? Math.min(1, d / seg[i]) : 0
+      const a = pts[i]
+      const b = pts[i + 1]
+      const l = seg[i] || 1
+      return { p: [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], dir: [(b[0] - a[0]) / l, (b[1] - a[1]) / l] }
+    }
+    d -= seg[i]
+  }
+  return { p: pts[0], dir: [1, 0] }
+}
+
+/** A tapered limb along a polyline: widths per point, the last one usually 0. */
 export function cpbLimb(pts: number[][], widths: number[]) {
-  const n = pts.length
+  const P: number[][] = []
+  const Wd: number[] = []
+  for (let i = 0; i < pts.length - 1; i++) {
+    for (let k = 0; k < 4; k++) {
+      const t = k / 4
+      P.push([pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t])
+      Wd.push(widths[i] + (widths[i + 1] - widths[i]) * t)
+    }
+  }
+  P.push(pts[pts.length - 1])
+  Wd.push(widths[widths.length - 1])
+  const n = P.length
   const left: number[][] = []
   const right: number[][] = []
   for (let i = 0; i < n; i++) {
-    const a = pts[Math.max(0, i - 1)]
-    const b = pts[Math.min(n - 1, i + 1)]
+    const a = P[Math.max(0, i - 1)]
+    const b = P[Math.min(n - 1, i + 1)]
     let nx = -(b[1] - a[1])
     let ny = b[0] - a[0]
     const len = Math.hypot(nx, ny) || 1
     nx /= len
     ny /= len
-    const w = widths[i] / 2
-    left.push([pts[i][0] + nx * w, pts[i][1] + ny * w])
-    right.push([pts[i][0] - nx * w, pts[i][1] - ny * w])
+    const w = Wd[i] / 2
+    left.push([P[i][0] + nx * w, P[i][1] + ny * w])
+    right.push([P[i][0] - nx * w, P[i][1] - ny * w])
   }
   const ring = left.concat(right.reverse())
-  // a rounded shoulder: push one point out behind the first joint
-  const a = pts[0]
-  const b = pts[1]
+  // a rounded shoulder behind the first joint
+  const a = P[0]
+  const b = P[1]
   const bl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
-  ring.push([a[0] - ((b[0] - a[0]) / bl) * widths[0] * 0.45, a[1] - ((b[1] - a[1]) / bl) * widths[0] * 0.45])
+  ring.push([a[0] - ((b[0] - a[0]) / bl) * Wd[0] * 0.5, a[1] - ((b[1] - a[1]) / bl) * Wd[0] * 0.5])
   return cpbSmooth(ring)
 }
 
-/** The shell outline: a dome with soft teeth down both front corners. */
-export function cpbShell() {
-  const pts: number[][] = []
-  const cx = 120
-  const cy = 90
-  for (let deg = 0; deg < 360; deg += 3) {
-    const t = (deg * Math.PI) / 180
-    const up = Math.sin(t) < 0
-    let rx = 72
-    // teeth on the upper flanks, five a side
-    const flank = (lo: number, hi: number) => deg >= lo && deg <= hi
-    if (flank(186, 236) || flank(304, 354)) {
-      const u = flank(186, 236) ? (deg - 186) / 50 : (354 - deg) / 50
-      rx *= 1 + 0.045 * Math.abs(Math.sin(u * Math.PI * 5))
-    }
-    const ry = up ? 50 : 17
-    pts.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry * (up ? 1 : 1)])
+/** Points along a polyline with `teeth` soft saw-teeth of height `amp` on its outer side. */
+export function cpbSerrate(pts: number[][], teeth: number, amp: number) {
+  const out: number[][] = []
+  const N = teeth * 6
+  for (let i = 0; i <= N; i++) {
+    const q = cpbAlong(pts, i / N)
+    const ph = (i % 6) / 6
+    const k = amp * (ph < 0.5 ? ph * 2 : (1 - ph) * 2)
+    out.push([q.p[0] + q.dir[1] * k, q.p[1] - q.dir[0] * k])
   }
-  return cpbSmooth(pts)
+  return out
+}
+
+/** The carapace: a broad dome, saw-toothed down both front flanks. */
+export function cpbCarapace() {
+  const right = [[120, 21], [140, 22], [158, 26]]
+    .concat(cpbSerrate([[166, 30], [178, 40], [185, 54], [186, 66]], 4, 2.8))
+    .concat([[183, 78], [174, 92], [154, 101], [120, 104]])
+  const left = right.slice(1, -1).reverse().map((p) => [CPB_W - p[0], p[1]])
+  return cpbSmooth(right.concat(left))
+}
+
+/** The broad tan front of the crab, under the eyes. */
+export function cpbFront() {
+  const right = [[120, 57], [130, 55], [140, 57], [150, 58], [162, 57], [171, 62], [175, 72], [172, 86], [160, 95], [144, 100], [120, 101.5]]
+  const left = right.slice(1, -1).reverse().map((p) => [CPB_W - p[0], p[1]])
+  return cpbSmooth(right.concat(left))
+}
+
+/** A walking leg: the limb and its dark tip. */
+export function cpbLeg(pts: number[][], widths: number[]) {
+  const n = pts.length
+  const a = pts[n - 2]
+  const b = pts[n - 1]
+  const s = [a[0] + (b[0] - a[0]) * 0.6, a[1] + (b[1] - a[1]) * 0.6]
+  return { body: cpbLimb(pts, widths), nail: cpbLimb([s, b], [widths[n - 2] * 0.44, 0]) }
 }
 // #endregion
 
 // ---------------------------------------------------------------------------
-// The drawing, built once.
+// The drawing, built once at module load.
 
 type Pt = [number, number]
+type LegArt = { body: string; nail: string }
 
-interface Leg {
-  pts: Pt[]
-  w: number[]
-}
+const legOf = (pts: number[][], w: number[]): LegArt => cpbLeg(pts, w)
+const mirrorLeg = (l: LegArt): LegArt => ({ body: cpbMirror(l.body), nail: cpbMirror(l.nail) })
+const pct = (x: number, y: number) => ((x / CPB_W) * 100).toFixed(3) + "% " + ((y / CPB_H) * 100).toFixed(3) + "%"
 
-const PEEK_BACK: Leg[] = [
-  { pts: [[66, 74], [44, 62], [30, 76], [25, 100]], w: [12, 11, 9, 0] },
-]
-const PEEK_FRONT: Leg[] = [
-  { pts: [[58, 90], [40, 93], [32, 106], [34, 122]], w: [12.5, 11.5, 9, 0] },
-  { pts: [[66, 99], [54, 106], [51, 117], [55, 128]], w: [11.5, 10.5, 8, 0] },
-]
-const STAND_BACK: Leg[] = [
-  { pts: [[66, 76], [42, 68], [26, 90], [20, 126]], w: [12, 11, 9, 0] },
-]
-const STAND_FRONT: Leg[] = [
-  { pts: [[60, 92], [42, 100], [36, 120], [38, 142]], w: [12.5, 11.5, 9, 0] },
-  { pts: [[70, 100], [60, 112], [60, 128], [66, 144]], w: [11.5, 10.5, 8, 0] },
-]
-
-// The claw in its own frame: wrist at the origin, fingers pointing down (+y).
-const PALM = "M-16 -3C-18 -16 -4 -22 8 -17C18 -13 20 0 16 9C13 15 5 18 -3 17C-11 16 -16 9 -16 -3Z"
-const POLLEX = "M-11 9C-17 15 -14 24 -3 28C-6 22 -5 17 0 12Z"
-const DACTYL = "M3 10C13 13 15 22 4 28C6 22 5 17 -2 14Z"
-const PALM_SHINE = "M-9 -11C-3 -16 7 -15 11 -9C5 -11 -2 -11 -9 -7Z"
-const CLAW_SCALE = 1.18
-
-// where each claw hangs in the peek pose: wrist, angle, shoulder
-const CLAW = { wrist: [76, 95] as Pt, deg: 6, shoulder: [96, 90] as Pt }
-
-function legPaths(legs: Leg[]) {
-  return legs.map((l) => ({
-    body: cpbLimb(l.pts, l.w),
-    shine: cpbLimb(
-      l.pts.map((p) => [p[0] - 0.6, p[1] - 1.4] as Pt),
-      l.w.map((w) => w * 0.38),
-    ),
-    joints: l.pts.slice(1, -1),
-  }))
-}
-
-function clawPaths(wrist: Pt, deg: number) {
-  const place = (d: string) => cpbPlace(cpbMap(d, (x, y) => [x * CLAW_SCALE, y * CLAW_SCALE]), wrist[0], wrist[1], deg)
-  return { palm: place(PALM), pollex: place(POLLEX), dactyl: place(DACTYL), shine: place(PALM_SHINE) }
-}
-
-const SHELL = cpbShell()
-const ARM_L = cpbLimb([[100, 88], [89, 93], [78, 95]], [14, 13, 12])
-const ART = {
-  shell: SHELL,
-  shellR: cpbMirror(SHELL),
-  peek: { back: legPaths(PEEK_BACK), front: legPaths(PEEK_FRONT) },
-  stand: { back: legPaths(STAND_BACK), front: legPaths(STAND_FRONT) },
-  claw: clawPaths(CLAW.wrist, CLAW.deg),
-  arm: ARM_L,
-}
-const mirrorLeg = (l: ReturnType<typeof legPaths>[number]) => ({
-  body: cpbMirror(l.body),
-  shine: cpbMirror(l.shine),
-  joints: l.joints.map((p) => [CPB_W - p[0], p[1]] as Pt),
-})
-const CLAW_R = {
-  palm: cpbMirror(ART.claw.palm),
-  pollex: cpbMirror(ART.claw.pollex),
-  dactyl: cpbMirror(ART.claw.dactyl),
-  shine: cpbMirror(ART.claw.shine),
-}
-const ARM_R = cpbMirror(ARM_L)
-const LEGS = {
+const LEGS_L = {
   peek: {
-    back: { l: ART.peek.back, r: ART.peek.back.map(mirrorLeg) },
-    front: { l: ART.peek.front, r: ART.peek.front.map(mirrorLeg) },
+    back: [legOf([[72, 64], [46, 46], [32, 62], [24, 94]], [11.5, 10.5, 8.5, 0])],
+    front: [
+      legOf([[68, 74], [40, 58], [27, 80], [24, 114]], [13.5, 12.5, 10, 0]),
+      legOf([[72, 88], [50, 84], [40, 100], [41, 120]], [12.5, 11.5, 9, 0]),
+    ],
   },
   stand: {
-    back: { l: ART.stand.back, r: ART.stand.back.map(mirrorLeg) },
-    front: { l: ART.stand.front, r: ART.stand.front.map(mirrorLeg) },
+    back: [legOf([[72, 66], [44, 48], [28, 78], [22, 122]], [11.5, 10.5, 8.5, 0])],
+    front: [
+      legOf([[68, 78], [40, 66], [28, 96], [27, 138]], [13.5, 12.5, 10, 0]),
+      legOf([[76, 92], [54, 92], [46, 116], [50, 144]], [12.5, 11.5, 9, 0]),
+    ],
+  },
+}
+const LEGS = {
+  peek: {
+    back: { l: LEGS_L.peek.back, r: LEGS_L.peek.back.map(mirrorLeg) },
+    front: { l: LEGS_L.peek.front, r: LEGS_L.peek.front.map(mirrorLeg) },
+  },
+  stand: {
+    back: { l: LEGS_L.stand.back, r: LEGS_L.stand.back.map(mirrorLeg) },
+    front: { l: LEGS_L.stand.front, r: LEGS_L.stand.front.map(mirrorLeg) },
   },
 }
 
-// Freckles on the shell: [x, y, r]
-const SPOTS: [number, number, number][] = [
-  [92, 58, 2.6], [104, 50, 1.8], [138, 50, 2.2], [150, 60, 2.8], [124, 46, 1.5],
-  [80, 70, 1.9], [162, 72, 1.7], [112, 62, 1.3], [132, 63, 1.4], [70, 80, 1.4], [172, 82, 1.2],
-]
+// The claw in its own frame: wrist at the origin, the palm running along +x.
+const PALM = "M-5 -2C-4 -11 10 -14 22 -12C31 -10 36 -5 36 2C35 8 29 11 20 12C8 13 -3 10 -5 2Z"
+const PALM_CREAM = "M2 6C10 10 21 11 28 9C33 7 36 4 36 1C34 8 27 12 18 12C10 12 4 10 2 6Z"
+const DACTYL = "M27 -9C40 -13 53 -7 59 5C53 2 47 1 41 1C37 1 33 0 29 -1Z"
+const POLLEX = "M31 4C41 4 50 6 57 10C51 14 42 15 30 11Z"
+const CARPUS = cpbSmooth([[-7, 0], [-5, -7], [1, -9], [7, -6], [9, 1], [5, 7], [-2, 8], [-6, 5]])
+const HAND_S = 1.24
+const WRIST: Pt = [49, 76]
+const HAND_DEG = 41
+const SHOULDER: Pt = [86, 92]
+const HINGE = cpbPoint(30, -3, WRIST[0], WRIST[1], HAND_DEG, HAND_S)
+const handPath = (d: string) => cpbPlace(d, WRIST[0], WRIST[1], HAND_DEG, HAND_S)
+
+const CLAW_L = {
+  arm: cpbLimb([SHOULDER, [68, 85], [53, 78]], [17, 16, 15]),
+  carpus: cpbPlace(CARPUS, WRIST[0], WRIST[1], HAND_DEG - 20),
+  palm: handPath(PALM),
+  cream: handPath(PALM_CREAM),
+  pollex: handPath(POLLEX),
+  dactyl: handPath(DACTYL),
+}
+const CLAW_R = Object.fromEntries(Object.entries(CLAW_L).map(([k, v]) => [k, cpbMirror(v)])) as typeof CLAW_L
+const CLAW_O = {
+  l: { shoulder: pct(SHOULDER[0], SHOULDER[1]), wrist: pct(WRIST[0], WRIST[1]), hinge: pct(HINGE[0], HINGE[1]) },
+  r: { shoulder: pct(CPB_W - SHOULDER[0], SHOULDER[1]), wrist: pct(CPB_W - WRIST[0], WRIST[1]), hinge: pct(CPB_W - HINGE[0], HINGE[1]) },
+}
+
+const CARAPACE = cpbCarapace()
+const FRONT = cpbFront()
+const PLATE_L = cpbSmooth([[119.5, 63], [109, 63.5], [100.5, 67.5], [97.5, 78], [99, 90], [104.5, 98.5], [112, 101.5], [119.5, 102]])
+const PLATE_R = cpbMirror(PLATE_L)
+const CREASES = "M94 62C107 57.5 133 57.5 146 62M120 63V102M100 85C106 79 113 76 119 75M140 85C134 79 127 76 121 75M101 93C107 90 113 89 119 89.5M139 93C133 90 127 89 121 89.5M86 70C88 76 92 80 96 82M154 70C152 76 148 80 144 82"
+const EYE_X = [93, 147]
 
 export type CrabColor = keyof typeof CPB_CRABS | (string & {})
 export type CrabTone = keyof typeof CPB_TONES | (string & {})
@@ -334,180 +376,217 @@ export type CrabPose = "peek" | "stand"
 export type CrabMood = "idle" | "hover" | "press" | "sleep"
 
 const uidOf = (raw: string) => "cpb" + raw.replace(/[^a-zA-Z0-9]/g, "")
+const VB = "0 0 " + CPB_W + " " + CPB_H
 
 // ---------------------------------------------------------------------------
-// The crab, as one of two layers.
-
-function Limbs({ legs, uid, cls }: { legs: ReturnType<typeof legPaths>; uid: string; cls: string }) {
-  return (
-    <g className={cls}>
-      {legs.map((l, i) => (
-        <g key={i} className={"cpb-leg cpb-leg-" + i}>
-          <path d={l.body} fill={"url(#" + uid + "-leg)"} stroke={"url(#" + uid + "-rim)"} strokeWidth={0.8} />
-          <path d={l.shine} fill={"url(#" + uid + "-shine)"} opacity={0.55} />
-          {l.joints.map((p, j) => (
-            <circle key={j} cx={p[0]} cy={p[1]} r={2.1} fill={"url(#" + uid + "-joint)"} />
-          ))}
-        </g>
-      ))}
-    </g>
-  )
-}
-
-function Claw({ side, uid }: { side: "l" | "r"; uid: string }) {
-  const c = side === "l" ? ART.claw : CLAW_R
-  const arm = side === "l" ? ART.arm : ARM_R
-  const sx = side === "l" ? CLAW.shoulder[0] : CPB_W - CLAW.shoulder[0]
-  const wx = side === "l" ? CLAW.wrist[0] : CPB_W - CLAW.wrist[0]
-  const dx = side === "l" ? CLAW.wrist[0] + 3 : CPB_W - CLAW.wrist[0] - 3
-  return (
-    <g className={"cpb-claw cpb-claw-" + side} style={{ transformOrigin: sx + "px " + CLAW.shoulder[1] + "px" }}>
-      <path d={arm} fill={"url(#" + uid + "-leg)"} stroke={"url(#" + uid + "-rim)"} strokeWidth={0.8} />
-      <g className="cpb-hand" style={{ transformOrigin: wx + "px " + CLAW.wrist[1] + "px" }}>
-        <path d={c.pollex} fill={"url(#" + uid + "-finger)"} stroke={"url(#" + uid + "-rim)"} strokeWidth={0.7} />
-        <path
-          className="cpb-dactyl"
-          style={{ transformOrigin: dx + "px " + (CLAW.wrist[1] + 12) + "px" }}
-          d={c.dactyl}
-          fill={"url(#" + uid + "-finger)"}
-          stroke={"url(#" + uid + "-rim)"}
-          strokeWidth={0.7}
-        />
-        <path d={c.palm} fill={"url(#" + uid + "-palm)"} stroke={"url(#" + uid + "-rim)"} strokeWidth={0.8} />
-        <path d={c.shine} fill="#fff" opacity={0.42} />
-        <circle cx={wx + (side === "l" ? -6 : 6)} cy={CLAW.wrist[1] + 2} r={1.3} fill={"url(#" + uid + "-spot)"} />
-        <circle cx={wx + (side === "l" ? 4 : -4)} cy={CLAW.wrist[1] + 6} r={1.1} fill={"url(#" + uid + "-spot)"} />
-        <circle cx={wx + (side === "l" ? -1 : 1)} cy={CLAW.wrist[1] - 4} r={1.5} fill={"url(#" + uid + "-spot)"} />
-      </g>
-    </g>
-  )
-}
+// The crab is a stack of SVG planes, one per moving part. Each part is lit
+// once by the relief filter; every motion after that is a CSS transform on
+// the plane, so a page full of crabs stays on the compositor.
 
 function Defs({ uid, shell }: { uid: string; shell: string }) {
   const t = cpbCrabTones(shell)
+  const u = (k: string) => uid + "-" + k
   return (
     <defs>
-      <radialGradient id={uid + "-shell"} cx="44%" cy="22%" r="78%">
-        <stop offset="0" stopColor={t.hi} />
-        <stop offset="0.38" stopColor={t.light} />
-        <stop offset="0.7" stopColor={t.base} />
+      {/* Volume from a blurred silhouette, grain from noise, lit from the top left. */}
+      <filter id={u("relief")} x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="4.2" result="bev" />
+        <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves={2} seed={7} result="n" />
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="g0" />
+        <feGaussianBlur in="g0" stdDeviation="0.55" result="grain" />
+        <feComposite in="bev" in2="grain" operator="arithmetic" k1={0.11} k2={0.92} result="h" />
+        <feDiffuseLighting in="h" surfaceScale={5} diffuseConstant={1.16} lightingColor="#ffffff" result="d">
+          <feDistantLight azimuth={245} elevation={56} />
+        </feDiffuseLighting>
+        <feSpecularLighting in="h" surfaceScale={5} specularConstant={1} specularExponent={34} lightingColor="#fff4e6" result="s">
+          <feDistantLight azimuth={235} elevation={50} />
+        </feSpecularLighting>
+        <feComposite in="s" in2="SourceAlpha" operator="in" result="s2" />
+        <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1={1.04} result="lit" />
+        <feComposite in="lit" in2="s2" operator="arithmetic" k2={1} k3={0.55} result="o" />
+        <feComposite in="o" in2="SourceAlpha" operator="in" />
+      </filter>
+      <radialGradient id={u("cap")} cx="50%" cy="10%" r="95%">
+        <stop offset="0" stopColor={t.light} />
+        <stop offset="0.5" stopColor={t.base} />
         <stop offset="1" stopColor={t.dark} />
       </radialGradient>
-      <linearGradient id={uid + "-leg"} x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id={u("face")} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={t.faceEdge} />
+        <stop offset="0.25" stopColor={t.face} />
+        <stop offset="1" stopColor={t.faceEdge} />
+      </linearGradient>
+      <radialGradient id={u("faceRim")} cx="50%" cy="40%" r="62%">
+        <stop offset="0.58" stopColor={t.base} stopOpacity={0} />
+        <stop offset="1" stopColor={t.base} stopOpacity={0.8} />
+      </radialGradient>
+      <linearGradient id={u("plate")} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={t.plate} />
+        <stop offset="1" stopColor={t.plateDark} />
+      </linearGradient>
+      <linearGradient id={u("leg")} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={t.light} />
+        <stop offset="0.6" stopColor={t.base} />
+        <stop offset="1" stopColor={t.dark} />
+      </linearGradient>
+      <linearGradient id={u("palm")} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stopColor={t.light} />
         <stop offset="0.55" stopColor={t.base} />
         <stop offset="1" stopColor={t.dark} />
       </linearGradient>
-      <radialGradient id={uid + "-palm"} cx="38%" cy="28%" r="80%">
+      <linearGradient id={u("finger")} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={t.base} />
+        <stop offset="0.45" stopColor={t.hi} />
+        <stop offset="0.78" stopColor={t.base} />
+        <stop offset="1" stopColor={t.nail} />
+      </linearGradient>
+      <radialGradient id={u("sock")} cx="50%" cy="30%" r="70%">
         <stop offset="0" stopColor={t.hi} />
-        <stop offset="0.45" stopColor={t.base} />
+        <stop offset="0.6" stopColor={t.light} />
         <stop offset="1" stopColor={t.dark} />
       </radialGradient>
-      <linearGradient id={uid + "-finger"} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor={t.base} />
-        <stop offset="0.45" stopColor={t.light} />
-        <stop offset="0.82" stopColor={t.tip} />
-        <stop offset="1" stopColor={t.tip} />
-      </linearGradient>
-      <linearGradient id={uid + "-rim"} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor={t.dark} stopOpacity={0.35} />
-        <stop offset="1" stopColor={t.deep} stopOpacity={0.75} />
-      </linearGradient>
-      <linearGradient id={uid + "-shine"} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#fff" stopOpacity={0.9} />
-        <stop offset="1" stopColor={t.hi} stopOpacity={0.2} />
-      </linearGradient>
-      <radialGradient id={uid + "-joint"}>
-        <stop offset="0" stopColor={t.deep} stopOpacity={0.55} />
-        <stop offset="1" stopColor={t.deep} stopOpacity={0} />
+      <radialGradient id={u("eye")} cx="35%" cy="28%" r="80%">
+        <stop offset="0" stopColor="#4b3a38" />
+        <stop offset="0.3" stopColor="#160c0b" />
+        <stop offset="1" stopColor="#000000" />
       </radialGradient>
-      <radialGradient id={uid + "-spot"}>
-        <stop offset="0" stopColor={t.spot} stopOpacity={0.95} />
-        <stop offset="1" stopColor={t.spot} stopOpacity={0} />
-      </radialGradient>
-      <linearGradient id={uid + "-belly"} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor={t.belly} />
-        <stop offset="1" stopColor={t.bellyDark} />
-      </linearGradient>
-      <radialGradient id={uid + "-eye"} cx="38%" cy="32%" r="70%">
-        <stop offset="0" stopColor="#5a4644" />
-        <stop offset="0.35" stopColor="#1c1212" />
-        <stop offset="1" stopColor="#050303" />
-      </radialGradient>
-      <radialGradient id={uid + "-gloss"} cx="50%" cy="35%" r="60%">
-        <stop offset="0" stopColor="#fff" stopOpacity={0.75} />
-        <stop offset="1" stopColor="#fff" stopOpacity={0} />
-      </radialGradient>
-      <radialGradient id={uid + "-cast"}>
-        <stop offset="0" stopColor="#000" stopOpacity={0.4} />
-        <stop offset="1" stopColor="#000" stopOpacity={0} />
-      </radialGradient>
-      <radialGradient id={uid + "-blush"}>
-        <stop offset="0" stopColor="#ff6f73" stopOpacity={0.55} />
-        <stop offset="1" stopColor="#ff6f73" stopOpacity={0} />
+      <radialGradient id={u("ao")}>
+        <stop offset="0" stopColor="#2a0800" stopOpacity={0.5} />
+        <stop offset="1" stopColor="#2a0800" stopOpacity={0} />
       </radialGradient>
     </defs>
   )
 }
 
-function Eye({ cx, uid }: { cx: number; uid: string }) {
+function LegSet({ legs, uid }: { legs: LegArt[]; uid: string }) {
   return (
-    <g className="cpb-eye">
-      <path d={"M" + (cx + (cx < 120 ? 5 : -5)) + " 92L" + cx + " 70"} stroke={"url(#" + uid + "-leg)"} strokeWidth={8} strokeLinecap="round" />
-      <ellipse cx={cx} cy={73} rx={9} ry={5} fill={"url(#" + uid + "-palm)"} />
-      <g className="cpb-look">
-        <g className="cpb-blink" style={{ transformOrigin: cx + "px 62px" }}>
-          <circle cx={cx} cy={62} r={12.5} fill={"url(#" + uid + "-eye)"} />
-          <ellipse cx={cx} cy={57} rx={8} ry={5} fill={"url(#" + uid + "-gloss)"} opacity={0.35} />
-          <circle className="cpb-glint" cx={cx - 4} cy={57.5} r={3.4} fill="#fff" />
-          <circle className="cpb-glint" cx={cx + 3.8} cy={66} r={1.5} fill="#fff" opacity={0.85} />
-        </g>
-      </g>
+    <g filter={"url(#" + uid + "-relief)"}>
+      {legs.map((l, i) => (
+        <path key={i} d={l.body} fill={"url(#" + uid + "-leg)"} />
+      ))}
     </g>
   )
 }
 
-function CrabLayer({ layer, pose, uid, shell }: { layer: "back" | "front"; pose: CrabPose; uid: string; shell: string }) {
-  const legs = LEGS[pose]
+function Plane({ className = "", children }: { className?: string; children?: React.ReactNode }) {
   return (
-    <svg className={"cpb-art cpb-art-" + layer} viewBox={"0 0 " + CPB_W + " " + CPB_H} aria-hidden="true" focusable="false">
-      <Defs uid={uid} shell={shell} />
-      {layer === "back" ? (
-        <>
-          <g className="cpb-shock" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" fill="none">
-            <path d="M98 22L92 8" />
-            <path d="M120 16V1" />
-            <path d="M142 22L148 8" />
-          </g>
-          <Limbs legs={legs.back.l} uid={uid} cls="cpb-legs cpb-legs-l cpb-legs-back" />
-          <Limbs legs={legs.back.r} uid={uid} cls="cpb-legs cpb-legs-r cpb-legs-back" />
-          <g className="cpb-shell">
-            <path d={ART.shell} fill={"url(#" + uid + "-shell)"} stroke={"url(#" + uid + "-rim)"} strokeWidth={1.2} />
-            <path d="M84 58C96 70 108 74 120 74C132 74 144 70 156 58" fill="none" stroke={cpbCrabTones(shell).dark} strokeOpacity={0.35} strokeWidth={1.6} strokeLinecap="round" />
-            <path d="M104 48C108 56 113 60 120 61C127 60 132 56 136 48" fill="none" stroke={cpbCrabTones(shell).dark} strokeOpacity={0.25} strokeWidth={1.3} strokeLinecap="round" />
-            {SPOTS.map((s, i) => (
-              <circle key={i} cx={s[0]} cy={s[1]} r={s[2]} fill={"url(#" + uid + "-spot)"} />
-            ))}
-            <ellipse cx={108} cy={52} rx={30} ry={9} transform="rotate(-9 108 52)" fill={"url(#" + uid + "-gloss)"} opacity={0.9} />
-            <path d="M88 96C92 85 148 85 152 96C150 106 90 106 88 96Z" fill={"url(#" + uid + "-belly)"} />
-            <path d="M110 92V102M116 90V103M124 90V103M130 92V102" stroke={cpbCrabTones(shell).bellyDark} strokeWidth={1.2} strokeLinecap="round" opacity={0.6} />
-            <path className="cpb-mouth" d="M114 95.5Q120 99.5 126 95.5" fill="none" stroke={cpbCrabTones(shell).deep} strokeWidth={1.6} strokeLinecap="round" />
-            <ellipse cx={92} cy={86} rx={8} ry={4.5} fill={"url(#" + uid + "-blush)"} />
-            <ellipse cx={148} cy={86} rx={8} ry={4.5} fill={"url(#" + uid + "-blush)"} />
-          </g>
-          <Eye cx={101} uid={uid} />
-          <Eye cx={139} uid={uid} />
-        </>
-      ) : (
-        <>
-          {pose === "peek" ? <ellipse cx={120} cy={CPB_EDGE + 3} rx={66} ry={6} fill={"url(#" + uid + "-cast)"} /> : <ellipse cx={120} cy={145} rx={64} ry={3.5} fill={"url(#" + uid + "-cast)"} opacity={0.6} />}
-          <Limbs legs={legs.front.l} uid={uid} cls="cpb-legs cpb-legs-l cpb-legs-front" />
-          <Limbs legs={legs.front.r} uid={uid} cls="cpb-legs cpb-legs-r cpb-legs-front" />
-          <Claw side="l" uid={uid} />
-          <Claw side="r" uid={uid} />
-        </>
-      )}
+    <svg className={"cpb-plane " + className} viewBox={VB} aria-hidden="true" focusable="false">
+      {children}
     </svg>
+  )
+}
+
+function Claw({ side, uid, cream }: { side: "l" | "r"; uid: string; cream: string }) {
+  const c = side === "l" ? CLAW_L : CLAW_R
+  const o = CLAW_O[side]
+  const r = (k: string) => "url(#" + uid + "-" + k + ")"
+  return (
+    <span className={"cpb-arm cpb-arm-" + side} style={{ transformOrigin: o.shoulder }}>
+      <Plane>
+        <g filter={r("relief")}>
+          <path d={c.arm} fill={r("leg")} />
+          <path d={c.carpus} fill={r("palm")} />
+        </g>
+      </Plane>
+      <span className={"cpb-hand cpb-hand-" + side} style={{ transformOrigin: o.wrist }}>
+        <span className={"cpb-finger cpb-finger-" + side} style={{ transformOrigin: o.hinge }}>
+          <Plane>
+            <g filter={r("relief")}>
+              <path d={c.dactyl} fill={r("finger")} />
+            </g>
+          </Plane>
+        </span>
+        <Plane>
+          <g filter={r("relief")}>
+            <path d={c.pollex} fill={r("finger")} />
+            <path d={c.palm} fill={r("palm")} />
+            <path d={c.cream} fill={cream} opacity={0.85} />
+          </g>
+        </Plane>
+      </span>
+    </span>
+  )
+}
+
+/** Half of the crab: what sits behind the button's edge, or what hangs in front of it. */
+function CrabArt({ layer, pose, uid, shell }: { layer: "back" | "front"; pose: CrabPose; uid: string; shell: string }) {
+  const t = cpbCrabTones(shell)
+  const legs = LEGS[pose]
+  const r = (k: string) => "url(#" + uid + "-" + k + ")"
+  if (layer === "back") {
+    return (
+      <>
+        <Plane className="cpb-shock-plane">
+          <g className="cpb-shock" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" fill="none">
+            <path d="M98 16L91 2" />
+            <path d="M120 11V-4" />
+            <path d="M142 16L149 2" />
+          </g>
+        </Plane>
+        <Plane className="cpb-body">
+          <Defs uid={uid} shell={shell} />
+          <g filter={r("relief")}>
+            {legs.back.l.concat(legs.back.r).map((l, i) => (
+              <path key={i} d={l.body} fill={r("leg")} />
+            ))}
+          </g>
+          {legs.back.l.concat(legs.back.r).map((l, i) => (
+            <path key={i} d={l.nail} fill={t.nail} opacity={0.85} />
+          ))}
+          <g filter={r("relief")}>
+            <path d={CARAPACE} fill={r("cap")} />
+          </g>
+          <g filter={r("relief")}>
+            <path d={FRONT} fill={r("face")} />
+            <path d={FRONT} fill={r("faceRim")} />
+            <path d={PLATE_L} fill={r("plate")} />
+            <path d={PLATE_R} fill={r("plate")} />
+          </g>
+          <path d={CREASES} fill="none" stroke={t.crease} strokeOpacity={0.5} strokeWidth={1} strokeLinecap="round" />
+          <g filter={r("relief")}>
+            {EYE_X.map((x) => (
+              <ellipse key={x} cx={x} cy={47} rx={15.5} ry={10.5} fill={r("sock")} />
+            ))}
+          </g>
+        </Plane>
+        <Plane className="cpb-eyes">
+          {EYE_X.map((x) => (
+            <g key={x}>
+              <ellipse cx={x} cy={31} rx={12} ry={15.5} fill={r("eye")} />
+              <ellipse cx={x - 4} cy={23} rx={4} ry={5.4} fill="#fff" opacity={0.92} transform={"rotate(-18 " + (x - 4) + " 23)"} />
+              <ellipse cx={x + 5} cy={39.5} rx={3.6} ry={1.8} fill="#fff" opacity={0.2} transform={"rotate(-30 " + (x + 5) + " 39.5)"} />
+            </g>
+          ))}
+        </Plane>
+      </>
+    )
+  }
+  return (
+    <>
+      {pose === "peek" ? (
+        <Plane>
+          <ellipse cx={120} cy={CPB_EDGE + 2} rx={72} ry={6} fill={r("ao")} />
+        </Plane>
+      ) : (
+        <Plane>
+          <ellipse cx={120} cy={146} rx={70} ry={4} fill={r("ao")} opacity={0.7} />
+        </Plane>
+      )}
+      <Plane className="cpb-legs cpb-legs-l">
+        <LegSet legs={legs.front.l} uid={uid} />
+        {legs.front.l.map((l, i) => (
+          <path key={i} d={l.nail} fill={t.nail} opacity={0.85} />
+        ))}
+      </Plane>
+      <Plane className="cpb-legs cpb-legs-r">
+        <LegSet legs={legs.front.r} uid={uid} />
+        {legs.front.r.map((l, i) => (
+          <path key={i} d={l.nail} fill={t.nail} opacity={0.85} />
+        ))}
+      </Plane>
+      <Claw side="l" uid={uid} cream={t.cream} />
+      <Claw side="r" uid={uid} cream={t.cream} />
+    </>
   )
 }
 
@@ -536,58 +615,53 @@ const CPB_CSS = `
 .cpb-label { display: inline-block; }
 .cpb-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-.cpb-crab { position: absolute; pointer-events: none; width: var(--cpb-cw); height: calc(var(--cpb-cw) * 0.625); left: calc(var(--cpb-xf, 0.5) * 100%); top: calc(var(--cpb-cw) * -0.4333); margin-left: calc(var(--cpb-cw) * -0.5); transform-origin: 50% 69.33%; transform: translateY(0) rotate(calc(var(--cpb-lean, 0) * 1deg)); transition: transform 0.45s cubic-bezier(0.3, 0.8, 0.3, 1.35); color: var(--cpb-mark); }
-.cpb-crab-back { z-index: 0; }
-.cpb-crab-front { z-index: 2; }
-.cpb-art { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; overflow: visible; display: block; }
-.cpb-art-back { filter: drop-shadow(0 1px 1px rgba(60, 10, 0, 0.25)); }
-.cpb-art-front { filter: drop-shadow(0 2px 1.5px rgba(40, 8, 0, 0.3)); }
+.cpb-crab { position: absolute; pointer-events: none; width: var(--cpb-cw); height: calc(var(--cpb-cw) * 0.625); left: calc(var(--cpb-xf, 0.5) * 100%); top: calc(var(--cpb-cw) * -0.4333); margin-left: calc(var(--cpb-cw) * -0.5); transform-origin: 50% 69.33%; transform: rotate(calc(var(--cpb-lean, 0) * 1deg)); transition: transform 0.45s cubic-bezier(0.3, 0.8, 0.3, 1.35); color: var(--cpb-mark); }
+.cpb-crab-back { z-index: 0; filter: drop-shadow(0 1px 1px rgba(60, 10, 0, 0.18)); }
+.cpb-crab-front { z-index: 2; filter: drop-shadow(0 2px 2px rgba(40, 8, 0, 0.28)); }
+.cpb-solo { position: relative; display: block; width: 100%; height: 100%; color: var(--cpb-mark); }
+.cpb-solo-front { position: absolute; inset: 0; filter: drop-shadow(0 2px 2px rgba(40, 8, 0, 0.25)); }
+.cpb-plane { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; overflow: visible; display: block; }
+.cpb-arm, .cpb-hand, .cpb-finger { position: absolute; inset: 0; display: block; transition: transform 0.42s cubic-bezier(0.3, 0.8, 0.3, 1.35); }
 .cpb-root[data-walk] .cpb-crab { transition: transform 0.18s ease-out; }
 
-.cpb-shell, .cpb-eye, .cpb-legs-back { transform-box: view-box; transform-origin: 120px 104px; animation: cpb-breathe 3.4s ease-in-out infinite; animation-delay: var(--cpb-phase, 0s); }
-.cpb-eye { transition: transform 0.3s ease; }
-.cpb-look { transform-box: view-box; transform: translate(calc(var(--cpb-lx, 0) * 1px), calc(var(--cpb-ly, 0) * 1px)); transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.3, 1.2); }
-.cpb-blink { transform-box: view-box; animation: cpb-blink 5.2s infinite; animation-delay: var(--cpb-phase, 0s); transition: transform 0.15s ease; }
-.cpb-mouth { transition: d 0.2s ease, opacity 0.2s ease; }
-.cpb-claw, .cpb-hand, .cpb-dactyl, .cpb-leg { transform-box: view-box; }
-.cpb-claw { transition: transform 0.38s cubic-bezier(0.3, 0.8, 0.3, 1.5); }
-.cpb-hand { transition: transform 0.38s cubic-bezier(0.3, 0.8, 0.3, 1.5); }
-.cpb-claw-r .cpb-dactyl { animation: cpb-tap 6.5s ease-in-out infinite; animation-delay: var(--cpb-phase, 0s); }
-.cpb-shock { opacity: 0; transform-box: view-box; transform-origin: 120px 30px; transform: scale(0.4) translateY(14px); transition: opacity 0.12s ease, transform 0.22s cubic-bezier(0.3, 0.8, 0.3, 1.8); }
+/* eyes: look with translate, blink and squint with scale */
+.cpb-eyes { transform-origin: 50% 20.67%; translate: calc(var(--cpb-lx, 0) * 0.4167%) calc(var(--cpb-ly, 0) * 0.6667%); transition: translate 0.22s cubic-bezier(0.3, 0.7, 0.3, 1.2), scale 0.14s ease; animation: cpb-blink 5.2s infinite; animation-delay: var(--cpb-phase, 0s); }
+.cpb-finger-r { animation: cpb-tap-r 7s ease-in-out infinite; animation-delay: var(--cpb-phase, 0s); }
+.cpb-shock-plane { opacity: 0; transform-origin: 50% 6%; transform: scale(0.4) translateY(10%); transition: opacity 0.12s ease, transform 0.22s cubic-bezier(0.3, 0.8, 0.3, 1.8); }
 
-/* hover — the crab rises, lifts the claw on your side and snips */
-.cpb-root[data-live="hover"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * -0.035)) rotate(calc(var(--cpb-lean, 0) * 1deg)); }
-.cpb-root[data-live="hover"][data-side="l"] .cpb-claw-l { transform: translate(-16px, -20px) rotate(14deg); }
-.cpb-root[data-live="hover"][data-side="l"] .cpb-claw-l .cpb-hand { transform: rotate(160deg); }
-.cpb-root[data-live="hover"][data-side="r"] .cpb-claw-r { transform: translate(16px, -20px) rotate(-14deg); }
-.cpb-root[data-live="hover"][data-side="r"] .cpb-claw-r .cpb-hand { transform: rotate(-160deg); }
-.cpb-root[data-live="hover"][data-side="l"] .cpb-claw-l .cpb-dactyl { animation: cpb-snip-l 0.5s ease-in-out infinite; }
-.cpb-root[data-live="hover"][data-side="r"] .cpb-claw-r .cpb-dactyl { animation: cpb-snip-r 0.5s ease-in-out infinite; }
+/* hover — rise, lift the claw on your side, snip */
+.cpb-root[data-live="hover"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * -0.03)) rotate(calc(var(--cpb-lean, 0) * 1deg)); }
+.cpb-root[data-live="hover"][data-side="l"] .cpb-arm-l { transform: rotate(40deg); }
+.cpb-root[data-live="hover"][data-side="l"] .cpb-hand-l { transform: rotate(128deg); }
+.cpb-root[data-live="hover"][data-side="l"] .cpb-finger-l { animation: cpb-snip-l 0.5s ease-in-out infinite; }
+.cpb-root[data-live="hover"][data-side="r"] .cpb-arm-r { transform: rotate(-40deg); }
+.cpb-root[data-live="hover"][data-side="r"] .cpb-hand-r { transform: rotate(-128deg); }
+.cpb-root[data-live="hover"][data-side="r"] .cpb-finger-r { animation: cpb-snip-r 0.5s ease-in-out infinite; }
 
 /* press — duck, squint, shock lines */
-.cpb-root[data-live="press"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * 0.03)) scale(1.07, 0.84); transition-duration: 0.14s; }
-.cpb-root[data-live="press"] .cpb-blink { transform: scaleY(0.32); animation: none; }
-.cpb-root[data-live="press"] .cpb-shock { opacity: 1; transform: none; }
-.cpb-root[data-live="press"] .cpb-claw-l { transform: rotate(-6deg); }
-.cpb-root[data-live="press"] .cpb-claw-r { transform: rotate(6deg); }
+.cpb-root[data-live="press"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * 0.035)) scale(1.06, 0.82); transition-duration: 0.14s; }
+.cpb-root[data-live="press"] .cpb-eyes { scale: 1 0.3; animation: none; }
+.cpb-root[data-live="press"] .cpb-shock-plane { opacity: 1; transform: none; }
+.cpb-root[data-live="press"] .cpb-arm-l { transform: rotate(-5deg); }
+.cpb-root[data-live="press"] .cpb-arm-r { transform: rotate(5deg); }
 
 /* asleep (disabled) */
-.cpb-root[data-live="sleep"] .cpb-blink { transform: scaleY(0.12); animation: none; }
-.cpb-root[data-live="sleep"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * 0.03)); filter: saturate(0.55); }
+.cpb-root[data-live="sleep"] .cpb-eyes { scale: 1 0.1; animation: none; }
+.cpb-root[data-live="sleep"] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * 0.03)); }
+.cpb-root[data-live="sleep"] .cpb-crab-back, .cpb-root[data-live="sleep"] .cpb-crab-front { filter: saturate(0.5) brightness(0.96); }
 .cpb-zz { position: absolute; z-index: 3; pointer-events: none; font: 600 calc(var(--cpb-cw) * 0.11) / 1 ui-rounded, system-ui, sans-serif; color: var(--cpb-mark); opacity: 0.7; }
-.cpb-zz > span:nth-child(2) { font-size: 0.7em; margin-left: 0.9em; }
 .cpb-zz > span { position: absolute; animation: cpb-zz 2.8s ease-in infinite; opacity: 0; }
-.cpb-zz > span:nth-child(2) { animation-delay: 1.4s; }
+.cpb-zz > span:nth-child(2) { font-size: 0.7em; margin-left: 0.9em; animation-delay: 1.4s; }
 
 /* walking — legs patter */
-.cpb-root[data-walk] .cpb-leg { animation: cpb-patter 0.16s ease-in-out infinite alternate; }
-.cpb-root[data-walk] .cpb-leg-1 { animation-delay: -0.08s; }
-.cpb-legs-l .cpb-leg { transform-origin: 66px 88px; }
-.cpb-legs-r .cpb-leg { transform-origin: 174px 88px; }
+.cpb-legs-l { transform-origin: 28% 53%; }
+.cpb-legs-r { transform-origin: 72% 53%; }
+.cpb-root[data-walk] .cpb-legs-l { animation: cpb-patter 0.16s ease-in-out infinite alternate; }
+.cpb-root[data-walk] .cpb-legs-r { animation: cpb-patter 0.16s ease-in-out infinite alternate-reverse; }
 
 /* loading — drum both claws */
-.cpb-root[data-busy] .cpb-claw-l { animation: cpb-drum 0.32s ease-in-out infinite alternate; }
-.cpb-root[data-busy] .cpb-claw-r { animation: cpb-drum-r 0.32s ease-in-out infinite alternate; animation-delay: -0.16s; }
+.cpb-root[data-busy] .cpb-arm-l { animation: cpb-drum-l 0.3s ease-in-out infinite alternate; }
+.cpb-root[data-busy] .cpb-arm-r { animation: cpb-drum-r 0.3s ease-in-out infinite alternate; animation-delay: -0.15s; }
 .cpb-root[data-busy] .cpb-label { opacity: 0.7; }
 .cpb-dots { display: inline-flex; gap: 3px; }
 .cpb-dots > i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: cpb-dot 0.9s ease-in-out infinite; }
@@ -597,29 +671,31 @@ const CPB_CSS = `
 /* bubbles */
 .cpb-bubble { position: absolute; z-index: 3; pointer-events: none; left: 50%; top: 40%; width: var(--cpb-bs); height: var(--cpb-bs); margin: calc(var(--cpb-bs) * -0.5); border-radius: 50%; background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.95) 0 18%, rgba(255, 255, 255, 0.25) 30%, rgba(170, 220, 255, 0.18) 62%, rgba(255, 255, 255, 0.55) 100%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 40, 80, 0.15); animation: cpb-bubble var(--cpb-bt) cubic-bezier(0.2, 0.6, 0.4, 1) forwards; }
 
-/* ghost — a plain label with the crab standing beside it */
+/* ghost — a plain label with the crab standing beside it, waving */
 .cpb-ghost .cpb-face { background: none; border-color: transparent; box-shadow: none; padding: 0 calc(var(--cpb-h) * 0.12); color: var(--cpb-gink); }
 .cpb-ghost:not(:disabled):hover .cpb-face { background: none; filter: none; }
 .cpb-ghost:not(:disabled):active .cpb-face, .cpb-ghost[data-state="press"] .cpb-face { box-shadow: none; transform: translateY(1px); }
 .cpb-ghost:focus-visible .cpb-face { box-shadow: 0 0 0 2px var(--cpb-ring); }
-.cpb-stand { position: relative; flex: none; pointer-events: none; width: calc(var(--cpb-h) * 2.1); height: calc(var(--cpb-h) * 1.31); margin-left: calc(var(--cpb-h) * -0.22); margin-top: calc(var(--cpb-h) * -0.42); margin-right: calc(var(--cpb-h) * -0.3); transform-origin: 50% 97%; transition: transform 0.4s cubic-bezier(0.3, 0.8, 0.3, 1.4); color: var(--cpb-mark); }
-.cpb-stand .cpb-art { overflow: visible; }
-.cpb-stand .cpb-claw-r { transform: translate(20px, -30px) rotate(-12deg); animation: cpb-wave 1.6s ease-in-out infinite; }
-.cpb-stand .cpb-claw-r .cpb-hand { transform: rotate(-165deg); }
-.cpb-stand .cpb-claw-r .cpb-dactyl { animation: cpb-snip-r 1.6s ease-in-out infinite; }
-.cpb-stand .cpb-claw-l { transform: translate(-2px, 10px) rotate(-6deg); }
-.cpb-swish { opacity: 0.85; transition: opacity 0.2s ease; }
-.cpb-root[data-live="hover"] .cpb-stand { transform: translateX(3px) rotate(-4deg); }
-.cpb-root[data-live="hover"] .cpb-stand .cpb-claw-r { animation-duration: 0.55s; }
-.cpb-root[data-live="hover"] .cpb-stand .cpb-legs { animation: cpb-shuffle 0.2s ease-in-out infinite alternate; }
-.cpb-root[data-live="press"] .cpb-stand { transform: scale(1.06, 0.86); }
+.cpb-stand { position: relative; flex: none; pointer-events: none; width: var(--cpb-cw); height: calc(var(--cpb-cw) * 0.625); margin: calc(var(--cpb-cw) * -0.2) calc(var(--cpb-cw) * -0.12) calc(var(--cpb-cw) * -0.1) calc(var(--cpb-cw) * -0.06); transform-origin: 50% 96%; transform: rotate(-9deg); transition: transform 0.4s cubic-bezier(0.3, 0.8, 0.3, 1.4); color: var(--cpb-mark); }
+.cpb-stand .cpb-arm-l { translate: -3% -15%; transform: rotate(35deg); animation: cpb-wave 1.7s ease-in-out infinite; }
+.cpb-stand .cpb-hand-l { transform: rotate(168deg); }
+.cpb-stand .cpb-finger-l { animation: cpb-snip-l 1.7s ease-in-out infinite; }
+.cpb-stand .cpb-arm-r { transform: rotate(-8deg); }
+.cpb-swish { opacity: 0.8; }
+.cpb-root[data-live="hover"] .cpb-stand { transform: translateX(3px) rotate(-14deg); }
+.cpb-root[data-live="hover"] .cpb-stand .cpb-arm-l { animation-duration: 0.6s; }
+.cpb-root[data-live="hover"] .cpb-stand .cpb-finger-l { animation-duration: 0.6s; }
+.cpb-root[data-live="hover"] .cpb-stand .cpb-legs-l { animation: cpb-patter 0.16s ease-in-out infinite alternate; }
+.cpb-root[data-live="hover"] .cpb-stand .cpb-legs-r { animation: cpb-patter 0.16s ease-in-out infinite alternate-reverse; }
+.cpb-root[data-live="press"] .cpb-stand { transform: rotate(-9deg) scale(1.06, 0.86); }
+
 
 /* icon — a round button the crab hugs from the side */
 .cpb-icon .cpb-face { width: var(--cpb-h); padding: 0; }
 .cpb-icon .cpb-glyph { width: calc(var(--cpb-h) * 0.44); height: calc(var(--cpb-h) * 0.44); }
-.cpb-root-icon .cpb-crab { left: 0; top: calc(var(--cpb-h) * 0.5 - var(--cpb-cw) * 0.4333); margin-left: calc(var(--cpb-cw) * -0.5 + var(--cpb-h) * 0.1); transform: rotate(-82deg); }
-.cpb-root-icon[data-live="hover"] .cpb-crab { transform: rotate(-82deg) translateY(calc(var(--cpb-cw) * -0.05)); }
-.cpb-root-icon[data-live="press"] .cpb-crab { transform: rotate(-82deg) translateY(calc(var(--cpb-cw) * 0.03)) scale(1.06, 0.86); }
+.cpb-root-icon .cpb-crab { left: calc(var(--cpb-h) * 0.2); top: calc(var(--cpb-h) * 0.14 - var(--cpb-cw) * 0.4333); transform: rotate(-40deg); }
+.cpb-root-icon[data-live="hover"] .cpb-crab { transform: rotate(-40deg) translateY(calc(var(--cpb-cw) * -0.05)); }
+.cpb-root-icon[data-live="press"] .cpb-crab { transform: rotate(-40deg) translateY(calc(var(--cpb-cw) * 0.03)) scale(1.06, 0.86); }
 
 /* toggle */
 .cpb-switch .cpb-face { padding: 0; width: calc(var(--cpb-h) * 2.05); justify-content: flex-start; background: linear-gradient(180deg, var(--cpb-ttop), var(--cpb-tbase) 50%, var(--cpb-tbottom)); border-color: var(--cpb-tline); transition: background 0.35s ease, border-color 0.35s ease, transform 0.18s ease; }
@@ -644,16 +720,14 @@ const CPB_CSS = `
 .cpb-tick { width: 16px; height: 16px; flex: none; color: var(--cpb-accent); }
 .cpb-root-select[data-open] .cpb-crab { transform: translateY(calc(var(--cpb-cw) * -0.03)); }
 
-@keyframes cpb-breathe { 0%, 100% { transform: none; } 50% { transform: translateY(-1.2px) scale(1.012, 0.99); } }
-@keyframes cpb-blink { 0%, 90%, 95.5%, 100% { transform: scaleY(1); } 92.5% { transform: scaleY(0.08); } }
-@keyframes cpb-tap { 0%, 78%, 100% { transform: none; } 81% { transform: rotate(-16deg); } 84% { transform: none; } 87% { transform: rotate(-16deg); } 90% { transform: none; } }
-@keyframes cpb-snip-l { 0%, 100% { transform: none; } 50% { transform: rotate(-26deg); } }
-@keyframes cpb-snip-r { 0%, 100% { transform: none; } 50% { transform: rotate(26deg); } }
-@keyframes cpb-patter { from { transform: rotate(-5deg) translateY(-1px); } to { transform: rotate(5deg) translateY(1px); } }
-@keyframes cpb-shuffle { from { transform: translateX(-1.5px); } to { transform: translateX(1.5px); } }
-@keyframes cpb-drum { from { transform: rotate(4deg); } to { transform: rotate(-12deg); } }
-@keyframes cpb-drum-r { from { transform: rotate(-4deg); } to { transform: rotate(12deg); } }
-@keyframes cpb-wave { 0%, 100% { transform: translate(20px, -30px) rotate(-12deg); } 50% { transform: translate(24px, -26px) rotate(-26deg); } }
+@keyframes cpb-blink { 0%, 91%, 96%, 100% { scale: 1 1; } 93.5% { scale: 1 0.08; } }
+@keyframes cpb-tap-r { 0%, 80%, 100% { transform: none; } 83% { transform: rotate(14deg); } 86% { transform: none; } 89% { transform: rotate(14deg); } 92% { transform: none; } }
+@keyframes cpb-snip-l { 0%, 100% { transform: none; } 50% { transform: rotate(-24deg); } }
+@keyframes cpb-snip-r { 0%, 100% { transform: none; } 50% { transform: rotate(24deg); } }
+@keyframes cpb-patter { from { transform: rotate(-4deg) translateY(-0.6%); } to { transform: rotate(4deg) translateY(0.6%); } }
+@keyframes cpb-drum-l { from { transform: rotate(-3deg); } to { transform: rotate(12deg); } }
+@keyframes cpb-drum-r { from { transform: rotate(3deg); } to { transform: rotate(-12deg); } }
+@keyframes cpb-wave { 0%, 100% { transform: rotate(35deg); } 50% { transform: rotate(20deg); } }
 @keyframes cpb-dot { 0%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes cpb-bubble { 0% { opacity: 0; transform: translate(0, 0) scale(0.3); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--cpb-bx), var(--cpb-by)) scale(1); } }
 @keyframes cpb-zz { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -26px) scale(1.15); } }
@@ -662,8 +736,8 @@ const CPB_CSS = `
 @keyframes cpb-drop { from { opacity: 0; transform: translateY(-6px) scale(0.96); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .cpb-shell, .cpb-eye, .cpb-legs-back, .cpb-blink, .cpb-dactyl, .cpb-leg, .cpb-legs, .cpb-claw, .cpb-crab-back, .cpb-crab-front, .cpb-zz > span, .cpb-dots > i { animation: none !important; }
-  .cpb-crab, .cpb-claw, .cpb-hand, .cpb-stand, .cpb-look, .cpb-knob, .cpb-face, .cpb-glyph, .cpb-chev { transition-duration: 0.01s !important; }
+  .cpb-eyes, .cpb-arm, .cpb-hand, .cpb-finger, .cpb-legs, .cpb-crab-back, .cpb-crab-front, .cpb-zz > span, .cpb-dots > i { animation: none !important; }
+  .cpb-crab, .cpb-arm, .cpb-hand, .cpb-finger, .cpb-stand, .cpb-eyes, .cpb-knob, .cpb-face, .cpb-glyph, .cpb-chev { transition-duration: 0.01s !important; }
   .cpb-bubble { display: none; }
   .cpb-list { animation: none; }
 }
@@ -905,14 +979,25 @@ function Bubbles({ items, pop }: { items: Bubble[]; pop: (id: number) => void })
   )
 }
 
+function Swish() {
+  return (
+    <svg className="cpb-plane cpb-swish" viewBox={VB} aria-hidden="true" focusable="false">
+      <g stroke="currentColor" strokeWidth={3.4} strokeLinecap="round" fill="none">
+        <path d="M58 -22L68 -36" />
+        <path d="M74 -10L90 -17" />
+      </g>
+    </svg>
+  )
+}
+
 function Perch({ uid, shell, children }: { uid: string; shell: string; children?: React.ReactNode }) {
   return (
     <>
       <span className="cpb-crab cpb-crab-back" aria-hidden="true">
-        <CrabLayer layer="back" pose="peek" uid={uid + "b"} shell={shell} />
+        <CrabArt layer="back" pose="peek" uid={uid} shell={shell} />
       </span>
       <span className="cpb-crab cpb-crab-front" aria-hidden="true">
-        <CrabLayer layer="front" pose="peek" uid={uid + "f"} shell={shell} />
+        <CrabArt layer="front" pose="peek" uid={uid} shell={shell} />
         {children}
       </span>
     </>
@@ -1009,7 +1094,7 @@ function CrabButtonImpl(props: CrabButtonProps, ref: React.ForwardedRef<HTMLButt
   const h = CPB_SIZES[size] || CPB_SIZES.md
   const icon_ = variant === "icon"
   const ghost = variant === "ghost"
-  const crabW = Math.round(h * (icon_ ? 1.7 : ghost ? 1.7 : 2.85) * crabScale)
+  const crabW = Math.round(h * (icon_ ? 1.85 : ghost ? 2.5 : 2.85) * crabScale)
   const shell = cpbPick(CPB_CRABS, crab, "red")
   const surface = cpbPick(CPB_TONES, tone, "moss")
   const uid = uidOf(React.useId())
@@ -1074,14 +1159,13 @@ function CrabButtonImpl(props: CrabButtonProps, ref: React.ForwardedRef<HTMLButt
               )}
               {ghost && !hideCrab && (
                 <span className="cpb-stand" aria-hidden="true">
-                  <CrabLayer layer="back" pose="stand" uid={uid + "b"} shell={shell} />
-                  <CrabLayer layer="front" pose="stand" uid={uid + "f"} shell={shell} />
-                  <svg className="cpb-art cpb-swish" viewBox={"0 0 " + CPB_W + " " + CPB_H} aria-hidden="true">
-                    <g stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" fill="none">
-                      <path d="M202 30L212 16" />
-                      <path d="M216 44L232 38" />
-                    </g>
-                  </svg>
+                  <span className="cpb-solo">
+                    <CrabArt layer="back" pose="stand" uid={uid} shell={shell} />
+                  </span>
+                  <span className="cpb-solo-front">
+                    <CrabArt layer="front" pose="stand" uid={uid} shell={shell} />
+                  </span>
+                  <Swish />
                 </span>
               )}
             </>
@@ -1136,7 +1220,7 @@ export function CrabToggle(props: CrabToggleProps) {
   const on = checked ?? inner
   const [hop, setHop] = React.useState("")
   const h = (CPB_SIZES[size] || CPB_SIZES.md) - 4
-  const crabW = Math.round(h * 2.05)
+  const crabW = Math.round(h * 2.5)
   const shell = cpbPick(CPB_CRABS, crab, "red")
   const surface = cpbPick(CPB_TONES, tone, "moss")
   const uid = uidOf(React.useId())
@@ -1267,7 +1351,7 @@ export function CrabDropdown(props: CrabDropdownProps) {
   const [open, setOpen] = React.useState(false)
   const [active, setActive] = React.useState(-1)
   const h = CPB_SIZES[size] || CPB_SIZES.md
-  const crabW = Math.round(h * 2.35)
+  const crabW = Math.round(h * 2.8)
   const shell = cpbPick(CPB_CRABS, crab, "red")
   const surface = cpbPick(CPB_TONES, tone, "sand")
   const uid = uidOf(React.useId())
@@ -1495,8 +1579,13 @@ export function CrabMascot({ size = 160, crab = "red", pose = "stand", mood, cla
     >
       <Styles />
       <span className={pose === "stand" ? "cpb-stand" : ""} style={{ position: "relative", display: "block", width: size, height: size * 0.625, margin: 0 }}>
-        <CrabLayer layer="back" pose={pose} uid={uid + "b"} shell={shell} />
-        <CrabLayer layer="front" pose={pose} uid={uid + "f"} shell={shell} />
+        <span className="cpb-solo">
+          <CrabArt layer="back" pose={pose} uid={uid} shell={shell} />
+        </span>
+        <span className="cpb-solo-front">
+          <CrabArt layer="front" pose={pose} uid={uid} shell={shell} />
+        </span>
+        {pose === "stand" && <Swish />}
       </span>
       <span aria-hidden="true" style={{ position: "absolute", left: "50%", top: size * 0.3 }}>
         <Bubbles items={c.bubbles} pop={c.pop} />
