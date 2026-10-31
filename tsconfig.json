@@ -15,6 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/gilded-gaze-footer": ["./components/gilded-gaze-footer/gilded-gaze-footer.tsx"],
+      "@/components/ui/biryani-legends-template": ["./components/biryani-legends-template/biryani-legends-template.tsx"],
       "@/components/ui/gilded-lotus-preloader": ["./components/gilded-lotus-preloader/gilded-lotus-preloader.tsx"],
       "@/components/ui/mehndi-atelier-template": ["./components/mehndi-atelier-template/mehndi-atelier-template.tsx"],
       "@/components/ui/peacock-train-preloader": ["./components/peacock-train-preloader/peacock-train-preloader.tsx"],
