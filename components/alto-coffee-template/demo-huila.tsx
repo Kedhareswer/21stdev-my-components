@@ -40,13 +40,17 @@ export default function DemoHuila() {
         }}
         bean={{
           lead: "Pink Bourbon, roasted light to keep the fruit",
-          notes: [
-            { name: "Watermelon", color: "#F08A7E", motif: "berry", intensity: 4, body: "Juicy, sweet and bright on the first sip." },
-            { name: "Panela", color: "#E3A440", motif: "caramel", intensity: 5, body: "Unrefined cane sugar holds the whole cup together." },
-            { name: "Hibiscus", color: "#C9566B", motif: "flower", intensity: 3, body: "A floral, tart finish as it cools." },
-            { name: "Lime", color: "#A9C455", motif: "citrus", intensity: 3, body: "A clean, citric lift." },
+          bags: [
+            { name: "Huila", sub: "Whole bean", weight: "250 g", kind: "bag" },
+            { name: "Huila", sub: "Drip bag × 10", weight: "10 × 10 g", kind: "box" },
           ],
-          score: "88.0",
+          cards: [
+            { label: "Whole bean", name: "Pink Bourbon 250 g", body: "Light roast, rested a week to open the fruit.", color: "#7A3B22", art: "bag", ink: "#F7EFE2" },
+            { label: "Note 01", name: "Watermelon", body: "Juicy, sweet and bright on the first sip.", color: "#F08A7E", pattern: "dots" },
+            { label: "Note 02", name: "Panela", body: "Unrefined cane sugar holds the whole cup together.", color: "#E9A63C", pattern: "wave" },
+            { label: "Note 03", name: "Hibiscus", body: "A floral, tart finish as it cools.", color: "#D45B70", pattern: "diamond", ink: "#2A0E12" },
+            { label: "The harvest", name: "Pink Bourbon", body: "A pink-ripening variety, picked over nine months of slow ripening.", color: "#2A1210", art: "cherries", ink: "#F7EFE2" },
+          ],
         }}
         limited={{
           lot: "Lot 27-H · Vereda La Primavera",
