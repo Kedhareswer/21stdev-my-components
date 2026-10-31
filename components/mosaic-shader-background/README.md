@@ -35,4 +35,4 @@ import MosaicShaderBackground from "@/components/ui/mosaic-shader-background"
 - Renders at three quarters of the device resolution (the tiles hide it), pauses while off screen, and releases its WebGL context on unmount.
 - Reduced motion freezes the sky and switches scenes instantly.
 
-Part of the Mosaic kit: `pixel-headline`, `prompt-composer`, `glass-feature-grid`, `glass-pricing-cards`, `pixel-wordmark-footer`. The full page is `mosaic-prompt-template`.
+Part of the Mosaic kit: `pixel-headline` and `prompt-composer`. The full page is `mosaic-prompt-template`.

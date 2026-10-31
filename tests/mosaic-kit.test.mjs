@@ -1,4 +1,4 @@
-// Install-safety and logic checks for the six pieces split out of mosaic-prompt-template.
+// Install-safety and logic checks for the pieces split out of mosaic-prompt-template.
 // Run: node tests/mosaic-kit.test.mjs
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
@@ -8,9 +8,6 @@ const KIT = {
   "mosaic-shader-background": { prefix: "msb", imports: ["react"] },
   "pixel-headline": { prefix: "pxh", imports: ["react", "gsap"] },
   "prompt-composer": { prefix: "ppc", imports: ["react", "gsap"] },
-  "glass-feature-grid": { prefix: "gfg", imports: ["react", "gsap"] },
-  "glass-pricing-cards": { prefix: "gpc", imports: ["react", "gsap"] },
-  "pixel-wordmark-footer": { prefix: "pwf", imports: ["react", "gsap"] },
 }
 
 const read = (slug, file) => readFileSync(new URL(`../components/${slug}/${file}`, import.meta.url), "utf8").replace(/\r\n/g, "\n")
@@ -99,11 +96,6 @@ assert.equal(P.layoutPixels("I").width, 3)
 assert.equal(P.layoutPixels("II").width, 7, "one blank column between glyphs")
 assert.equal(P.layoutPixels("I~I").width, 10, "unknown characters become a space")
 
-for (const slug of ["glass-feature-grid", "glass-pricing-cards", "pixel-wordmark-footer"]) {
-  const L = await load(region(read(slug, `${slug}.tsx`), "pixel-font") + "\nexport { GLYPHS }\n")
-  for (const ch of "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") assert.ok(L.GLYPHS[ch], `${slug}: glyph ${ch}`)
-  assert.equal(L.layoutPixels("I I").width, 10, `${slug}: spaces are three columns`)
-}
 
 const ppc = read("prompt-composer", "prompt-composer.tsx")
 assert.match(ppc, /e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing/, "ppc: Enter sends, Shift+Enter breaks, IME left alone")
@@ -119,24 +111,5 @@ const N = await load(region(ppc, "app-name"))
 assert.equal(N.appNameFrom("A habit tracker with streaks and gentle reminders"), "Habit Tracker")
 assert.equal(N.appNameFrom("Build me a booking app for a small yoga studio"), "Booking Yoga")
 assert.equal(N.appNameFrom("the a an"), "Untitled")
-
-const gfg = read("glass-feature-grid", "glass-feature-grid.tsx")
-assert.match(gfg, /<span className="gfg-sr">\{title\}<\/span>/, "gfg: pixel title has real text")
-assert.match(gfg, /aria-labelledby=\{uid \+ "-title"\}/, "gfg: section is labelled by its title")
-
-const gpc = read("glass-pricing-cards", "glass-pricing-cards.tsx")
-assert.match(gpc, /role="group" aria-label="Billing cycle"/, "gpc: billing switch is a labelled group")
-assert.match(gpc, /aria-pressed=\{yearly\}/, "gpc: with pressed state")
-assert.match(gpc, /onPlanSelect\?\.\(p, yearly\)/, "gpc: plan buttons report the plan and cycle")
-const M = await load(region(gpc, "money"))
-assert.equal(M.money(1234.4, "$"), "$1,234")
-assert.equal(M.discounted(24, 0.2), 19)
-assert.equal(M.discounted(64, 0.2), 51)
-assert.equal(M.discounted(0, 0.2), 0)
-
-const pwf = read("pixel-wordmark-footer", "pixel-wordmark-footer.tsx")
-assert.match(pwf, /<span className="pwf-sr">\{brand\}\. <\/span>/, "pwf: brand readable by screen readers")
-assert.match(pwf, /io\.disconnect\(\)/, "pwf: observer cleaned up")
-assert.match(pwf, /aria-label="Footer"/, "pwf: links are a labelled nav")
 
 console.log("mosaic kit: ok")
