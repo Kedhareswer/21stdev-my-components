@@ -56,7 +56,7 @@ for (const s of [".ac-hero{height:var(--h)}", ".ac-origins{height:auto}", ".ac-s
   assert.ok(css.slice(css.indexOf("@media (prefers-reduced-motion")).includes(s), "reduced motion collapses " + s)
 
 // Preflight: drawn art and photos must not be clamped by img/svg max-width.
-for (const cls of ["ac-stars,.ac-far,.ac-peak,.ac-field-art", "ac-cherries", "ac-pack-art", "ac-stick-art", "ac-cup", "ac-map-svg", "ac-photo", "ac-fcard-pat", "ac-step-icon", "ac-foot-mark"])
+for (const cls of ["ac-stars,.ac-far,.ac-peak,.ac-field-art", "ac-cherries", "ac-pack-art", "ac-stick-art", "ac-cup", "ac-map-svg", "ac-photo", "ac-hero-photo", "ac-fcard-pat", "ac-step-icon", "ac-foot-mark"])
   assert.ok(new RegExp("\\." + cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{[^}]*max-width:none").test(css), cls + " guards max-width")
 
 // 21st's CLI tokenizer hangs on generics before the first JSX close tag.
@@ -66,7 +66,7 @@ assert.doesNotMatch(head, /use(State|Ref|Memo|Callback)<|Partial<|Record<|Array<
 // Runtime hygiene.
 for (const gone of ['crop.removeEventListener("pointermove", onMove)', 'card.removeEventListener("pointermove", onMove)', 'window.removeEventListener("resize", onResize)', "window.clearTimeout(addedTimer.current)", "for (const fn of cleanups) fn()"])
   assert.ok(src.includes(gone), "cleanup is missing " + gone)
-for (const m of src.matchAll(/https:\/\/([a-z0-9.-]+)\//g)) assert.ok(["fonts.googleapis.com"].includes(m[1]), "unexpected host " + m[1])
+for (const m of src.matchAll(/https:\/\/([a-z0-9.-]+)\//g)) assert.ok(["images.unsplash.com", "fonts.googleapis.com"].includes(m[1]), "unexpected host " + m[1])
 assert.ok(src.includes('aria-selected={i === step}') && src.includes('role="tablist"'), "the map years are tabs")
 assert.ok(src.includes('role="radiogroup"') && src.includes("aria-checked={i === blend}"), "blends are a radio group")
 assert.ok(src.includes("aria-expanded={menu}"), "the burger exposes its state")
