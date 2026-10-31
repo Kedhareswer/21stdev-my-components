@@ -238,7 +238,7 @@ export const FLOCK_SENTENCE =
   "A {kal}kaleidoscope of {paint}painted {wings}wings dances {dance}across the {vast}vast and {tranq}tranquil cerulean {sky}sky."
 
 export const FLOCK_PIECES: CutoutPiece[] = [
-  { id: "kal", word: "kaleidoscope", region: [0.5667, 0.6938, 0.1125, 0.0938] },
+  { id: "kal", word: "kaleidoscope", region: [0.5573, 0.6816, 0.0911, 0.0918] },
   { id: "paint", word: "painted", region: [0.4417, 0.375, 0.0667, 0.0813] },
   { id: "wings", word: "wings", region: [0.4792, 0.5688, 0.0667, 0.1] },
   { id: "dance", word: "across", region: [0.6458, 0.5875, 0.0792, 0.0938] },

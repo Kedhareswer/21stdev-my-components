@@ -30,12 +30,6 @@ http://localhost:5173/?dark#<slug>         # the dark check 21st requires
 
 Index cards use `media/<slug>/thumb.webp` (640 × 400, cropped from the cover) when it exists, else the name. Add one when a component gets its cover.
 
-## Open handoffs
-
-Unfinished work another session started. If one matches what you're asked to do (or you're idle), read it and finish it; it says how to close itself out.
-
-- [forge/handoffs/cutout-sentence.md](forge/handoffs/cutout-sentence.md): the default photo `media/cutout-sentence/flock.jpg` still has to land, then cuts verified, covers made.
-
 ## Layout invariants
 
 - Only `components/` and `library/` publish. `dev/`, `tests/`, `scripts/`, `media/` are local-only.
