@@ -1,17 +1,24 @@
 # Crab Perch Buttons
 
 A small red crab sits on top of every button. Its claws and front legs hang
-over the front edge. It has a personality, and it reacts to whatever you do:
+over the front edge. It's alive, and it reacts to whatever you do:
 
-- **Rest.** It breathes, blinks, and now and then taps a claw on the rim.
+- **Rest.** It's never quite still. It bobs as it breathes. Its eyes wander
+  on their own, one at a time. Its antennae twitch, its mouthparts keep
+  working, and its legs shift their weight. Every few seconds it does
+  something: raps a claw on the rim, flexes its pincers, wipes an eye,
+  stretches, glances around, shuffles along the edge, ducks behind the rim
+  and peeps back over, or burps a bubble.
+- **Your pointer.** Its eyes follow you from anywhere nearby, not just over
+  the button.
 - **Hover.** It scuttles along the edge after your pointer and leans into the
-  walk while its legs patter. It lifts the claw on your side and snips at
-  you. Its eyes follow the pointer.
-- **Press.** It ducks flat and squints, and three shock lines pop over its
-  head.
-- **Click.** It lets out a few bubbles.
-- **Loading.** It drums both claws on the rim.
-- **Disabled.** It falls asleep (eyes shut, a drifting *z z*).
+  walk while its legs patter. Its eyes pop up, it lifts the claw on your side
+  and snips at you, and its antennae and mouthparts speed up.
+- **Press.** It ducks flat and its eyes fold down into their sockets, and
+  three shock lines pop over its head.
+- **Click.** A happy hop, a double snip, and a few bubbles.
+- **Loading.** It drums both claws.
+- **Disabled.** It falls asleep (eyes tucked away, a drifting *z z*).
 
 One drawing, five pieces:
 
@@ -41,18 +48,30 @@ import CrabButton, { CrabToggle, CrabDropdown, CrabMascot } from "@/components/u
 ```
 
 **Requires only React.** There are no images, fonts or network requests. The
-crab is SVG, built once at module load: a saw-edged carapace, a broad tan
-front with plated mouthparts, big glossy eyes in their sockets, jointed legs
-with dark tips, and swollen claws with open pincers. A relief filter (a
-blurred silhouette for volume, soft noise for the pebbled shell, then diffuse
-and specular light from the top left) gives every part real depth and
-texture. The body sits *behind* the button's top edge and the claws and legs
-hang *in front*, so it really looks perched.
+crab is SVG, built once at module load:
 
-Each moving part (eyes, each arm, each hand, each pincer finger, each set of
-legs) is its own SVG plane, moved with CSS transforms. The lighting renders
-once, and every motion after that runs on the compositor, so a page full of
-crabs stays at 60fps. Labels use your page's font.
+- **Anatomy.** A saw-edged carapace, a broad tan front, plated mouthparts,
+  antennae, big glossy eyes in their sockets, jointed legs with dark tips, and
+  swollen claws with toothed, open pincers.
+- **Texture.** Seeded granules (raised) and pits (sunken) on the shell, palms
+  and arms, seams at every leg joint, and blotchy mottling, so every crab is
+  drawn the same way.
+- **Light.** A relief filter builds a height map from three things: the
+  silhouette (a tight bevel plus a wide dome), soft noise (pebbling), and the
+  paint's own brightness (so painted granules rise and painted seams sink).
+  It then adds diffuse light, a wet specular sheen from the top left, and a
+  soft cast shadow.
+
+The body sits *behind* the button's top edge and the claws and legs hang *in
+front*, so it really looks perched.
+
+**Performance.** Every moving part (each eye, antenna, mouthpart, arm, hand,
+pincer finger and set of legs) is its own small layer, and an HTML wrapper
+around it is what moves. The lighting renders once, and all motion runs on
+the compositor. Per-frame motion is written straight onto the moving
+elements, never as a CSS variable on the root, which would repaint every lit
+layer. Idle routines pause while the crab is off-screen or the tab is hidden.
+A sheet of nine crabs holds 60fps.
 
 ## `CrabButton` props
 
@@ -100,9 +119,9 @@ and native button attributes. Give it an `aria-label`.
 - The crab is `aria-hidden` and ignores the pointer, so the hit area is the
   button and nothing else. Focus rings sit on the button face, and
   keyboard focus counts as hover (the crab looks up at you).
-- `prefers-reduced-motion` stops the breathing, blinking, tapping, walking
-  and hopping. The crab jumps to place instead of walking, and there are no
-  bubbles.
+- `prefers-reduced-motion` stops all of it: breathing, blinking, idle
+  routines, pointer tracking, walking and hopping. The crab jumps to place
+  instead of walking, and there are no bubbles.
 - The faces have their own colours, so they read the same on light and dark
   pages. The ghost label and the shock lines follow `--color-foreground`.
 - No external assets, so `21st render` can capture its own cover.

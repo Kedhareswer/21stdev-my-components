@@ -39,7 +39,14 @@ assert.equal(generic, null, "no generics before the first JSX close tag: " + (ge
 const css = src.match(/const CPB_CSS = `([\s\S]*?)`/)[1]
 assert.doesNotMatch(css, /\$\{|`/, "no interpolation or backticks in the CSS string")
 assert.match(css, /\.cpb-plane \{[^}]*max-width: none/, "the crab planes override Preflight's max-width")
-for (const part of ["cpb-eyes", "cpb-arm", "cpb-hand", "cpb-finger", "cpb-legs-l"]) assert.ok(css.includes("." + part), part + " is its own animated plane")
+for (const part of ["cpb-eye-l", "cpb-eye-r", "cpb-ant-l", "cpb-antule-r", "cpb-plate-l", "cpb-arm", "cpb-hand", "cpb-finger", "cpb-legs-l"]) assert.ok(css.includes("." + part), part + " is its own animated part")
+assert.match(src, /<span className=\{"cpb-part " \+ className\}/, "moving planes animate an HTML wrapper, never the <svg> itself")
+for (const idle of ["tap-l", "tap-r", "flex", "wipe", "stretch", "duck"]) assert.ok(css.includes(`[data-idle="${idle}"]`), "idle routine " + idle + " is styled")
+assert.ok(css.includes("[data-cheer]"), "a click cheers")
+assert.doesNotMatch(src, /setProperty\("--cpb-(lx|ly|xf|lean)"/, "per-frame motion is never a root custom property (it would repaint every lit layer)")
+assert.ok(src.includes("new IntersectionObserver") && src.includes("io?.disconnect()"), "idle routines pause off-screen and are torn down")
+assert.ok(src.includes('removeEventListener("pointermove", onMove)'), "pointer tracking is torn down")
+assert.doesNotMatch(css, /filter: drop-shadow/, "no CSS drop-shadow over animated layers: the shadow is baked into the relief filter")
 assert.ok(src.includes("<feTurbulence") && src.includes("<feSpecularLighting") && src.includes("<feDiffuseLighting"), "the crab is lit by the relief filter")
 let rules = 0
 for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(?<=^|[{}])\s*([^{}]+?)\s*\{/g)) {
@@ -122,6 +129,18 @@ assert.ok(Math.min(...ys) > 20 && Math.max(...ys) <= C.CPB_EDGE + 6, "the shell 
 const limb = C.cpbLimb([[0, 0], [10, 0], [20, 0]], [4, 4, 0])
 assert.match(limb, /^M.*Z$/, "a limb is a closed path")
 assert.ok(![limb, shell, front, leg.body, leg.nail].some((d) => /NaN/.test(d)), "no NaN in the geometry")
+const g1 = C.cpbGranules(11, 40, 0, 0, 30, 10, 0.8, 2, 0.5)
+assert.deepEqual(g1, C.cpbGranules(11, 40, 0, 0, 30, 10, 0.8, 2, 0.5), "granules are seeded: every crab is drawn the same")
+assert.ok(g1.length > 20, "granules fill the ellipse")
+for (let i = 0; i < g1.length; i++) {
+  assert.ok((g1[i][0] / 30) ** 2 + (g1[i][1] / 10) ** 2 <= 1.0001, "granules stay inside the ellipse")
+  for (let j = 0; j < i; j++) assert.ok(Math.hypot(g1[i][0] - g1[j][0], g1[i][1] - g1[j][1]) >= g1[i][2] + g1[j][2], "granules never overlap")
+}
+const r1 = C.cpbRand(5), r2 = C.cpbRand(5)
+for (let i = 0; i < 50; i++) { const v = r1(); assert.equal(v, r2()); assert.ok(v >= 0 && v < 1) }
+const bands = C.cpbBands([[0, 0], [10, 0], [20, 0]], [10, 10, 10])
+assert.equal(bands, "M10.00 4.60L10.00 -4.60", "one seam across each inner joint, perpendicular to the limb")
+assert.equal((C.cpbTeeth([0, 0], [10, 0], 5, 2, 1).match(/Z/g) || []).length, 5, "five teeth")
 
 // ---- 4. Demos --------------------------------------------------------------
 for (const f of ["demo.tsx", "demo-playground.tsx"]) {
