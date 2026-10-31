@@ -2300,7 +2300,8 @@ export default function BiryaniLegendsTemplate({
     for (let i = 0; i < leaves.length; i++) {
       const el = leaves[i]
       if (!el) continue
-      const p = blClamp(t - i, 0, 1)
+      // eased so the leaf peels off slowly and settles instead of slapping flat
+      const p = 0.5 - 0.5 * Math.cos(blClamp(t - i, 0, 1) * Math.PI)
       const lift = Math.sin(p * Math.PI)
       el.style.transform = "rotateY(" + (-180 * p).toFixed(3) + "deg)"
       el.style.zIndex = String(p > 0 && p < 1 ? 900 : p >= 1 ? 100 + i : 600 - i)
@@ -2327,7 +2328,8 @@ export default function BiryaniLegendsTemplate({
     }
     const st = stageRef.current
     if (st) st.style.setProperty("--prog", String(turns ? blClamp(t / turns, 0, 1) : 0))
-    const i = Math.round(t)
+    // the spread counts as arrived once its leaf has nearly landed, so it inks in on a still page
+    const i = t >= s.idx ? Math.floor(t + 0.12) : Math.ceil(t - 0.12)
     if (i !== s.idx && s.opened && s.c > 0.55) {
       s.idx = i
       setIdx(i)
@@ -2350,18 +2352,18 @@ export default function BiryaniLegendsTemplate({
         if (el.length) gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power1.out" })
         return
       }
-      tl.to(q(".bl-wr"), { strokeDashoffset: 0, duration: 2.6, ease: "power2.inOut" }, 0)
-      for (let b = 0; b < 12; b++) tl.to(q('.bl-b[data-b="' + b + '"]'), { strokeDashoffset: 0, duration: 1.5, ease: "power2.out" }, 0.15 + b * 0.12)
-      tl.to(q(".bl-wash"), { opacity: 1, duration: 1.2, ease: "power1.inOut" }, 1.7)
-      tl.to(q(".bl-eng-img"), { "--ink": 1.3, duration: 2.8, ease: "power2.inOut" }, 0.15)
-      tl.to(q(".bl-ch"), { yPercent: 0, opacity: 1, filter: "blur(0px)", duration: 0.95, ease: "power3.out", stagger: 0.035 }, 0.3)
-      tl.to(q(".bl-script"), { "--w": 1.3, duration: 1.5, ease: "power2.inOut" }, 0.8)
-      tl.to(q(".bl-copy p, .bl-reveal"), { "--r": 1.4, y: 0, duration: 1.4, ease: "power2.out", stagger: 0.16 }, 1)
-      tl.to(q(".bl-fade"), { opacity: 1, y: 0, duration: 1, ease: "power2.out", stagger: 0.08 }, 1.1)
-      tl.to(q(".bl-dish-in"), { y: 0, scale: 1, opacity: 1, rotate: 0, duration: 1.7, ease: "power3.out" }, 0.75)
-      tl.to(q(".bl-shadow"), { opacity: 1, scale: 1, duration: 1.7, ease: "power3.out" }, 0.75)
-      tl.to(q(".bl-contact"), { opacity: 1, duration: 0.8, ease: "power2.out" }, 1.75)
-      tl.to(q(".bl-steam"), { opacity: 1, duration: 2, ease: "power1.inOut" }, 2.1)
+      tl.to(q(".bl-wr"), { strokeDashoffset: 0, duration: 3.2, ease: "sine.inOut" }, 0)
+      for (let b = 0; b < 12; b++) tl.to(q('.bl-b[data-b="' + b + '"]'), { strokeDashoffset: 0, duration: 2, ease: "sine.out" }, 0.2 + b * 0.16)
+      tl.to(q(".bl-wash"), { opacity: 1, duration: 1.8, ease: "sine.inOut" }, 2)
+      tl.to(q(".bl-eng-img"), { "--ink": 1.3, duration: 3.6, ease: "sine.inOut" }, 0.2)
+      tl.to(q(".bl-ch"), { yPercent: 0, opacity: 1, filter: "blur(0px)", duration: 1.3, ease: "power2.out", stagger: 0.05 }, 0.4)
+      tl.to(q(".bl-script"), { "--w": 1.3, duration: 2, ease: "sine.inOut" }, 1)
+      tl.to(q(".bl-copy p, .bl-reveal"), { "--r": 1.4, y: 0, duration: 1.9, ease: "sine.out", stagger: 0.22 }, 1.3)
+      tl.to(q(".bl-fade"), { opacity: 1, y: 0, duration: 1.4, ease: "sine.out", stagger: 0.12 }, 1.4)
+      tl.to(q(".bl-dish-in"), { y: 0, scale: 1, opacity: 1, rotate: 0, duration: 2.4, ease: "power2.inOut" }, 0.9)
+      tl.to(q(".bl-shadow"), { opacity: 1, scale: 1, duration: 2.4, ease: "power2.inOut" }, 0.9)
+      tl.to(q(".bl-contact"), { opacity: 1, duration: 1.2, ease: "sine.out" }, 2.6)
+      tl.to(q(".bl-steam"), { opacity: 1, duration: 2.4, ease: "sine.inOut" }, 3)
     },
     [reduced],
   )
@@ -2383,8 +2385,8 @@ export default function BiryaniLegendsTemplate({
         set(q(".bl-script"), { "--w": -0.15 })
         set(q(".bl-copy p, .bl-reveal"), { "--r": -0.1, y: 10 })
         set(q(".bl-fade"), { opacity: 0, y: 12 })
-        set(q(".bl-dish-in"), { y: "-16%", scale: 1.16, opacity: 0, rotate: -6 })
-        set(q(".bl-shadow"), { opacity: 0, scale: 1.45 })
+        set(q(".bl-dish-in"), { y: "-7%", scale: 1.06, opacity: 0, rotate: -3 })
+        set(q(".bl-shadow"), { opacity: 0, scale: 1.2 })
         set(q(".bl-contact, .bl-steam"), { opacity: 0 })
       }
     }, root)
@@ -2401,13 +2403,13 @@ export default function BiryaniLegendsTemplate({
         trigger: scroller,
         start: "top top",
         end: "bottom bottom",
-        snap: turns > 0 ? { snapTo: 1 / turns, duration: { min: 0.25, max: 0.9 }, delay: 0.06, ease: "power1.inOut" } : undefined,
+        snap: turns > 0 ? { snapTo: 1 / turns, duration: { min: 0.9, max: 1.6 }, delay: 0.12, ease: "sine.inOut" } : undefined,
       })
       stRef.current = st
       gsap.to(s, {
         t: turns,
         ease: "none",
-        scrollTrigger: { trigger: scroller, start: "top top", end: "bottom bottom", scrub: reduced ? true : 0.75 },
+        scrollTrigger: { trigger: scroller, start: "top top", end: "bottom bottom", scrub: reduced ? true : 1.2 },
         onUpdate: apply,
       })
     }, scroller)
