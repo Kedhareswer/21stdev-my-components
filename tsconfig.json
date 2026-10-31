@@ -212,6 +212,7 @@
       "@/components/ui/seraph-foundry-template": ["./components/seraph-foundry-template/seraph-foundry-template.tsx"],
       "@/components/ui/wild-hunt-footer": ["./components/wild-hunt-footer/wild-hunt-footer.tsx"],
       "@/components/ui/old-masters-preloader": ["./components/old-masters-preloader/old-masters-preloader.tsx"],
+      "@/components/ui/crab-perch-buttons": ["./components/crab-perch-buttons/crab-perch-buttons.tsx"],
       "@/components/ui/venom-vial-preloader": ["./components/venom-vial-preloader/venom-vial-preloader.tsx"]
     }
   },
