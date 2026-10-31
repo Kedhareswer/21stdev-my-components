@@ -56,7 +56,7 @@ for (const s of [".ac-hero{height:var(--h)}", ".ac-origins{height:auto}", ".ac-s
   assert.ok(css.slice(css.indexOf("@media (prefers-reduced-motion")).includes(s), "reduced motion collapses " + s)
 
 // Preflight: drawn art and photos must not be clamped by img/svg max-width.
-for (const cls of ["ac-stars,.ac-far,.ac-peak,.ac-field-art", "ac-cherries", "ac-pack-art", "ac-stick-art", "ac-cup", "ac-map-svg", "ac-photo", "ac-note-motif", "ac-step-icon", "ac-foot-mark"])
+for (const cls of ["ac-stars,.ac-far,.ac-peak,.ac-field-art", "ac-cherries", "ac-pack-art", "ac-stick-art", "ac-cup", "ac-map-svg", "ac-photo", "ac-fcard-pat", "ac-step-icon", "ac-foot-mark"])
   assert.ok(new RegExp("\\." + cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{[^}]*max-width:none").test(css), cls + " guards max-width")
 
 // 21st's CLI tokenizer hangs on generics before the first JSX close tag.
@@ -78,6 +78,14 @@ assert.ok(src.includes(".ac-hud\"), { color: \"#ffffff\""), "the altimeter turns
 // The canvas textures are optional: a locked-down canvas leaves a clear sky.
 assert.ok(/try \{\s*setClouds\(/.test(src), "cloud painting is guarded")
 
+// Floating cards: parallax per slot, the middle one spelled out, a click picks a blend.
+assert.ok(src.includes('data-speed={[0.6, 1.3, 0.9, 1.5, 0.7, 1.1][i % 6]}'), "cards drift at different speeds")
+assert.ok(src.includes('start: "top 58%", end: "bottom 42%", onToggle'), "the card crossing the middle drives the caption")
+assert.ok(src.includes("if (b !== undefined && b < S.blends.length) pickBlend(b)"), "a blend card selects that blend")
+// The limited edition compares the first two products row by row.
+assert.ok(src.includes("const pair = L.products.slice(0, 2)") && src.includes("specRows.map(([k, a, b])"), "comparison table")
+assert.ok(src.includes("addToBag(pair.map((_, k) => k), e)"), "add both at once")
+
 // Every built-in country in the type has an outline and a label.
 const typeNames = [...src.match(/export type AltoCountry = ([^\n]+)/)[1].matchAll(/"([a-z-]+)"/g)].map((m) => m[1])
 for (const n of typeNames) assert.ok(new RegExp('\\n  "?' + n + '"?: \\{ label: "[^"]+", box: \\[').test(src), "outline missing for " + n)
@@ -93,20 +101,26 @@ const lift = (names, exports) =>
   import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(names.map(region).join("\n")) + "\nexport { " + exports + " }"))
 
 {
-  const M = await lift(["dots"], "decodeDots")
+  // Solid land from Natural Earth: closed relative sub-paths, no antimeridian slivers.
   const land = src.match(/const LAND = "([^"]+)"/)[1]
-  const { d, count } = M.decodeDots(land, 1.5)
-  assert.equal(count, 6836, "the 1.5° land grid holds every dot")
-  assert.equal(d.split("M").length - 1, count, "one sub-path per dot")
-  for (const m of d.matchAll(/M([\d.]+) ([\d.]+)h0/g)) {
-    assert.ok(+m[1] > 0 && +m[1] < 1000 && +m[2] > 0 && +m[2] < 394.4, "dot inside the map")
+  const polys = land.split("z").filter(Boolean)
+  assert.ok(polys.length > 80, "the continents and the larger islands are all there")
+  for (const p of polys) {
+    let x = 0
+    let y = 0
+    const xs = []
+    const ys = []
+    for (const m of p.matchAll(/([Ml])(-?[\d.]+)[ ]?(-?[\d.]+)/g)) {
+      if (m[1] === "M") [x, y] = [+m[2], +m[3]]
+      else [x, y] = [x + +m[2], y + +m[3]]
+      xs.push(x)
+      ys.push(y)
+    }
+    const w = Math.max(...xs) - Math.min(...xs)
+    const h = Math.max(...ys) - Math.min(...ys)
+    assert.ok(!(w > 900 && h < 10), "no thin strip across the whole map")
+    assert.ok(Math.min(...xs) > -1 && Math.max(...xs) < 1001, "land stays inside the map")
   }
-  // Colombia's centroid (≈ 74° W, 4° N) sits on land; mid-Atlantic does not.
-  const has = (x, y) => [...d.matchAll(/M([\d.]+) ([\d.]+)h0/g)].some((m) => Math.abs(+m[1] - x) < 2.2 && Math.abs(+m[2] - y) < 2.2)
-  assert.ok(has(((180 - 74) * 1000) / 360, ((84 - 4) * 1000) / 360), "land at Colombia")
-  assert.ok(!has(((180 - 35) * 1000) / 360, ((84 - 10) * 1000) / 360), "sea in the Atlantic")
-  const { count: none } = M.decodeDots("..", 1.5)
-  assert.equal(none, 0, "empty rows decode to nothing")
 }
 
 {
@@ -131,6 +145,7 @@ const lift = (names, exports) =>
   assert.equal(F.groupThousands(999.6), "1,000")
   assert.equal(F.groupThousands(-1500), "-1,500")
   assert.equal(F.money(19, "$"), "$19")
+  assert.equal(F.money(0, "$"), "$0")
   assert.equal(F.money(38.5, "€"), "€38.50")
   assert.equal(F.money(1200, "£"), "£1,200")
   assert.equal(F.clampQty(0), 1)
