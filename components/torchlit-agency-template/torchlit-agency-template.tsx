@@ -384,7 +384,8 @@ export default function TorchlitAgencyTemplate({
   const busy = React.useRef(false)
   const firstView = React.useRef(true)
   // Shared with the hero timeline: where the light rests before the pointer moves, and the load flare.
-  const light = React.useRef({ parkX: -1, parkY: -1, boost: 1 })
+  // lx/ly mirror the light's screen position for the lights-off transition; hide keeps the torch out of the blackout.
+  const light = React.useRef({ parkX: -1, parkY: -1, boost: 1, lx: -1, ly: -1, hide: false })
 
   const [view, setView] = React.useState<View>({ page: initialPage })
   const [day, setDay] = React.useState(theme === "light")
@@ -418,22 +419,45 @@ export default function TorchlitAgencyTemplate({
     return () => mo.disconnect()
   }, [theme])
 
+  // Lights off: the bulbs stutter and die, a beat of pitch black, then your torch strikes and its light
+  // pushes the dark back out from the flame. Lights on: the tubes flicker up and the room floods cream.
+  const switching = React.useRef(false)
   const setLights = (on: boolean) => {
-    if (on === dayRef.current) return
+    if (on === dayRef.current || switching.current) return
     const veil = lightsRef.current
     if (calm() || !veil) { setDay(on); return }
+    switching.current = true
     const L = light.current
-    gsap.timeline()
-      .set(veil, { background: on ? "#f6efe4" : "#060505" })
-      .to(veil, { autoAlpha: 1, duration: 0.32, ease: "power2.in" })
-      .add(() => {
-        setDay(on)
-        if (!on) {
-          gsap.fromTo(L, { boost: 0 }, { boost: 1, duration: 1.4, ease: "power2.out" })
-          setTimeout(() => burstRef.current(22), 380)
-        }
-      })
-      .to(veil, { autoAlpha: 0, duration: on ? 0.5 : 0.9, ease: "power2.out" }, "+=0.06")
+    const flicker = on ? [0, 0.09, 0.15, 0.3, 0.36] : [0, 0.07, 0.13, 0.27, 0.33, 0.5]
+    const tl = gsap.timeline({ onComplete: () => { switching.current = false } })
+    // Alternate states, ending on the target.
+    flicker.forEach((t, i) => tl.call(() => setDay((flicker.length - 1 - i) % 2 === 0 ? on : !on), undefined, t))
+    if (!on) {
+      const end = flicker[flicker.length - 1]
+      const far = Math.hypot(innerWidth, innerHeight) * 1.25
+      tl.call(() => { L.hide = true; L.boost = 0 }, undefined, 0)
+        .set(veil, { background: "#050404", "--vr": "0px", autoAlpha: 1 }, end)
+        .call(() => {
+          const x = L.lx >= 0 ? L.lx : innerWidth / 2
+          const y = L.ly >= 0 ? L.ly : innerHeight * 0.45
+          veil.style.setProperty("--vx", x + "px")
+          veil.style.setProperty("--vy", y + "px")
+          L.hide = false
+          burstRef.current(26)
+        }, undefined, end + 0.42)
+        .fromTo(L, { boost: 0 }, { boost: 2.1, duration: 0.35, ease: "power2.out" }, end + 0.42)
+        .to(L, { boost: 1.5, duration: 0.06, repeat: 3, yoyo: true, ease: "none" }, end + 0.78)
+        .to(L, { boost: 1, duration: 0.9, ease: "power2.inOut" }, end + 1.05)
+        .to(veil, { "--vr": far + "px", duration: 1.7, ease: "power2.inOut" }, end + 0.55)
+        .set(veil, { autoAlpha: 0 })
+    } else {
+      tl.set(veil, { background: "#fff6e8", "--vr": "0px", autoAlpha: 0 }, 0)
+        // Tubes buzzing on: hard white blinks, then the room floods and settles.
+        .set(veil, { autoAlpha: 0.95 }, 0.05).set(veil, { autoAlpha: 0 }, 0.1)
+        .set(veil, { autoAlpha: 0.95 }, 0.2).set(veil, { autoAlpha: 0 }, 0.24)
+        .to(veil, { autoAlpha: 0.9, duration: 0.1, ease: "power2.out" }, flicker[flicker.length - 1])
+        .to(veil, { autoAlpha: 0, duration: 0.9, ease: "power2.out" })
+    }
   }
   const [menu, setMenu] = React.useState(false)
   const [openService, setOpenService] = React.useState(0)
@@ -721,6 +745,9 @@ export default function TorchlitAgencyTemplate({
         moth.style.opacity = M.on ? "1" : "0"
         moth.style.transform = "translate3d(" + M.x.toFixed(1) + "px," + M.y.toFixed(1) + "px,0) scaleX(" + (M.vx < 0 ? -1 : 1) + ")"
       }
+      L.lx = S.lx
+      L.ly = S.ly
+      if (L.hide) show = false
       torch.style.opacity = show ? "1" : "0"
       glow.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) scale(" + Math.max(0.05, r / 210).toFixed(3) + ")"
       glow.style.opacity = show ? "1" : S.touchMode ? "0.35" : "0"
@@ -1528,7 +1555,7 @@ const CSS = `
 .tl-frame.tl-warm::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 60% at 50% 0%,rgba(255,140,60,.07),rgba(255,140,60,0) 70%);animation:tl-ask .9s both}
 .tl-toast{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:40px;background:#241b17;border:1px solid rgba(255,190,110,.25);color:#ffe2b0;font-size:13px;box-shadow:0 0 40px rgba(255,110,40,.25);white-space:nowrap;animation:tl-ask .7s both cubic-bezier(.2,.8,.2,1)}
 .tl-frame.tl-day .tl-sconce-halo,.tl-frame.tl-day .tl-sparks,.tl-frame.tl-day .tl-moth{display:none}
-.tl-veil{position:fixed;inset:0;z-index:95;visibility:hidden;opacity:0;pointer-events:none}
+.tl-veil{position:fixed;inset:0;z-index:54;visibility:hidden;opacity:0;pointer-events:none;--vr:0px;--vx:50%;--vy:45%;-webkit-mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,0) 45%,#000 100%);mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,0) 45%,#000 100%)}
 .tl-ask{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:40px;background:#1a1616;color:#efe4d6;font-size:13px;box-shadow:0 14px 40px rgba(20,12,8,.28);white-space:nowrap;animation:tl-ask .8s 1.2s both cubic-bezier(.2,.8,.2,1)}
 .tl-ask-t{display:inline-flex;align-items:center;gap:8px}
 .tl-ask button{background:var(--tl-red);color:#fff4ea;border-radius:30px;padding:8px 14px;font-size:13px}
