@@ -210,7 +210,8 @@
       "@/components/ui/silk-spider-cursor": ["./components/silk-spider-cursor/silk-spider-cursor.tsx"],
       "@/components/ui/crumple-changelog": ["./components/crumple-changelog/crumple-changelog.tsx"],
       "@/components/ui/crab-perch-buttons": ["./components/crab-perch-buttons/crab-perch-buttons.tsx"],
-      "@/components/ui/crumpled-paper-reveal": ["./components/crumpled-paper-reveal/crumpled-paper-reveal.tsx"]
+      "@/components/ui/crumpled-paper-reveal": ["./components/crumpled-paper-reveal/crumpled-paper-reveal.tsx"],
+      "@/components/ui/torchlit-agency-template": ["./components/torchlit-agency-template/torchlit-agency-template.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
