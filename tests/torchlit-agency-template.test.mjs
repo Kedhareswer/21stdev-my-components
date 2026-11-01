@@ -88,15 +88,24 @@ assert.ok(css.includes("mask-image:radial-gradient(circle var(--ig,0px) at var(-
 assert.ok(css.includes("radial-gradient(circle var(--br) at var(--bx) var(--by)"), "lit things light their neighbours")
 assert.ok(css.includes(".tl-fm{animation:tl-fm"), "list flames flicker")
 
+// Play: wall sconces to light (counted per page, hidden ones excluded), a warm reward, embers, hold-to-flare, a moth.
+assert.ok(src.includes(`data-ignite="140" data-beacon="230" data-sconce=""`), "sconces ignite and cast light")
+assert.ok(src.includes("getClientRects().length > 0"), "only sconces you can see count towards the total")
+assert.ok(src.includes("torches.lit === torches.total"), "lighting them all warms the room")
+assert.ok(src.includes("if (S.hold && show) rT *= 1.45"), "press and hold flares the flame")
+assert.match(src, /const emit = \(n: number, power = 1\) => \{\s+if \(calmMq\.matches\) return/, "no embers under reduced motion")
+assert.ok(src.includes("if (!calmMq.matches) {") && src.includes("S.still > 1800"), "the moth only comes to a still flame, never under reduced motion")
+assert.ok(src.includes("pool.replaceChildren()"), "ember pool is cleaned up on unmount")
+
 // Reduced motion: choreography only with motion allowed; flames freeze on one frame.
 assert.ok(src.includes('mm.add("(prefers-reduced-motion: no-preference)"'), "choreography only runs with motion allowed")
 assert.ok(src.includes("if (calm()) {"), "page changes skip the curtain under reduced motion")
 const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"))
-for (const s of [".tl-fl,.tl-fm{animation:none}", ".tl-fl:first-child{opacity:1}", ".tl-fm:first-child{opacity:1}"]) assert.ok(reduced.includes(s), "reduced motion: " + s)
+for (const s of [".tl-fl,.tl-fm,.tl-mw{animation:none}", ".tl-fl:first-child{opacity:1}", ".tl-fm:first-child{opacity:1}"]) assert.ok(reduced.includes(s), "reduced motion: " + s)
 
 // ---- the pixel torch (lifted out and executed) -------------------------------------
 const region = src.slice(src.indexOf("// #region pixel-torch"), src.indexOf("// #endregion"))
-const mod = new Function(stripTypeScriptTypes(region) + "\nreturn { FLAMES, TORCH_TILT, TORCH_UP, FLAME_MINI, PAL, MINI_RUNS, TILT_RUNS }")()
+const mod = new Function(stripTypeScriptTypes(region) + "\nreturn { FLAMES, TORCH_TILT, TORCH_UP, FLAME_MINI, FLAME_MINI_2, FLAME_MINI_3, MOTH_UP, MOTH_DOWN, PAL, MINI_RUNS, TILT_RUNS }")()
 for (const rows of [mod.TORCH_TILT, mod.TORCH_UP]) {
   assert.equal(rows.length, 15, "torch body fills rows 11-25")
   for (const r of rows) {
@@ -104,7 +113,14 @@ for (const rows of [mod.TORCH_TILT, mod.TORCH_UP]) {
     for (const c of r) assert.ok(c === "." || mod.PAL[c], "unknown palette key " + c)
   }
 }
-for (const r of mod.FLAME_MINI) assert.equal(r.length, 7, "mini flame row is 7 px wide")
+for (const g of [mod.FLAME_MINI, mod.FLAME_MINI_2, mod.FLAME_MINI_3]) {
+  assert.equal(g.length, 9, "mini flame is 9 rows")
+  for (const r of g) assert.equal(r.length, 7, "mini flame row is 7 px wide")
+}
+for (const g of [mod.MOTH_UP, mod.MOTH_DOWN]) {
+  assert.equal(g.length, 6, "moth is 6 rows")
+  for (const r of g) { assert.equal(r.length, 9, "moth row is 9 px wide"); for (const c of r) assert.ok(c === "." || mod.PAL[c], "unknown palette key " + c) }
+}
 assert.equal(mod.FLAMES.length, 4, "four flame frames")
 const keyOf = (f) => JSON.stringify(f)
 assert.equal(new Set(mod.FLAMES.map(keyOf)).size, 4, "every frame differs")

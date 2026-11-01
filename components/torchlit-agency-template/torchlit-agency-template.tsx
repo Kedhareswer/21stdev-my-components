@@ -141,6 +141,7 @@ type Run = [x: number, y: number, w: number, fill: string]
 const PAL: Record<string, string> = {
   k: "#1a0d0a", G: "#c9c1c6", g: "#857d86", d: "#433d47", r: "#d1261a", R: "#7c1712",
   b: "#4a2a17", B: "#7d4b26", w: "#fff6dc", y: "#ffcf3f", o: "#ff6a1a", e: "#ff9a2e", c: "#f3e6d3",
+  m: "#3e3127", n: "#8a7660", N: "#cdb898",
 }
 
 // Torch below the flame, rows 11-25 of a 16 x 26 grid. Tilted: handle runs down to the right.
@@ -241,6 +242,10 @@ const UP_RUNS = gridRuns(TORCH_UP, 11)
 const MINI_RUNS = gridRuns(FLAME_MINI)
 const MINI_FRAMES = [FLAME_MINI, FLAME_MINI_2, FLAME_MINI_3].map((g) => gridRuns(g))
 const MINI_MONO = gridRuns(FLAME_MINI, 0, PAL.c)
+// A moth, wings up and wings down, 9 x 6.
+const MOTH_UP = [".n.....n.", "nNn...nNn", "nNNn.nNNn", ".nNNmNNn.", "..nnmnn..", "....m...."]
+const MOTH_DOWN = [".........", ".........", "nnnnmnnnn", "nNNNmNNNn", ".nNnmnNn.", "..n.m.n.."]
+const MOTH_RUNS = [MOTH_UP, MOTH_DOWN].map((g) => gridRuns(g))
 // #endregion
 
 const rects = (runs: Run[]) => runs.map(([x, y, w, fill], i) => <rect key={i} x={x} y={y} width={w} height={1} fill={fill} />)
@@ -324,7 +329,7 @@ function Lit({ className, label, children }: { className?: string; label?: strin
 
 // Unlit until the torch comes near; once it catches it becomes a light source of its own.
 const Emblem = () => (
-  <div className="tl-emb-wrap" data-ignite="160" data-beacon="380">
+  <div className="tl-emb-wrap" data-ignite="160" data-beacon="380" data-sconce="">
     <span className="tl-emb-halo" aria-hidden="true" />
     <Lit className="tl-emb" label="Gold laurel around a torch">
       <LaurelSvg />
@@ -332,6 +337,15 @@ const Emblem = () => (
     </Lit>
     <span className="tl-src" aria-hidden="true" />
   </div>
+)
+
+// A wall torch on an iron bracket: unlit until the torch comes near, then one more light in the room.
+const Sconce = ({ side }: { side: "left" | "right" }) => (
+  <span className={"tl-sconce tl-sconce-" + side} data-ignite="140" data-beacon="230" data-sconce="" aria-hidden="true">
+    <span className="tl-sconce-halo" />
+    <PixelTorch upright scale={2} />
+    <span className="tl-src" />
+  </span>
 )
 
 /** A text block that the torch lights. */
@@ -376,6 +390,20 @@ export default function TorchlitAgencyTemplate({
   const [day, setDay] = React.useState(theme === "light")
   // Set once JS runs; until then text keeps its plain dim colour and photos their full colour.
   const [env, setEnv] = React.useState({ on: false, fine: false })
+  // Torches lit on this page; light them all and the room warms up.
+  const [torches, setTorches] = React.useState({ lit: 0, total: 0 })
+  const [toast, setToast] = React.useState(false)
+  const sparksRef = React.useRef<HTMLDivElement>(null)
+  const mothRef = React.useRef<HTMLDivElement>(null)
+  const burstRef = React.useRef<(n: number) => void>(() => {})
+  const recount = () => {
+    const fr = frameRef.current
+    if (!fr) return
+    const all = [...fr.querySelectorAll<HTMLElement>("[data-sconce]")].filter((el) => el.getClientRects().length > 0)
+    setTorches({ lit: all.filter((el) => el.classList.contains("tl-lit-up")).length, total: all.length })
+  }
+  const recountRef = React.useRef(recount)
+  recountRef.current = recount
   const dayRef = React.useRef(day)
   dayRef.current = day
   const lightsRef = React.useRef<HTMLDivElement>(null)
@@ -400,7 +428,10 @@ export default function TorchlitAgencyTemplate({
       .to(veil, { autoAlpha: 1, duration: 0.32, ease: "power2.in" })
       .add(() => {
         setDay(on)
-        if (!on) gsap.fromTo(L, { boost: 0 }, { boost: 1, duration: 1.4, ease: "power2.out" })
+        if (!on) {
+          gsap.fromTo(L, { boost: 0 }, { boost: 1, duration: 1.4, ease: "power2.out" })
+          setTimeout(() => burstRef.current(22), 380)
+        }
       })
       .to(veil, { autoAlpha: 0, duration: on ? 0.5 : 0.9, ease: "power2.out" }, "+=0.06")
   }
@@ -488,7 +519,7 @@ export default function TorchlitAgencyTemplate({
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches
     const calmMq = window.matchMedia(REDUCE)
     const L = light.current
-    const S = { tx: 0, ty: 0, lx: innerWidth / 2, ly: innerHeight * 0.45, px: innerWidth / 2, py: innerHeight * 0.45, r: 0, tilt: 0, moved: false, inside: false, touching: false, touchMode: !fine, kbd: false }
+    const S = { tx: 0, ty: 0, lx: innerWidth / 2, ly: innerHeight * 0.45, px: innerWidth / 2, py: innerHeight * 0.45, r: 0, tilt: 0, moved: false, inside: false, touching: false, touchMode: !fine, kbd: false, hold: false, sc: 1, still: 0, sx: 0, sy: 0 }
     const visible = new Set<HTMLElement>()
     const watched = new Set<Element>()
     let ignite: HTMLElement[] = []
@@ -508,9 +539,49 @@ export default function TorchlitAgencyTemplate({
     setEnv({ on: true, fine })
     let wasDay: boolean | null = null
 
+    // Embers: a small pool of pixels thrown off the flame when it moves fast, bursts on click.
+    type Spark = { el: HTMLElement; x: number; y: number; vx: number; vy: number; life: number; max: number }
+    const sparks: Spark[] = []
+    const pool = sparksRef.current!
+    for (let i = 0; i < 36; i++) {
+      const el = document.createElement("i")
+      pool.appendChild(el)
+      sparks.push({ el, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1 })
+    }
+    let fxNow = 0
+    let fyNow = 0
+    const emit = (n: number, power = 1) => {
+      if (calmMq.matches) return
+      for (const p of sparks) {
+        if (n <= 0) break
+        if (p.life > 0) continue
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2
+        const v = (0.06 + Math.random() * 0.16) * power
+        p.x = fxNow + (Math.random() - 0.5) * 8
+        p.y = fyNow - 6
+        p.vx = Math.cos(a) * v
+        p.vy = Math.sin(a) * v
+        p.max = p.life = 500 + Math.random() * 700
+        p.el.style.background = Math.random() < 0.3 ? "#fff1c2" : Math.random() < 0.6 ? "#ffb347" : "#ff5a1f"
+        n--
+      }
+    }
+    burstRef.current = (n) => emit(n, 1.7)
+    const M = { on: false, flee: false, x: 0, y: 0, vx: 0, vy: 0 }
+    const moth = mothRef.current!
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch" || dayRef.current) return
+      S.hold = true
+      emit(16, 1.8)
+    }
+    const onUp = () => { S.hold = false }
+    frame.addEventListener("pointerdown", onDown)
+    window.addEventListener("pointerup", onUp)
+
     // Fire spreads through the letters from where the torch touched, like oil.
     const catchFire = (el: HTMLElement, x: number, y: number, w: number, h: number) => {
       el.classList.add("tl-lit-up")
+      if (el.hasAttribute("data-sconce")) { recountRef.current(); emit(10, 1.2) }
       el.style.setProperty("--ix", x.toFixed(0) + "px")
       el.style.setProperty("--iy", y.toFixed(0) + "px")
       const full = Math.hypot(w, h) * 1.15
@@ -560,7 +631,7 @@ export default function TorchlitAgencyTemplate({
       const isDay = dayRef.current
       if (isDay !== wasDay) {
         wasDay = isDay
-        if (isDay) { torch.style.opacity = "0"; glow.style.opacity = "0" }
+        if (isDay) { torch.style.opacity = "0"; glow.style.opacity = "0"; moth.style.opacity = "0"; M.on = false }
       }
       // Lights on: nothing to carry.
       if (isDay) return
@@ -580,6 +651,8 @@ export default function TorchlitAgencyTemplate({
       } else {
         tx = S.tx; ty = S.ty; rT = S.inside ? base : 0; follow = 0.42; show = S.inside
       }
+      // Press and hold: the flame flares.
+      if (S.hold && show) rT *= 1.45
       const k = 1 - Math.pow(1 - follow, dt / 16.7)
       const vx = (tx - S.lx) * k
       S.lx += vx
@@ -589,11 +662,65 @@ export default function TorchlitAgencyTemplate({
       S.py += (S.ly - S.py) * kt
       S.r += (rT - S.r) * (1 - Math.pow(0.88, dt / 16.7))
       S.tilt += (Math.max(-16, Math.min(16, vx * 0.9)) - S.tilt) * 0.12
+      S.sc += ((S.hold && show ? 1.18 : 1) - S.sc) * 0.2
+      const speed = Math.hypot(S.lx - S.sx, S.ly - S.sy) / Math.max(dt, 1) * 16.7
+      S.sx = S.lx
+      S.sy = S.ly
       const r = S.r * L.boost
       frame.style.setProperty("--r", r.toFixed(1) + "px")
       const fx = S.lx - fr.left
       const fy = S.ly - fr.top
-      torch.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) rotate(" + S.tilt.toFixed(2) + "deg)"
+      torch.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) rotate(" + S.tilt.toFixed(2) + "deg) scale(" + S.sc.toFixed(3) + ")"
+      fxNow = fx
+      fyNow = fy
+      if (show && speed > 7 && Math.random() < Math.min(0.9, speed / 40)) emit(1 + Math.floor(speed / 25))
+      for (const p of sparks) {
+        if (p.life <= 0) continue
+        p.life -= dt
+        p.vy -= 0.00022 * dt
+        p.vx *= 0.985
+        p.x += p.vx * dt
+        p.y += p.vy * dt
+        const t = Math.max(0, p.life / p.max)
+        p.el.style.opacity = p.life > 0 ? t.toFixed(2) : "0"
+        p.el.style.transform = "translate3d(" + p.x.toFixed(1) + "px," + p.y.toFixed(1) + "px,0) scale(" + (0.5 + t * 0.6).toFixed(2) + ")"
+      }
+      // A moth finds a flame that holds still, and bolts when it swings.
+      S.still = show && speed < 1.2 ? S.still + dt : 0
+      if (!calmMq.matches) {
+        if (!M.on && S.still > 1800) {
+          const fromLeft = Math.random() < 0.5
+          M.on = true
+          M.flee = false
+          M.x = fx + (fromLeft ? -1 : 1) * (vw * 0.55)
+          M.y = fy - 140 + Math.random() * 280
+          M.vx = 0
+          M.vy = 0
+        }
+        if (M.on) {
+          if (speed > 14 || !show) M.flee = true
+          if (M.flee) {
+            const dx = M.x - fx
+            const dy = M.y - fy
+            const d = Math.hypot(dx, dy) || 1
+            M.vx += (dx / d) * 0.03 * dt
+            M.vy += (dy / d) * 0.03 * dt - 0.01 * dt
+            if (d > vw) M.on = false
+          } else {
+            const a = now / 380
+            const ox = fx + Math.cos(a) * 46 + Math.sin(now / 130) * 10
+            const oy = fy - 14 + Math.sin(a * 1.7) * 30 + Math.cos(now / 97) * 8
+            M.vx += (ox - M.x) * 0.0009 * dt + (Math.random() - 0.5) * 0.25
+            M.vy += (oy - M.y) * 0.0009 * dt + (Math.random() - 0.5) * 0.25
+          }
+          M.vx *= 0.9
+          M.vy *= 0.9
+          M.x += M.vx * dt * 0.06
+          M.y += M.vy * dt * 0.06
+        }
+        moth.style.opacity = M.on ? "1" : "0"
+        moth.style.transform = "translate3d(" + M.x.toFixed(1) + "px," + M.y.toFixed(1) + "px,0) scaleX(" + (M.vx < 0 ? -1 : 1) + ")"
+      }
       torch.style.opacity = show ? "1" : "0"
       glow.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) scale(" + Math.max(0.05, r / 210).toFixed(3) + ")"
       glow.style.opacity = show ? "1" : S.touchMode ? "0.35" : "0"
@@ -639,6 +766,9 @@ export default function TorchlitAgencyTemplate({
       window.removeEventListener("touchend", onTouch)
       window.removeEventListener("touchcancel", onTouch)
       frame.removeEventListener("focusin", onFocus)
+      frame.removeEventListener("pointerdown", onDown)
+      window.removeEventListener("pointerup", onUp)
+      pool.replaceChildren()
     }
   }, [])
 
@@ -647,6 +777,7 @@ export default function TorchlitAgencyTemplate({
     const run = afterCommit.current
     afterCommit.current = null
     run?.()
+    recount()
     const scope = frameRef.current!
     const first = firstView.current
     firstView.current = false
@@ -684,6 +815,14 @@ export default function TorchlitAgencyTemplate({
     }, scope)
     return () => ctx.revert()
   }, [view])
+
+  const warm = !day && torches.total > 0 && torches.lit === torches.total
+  React.useEffect(() => {
+    if (!warm) return
+    setToast(true)
+    const t = setTimeout(() => setToast(false), 3600)
+    return () => clearTimeout(t)
+  }, [warm])
 
   React.useEffect(() => {
     if (!menu) return
@@ -739,6 +878,8 @@ export default function TorchlitAgencyTemplate({
 
   const pageHead = (eyebrow: string, title: string, sub?: string) => (
     <header className="tl-ph">
+      <Sconce side="left" />
+      <Sconce side="right" />
       <T className="tl-eyebrow">{eyebrow}</T>
       <h1 className="tl-h1"><T as="span" big>{rich(title)}</T></h1>
       {sub && <T className="tl-lede">{sub}</T>}
@@ -751,6 +892,8 @@ export default function TorchlitAgencyTemplate({
     body = (
       <>
         <section className="tl-hero" data-hero="" style={{ minHeight: "var(--h)" }}>
+          <Sconce side="left" />
+          <Sconce side="right" />
           <T className="tl-eyebrow" >{studio} — independent brand studio</T>
           <h1 className="tl-hero-h">
             {headline.map((l, i) => (
@@ -783,6 +926,7 @@ export default function TorchlitAgencyTemplate({
           </div>
         </section>
         <section className="tl-sec" aria-labelledby="tl-sel-h">
+          <Sconce side="right" />
           <div className="tl-sec-head">
             <h2 id="tl-sel-h" className="tl-h2"><T as="span" big>{rich("Selected *Work*")}</T></h2>
             <button type="button" className="tl-link" onClick={() => go({ page: "work" })}>All {projects.length} projects <span aria-hidden="true">→</span></button>
@@ -808,6 +952,8 @@ export default function TorchlitAgencyTemplate({
       <article className="tl-case">
         <button type="button" className="tl-link tl-back" onClick={() => go({ page: "work" })}><span aria-hidden="true">←</span> All work</button>
         <header className="tl-ph">
+          <Sconce side="left" />
+          <Sconce side="right" />
           <T className="tl-eyebrow">Case {pad(i + 1)} — {p.kind} — {p.year}</T>
           <h1 className="tl-h1"><T as="span" big>{p.title}</T></h1>
           <T className="tl-lede">{p.line}</T>
@@ -973,7 +1119,7 @@ export default function TorchlitAgencyTemplate({
     <div ref={rootRef} className={"tl-root" + (className ? " " + className : "")} style={{ "--h": height } as React.CSSProperties}>
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       <style>{CSS}</style>
-      <div ref={frameRef} className={"tl-frame" + (env.on ? " tl-on" : "") + (env.fine && !day ? " tl-fine" : "") + (day ? " tl-day" : "")}>
+      <div ref={frameRef} className={"tl-frame" + (env.on ? " tl-on" : "") + (env.fine && !day ? " tl-fine" : "") + (day ? " tl-day" : "") + (warm ? " tl-warm" : "")}>
         <div className="tl-bar">
           <nav className="tl-nav" aria-label="Main">
             <button type="button" className="tl-logo" onClick={() => go({ page: "home" })} aria-label={studio + ", home"}>
@@ -1009,6 +1155,11 @@ export default function TorchlitAgencyTemplate({
             </ul>
           </nav>
           <div className="tl-actions">
+            {!day && torches.total > 0 && (
+              <span className={"tl-count" + (warm ? " tl-count-done" : "")} aria-live="polite">
+                <FlameMark /> {torches.lit}/{torches.total}<span className="tl-count-l"> torches lit</span>
+              </span>
+            )}
             <button type="button" className="tl-lamp" aria-pressed={!day} onClick={() => setLights(!day)}>
               <span className="tl-lamp-dot" aria-hidden="true" />
               {day ? "Lights off" : "Lights on"}
@@ -1059,7 +1210,14 @@ export default function TorchlitAgencyTemplate({
         </footer>
 
         <div ref={glowRef} className="tl-glow" aria-hidden="true"><i /></div>
+        <div ref={sparksRef} className="tl-sparks" aria-hidden="true" />
+        <div ref={mothRef} className="tl-moth" aria-hidden="true">
+          <svg viewBox="0 0 9 6" width={27} height={18} shapeRendering="crispEdges">
+            {MOTH_RUNS.map((fr, i) => <g key={i} className="tl-mw" style={{ animationDelay: -i * 0.09 + "s" }}>{rects(fr)}</g>)}
+          </svg>
+        </div>
         <div ref={torchRef} className="tl-torch" aria-hidden="true"><PixelTorch /></div>
+        {toast && <div className="tl-toast" role="status"><FlameMark /> Every torch here is lit. The room is warmer now.</div>}
         <div ref={curtainRef} className="tl-curtain" aria-hidden="true">
           <span className="tl-curtain-in"><PixelTorch upright scale={3} /><span ref={curtainLabel} /></span>
         </div>
@@ -1341,6 +1499,35 @@ const CSS = `
 .tl-curtain-in{display:flex;flex-direction:column;align-items:center;gap:18px;font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-size:clamp(40px,6vw,88px);color:var(--tl-cream);line-height:1}
 .tl-ghost{position:fixed;z-index:85;visibility:hidden;object-fit:cover;max-width:none;pointer-events:none}
 
+.tl-sparks{position:absolute;inset:0;z-index:59;pointer-events:none;overflow:hidden}
+.tl-sparks i{position:absolute;left:-1px;top:-1px;width:3px;height:3px;opacity:0;box-shadow:0 0 6px rgba(255,120,30,.9);will-change:transform,opacity}
+.tl-moth{position:absolute;left:0;top:0;margin:-9px 0 0 -13px;z-index:58;pointer-events:none;opacity:0;transition:opacity .5s;filter:drop-shadow(0 0 4px rgba(255,170,90,.5))}
+.tl-moth svg{display:block}
+.tl-mw{animation:tl-wing .18s steps(1,end) infinite;opacity:0}
+@keyframes tl-wing{0%{opacity:1}50%,100%{opacity:0}}
+.tl-hero,.tl-sec,.tl-ph{position:relative}
+.tl-sconce{position:absolute;z-index:3;width:32px;height:52px;display:block}
+.tl-sconce > svg{position:relative;display:block;filter:brightness(.55) saturate(.6);transition:filter .6s}
+.tl-sconce::before{content:"";position:absolute;left:50%;top:26px;width:18px;height:26px;margin-left:-9px;background:#1d1817;border:1px solid rgba(243,230,211,.06);border-radius:3px;z-index:-1}
+.tl-sconce::after{content:"";position:absolute;left:7px;right:7px;top:33px;height:4px;background:#2d2522;border-radius:2px}
+.tl-sconce:not(.tl-lit-up) .tl-fl{visibility:hidden}
+.tl-sconce.tl-lit-up > svg{filter:none;animation:tl-catch .7s cubic-bezier(.2,.9,.3,1.4)}
+.tl-sconce .tl-src{top:10px}
+.tl-sconce-halo{position:absolute;left:50%;top:10px;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.4) 0,rgba(232,50,31,.16) 32%,rgba(232,50,31,0) 62%);opacity:0;transform:scale(.3);transition:opacity .5s,transform .9s cubic-bezier(.2,.9,.2,1.2);pointer-events:none;mix-blend-mode:screen}
+.tl-sconce.tl-lit-up .tl-sconce-halo{opacity:1;transform:scale(1);animation:tl-flick 2s .9s infinite}
+.tl-sconce-left{left:max(14px,calc(var(--gl) - 84px))}
+.tl-sconce-right{right:clamp(18px,4cqw,64px)}
+.tl-hero > .tl-sconce{top:42%}
+.tl-hero > .tl-sconce-left{left:clamp(18px,6cqw,110px)}
+.tl-hero > .tl-sconce-right{right:clamp(18px,6cqw,110px)}
+.tl-ph > .tl-sconce{top:calc(clamp(150px,18cqw,220px) + 40px)}
+.tl-sec > .tl-sconce{top:clamp(40px,6cqw,90px)}
+.tl-count{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tl-ui);font-variant-numeric:tabular-nums}
+.tl-count-done{color:#ffc95a}
+.tl-warm{--tl-dim:#a19483;--tl-dim-lg:#8a7d70}
+.tl-frame.tl-warm::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 60% at 50% 0%,rgba(255,140,60,.07),rgba(255,140,60,0) 70%);animation:tl-ask .9s both}
+.tl-toast{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:40px;background:#241b17;border:1px solid rgba(255,190,110,.25);color:#ffe2b0;font-size:13px;box-shadow:0 0 40px rgba(255,110,40,.25);white-space:nowrap;animation:tl-ask .7s both cubic-bezier(.2,.8,.2,1)}
+.tl-frame.tl-day .tl-sconce-halo,.tl-frame.tl-day .tl-sparks,.tl-frame.tl-day .tl-moth{display:none}
 .tl-veil{position:fixed;inset:0;z-index:95;visibility:hidden;opacity:0;pointer-events:none}
 .tl-ask{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:40px;background:#1a1616;color:#efe4d6;font-size:13px;box-shadow:0 14px 40px rgba(20,12,8,.28);white-space:nowrap;animation:tl-ask .8s 1.2s both cubic-bezier(.2,.8,.2,1)}
 .tl-ask-t{display:inline-flex;align-items:center;gap:8px}
@@ -1379,6 +1566,9 @@ const CSS = `
   .tl-bar::before{content:"";position:absolute;left:0;right:0;top:-10px;height:178px;background:linear-gradient(#141212 66%,rgba(20,18,18,0));pointer-events:none}
   .tl-nav{left:18px;top:16px;font-size:12px}
   .tl-actions{right:16px;top:16px;gap:10px}
+  .tl-count-l,.tl-hero > .tl-sconce,.tl-ph > .tl-sconce-left{display:none}
+  .tl-ph > .tl-sconce-right{top:150px}
+  .tl-toast{white-space:normal;width:calc(100% - 32px);justify-content:center}
   .tl-frame .tl-cta{font-size:16px;padding:9px 12px 10px}
   .tl-lamp{font-size:11.5px}
   .tl-hero{padding-top:150px}
@@ -1413,7 +1603,9 @@ const CSS = `
 
 /* ---- reduced motion: the light still follows, nothing flickers or travels ---- */
 @media (prefers-reduced-motion: reduce){
-  .tl-fl,.tl-fm{animation:none}
+  .tl-fl,.tl-fm,.tl-mw{animation:none}
+  .tl-mw:first-child{opacity:1}
+  .tl-sconce.tl-lit-up > svg,.tl-sconce.tl-lit-up .tl-sconce-halo,.tl-frame.tl-warm::after,.tl-toast{animation:none}
   .tl-fm:first-child{opacity:1}
   .tl-flame::before,.tl-emb-wrap.tl-lit-up .tl-emb-halo,.tl-emb-wrap.tl-lit-up .tl-emb-torch svg{animation:none}
   .tl-fl:first-child{opacity:1}

@@ -17,6 +17,13 @@ A complete agency site for a fictional brand studio, **Vesper & Flint**. Turn th
 
 Other pages change behind an ember-edged curtain.
 
+## Play
+
+- **Wall sconces.** Every page has unlit pixel torches on iron brackets. The laurel counts as one. Carry your flame to each one to light it, and the counter next to the switch tracks how many are lit (`2/4`). When all of them are lit, a toast appears and the whole room warms up a shade. Only sconces you can see are counted, so phones get a shorter list.
+- **Embers.** Swinging the torch fast throws off pixel embers, and clicking bursts a handful. Switching the lights off strikes the torch with a shower of sparks.
+- **Press and hold** to fan the flame: it grows and the light reaches further.
+- **A moth.** Hold the torch still for a couple of seconds and a pixel moth flutters in to circle the flame. Swing the torch and it bolts.
+
 ## Props
 
 | Prop | Default | Notes |
