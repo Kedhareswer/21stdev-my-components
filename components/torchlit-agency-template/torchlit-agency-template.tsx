@@ -44,7 +44,7 @@ export type TorchPage = "home" | "work" | "agency" | "services" | "brand"
 export interface TorchlitAgencyTemplateProps {
   /** Short brand name, used in headings ("Our Vesper Guiding Principles"). */
   brand?: string
-  /** Full studio name for the footer, curtain and brand guide. */
+  /** Full studio name for the footer and brand guide. */
   studio?: string
   /** Hero height. Must be a definite length. */
   height?: string
@@ -358,6 +358,97 @@ function T({ as = "p", className, children, big }: { as?: "p" | "span" | "h1" | 
   )
 }
 
+// #region burn
+type Blob = { a: number; k: number; s: number; p: number }
+
+/** Union of a centre disc and wobbling lobes around it: the outline of paper burning outward. */
+function burnBlobs(R: number, t: number, blobs: Blob[], cx: number, cy: number) {
+  const out: [number, number, number][] = [[cx, cy, R * 0.82]]
+  for (const b of blobs) {
+    const d = R * 0.62 * b.k
+    const rr = Math.max(0, R * b.s + Math.sin(t * 0.004 + b.p) * R * 0.04)
+    out.push([cx + Math.cos(b.a) * d, cy + Math.sin(b.a) * d, rr])
+  }
+  return out
+}
+// #endregion
+
+function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean) {
+  const fr = frame.getBoundingClientRect()
+  const vw = innerWidth
+  const vh = innerHeight
+  // Snapshot the page as it is; the real one switches underneath.
+  const snap = frame.cloneNode(true) as HTMLElement
+  snap.querySelectorAll(".tl-bar,.tl-torch,.tl-glow,.tl-wall,.tl-sparks,.tl-moth,.tl-ghost,.tl-veil,.tl-ask,.tl-toast,.tl-burn").forEach((n) => n.remove())
+  snap.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"))
+  snap.style.cssText += ";position:absolute;margin:0;left:" + fr.left + "px;top:" + fr.top + "px;width:" + fr.width + "px;height:" + fr.height + "px"
+  const cv = document.createElement("canvas")
+  const dpr = Math.min(2, devicePixelRatio || 1)
+  cv.width = vw * dpr
+  cv.height = vh * dpr
+  layer.append(snap, cv)
+  const ctx = cv.getContext("2d")!
+  ctx.scale(dpr, dpr)
+  const cx = vw / 2
+  const cy = vh / 2
+  const blobs: Blob[] = Array.from({ length: 16 }, (_, i) => ({ a: (i / 16) * Math.PI * 2 + Math.random() * 0.3, k: 0.8 + Math.random() * 0.45, s: 0.3 + Math.random() * 0.16, p: Math.random() * 6 }))
+  const embers: { x: number; y: number; vx: number; vy: number; life: number }[] = []
+  const char = day ? "rgba(60,32,16," : "rgba(10,5,3,"
+  const st = { R: 0 }
+  const far = Math.hypot(vw, vh) * 0.62
+  const draw = () => {
+    const t = performance.now()
+    const circles = burnBlobs(st.R, t, blobs, cx, cy)
+    const mask = circles.map(([x, y, r]) => "radial-gradient(circle " + r.toFixed(1) + "px at " + (x - fr.left).toFixed(1) + "px " + (y - fr.top).toFixed(1) + "px,rgba(0,0,0,0) 97%,#000 100%)").join(",")
+    snap.style.setProperty("-webkit-mask-image", mask)
+    snap.style.setProperty("mask-image", mask)
+    snap.style.setProperty("-webkit-mask-composite", "source-in")
+    snap.style.setProperty("mask-composite", "intersect")
+    ctx.globalCompositeOperation = "source-over"
+    ctx.clearRect(0, 0, vw, vh)
+    if (st.R <= 0) return
+    // Char creeping ahead of the flame, then the glowing edge, then clear the hole.
+    for (const [x, y, r] of circles) {
+      const g = ctx.createRadialGradient(x, y, r, x, y, r + 46)
+      g.addColorStop(0, char + "0.92)")
+      g.addColorStop(0.3, char + "0.55)")
+      g.addColorStop(1, char + "0)")
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.arc(x, y, r + 46, 0, Math.PI * 2); ctx.fill()
+    }
+    for (const [x, y, r] of circles) {
+      const g = ctx.createRadialGradient(x, y, Math.max(0, r - 3), x, y, r + 11)
+      g.addColorStop(0, "rgba(255,244,200,1)")
+      g.addColorStop(0.25, "rgba(255,170,60,1)")
+      g.addColorStop(0.6, "rgba(220,60,20,.75)")
+      g.addColorStop(1, "rgba(120,20,5,0)")
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.arc(x, y, r + 11, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.globalCompositeOperation = "destination-out"
+    ctx.fillStyle = "#000"
+    for (const [x, y, r] of circles) { ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 1), 0, Math.PI * 2); ctx.fill() }
+    ctx.globalCompositeOperation = "lighter"
+    // Sparks peel off the edge and rise.
+    for (let i = 0; i < 3; i++) {
+      const [x, y, r] = circles[1 + Math.floor(Math.random() * (circles.length - 1))]
+      const a = Math.random() * Math.PI * 2
+      embers.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: (Math.random() - 0.5) * 0.8, vy: -0.6 - Math.random() * 1.4, life: 1 })
+    }
+    for (const e of embers) {
+      if (e.life <= 0) continue
+      e.x += e.vx; e.y += e.vy; e.vy -= 0.02; e.life -= 0.022
+      ctx.fillStyle = "rgba(255," + (150 + Math.floor(e.life * 90)) + ",60," + e.life.toFixed(2) + ")"
+      ctx.fillRect(e.x, e.y, 3, 3)
+    }
+  }
+  return new Promise<void>((resolve) => {
+    gsap.timeline({ onUpdate: draw, onComplete: () => { layer.replaceChildren(); resolve() } })
+      .to(st, { R: 18, duration: 0.45, ease: "power1.in" })
+      .to(st, { R: far, duration: 1.5, ease: "power2.in" })
+  })
+}
+
 export default function TorchlitAgencyTemplate({
   brand = "Vesper",
   studio = "Vesper & Flint",
@@ -377,8 +468,8 @@ export default function TorchlitAgencyTemplate({
   const pageRef = React.useRef<HTMLDivElement>(null)
   const torchRef = React.useRef<HTMLDivElement>(null)
   const glowRef = React.useRef<HTMLDivElement>(null)
-  const curtainRef = React.useRef<HTMLDivElement>(null)
-  const curtainLabel = React.useRef<HTMLSpanElement>(null)
+  const burnRef = React.useRef<HTMLDivElement>(null)
+  const wallRef = React.useRef<HTMLDivElement>(null)
   const ghostRef = React.useRef<HTMLImageElement>(null)
   const afterCommit = React.useRef<null | (() => void)>(null)
   const busy = React.useRef(false)
@@ -468,8 +559,6 @@ export default function TorchlitAgencyTemplate({
     if (root) window.scrollTo(0, Math.max(0, root.getBoundingClientRect().top + window.scrollY))
   }
 
-  const pageName = (v: View) => (v.page === "case" ? projects[v.i].title : v.page === "home" ? studio : v.page === "brand" ? "Brand Guide" : v.page[0].toUpperCase() + v.page.slice(1))
-
   // ---- page transitions -----------------------------------------------------------
   const go = (next: View, fromImg?: HTMLImageElement | null) => {
     setMenu(false)
@@ -480,7 +569,6 @@ export default function TorchlitAgencyTemplate({
       return
     }
     busy.current = true
-    const curtain = curtainRef.current!
     const content = pageRef.current!
     const ghost = ghostRef.current!
     if (next.page === "case" && fromImg && fromImg.getBoundingClientRect().width > 0) {
@@ -517,20 +605,10 @@ export default function TorchlitAgencyTemplate({
       })
       return
     }
-    if (curtainLabel.current) curtainLabel.current.textContent = pageName(next)
-    gsap.timeline()
-      .set(curtain, { autoAlpha: 1, yPercent: 100 })
-      .to(curtain, { yPercent: 0, duration: 0.65, ease: "power3.in" })
-      .add(() => {
-        afterCommit.current = () => {
-          toTop()
-          gsap.to(curtain, {
-            yPercent: -100, duration: 0.8, ease: "power3.out", delay: 0.15,
-            onComplete: () => { gsap.set(curtain, { autoAlpha: 0 }); busy.current = false },
-          })
-        }
-        setView(next)
-      })
+    // The page you are on catches fire in the middle and burns away; the next page is underneath.
+    const done = burnAway(frameRef.current!, burnRef.current!, dayRef.current)
+    afterCommit.current = () => { toTop(); done.then(() => { busy.current = false }) }
+    setView(next)
   }
 
   const openCase = (i: number, e: React.MouseEvent<HTMLElement>) => go({ page: "case", i }, e.currentTarget.querySelector<HTMLImageElement>(".tl-hi img"))
@@ -540,10 +618,11 @@ export default function TorchlitAgencyTemplate({
     const frame = frameRef.current!
     const torch = torchRef.current!
     const glow = glowRef.current!
+    const wall = wallRef.current!
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches
     const calmMq = window.matchMedia(REDUCE)
     const L = light.current
-    const S = { tx: 0, ty: 0, lx: innerWidth / 2, ly: innerHeight * 0.45, px: innerWidth / 2, py: innerHeight * 0.45, r: 0, tilt: 0, moved: false, inside: false, touching: false, touchMode: !fine, kbd: false, hold: false, sc: 1, still: 0, sx: 0, sy: 0 }
+    const S = { tx: 0, ty: 0, lx: innerWidth / 2, ly: innerHeight * 0.45, px: innerWidth / 2, py: innerHeight * 0.45, r: 0, tilt: 0, moved: false, inside: false, touching: false, touchMode: !fine, kbd: false, hold: false, sc: 1, still: 0, sx: 0, sy: 0, lean: 0 }
     const visible = new Set<HTMLElement>()
     const watched = new Set<Element>()
     let ignite: HTMLElement[] = []
@@ -655,7 +734,10 @@ export default function TorchlitAgencyTemplate({
       const isDay = dayRef.current
       if (isDay !== wasDay) {
         wasDay = isDay
-        if (isDay) { torch.style.opacity = "0"; glow.style.opacity = "0"; moth.style.opacity = "0"; M.on = false }
+        if (isDay) {
+          torch.style.opacity = "0"; glow.style.opacity = "0"; wall.style.opacity = "0"; moth.style.opacity = "0"; M.on = false
+          for (const el of watched) { (el as HTMLElement).style.filter = ""; (el as HTMLElement).style.boxShadow = "" }
+        }
       }
       // Lights on: nothing to carry.
       if (isDay) return
@@ -690,8 +772,17 @@ export default function TorchlitAgencyTemplate({
       const speed = Math.hypot(S.lx - S.sx, S.ly - S.sy) / Math.max(dt, 1) * 16.7
       S.sx = S.lx
       S.sy = S.ly
-      const r = S.r * L.boost
+      // A real flame never holds still: a few incommensurate sines make the reach breathe.
+      const fl = calmMq.matches ? 1 : 1 + 0.035 * Math.sin(now / 53) + 0.025 * Math.sin(now / 127 + 1.7) + 0.02 * Math.sin(now / 31 + 0.4)
+      const r = S.r * L.boost * fl
+      // The flame leans against the motion, so the light lags a little behind the torch and sits just above the grip.
+      S.lean += (Math.max(-16, Math.min(16, -vx * 1.6)) - S.lean) * 0.18
+      const LX = S.lx + S.lean
+      const LY = S.ly - 4
       frame.style.setProperty("--r", r.toFixed(1) + "px")
+      // The handle blocks the light below the flame: a soft wedge of shadow along it.
+      frame.style.setProperty("--ha", (171 + S.tilt).toFixed(1) + "deg")
+      frame.style.setProperty("--hs", show ? "0.78" : "0")
       const fx = S.lx - fr.left
       const fy = S.ly - fr.top
       torch.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) rotate(" + S.tilt.toFixed(2) + "deg) scale(" + S.sc.toFixed(3) + ")"
@@ -751,14 +842,38 @@ export default function TorchlitAgencyTemplate({
       torch.style.opacity = show ? "1" : "0"
       glow.style.transform = "translate3d(" + fx.toFixed(1) + "px," + fy.toFixed(1) + "px,0) scale(" + Math.max(0.05, r / 210).toFixed(3) + ")"
       glow.style.opacity = show ? "1" : S.touchMode ? "0.35" : "0"
+      wall.style.transform = "translate3d(" + (LX - fr.left).toFixed(1) + "px," + (LY - fr.top).toFixed(1) + "px,0) scale(" + Math.max(0.05, r / 220).toFixed(3) + ")"
+      wall.style.opacity = show || S.touchMode ? "1" : "0"
       // Things that caught fire light their surroundings too, with a little flicker.
       const flick = calmMq.matches ? 1 : 0.9 + 0.1 * Math.sin(now / 83) * Math.sin(now / 31 + 1.3)
       const beacons = fires
         .filter(([el]) => el.classList.contains("tl-lit-up"))
         .map(([el, b, src]) => ({ x: src.left + src.width / 2, y: src.top + src.height / 2, r: (Number(el.dataset.beacon) || b.width * 0.62) * flick }))
       for (const [el, b] of lit) {
-        el.style.setProperty("--tx", (S.lx - b.left).toFixed(1) + "px")
-        el.style.setProperty("--ty", (S.ly - b.top).toFixed(1) + "px")
+        el.style.setProperty("--tx", (LX - b.left).toFixed(1) + "px")
+        el.style.setProperty("--ty", (LY - b.top).toFixed(1) + "px")
+        // Shadows fall away from the flame: longer and softer with distance, fading as the light does.
+        if (!el.classList.contains("tl-rule") && !el.classList.contains("tl-emb")) {
+          const nx = Math.max(b.left, Math.min(LX, b.right))
+          const ny = Math.max(b.top, Math.min(LY, b.bottom))
+          const near = Math.hypot(nx - LX, ny - LY)
+          const I = r > 40 ? Math.max(0, 1 - near / (r * 1.25)) : 0
+          if (I > 0.02) {
+            const ddx = b.left + b.width / 2 - LX
+            const ddy = b.top + b.height / 2 - LY
+            const dd = Math.hypot(ddx, ddy) || 1
+            const len = Math.min(24, 3 + near * 0.07)
+            const sx = ((ddx / dd) * len).toFixed(1) + "px "
+            const sy = ((ddy / dd) * len).toFixed(1) + "px "
+            const blur = (2 + near * 0.035).toFixed(1) + "px "
+            const a = (I * I * 0.9).toFixed(2)
+            if (el.classList.contains("tl-i")) el.style.boxShadow = sx + sy + (8 + near * 0.06).toFixed(1) + "px rgba(0,0,0," + a + ")"
+            else el.style.filter = "drop-shadow(" + sx + sy + blur + "rgba(0,0,0," + a + "))"
+          } else if (el.style.filter || el.style.boxShadow) {
+            el.style.filter = ""
+            el.style.boxShadow = ""
+          }
+        }
         el.style.setProperty("--px", (S.px - b.left).toFixed(1) + "px")
         el.style.setProperty("--py", (S.py - b.top).toFixed(1) + "px")
         const cx = b.left + b.width / 2
@@ -816,7 +931,7 @@ export default function TorchlitAgencyTemplate({
         if (hero) {
           const lines = hero.querySelectorAll(".tl-hero-line > *")
           const tl = gsap.timeline({ delay: first ? 0.15 : 0.55 })
-          tl.from(lines, { yPercent: 70, opacity: 0, filter: "blur(10px)", duration: 1.3, ease: "power3.out", stagger: 0.13 }, 0)
+          tl.from(lines, { yPercent: 70, opacity: 0, duration: 1.3, ease: "power3.out", stagger: 0.13 }, 0)
           tl.from(hero.querySelectorAll("[data-hero-fade]"), { opacity: 0, y: 14, duration: 1, ease: "power2.out", stagger: 0.08 }, 0.5)
           // The flame catches: a sweep across the headline, a flare, a few flickers, then it settles.
           const h = hero.querySelector(".tl-hero-h")!.getBoundingClientRect()
@@ -1236,6 +1351,7 @@ export default function TorchlitAgencyTemplate({
           </div>
         </footer>
 
+        <div ref={wallRef} className="tl-wall" aria-hidden="true" />
         <div ref={glowRef} className="tl-glow" aria-hidden="true"><i /></div>
         <div ref={sparksRef} className="tl-sparks" aria-hidden="true" />
         <div ref={mothRef} className="tl-moth" aria-hidden="true">
@@ -1245,9 +1361,7 @@ export default function TorchlitAgencyTemplate({
         </div>
         <div ref={torchRef} className="tl-torch" aria-hidden="true"><PixelTorch /></div>
         {toast && <div className="tl-toast" role="status"><FlameMark /> Every torch here is lit. The room is warmer now.</div>}
-        <div ref={curtainRef} className="tl-curtain" aria-hidden="true">
-          <span className="tl-curtain-in"><PixelTorch upright scale={3} /><span ref={curtainLabel} /></span>
-        </div>
+        <div ref={burnRef} className="tl-burn" aria-hidden="true" />
         <img ref={ghostRef} className="tl-ghost" alt="" aria-hidden="true" />
         <div ref={lightsRef} className="tl-veil" aria-hidden="true" />
         {day && (
@@ -1276,7 +1390,7 @@ const CSS = `
 .tl-t,.tl-rule,.tl-i{--tx:-9999px;--ty:-9999px;--px:-9999px;--py:-9999px;--bx:-9999px;--by:-9999px;--br:0px}
 .tl-t{color:var(--tl-dim)}
 .tl-tl{--tl-dim:var(--tl-dim-lg)}
-.tl-on .tl-t{background-image:radial-gradient(circle var(--r) at var(--tx) var(--ty),#fffaf0 0,rgba(252,243,228,.97) 30%,rgba(246,233,214,.62) 60%,rgba(243,230,211,0) 100%),radial-gradient(circle calc(var(--r) * .8) at var(--px) var(--py),rgba(243,230,211,.5) 0,rgba(243,230,211,0) 100%),radial-gradient(circle var(--br) at var(--bx) var(--by),rgba(255,234,200,.95) 0,rgba(250,224,190,.6) 42%,rgba(243,230,211,0) 100%),linear-gradient(var(--tl-dim),var(--tl-dim));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:.06em .14em .12em;margin:-.06em -.14em -.12em}
+.tl-on .tl-t{background-image:conic-gradient(from calc(var(--ha,171deg) - 16deg) at var(--tx) var(--ty),rgba(0,0,0,0) 0deg,color-mix(in srgb,var(--tl-dim) calc(var(--hs,0) * 100%),transparent) 7deg,color-mix(in srgb,var(--tl-dim) calc(var(--hs,0) * 100%),transparent) 25deg,rgba(0,0,0,0) 32deg),radial-gradient(circle var(--r) at var(--tx) var(--ty),#fffaf2 0,rgba(255,246,230,.96) 14%,rgba(251,234,208,.78) 30%,rgba(246,220,186,.48) 48%,rgba(238,200,160,.22) 68%,rgba(230,185,140,.07) 86%,rgba(230,185,140,0) 100%),radial-gradient(circle calc(var(--r) * .8) at var(--px) var(--py),rgba(243,230,211,.5) 0,rgba(243,230,211,0) 100%),radial-gradient(circle var(--br) at var(--bx) var(--by),rgba(255,234,200,.95) 0,rgba(250,224,190,.6) 42%,rgba(243,230,211,0) 100%),linear-gradient(var(--tl-dim),var(--tl-dim));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:.06em .14em .12em;margin:-.06em -.14em -.12em}
 .tl-on span.tl-t{display:inline-block}
 .tl-frame .tl-stat-n,.tl-frame .tl-stat-l,.tl-frame .tl-sw-n,.tl-frame .tl-sw-u{display:block}
 .tl-on .tl-t em{-webkit-text-fill-color:transparent}
@@ -1294,8 +1408,10 @@ const CSS = `
 /* ---- torch, glow, pixel flames ---- */
 .tl-torch{position:absolute;left:0;top:0;z-index:60;pointer-events:none;margin:-18px 0 0 -24px;transform-origin:24px 18px;transition:opacity .25s;will-change:transform;opacity:0}
 .tl-torch svg{display:block;filter:drop-shadow(0 0 6px rgba(255,90,30,.55))}
+.tl-wall{position:absolute;left:0;top:0;width:640px;height:640px;margin:-320px 0 0 -320px;z-index:0;pointer-events:none;border-radius:50%;background:radial-gradient(circle,rgba(255,150,80,.16) 0,rgba(255,120,60,.08) 28%,rgba(232,80,40,.03) 52%,rgba(232,80,40,0) 70%);opacity:0;transition:opacity .4s;will-change:transform}
+.tl-frame.tl-day .tl-wall{display:none}
 .tl-glow{position:absolute;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:55;pointer-events:none;mix-blend-mode:screen;transition:opacity .4s;opacity:0;will-change:transform}
-.tl-glow i{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,96,40,.34) 0,rgba(232,50,31,.16) 30%,rgba(232,50,31,0) 62%);animation:tl-flick 2.6s infinite}
+.tl-glow i{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,110,50,.26) 0,rgba(232,50,31,.1) 26%,rgba(232,50,31,0) 50%);animation:tl-flick 2.6s infinite}
 .tl-fl{animation:tl-fl .48s steps(1,end) infinite;opacity:0}
 .tl-px{overflow:visible}
 @keyframes tl-fl{0%{opacity:1}25%,100%{opacity:0}}
@@ -1521,9 +1637,8 @@ const CSS = `
 .tl-foot-bot button:hover{color:var(--tl-ui-hi)}
 
 /* ---- transitions ---- */
-.tl-curtain{position:fixed;inset:0;z-index:90;background:#0e0c0c;visibility:hidden;display:grid;place-items:center;pointer-events:none}
-.tl-curtain::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#ff6a1a 30%,#ffd36b 50%,#ff6a1a 70%,transparent);box-shadow:0 0 40px 10px rgba(255,90,30,.35)}
-.tl-curtain-in{display:flex;flex-direction:column;align-items:center;gap:18px;font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-size:clamp(40px,6vw,88px);color:var(--tl-cream);line-height:1}
+.tl-burn{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
+.tl-burn canvas{position:absolute;inset:0;width:100%;height:100%}
 .tl-ghost{position:fixed;z-index:85;visibility:hidden;object-fit:cover;max-width:none;pointer-events:none}
 
 .tl-sparks{position:absolute;inset:0;z-index:59;pointer-events:none;overflow:hidden}

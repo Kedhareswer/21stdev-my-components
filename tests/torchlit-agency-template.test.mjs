@@ -137,4 +137,21 @@ for (const f of mod.FLAMES) {
 const again = new Function(stripTypeScriptTypes(region) + "\nreturn FLAMES")()
 assert.equal(keyOf(again), keyOf(mod.FLAMES), "flames are deterministic")
 
+// Light physics: shadows fall away from the flame, the reach flickers, the flame leans, the handle shades below it.
+assert.ok(src.includes("const ddx = b.left + b.width / 2 - LX"), "shadow direction runs from the flame through the element")
+assert.ok(src.includes("const I = r > 40 ? Math.max(0, 1 - near / (r * 1.25)) : 0"), "shadows fade with the light")
+assert.ok(src.includes("const fl = calmMq.matches ? 1 :"), "flicker stops under reduced motion")
+assert.ok(css.includes("conic-gradient(from calc(var(--ha,171deg) - 16deg) at var(--tx) var(--ty)"), "the handle casts a wedge of shadow")
+assert.ok(!/filter: "blur/.test(src), "no tween fights the per-frame shadow filter")
+// Page change burns the old page away from the middle.
+assert.ok(src.includes("const done = burnAway(frameRef.current!, burnRef.current!, dayRef.current)"), "page changes burn through")
+assert.ok(src.includes(`ctx.fillStyle = "#000"`), "the hole is erased with an opaque fill, not the last gradient")
+assert.ok(src.includes("layer.replaceChildren()"), "the snapshot is removed when the burn ends")
+const burn = src.slice(src.indexOf("// #region burn"), src.indexOf("// #endregion", src.indexOf("// #region burn")))
+const { burnBlobs } = new Function(stripTypeScriptTypes(burn) + "\nreturn { burnBlobs }")()
+const ring = burnBlobs(100, 0, Array.from({ length: 8 }, (_, i) => ({ a: i, k: 1, s: 0.35, p: 0 })), 50, 50)
+assert.equal(ring.length, 9, "centre disc plus one lobe per blob")
+assert.ok(ring.every(([, , r]) => r >= 0), "no negative radii")
+assert.equal(burnBlobs(0, 0, [{ a: 0, k: 1, s: 0.3, p: 0 }], 0, 0)[1][2], 0, "nothing burns before it starts")
+
 console.log("torchlit-agency-template: ok")
