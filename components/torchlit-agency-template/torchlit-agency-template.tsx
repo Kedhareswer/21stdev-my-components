@@ -406,7 +406,7 @@ function burnField(w: number, h: number, ox: number, oy: number, seed: number) {
       const wild = Math.min(1, d / 0.3)
       field[i] = d + ((n1[i] - 0.5) * 0.36 + (n2[i] - 0.5) * 0.12) * wild + (grain[i] - 0.5) * 0.04
     }
-  return { field, grain }
+  return { field, grain, far }
 }
 // #endregion
 
@@ -480,82 +480,115 @@ function lightMorph(frame: HTMLElement, layer: HTMLElement, toDay: boolean, x: n
   return tl
 }
 
+const BURN_VS = "#version 300 es\nin vec2 p;out vec2 vUv;void main(){vUv=p*.5+.5;vUv.y=1.-vUv.y;gl_Position=vec4(p,0,1);}"
+// e is the distance to the burning front in screen pixels (negative = burnt through). A coarse field gives the shape;
+// pixel-scale noise makes the edge crisp and fibrous. Bands: faint warm cast inside the hole, white-hot hairline,
+// orange to deep red, black char with live embers, then a blotchy scorch (light paper) or heat glow (dark page).
+const BURN_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uF;uniform vec2 uRes;uniform float uT,uPx,uTime,uDay;
+in vec2 vUv;out vec4 o;
+float h(vec2 q){return fract(sin(dot(q,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 q){vec2 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+void main(){
+  vec2 px=vUv*uRes;
+  float fine=vn(px/4.)*.55+vn(px/1.6)*.3+vn(px/.8)*.15;
+  float e=(texture(uF,vUv).r-uT)/uPx+(fine-.5)*7.;
+  float fl=.78+.22*sin(uTime*13.+fine*40.);
+  vec3 c=vec3(0);float a=0.;
+  if(e<-2.){float k=clamp(1.+(e+2.)/16.,0.,1.);c=vec3(1.,.42,.12);a=.22*k*k;}
+  else if(e<.6){float k=smoothstep(-2.,.6,e);c=mix(vec3(1.,.5,.12),vec3(1.,.97,.82),k)*fl;a=1.;}
+  else if(e<3.){float k=(e-.6)/2.4;c=mix(vec3(1.,.62,.18)*fl,vec3(.42,.06,.02),k);a=1.;}
+  else if(e<11.){float k=(e-3.)/8.;float em=step(.9,vn(px/2.2+vec2(0.,uTime*1.5)))*(1.-k)*fl;c=mix(vec3(.05,.025,.015),vec3(1.,.48,.12),em);a=mix(.97,.88,k);}
+  else{float S=uDay>.5?60.:34.;float k=clamp(1.-(e-11.)/S,0.,1.);k*=k;float blot=.7+.6*vn(px/14.);
+    vec3 sc=uDay>.5?vec3(.42,.23,.09):vec3(.62,.24,.07);c=sc;a=k*(uDay>.5?.82:.5)*blot;}
+  o=vec4(c*a,a);
+}`
+
+/**
+ * The page you are on catches in the middle and burns away. A copy of the old frame sits over the new page and is
+ * masked where the paper has gone; a full-resolution shader draws the burning edge over it.
+ */
 function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean): { finish: () => void } {
   const vw = innerWidth
   const vh = innerHeight
   const box = snapshotFrame(frame)
-
   const S = vw > 1400 ? 5 : 4
   const gw = Math.ceil(vw / S)
   const gh = Math.ceil(vh / S)
-  const { field, grain } = burnField(gw, gh, gw * (0.47 + Math.random() * 0.06), gh * (0.45 + Math.random() * 0.06), (Math.random() * 1e9) | 0)
+  const { field, far } = burnField(gw, gh, gw * (0.47 + Math.random() * 0.06), gh * (0.45 + Math.random() * 0.06), (Math.random() * 1e9) | 0)
   let fmin = Infinity
   let fmax = -Infinity
   for (const v of field) { if (v < fmin) fmin = v; if (v > fmax) fmax = v }
+  const upx = 1 / (far * S) // field units per screen pixel
 
   const mk = (w: number, h: number) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c }
-  const fire = mk(gw, gh)
-  const fctx = fire.getContext("2d")!
-  const img = fctx.createImageData(gw, gh)
-  const px = new Uint32Array(img.data.buffer)
-  // The mask can be coarse: the char band and the glowing rim drawn over it hide its edge.
+  const dpr = Math.min(1.5, devicePixelRatio || 1)
+  const fire = mk(Math.round(vw * dpr), Math.round(vh * dpr))
+  const gl = fire.getContext("webgl2", { premultipliedAlpha: true, alpha: true, antialias: false })
+  // The mask can be coarse: the char band drawn over it hides its edge.
   const MS = 3
   const mw = Math.ceil(gw / MS)
   const mh = Math.ceil(gh / MS)
   const maskCv = mk(mw, mh)
   const mctx = maskCv.getContext("2d")!
   const mimg = mctx.createImageData(mw, mh)
-  const dpr = Math.min(2, devicePixelRatio || 1)
-  const motes = mk(vw * dpr, vh * dpr)
+  const motes = mk(Math.round(vw * dpr), Math.round(vh * dpr))
   const pctx = motes.getContext("2d")!
   pctx.scale(dpr, dpr)
   layer.append(box, fire, motes)
 
-  // Widths in field units: one grid cell is about 1 / (half-diagonal in cells).
-  const u = 1 / Math.hypot(gw / 2, gh / 2)
-  const we = 2.4 * u
-  const wc = 3.2 * u
-  const ws = (day ? 30 : 20) * u
-  // Light paper browns; on the dark page the heat ahead of the front glows instead.
-  const scorch = day ? [104, 56, 22] : [210, 92, 30]
+  let uT: WebGLUniformLocation | null = null
+  let uTime: WebGLUniformLocation | null = null
+  if (gl) {
+    const sh = (type: number, src: string) => { const x = gl.createShader(type)!; gl.shaderSource(x, src); gl.compileShader(x); return x }
+    const prog = gl.createProgram()!
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, BURN_VS))
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, BURN_FS))
+    gl.linkProgram(prog)
+    gl.useProgram(prog)
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+    const loc = gl.getAttribLocation(prog, "p")
+    gl.enableVertexAttribArray(loc)
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture())
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, gw, gh, 0, gl.RED, gl.FLOAT, field)
+    gl.uniform2f(gl.getUniformLocation(prog, "uRes"), vw, vh)
+    gl.uniform1f(gl.getUniformLocation(prog, "uPx"), upx)
+    gl.uniform1f(gl.getUniformLocation(prog, "uDay"), day ? 1 : 0)
+    uT = gl.getUniformLocation(prog, "uT")
+    uTime = gl.getUniformLocation(prog, "uTime")
+    gl.viewport(0, 0, fire.width, fire.height)
+  }
+
   type Mote = { x: number; y: number; vx: number; vy: number; life: number; ash: boolean; s: number }
   const flecks: Mote[] = []
   // Start with the scorch already showing, so the click answers on the very next frame.
-  const st = { T: fmin - ws * 0.45 }
+  const st = { T: fmin - 30 * upx }
   let maskBusy = false
   let frameNo = 0
-  const rgba = (r: number, g: number, b: number, a: number) => (((a & 255) << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255)) >>> 0
-  const scorchRGB = rgba(scorch[0], scorch[1], scorch[2], 0) & 0xffffff
-  const charRGB = rgba(14, 8, 5, 0) & 0xffffff
-  const emberPx = rgba(255, 110, 25, 210)
+  const t0 = performance.now()
 
   const draw = () => {
     const T = st.T
     const now = performance.now()
-    for (let i = 0; i < field.length; i++) {
-      const e = field[i] - T
-      if (e < -we || e >= ws) { px[i] = 0; continue }
-      if (e < 0) {
-        // Glowing rim: white-hot at the front, cooling to deep red behind it, flickering per fibre.
-        const k = 1 + e / we
-        const fl = 0.72 + 0.28 * Math.sin(now * 0.017 + grain[i] * 70)
-        px[i] = rgba(255, 70 + 170 * k * fl, 20 + 150 * k * k * k * fl, 255 * (0.25 + 0.75 * k) * fl)
-      } else if (e < wc) {
-        // Char: near-black, with a few embers still alive in it.
-        px[i] = grain[i] > 0.78 && Math.sin(now * 0.011 + grain[i] * 97) > 0.2 ? emberPx : (charRGB | (((245 * (1 - 0.3 * (e / wc))) & 255) << 24)) >>> 0
-      } else {
-        // Scorch: the paper browns before it burns.
-        const k = 1 - (e - wc) / (ws - wc)
-        px[i] = (scorchRGB | ((((day ? 215 : 150) * k * k) & 255) << 24)) >>> 0
-      }
+    if (gl) {
+      gl.uniform1f(uT, T)
+      gl.uniform1f(uTime, (now - t0) / 1000)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
-    fctx.putImageData(img, 0, 0)
+    // Paper is gone a few pixels inside the front; the white-hot edge and char drawn on top cover the seam.
     const m = mimg.data
+    const cut = 1.5 * upx
     for (let y = 0; y < mh; y++)
-      for (let x = 0; x < mw; x++) m[(y * mw + x) * 4 + 3] = field[Math.min(gh - 1, y * MS + 1) * gw + Math.min(gw - 1, x * MS + 1)] - T < -we * 0.4 ? 0 : 255
+      for (let x = 0; x < mw; x++) m[(y * mw + x) * 4 + 3] = field[Math.min(gh - 1, y * MS + 1) * gw + Math.min(gw - 1, x * MS + 1)] - T < -cut ? 0 : 255
     mctx.putImageData(mimg, 0, 0)
-    // Swap the mask only once the new one is decoded; an undecoded mask image hides the whole snapshot for a frame.
-    // Re-mask at most every other frame; each swap repaints the whole copy.
+    // Swap the mask only once the new one is decoded (an undecoded mask hides the whole copy for a frame), every other frame.
     if (!maskBusy && frameNo++ % 2 === 0) {
       maskBusy = true
       const src = maskCv.toDataURL()
@@ -570,15 +603,15 @@ function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean): { finis
     // Embers and ash lift off the front.
     for (let n = 0; n < 70 && flecks.length < 160; n++) {
       const i = (Math.random() * field.length) | 0
-      const e = field[i] - T
-      if (e < -we || e > we * 0.6) continue
+      const e = (field[i] - T) / upx
+      if (e < -4 || e > 3) continue
       const ash = Math.random() < 0.4
-      flecks.push({ x: (i % gw) * S, y: ((i / gw) | 0) * S, vx: (Math.random() - 0.5) * 0.5, vy: -(ash ? 0.25 : 0.6) - Math.random() * (ash ? 0.5 : 1.3), life: 1, ash, s: ash ? 2 + Math.random() * 2 : 1.5 + Math.random() * 1.5 })
+      flecks.push({ x: (i % gw) * S, y: ((i / gw) | 0) * S, vx: (Math.random() - 0.5) * 0.5, vy: -(ash ? 0.25 : 0.6) - Math.random() * (ash ? 0.5 : 1.3), life: 1, ash, s: ash ? 2 + Math.random() * 2 : 1.2 + Math.random() * 1.3 })
     }
     pctx.clearRect(0, 0, vw, vh)
     for (let k = flecks.length - 1; k >= 0; k--) {
       const p = flecks[k]
-      p.life -= p.ash ? 0.012 : 0.02
+      p.life -= p.ash ? 0.012 : 0.022
       if (p.life <= 0) { flecks.splice(k, 1); continue }
       p.vx += Math.sin(now * 0.003 + p.y * 0.02) * 0.02
       p.x += p.vx
@@ -589,12 +622,15 @@ function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean): { finis
     }
   }
   draw()
-  const tl = gsap.timeline({ onUpdate: draw, onComplete: () => layer.replaceChildren() })
+  // Paused until the next page has painted underneath (its first frame can stall the GPU); the scorch spot holds meanwhile.
+  const tl = gsap.timeline({ paused: true, onUpdate: draw, onComplete: () => layer.replaceChildren() })
+  requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => tl.play())))
+  tl
     // It smoulders: a brown spot with a black heart and a first glow, visible the moment you click.
-    .to(st, { T: fmin + we * 0.6, duration: 0.3, ease: "power2.out" })
+    .to(st, { T: fmin + 2 * upx, duration: 0.32, ease: "power2.out" })
     // Then it catches and runs; the last ragged islands burn out more slowly.
-    .to(st, { T: fmax + we * 2, duration: 1.05, ease: "sine.inOut" })
-    .to(motes, { opacity: 0, duration: 0.25, ease: "power2.out" }, "-=0.2")
+    .to(st, { T: fmax + 14 * upx, duration: 1.1, ease: "sine.inOut" })
+    .to([motes, fire], { opacity: 0, duration: 0.25, ease: "power2.out" }, "-=0.2")
   return { finish: () => tl.progress(1) }
 }
 
@@ -753,9 +789,9 @@ export default function TorchlitAgencyTemplate({
     busy.current = false
     burning.current?.finish()
     burning.current = burnAway(frameRef.current!, burnRef.current!, dayRef.current)
-    // Commit the next page a beat later, under the copy, so the first scorch shows on the very next frame.
+    // The next page commits at once under the copy; the burn itself starts once that has painted.
     afterCommit.current = toTop
-    setTimeout(() => setView(next), 120)
+    setView(next)
   }
 
   const openCase = (i: number, e: React.MouseEvent<HTMLElement>) => go({ page: "case", i }, e.currentTarget.querySelector<HTMLImageElement>(".tl-hi img"))
