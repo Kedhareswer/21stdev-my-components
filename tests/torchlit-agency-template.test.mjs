@@ -61,8 +61,9 @@ const dimLg = css.match(/--tl-dim-lg:(#[0-9a-f]{6})/i)[1]
 assert.ok(ratio(dim, bg) >= 4.5, "unlit body text passes AA: " + ratio(dim, bg).toFixed(2))
 assert.ok(ratio(dimLg, bg) >= 3, "unlit display text passes AA large: " + ratio(dimLg, bg).toFixed(2))
 assert.match(css, /\.tl-t\{[^}]*color:var\(--tl-dim\)/, "text without JS keeps its dim colour (no transparent fill)")
-assert.match(css, /\.tl-on \.tl-t\{[^}]*background-clip:text/, "the light only takes over once JS has added .tl-on")
-assert.match(css, /@media \(forced-colors:active\)/, "forced colours drop the gradient fill")
+assert.ok(css.includes(".tl-lit{display:none}") && css.includes(".tl-on .tl-near > .tl-lit,.tl-on .tl-lb > .tl-lit{display:block}"), "the lit copy exists only with JS, and only where light reaches")
+assert.ok(src.includes("<span className=\"tl-lit\" aria-hidden=\"true\">{children}</span>"), "the lit copy is hidden from assistive tech")
+assert.ok(css.includes("@media (forced-colors:active){.tl-on .tl-lit{display:none}}"), "forced colours drop the lit copy")
 
 // Touch: no torch, the light follows the finger and otherwise rests wide on the screen.
 assert.ok(src.includes('window.addEventListener("touchmove", onTouch, { passive: true })'), "touch listeners are passive")
@@ -75,7 +76,7 @@ assert.ok(tick.lastIndexOf("getBoundingClientRect") < tick.indexOf("style.setPro
 // Light mode: lights on, no torch, and a way into the dark from the page itself.
 assert.ok(src.includes(`theme = "auto"`), "theme follows the host by default")
 assert.ok(src.includes(`closest(".dark")`), "auto reads the host .dark class")
-assert.ok(css.includes(".tl-frame.tl-day .tl-t,.tl-frame.tl-day .tl-t em{background:none;color:var(--tl-dim);-webkit-text-fill-color:currentColor}"), "light mode drops the torch gradient, italics included")
+assert.ok(css.includes(".tl-frame.tl-day .tl-lit{display:none}"), "light mode has no torch light on text")
 assert.ok(css.includes(".tl-frame.tl-day .tl-torch,.tl-frame.tl-day .tl-glow"), "no torch with the lights on")
 assert.ok(src.includes("Turn the lights off"), "light mode asks to go dark")
 assert.ok(src.includes("if (isDay) return"), "the loop idles with the lights on")
@@ -85,7 +86,8 @@ assert.ok(src.includes('className="tl-emb-wrap" data-ignite="160" data-beacon="3
 assert.ok(css.includes(".tl-emb-wrap:not(.tl-lit-up) .tl-emb-torch .tl-fl{visibility:hidden}"), "laurel torch starts unlit")
 assert.ok(src.includes('className="tl-ignite" href={"mailto:" + email} data-ignite="220"'), "CTA ignites")
 assert.ok(css.includes("mask-image:radial-gradient(circle var(--ig,0px) at var(--ix,50%) var(--iy,50%)"), "fire spreads from the touch point")
-assert.ok(css.includes("radial-gradient(circle var(--br) at var(--bx) var(--by)"), "lit things light their neighbours")
+assert.ok(css.includes(".tl-on .tl-lb > .tl-lit{") && css.includes("radial-gradient(ellipse var(--bw,0px) var(--bh,0px) at var(--bx) var(--by)"), "lit things light their neighbours, only where they reach")
+assert.ok(src.includes("w: tall ? rr * 0.72 : rr, h: tall ? rr * 1.2 : rr * 0.55"), "torch light is a tall scallop, the burning CTA a wide glow: never a plain circle")
 assert.ok(css.includes(".tl-fm{animation:tl-fm"), "list flames flicker")
 
 // Play: wall sconces to light (counted per page, hidden ones excluded), a warm reward, embers, hold-to-flare, a moth.
@@ -139,9 +141,14 @@ assert.equal(keyOf(again), keyOf(mod.FLAMES), "flames are deterministic")
 
 // Light physics: shadows fall away from the flame, the reach flickers, the flame leans, the handle shades below it.
 assert.ok(src.includes("const ddx = b.left + b.width / 2 - LX"), "shadow direction runs from the flame through the element")
-assert.ok(src.includes("const I = r > 40 ? Math.max(0, 1 - near / (r * 1.25)) : 0"), "shadows fade with the light")
+assert.ok(src.includes("const I = r > 40 ? Math.max(0, 1 - dl / (r * 1.25)) : 0"), "shadows fade with the light")
 assert.ok(src.includes("const fl = calmMq.matches ? 1 :"), "flicker stops under reduced motion")
-assert.ok(css.includes("conic-gradient(from calc(var(--ha,171deg) - 16deg) at var(--tx) var(--ty)"), "the handle casts a wedge of shadow")
+assert.ok(src.includes("Sticks cast shadows too") && src.includes("drop-shadow(0 0 6px rgba(255,90,30,.55)) drop-shadow("), "wall torches, the laurel and your torch cast shadows")
+assert.ok(src.includes("const swing = calmMq.matches ? 0 :") && src.includes("S.av *= Math.pow(0.8"), "the torch swings on a damped spring")
+assert.ok(src.includes("flames.style.transform = \"rotate(\" + (-S.tilt)"), "the flame stays upright and trails the motion")
+assert.ok(src.includes("} else if (!parked.has(el)) {"), "only blocks the light can reach are rewritten each frame")
+assert.ok(!src.includes('frame.style.setProperty("--'), "no per-frame inherited variables on the frame")
+assert.ok(src.includes("function lightMorph(") && src.includes("requestAnimationFrame(() => requestAnimationFrame(() => tl.play()))"), "the room folds into the torch, starting after the new theme has painted")
 assert.ok(!/filter: "blur/.test(src), "no tween fights the per-frame shadow filter")
 // Page change burns the old page away from the middle.
 assert.ok(src.includes("burning.current = burnAway(frameRef.current!, burnRef.current!, dayRef.current)"), "page changes burn through")
