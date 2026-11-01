@@ -359,94 +359,183 @@ function T({ as = "p", className, children, big }: { as?: "p" | "span" | "h1" | 
 }
 
 // #region burn
-type Blob = { a: number; k: number; s: number; p: number }
-
-/** Union of a centre disc and wobbling lobes around it: the outline of paper burning outward. */
-function burnBlobs(R: number, t: number, blobs: Blob[], cx: number, cy: number) {
-  const out: [number, number, number][] = [[cx, cy, R * 0.82]]
-  for (const b of blobs) {
-    const d = R * 0.62 * b.k
-    const rr = Math.max(0, R * b.s + Math.sin(t * 0.004 + b.p) * R * 0.04)
-    out.push([cx + Math.cos(b.a) * d, cy + Math.sin(b.a) * d, rr])
+/** Smooth value noise on a grid: the uneven paper the fire eats through. */
+function valueNoise(w: number, h: number, cell: number, seed: number) {
+  let st = seed >>> 0
+  const rnd = () => { st = (Math.imul(st, 1664525) + 1013904223) >>> 0; return st / 4294967296 }
+  const gw = Math.ceil(w / cell) + 2
+  const gh = Math.ceil(h / cell) + 2
+  const g = new Float32Array(gw * gh)
+  for (let i = 0; i < g.length; i++) g[i] = rnd()
+  const out = new Float32Array(w * h)
+  for (let y = 0; y < h; y++) {
+    const fy = y / cell
+    const iy = Math.floor(fy)
+    const ty = fy - iy
+    const sy = ty * ty * (3 - 2 * ty)
+    for (let x = 0; x < w; x++) {
+      const fx = x / cell
+      const ix = Math.floor(fx)
+      const tx = fx - ix
+      const sx = tx * tx * (3 - 2 * tx)
+      const i = iy * gw + ix
+      const top = g[i] + (g[i + 1] - g[i]) * sx
+      const bot = g[i + gw] + (g[i + gw + 1] - g[i + gw]) * sx
+      out[y * w + x] = top + (bot - top) * sy
+    }
   }
   return out
 }
+
+/** When each cell catches: distance from the spark, bent by three octaves of noise so the front is ragged at every scale. */
+function burnField(w: number, h: number, ox: number, oy: number, seed: number) {
+  const n1 = valueNoise(w, h, 22, seed)
+  const n2 = valueNoise(w, h, 8, seed + 7)
+  const grain = valueNoise(w, h, 2.5, seed + 13)
+  const far = Math.hypot(Math.max(ox, w - ox), Math.max(oy, h - oy))
+  const field = new Float32Array(w * h)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      const d = Math.hypot(x - ox, y - oy) / far
+      // Calm near the spark so it starts from one point; wilder further out so fingers of fire run ahead.
+      const wild = Math.min(1, d / 0.3)
+      field[i] = d + ((n1[i] - 0.5) * 0.36 + (n2[i] - 0.5) * 0.12) * wild + (grain[i] - 0.5) * 0.04
+    }
+  return { field, grain }
+}
 // #endregion
 
-function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean) {
+/**
+ * The page you are on catches in the middle and burns away. A snapshot of the old frame sits over the new page;
+ * a low-res burn field decides, per cell, whether paper is untouched, scorched, charred, glowing or gone.
+ */
+function burnAway(frame: HTMLElement, layer: HTMLElement, day: boolean): { finish: () => void } {
   const fr = frame.getBoundingClientRect()
   const vw = innerWidth
   const vh = innerHeight
-  // Snapshot the page as it is; the real one switches underneath.
   const snap = frame.cloneNode(true) as HTMLElement
   snap.querySelectorAll(".tl-bar,.tl-torch,.tl-glow,.tl-wall,.tl-sparks,.tl-moth,.tl-ghost,.tl-veil,.tl-ask,.tl-toast,.tl-burn").forEach((n) => n.remove())
   snap.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"))
+  // The copy repaints every frame as its mask changes: drop the per-element torch shadows, they cost more than they show.
+  snap.querySelectorAll<HTMLElement>("[style]").forEach((n) => { n.style.filter = ""; n.style.boxShadow = "" })
   snap.style.cssText += ";position:absolute;margin:0;left:" + fr.left + "px;top:" + fr.top + "px;width:" + fr.width + "px;height:" + fr.height + "px"
-  const cv = document.createElement("canvas")
+  // Mask a viewport-sized box, not the page-tall copy: far less to repaint per frame.
+  const box = document.createElement("div")
+  box.style.cssText = "position:absolute;inset:0;overflow:hidden;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat"
+  box.append(snap)
+
+  const S = vw > 1400 ? 5 : 4
+  const gw = Math.ceil(vw / S)
+  const gh = Math.ceil(vh / S)
+  const { field, grain } = burnField(gw, gh, gw * (0.47 + Math.random() * 0.06), gh * (0.45 + Math.random() * 0.06), (Math.random() * 1e9) | 0)
+  let fmin = Infinity
+  let fmax = -Infinity
+  for (const v of field) { if (v < fmin) fmin = v; if (v > fmax) fmax = v }
+
+  const mk = (w: number, h: number) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c }
+  const fire = mk(gw, gh)
+  const fctx = fire.getContext("2d")!
+  const img = fctx.createImageData(gw, gh)
+  const px = new Uint32Array(img.data.buffer)
+  // The mask can be coarse: the char band and the glowing rim drawn over it hide its edge.
+  const MS = 3
+  const mw = Math.ceil(gw / MS)
+  const mh = Math.ceil(gh / MS)
+  const maskCv = mk(mw, mh)
+  const mctx = maskCv.getContext("2d")!
+  const mimg = mctx.createImageData(mw, mh)
   const dpr = Math.min(2, devicePixelRatio || 1)
-  cv.width = vw * dpr
-  cv.height = vh * dpr
-  layer.append(snap, cv)
-  const ctx = cv.getContext("2d")!
-  ctx.scale(dpr, dpr)
-  const cx = vw / 2
-  const cy = vh / 2
-  const blobs: Blob[] = Array.from({ length: 16 }, (_, i) => ({ a: (i / 16) * Math.PI * 2 + Math.random() * 0.3, k: 0.8 + Math.random() * 0.45, s: 0.3 + Math.random() * 0.16, p: Math.random() * 6 }))
-  const embers: { x: number; y: number; vx: number; vy: number; life: number }[] = []
-  const char = day ? "rgba(60,32,16," : "rgba(10,5,3,"
-  const st = { R: 0 }
-  const far = Math.hypot(vw, vh) * 0.62
+  const motes = mk(vw * dpr, vh * dpr)
+  const pctx = motes.getContext("2d")!
+  pctx.scale(dpr, dpr)
+  layer.append(box, fire, motes)
+
+  // Widths in field units: one grid cell is about 1 / (half-diagonal in cells).
+  const u = 1 / Math.hypot(gw / 2, gh / 2)
+  const we = 2.4 * u
+  const wc = 3.2 * u
+  const ws = (day ? 30 : 20) * u
+  // Light paper browns; on the dark page the heat ahead of the front glows instead.
+  const scorch = day ? [104, 56, 22] : [210, 92, 30]
+  type Mote = { x: number; y: number; vx: number; vy: number; life: number; ash: boolean; s: number }
+  const flecks: Mote[] = []
+  // Start with the scorch already showing, so the click answers on the very next frame.
+  const st = { T: fmin - ws * 0.45 }
+  let maskBusy = false
+  let frameNo = 0
+  const rgba = (r: number, g: number, b: number, a: number) => (((a & 255) << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255)) >>> 0
+  const scorchRGB = rgba(scorch[0], scorch[1], scorch[2], 0) & 0xffffff
+  const charRGB = rgba(14, 8, 5, 0) & 0xffffff
+  const emberPx = rgba(255, 110, 25, 210)
+
   const draw = () => {
-    const t = performance.now()
-    const circles = burnBlobs(st.R, t, blobs, cx, cy)
-    const mask = circles.map(([x, y, r]) => "radial-gradient(circle " + r.toFixed(1) + "px at " + (x - fr.left).toFixed(1) + "px " + (y - fr.top).toFixed(1) + "px,rgba(0,0,0,0) 97%,#000 100%)").join(",")
-    snap.style.setProperty("-webkit-mask-image", mask)
-    snap.style.setProperty("mask-image", mask)
-    snap.style.setProperty("-webkit-mask-composite", "source-in")
-    snap.style.setProperty("mask-composite", "intersect")
-    ctx.globalCompositeOperation = "source-over"
-    ctx.clearRect(0, 0, vw, vh)
-    if (st.R <= 0) return
-    // Char creeping ahead of the flame, then the glowing edge, then clear the hole.
-    for (const [x, y, r] of circles) {
-      const g = ctx.createRadialGradient(x, y, r, x, y, r + 46)
-      g.addColorStop(0, char + "0.92)")
-      g.addColorStop(0.3, char + "0.55)")
-      g.addColorStop(1, char + "0)")
-      ctx.fillStyle = g
-      ctx.beginPath(); ctx.arc(x, y, r + 46, 0, Math.PI * 2); ctx.fill()
+    const T = st.T
+    const now = performance.now()
+    for (let i = 0; i < field.length; i++) {
+      const e = field[i] - T
+      if (e < -we || e >= ws) { px[i] = 0; continue }
+      if (e < 0) {
+        // Glowing rim: white-hot at the front, cooling to deep red behind it, flickering per fibre.
+        const k = 1 + e / we
+        const fl = 0.72 + 0.28 * Math.sin(now * 0.017 + grain[i] * 70)
+        px[i] = rgba(255, 70 + 170 * k * fl, 20 + 150 * k * k * k * fl, 255 * (0.25 + 0.75 * k) * fl)
+      } else if (e < wc) {
+        // Char: near-black, with a few embers still alive in it.
+        px[i] = grain[i] > 0.78 && Math.sin(now * 0.011 + grain[i] * 97) > 0.2 ? emberPx : (charRGB | (((245 * (1 - 0.3 * (e / wc))) & 255) << 24)) >>> 0
+      } else {
+        // Scorch: the paper browns before it burns.
+        const k = 1 - (e - wc) / (ws - wc)
+        px[i] = (scorchRGB | ((((day ? 215 : 150) * k * k) & 255) << 24)) >>> 0
+      }
     }
-    for (const [x, y, r] of circles) {
-      const g = ctx.createRadialGradient(x, y, Math.max(0, r - 3), x, y, r + 11)
-      g.addColorStop(0, "rgba(255,244,200,1)")
-      g.addColorStop(0.25, "rgba(255,170,60,1)")
-      g.addColorStop(0.6, "rgba(220,60,20,.75)")
-      g.addColorStop(1, "rgba(120,20,5,0)")
-      ctx.fillStyle = g
-      ctx.beginPath(); ctx.arc(x, y, r + 11, 0, Math.PI * 2); ctx.fill()
+    fctx.putImageData(img, 0, 0)
+    const m = mimg.data
+    for (let y = 0; y < mh; y++)
+      for (let x = 0; x < mw; x++) m[(y * mw + x) * 4 + 3] = field[Math.min(gh - 1, y * MS + 1) * gw + Math.min(gw - 1, x * MS + 1)] - T < -we * 0.4 ? 0 : 255
+    mctx.putImageData(mimg, 0, 0)
+    // Swap the mask only once the new one is decoded; an undecoded mask image hides the whole snapshot for a frame.
+    // Re-mask at most every other frame; each swap repaints the whole copy.
+    if (!maskBusy && frameNo++ % 2 === 0) {
+      maskBusy = true
+      const src = maskCv.toDataURL()
+      const probe = new Image()
+      probe.src = src
+      probe.decode().then(() => {
+        box.style.setProperty("-webkit-mask-image", "url(" + src + ")")
+        box.style.setProperty("mask-image", "url(" + src + ")")
+      }, () => {}).finally(() => { maskBusy = false })
     }
-    ctx.globalCompositeOperation = "destination-out"
-    ctx.fillStyle = "#000"
-    for (const [x, y, r] of circles) { ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 1), 0, Math.PI * 2); ctx.fill() }
-    ctx.globalCompositeOperation = "lighter"
-    // Sparks peel off the edge and rise.
-    for (let i = 0; i < 3; i++) {
-      const [x, y, r] = circles[1 + Math.floor(Math.random() * (circles.length - 1))]
-      const a = Math.random() * Math.PI * 2
-      embers.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: (Math.random() - 0.5) * 0.8, vy: -0.6 - Math.random() * 1.4, life: 1 })
+
+    // Embers and ash lift off the front.
+    for (let n = 0; n < 70 && flecks.length < 160; n++) {
+      const i = (Math.random() * field.length) | 0
+      const e = field[i] - T
+      if (e < -we || e > we * 0.6) continue
+      const ash = Math.random() < 0.4
+      flecks.push({ x: (i % gw) * S, y: ((i / gw) | 0) * S, vx: (Math.random() - 0.5) * 0.5, vy: -(ash ? 0.25 : 0.6) - Math.random() * (ash ? 0.5 : 1.3), life: 1, ash, s: ash ? 2 + Math.random() * 2 : 1.5 + Math.random() * 1.5 })
     }
-    for (const e of embers) {
-      if (e.life <= 0) continue
-      e.x += e.vx; e.y += e.vy; e.vy -= 0.02; e.life -= 0.022
-      ctx.fillStyle = "rgba(255," + (150 + Math.floor(e.life * 90)) + ",60," + e.life.toFixed(2) + ")"
-      ctx.fillRect(e.x, e.y, 3, 3)
+    pctx.clearRect(0, 0, vw, vh)
+    for (let k = flecks.length - 1; k >= 0; k--) {
+      const p = flecks[k]
+      p.life -= p.ash ? 0.012 : 0.02
+      if (p.life <= 0) { flecks.splice(k, 1); continue }
+      p.vx += Math.sin(now * 0.003 + p.y * 0.02) * 0.02
+      p.x += p.vx
+      p.y += p.vy
+      if (p.ash) pctx.fillStyle = (day ? "rgba(52,44,38," : "rgba(90,80,72,") + (p.life * 0.8).toFixed(2) + ")"
+      else pctx.fillStyle = "rgba(255," + (130 + ((p.life * 110) | 0)) + ",50," + p.life.toFixed(2) + ")"
+      pctx.fillRect(p.x, p.y, p.s, p.s)
     }
   }
-  return new Promise<void>((resolve) => {
-    gsap.timeline({ onUpdate: draw, onComplete: () => { layer.replaceChildren(); resolve() } })
-      .to(st, { R: 18, duration: 0.45, ease: "power1.in" })
-      .to(st, { R: far, duration: 1.5, ease: "power2.in" })
-  })
+  draw()
+  const tl = gsap.timeline({ onUpdate: draw, onComplete: () => layer.replaceChildren() })
+    // It smoulders: a brown spot with a black heart and a first glow, visible the moment you click.
+    .to(st, { T: fmin + we * 0.6, duration: 0.3, ease: "power2.out" })
+    // Then it catches and runs; the last ragged islands burn out more slowly.
+    .to(st, { T: fmax + we * 2, duration: 1.05, ease: "sine.inOut" })
+    .to(motes, { opacity: 0, duration: 0.25, ease: "power2.out" }, "-=0.2")
+  return { finish: () => tl.progress(1) }
 }
 
 export default function TorchlitAgencyTemplate({
@@ -473,10 +562,11 @@ export default function TorchlitAgencyTemplate({
   const ghostRef = React.useRef<HTMLImageElement>(null)
   const afterCommit = React.useRef<null | (() => void)>(null)
   const busy = React.useRef(false)
+  const burning = React.useRef<{ finish: () => void } | null>(null)
   const firstView = React.useRef(true)
   // Shared with the hero timeline: where the light rests before the pointer moves, and the load flare.
   // lx/ly mirror the light's screen position for the lights-off transition; hide keeps the torch out of the blackout.
-  const light = React.useRef({ parkX: -1, parkY: -1, boost: 1, lx: -1, ly: -1, hide: false })
+  const light = React.useRef({ parkX: -1, parkY: -1, boost: 1, lx: -1, ly: -1, hide: false, snap: false })
 
   const [view, setView] = React.useState<View>({ page: initialPage })
   const [day, setDay] = React.useState(theme === "light")
@@ -491,7 +581,7 @@ export default function TorchlitAgencyTemplate({
   const recount = () => {
     const fr = frameRef.current
     if (!fr) return
-    const all = [...fr.querySelectorAll<HTMLElement>("[data-sconce]")].filter((el) => el.getClientRects().length > 0)
+    const all = [...fr.querySelectorAll<HTMLElement>("[data-sconce]")].filter((el) => el.getClientRects().length > 0 && !el.closest(".tl-burn"))
     setTorches({ lit: all.filter((el) => el.classList.contains("tl-lit-up")).length, total: all.length })
   }
   const recountRef = React.useRef(recount)
@@ -510,8 +600,9 @@ export default function TorchlitAgencyTemplate({
     return () => mo.disconnect()
   }, [theme])
 
-  // Lights off: the bulbs stutter and die, a beat of pitch black, then your torch strikes and its light
-  // pushes the dark back out from the flame. Lights on: the tubes flicker up and the room floods cream.
+  // Lights off: the bulb browns out and dies, a beat of pitch black, then your torch strikes and its light
+  // spills outward. Lights on: the flame gutters, the tubes blink unevenly, the room floods and settles.
+  // The theme only ever changes under a fully opaque veil, so nothing re-colours on screen.
   const switching = React.useRef(false)
   const setLights = (on: boolean) => {
     if (on === dayRef.current || switching.current) return
@@ -519,35 +610,43 @@ export default function TorchlitAgencyTemplate({
     if (calm() || !veil) { setDay(on); return }
     switching.current = true
     const L = light.current
-    const flicker = on ? [0, 0.09, 0.15, 0.3, 0.36] : [0, 0.07, 0.13, 0.27, 0.33, 0.5]
     const tl = gsap.timeline({ onComplete: () => { switching.current = false } })
-    // Alternate states, ending on the target.
-    flicker.forEach((t, i) => tl.call(() => setDay((flicker.length - 1 - i) % 2 === 0 ? on : !on), undefined, t))
     if (!on) {
-      const end = flicker[flicker.length - 1]
-      const far = Math.hypot(innerWidth, innerHeight) * 1.25
-      tl.call(() => { L.hide = true; L.boost = 0 }, undefined, 0)
-        .set(veil, { background: "#050404", "--vr": "0px", autoAlpha: 1 }, end)
+      const far = Math.hypot(innerWidth, innerHeight) * 1.6
+      tl.set(veil, { background: "#050404", "--vr": "0px", autoAlpha: 0 })
+        // brown-out: dips that don't quite recover, then gone
+        .to(veil, { autoAlpha: 0.42, duration: 0.07, ease: "power1.in" })
+        .to(veil, { autoAlpha: 0.1, duration: 0.05, ease: "power1.out" })
+        .to(veil, { autoAlpha: 0.6, duration: 0.06, ease: "power1.in" }, "+=0.09")
+        .to(veil, { autoAlpha: 0.28, duration: 0.07, ease: "power1.out" })
+        .to(veil, { autoAlpha: 1, duration: 0.2, ease: "power3.in" }, "+=0.05")
+        .call(() => { setDay(false); L.hide = true; L.boost = 0 })
+        // pitch black for a breath, then the strike
         .call(() => {
-          const x = L.lx >= 0 ? L.lx : innerWidth / 2
-          const y = L.ly >= 0 ? L.ly : innerHeight * 0.45
-          veil.style.setProperty("--vx", x + "px")
-          veil.style.setProperty("--vy", y + "px")
+          veil.style.setProperty("--vx", (L.lx >= 0 ? L.lx : innerWidth / 2) + "px")
+          veil.style.setProperty("--vy", (L.ly >= 0 ? L.ly : innerHeight * 0.45) + "px")
           L.hide = false
-          burstRef.current(26)
-        }, undefined, end + 0.42)
-        .fromTo(L, { boost: 0 }, { boost: 2.1, duration: 0.35, ease: "power2.out" }, end + 0.42)
-        .to(L, { boost: 1.5, duration: 0.06, repeat: 3, yoyo: true, ease: "none" }, end + 0.78)
-        .to(L, { boost: 1, duration: 0.9, ease: "power2.inOut" }, end + 1.05)
-        .to(veil, { "--vr": far + "px", duration: 1.7, ease: "power2.inOut" }, end + 0.55)
+          L.snap = true
+          burstRef.current(18)
+        }, undefined, "+=0.22")
+        .to(L, { boost: 1.7, duration: 0.16, ease: "power2.out" }, "<")
+        .to(L, { boost: 1.15, duration: 0.09, ease: "sine.inOut" })
+        .to(L, { boost: 1.45, duration: 0.07, ease: "sine.inOut" })
+        .to(L, { boost: 1, duration: 0.7, ease: "sine.inOut" })
+        // the flame's light reaches out into the room
+        .to(veil, { "--vr": far + "px", duration: 1.3, ease: "power3.out" }, "<-0.18")
         .set(veil, { autoAlpha: 0 })
     } else {
-      tl.set(veil, { background: "#fff6e8", "--vr": "0px", autoAlpha: 0 }, 0)
-        // Tubes buzzing on: hard white blinks, then the room floods and settles.
-        .set(veil, { autoAlpha: 0.95 }, 0.05).set(veil, { autoAlpha: 0 }, 0.1)
-        .set(veil, { autoAlpha: 0.95 }, 0.2).set(veil, { autoAlpha: 0 }, 0.24)
-        .to(veil, { autoAlpha: 0.9, duration: 0.1, ease: "power2.out" }, flicker[flicker.length - 1])
-        .to(veil, { autoAlpha: 0, duration: 0.9, ease: "power2.out" })
+      tl.to(L, { boost: 0, duration: 0.22, ease: "power2.out" })
+        .call(() => { L.hide = true })
+        .set(veil, { background: "#fff7ea", "--vr": "0px", autoAlpha: 0 })
+        // tubes struggling on: short, uneven blinks
+        .set(veil, { autoAlpha: 0.75 }, "+=0.08").set(veil, { autoAlpha: 0 }, "+=0.04")
+        .set(veil, { autoAlpha: 0.9 }, "+=0.13").set(veil, { autoAlpha: 0.12 }, "+=0.03")
+        .set(veil, { autoAlpha: 0.95 }, "+=0.07").set(veil, { autoAlpha: 0.45 }, "+=0.05")
+        .to(veil, { autoAlpha: 1, duration: 0.06 })
+        .call(() => { setDay(true); L.boost = 1; L.hide = false })
+        .to(veil, { autoAlpha: 0, duration: 0.6, ease: "power2.out" }, "+=0.04")
     }
   }
   const [menu, setMenu] = React.useState(false)
@@ -576,7 +675,7 @@ export default function TorchlitAgencyTemplate({
       ghost.src = fromImg.currentSrc || fromImg.src
       gsap.set(ghost, { autoAlpha: 1, left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 10 })
       gsap.to(content, {
-        autoAlpha: 0, duration: 0.4, ease: "power2.out",
+        autoAlpha: 0, duration: 0.22, ease: "power2.out",
         onComplete: () => {
           afterCommit.current = () => {
             toTop()
@@ -587,7 +686,7 @@ export default function TorchlitAgencyTemplate({
             const tr = target.getBoundingClientRect()
             gsap.set(target, { autoAlpha: 0 })
             gsap.to(ghost, {
-              left: tr.left, top: tr.top, width: tr.width, height: tr.height, borderRadius: 18, duration: 1.05, ease: "expo.inOut",
+              left: tr.left, top: tr.top, width: tr.width, height: tr.height, borderRadius: 18, duration: 0.8, ease: "power4.inOut",
               onComplete: () => {
                 const done = () => {
                   gsap.set(target, { autoAlpha: 1 })
@@ -606,9 +705,13 @@ export default function TorchlitAgencyTemplate({
       return
     }
     // The page you are on catches fire in the middle and burns away; the next page is underneath.
-    const done = burnAway(frameRef.current!, burnRef.current!, dayRef.current)
-    afterCommit.current = () => { toTop(); done.then(() => { busy.current = false }) }
-    setView(next)
+    // Navigation is never blocked: a click mid-burn finishes the old burn and starts a new one.
+    busy.current = false
+    burning.current?.finish()
+    burning.current = burnAway(frameRef.current!, burnRef.current!, dayRef.current)
+    // Commit the next page a beat later, under the copy, so the first scorch shows on the very next frame.
+    afterCommit.current = toTop
+    setTimeout(() => setView(next), 120)
   }
 
   const openCase = (i: number, e: React.MouseEvent<HTMLElement>) => go({ page: "case", i }, e.currentTarget.querySelector<HTMLImageElement>(".tl-hi img"))
@@ -632,9 +735,9 @@ export default function TorchlitAgencyTemplate({
       { rootMargin: "160px 0px" },
     )
     const scan = () => {
-      frame.querySelectorAll("[data-lit]").forEach((el) => { if (!watched.has(el)) { watched.add(el); io.observe(el) } })
+      frame.querySelectorAll("[data-lit]").forEach((el) => { if (!watched.has(el) && !el.closest(".tl-burn")) { watched.add(el); io.observe(el) } })
       for (const el of [...watched]) if (!el.isConnected) { io.unobserve(el); watched.delete(el); visible.delete(el as HTMLElement) }
-      ignite = [...frame.querySelectorAll<HTMLElement>("[data-ignite]")]
+      ignite = [...frame.querySelectorAll<HTMLElement>("[data-ignite]")].filter((el) => !el.closest(".tl-burn"))
     }
     scan()
     const mo = new MutationObserver(scan)
@@ -755,7 +858,7 @@ export default function TorchlitAgencyTemplate({
       } else if (!S.moved) {
         tx = L.parkX >= 0 ? L.parkX : vw / 2; ty = L.parkY >= 0 ? L.parkY : vh * 0.45; rT = base; follow = 0.5; show = true
       } else {
-        tx = S.tx; ty = S.ty; rT = S.inside ? base : 0; follow = 0.42; show = S.inside
+        tx = S.tx; ty = S.ty; rT = S.inside ? base : 0; follow = 1; show = S.inside
       }
       // Press and hold: the flame flares.
       if (S.hold && show) rT *= 1.45
@@ -766,6 +869,8 @@ export default function TorchlitAgencyTemplate({
       const kt = 1 - Math.pow(0.91, dt / 16.7)
       S.px += (S.lx - S.px) * kt
       S.py += (S.ly - S.py) * kt
+      // A struck flame is at full reach at once, not easing up from nothing.
+      if (L.snap) { S.r = rT; S.lx = tx; S.ly = ty; L.snap = false }
       S.r += (rT - S.r) * (1 - Math.pow(0.88, dt / 16.7))
       S.tilt += (Math.max(-16, Math.min(16, vx * 0.9)) - S.tilt) * 0.12
       S.sc += ((S.hold && show ? 1.18 : 1) - S.sc) * 0.2
@@ -833,6 +938,7 @@ export default function TorchlitAgencyTemplate({
           M.x += M.vx * dt * 0.06
           M.y += M.vy * dt * 0.06
         }
+        if (L.hide) M.on = false
         moth.style.opacity = M.on ? "1" : "0"
         moth.style.transform = "translate3d(" + M.x.toFixed(1) + "px," + M.y.toFixed(1) + "px,0) scaleX(" + (M.vx < 0 ? -1 : 1) + ")"
       }
@@ -927,12 +1033,14 @@ export default function TorchlitAgencyTemplate({
       const mm = gsap.matchMedia()
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const L = light.current
-        const hero = scope.querySelector<HTMLElement>("[data-hero]")
+        // The burn snapshot lives inside the frame too: never choreograph the copy.
+        const own = (sel: string) => [...scope.querySelectorAll<HTMLElement>(sel)].filter((el) => !el.closest(".tl-burn"))
+        const hero = own("[data-hero]")[0]
         if (hero) {
           const lines = hero.querySelectorAll(".tl-hero-line > *")
           const tl = gsap.timeline({ delay: first ? 0.15 : 0.55 })
-          tl.from(lines, { yPercent: 70, opacity: 0, duration: 1.3, ease: "power3.out", stagger: 0.13 }, 0)
-          tl.from(hero.querySelectorAll("[data-hero-fade]"), { opacity: 0, y: 14, duration: 1, ease: "power2.out", stagger: 0.08 }, 0.5)
+          tl.from(lines, { yPercent: 60, opacity: 0, duration: 1, ease: "expo.out", stagger: 0.08 }, 0)
+          tl.from(hero.querySelectorAll("[data-hero-fade]"), { opacity: 0, y: 12, duration: 0.8, ease: "expo.out", stagger: 0.06 }, 0.35)
           // The flame catches: a sweep across the headline, a flare, a few flickers, then it settles.
           const h = hero.querySelector(".tl-hero-h")!.getBoundingClientRect()
           L.parkY = h.top + h.height * 0.55
@@ -941,16 +1049,16 @@ export default function TorchlitAgencyTemplate({
           tl.to(L, { boost: 1.5, duration: 0.07, repeat: 5, yoyo: true, ease: "none" }, 0.7)
           tl.to(L, { boost: 1, duration: 1.2, ease: "power2.inOut" }, 1.2)
         }
-        scope.querySelectorAll<HTMLElement>("[data-rise]").forEach((el) => {
-          gsap.from(el, { y: 42, opacity: 0, duration: 1.1, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 90%", once: true } })
+        own("[data-rise]").forEach((el) => {
+          gsap.from(el, { y: 28, opacity: 0, duration: 0.9, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 90%", once: true } })
         })
-        scope.querySelectorAll<HTMLElement>("[data-band]").forEach((el) => {
+        own("[data-band]").forEach((el) => {
           const img = el.querySelector(".tl-band-img")
           gsap.fromTo(img, { clipPath: "inset(14% 9% 0% 9% round 22px)", yPercent: 10 }, { clipPath: "inset(0% 0% 0% 0% round 14px)", yPercent: 0, ease: "none", scrollTrigger: { trigger: el, start: "top bottom", end: "top 25%", scrub: 0.6 } })
           gsap.fromTo(el.querySelector("img"), { scale: 1.18 }, { scale: 1, ease: "none", scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: true } })
         })
-        scope.querySelectorAll<HTMLElement>("[data-stagger]").forEach((list) => {
-          gsap.from(list.children, { y: 50, opacity: 0, duration: 1, ease: "power3.out", stagger: 0.06, scrollTrigger: { trigger: list, start: "top 88%", once: true } })
+        own("[data-stagger]").forEach((list) => {
+          gsap.from(list.children, { y: 32, opacity: 0, duration: 0.9, ease: "expo.out", stagger: 0.05, scrollTrigger: { trigger: list, start: "top 88%", once: true } })
         })
       })
       ScrollTrigger.refresh()
@@ -1376,7 +1484,7 @@ export default function TorchlitAgencyTemplate({
 }
 
 const CSS = `
-.tl-root{--tl-bg:#141212;--tl-dim:#877d74;--tl-dim-lg:#6c635b;--tl-cream:#f3e6d3;--tl-ui:#d9cdbf;--tl-ui-2:#cdbfb0;--tl-ui-hi:#fff4e0;--tl-line:rgba(243,230,211,.13);--tl-red:#e8321f;--tl-h:var(--h,100svh);background:var(--color-background,#ece8e4);padding:10px;width:100%;box-sizing:border-box}
+.tl-root{--tl-ease-out:cubic-bezier(0.23,1,0.32,1);--tl-ease-in-out:cubic-bezier(0.77,0,0.175,1);--tl-ease-catch:cubic-bezier(0.34,1.56,0.64,1);--tl-bg:#141212;--tl-dim:#877d74;--tl-dim-lg:#6c635b;--tl-cream:#f3e6d3;--tl-ui:#d9cdbf;--tl-ui-2:#cdbfb0;--tl-ui-hi:#fff4e0;--tl-line:rgba(243,230,211,.13);--tl-red:#e8321f;--tl-h:var(--h,100svh);background:var(--color-background,#ece8e4);padding:10px;width:100%;box-sizing:border-box}
 .tl-root *,.tl-root *::before,.tl-root *::after{box-sizing:border-box}
 .tl-frame{position:relative;background:var(--tl-bg);color:var(--tl-dim);border-radius:22px;overflow:clip;container:tl/inline-size;font-family:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;--r:0px}
 .tl-frame em{font-style:italic}
@@ -1436,10 +1544,10 @@ const CSS = `
 .tl-cur:hover{color:#ff5a45}
 .tl-chev{width:6px;height:6px;border-right:1.5px solid var(--tl-red);border-bottom:1.5px solid var(--tl-red);transform:translateY(-2px) rotate(45deg);transition:transform .25s}
 .tl-svc-btn[aria-expanded="true"] .tl-chev{transform:translateY(1px) rotate(225deg)}
-.tl-svc-menu{position:absolute;left:0;margin-top:8px!important;min-width:210px;background:rgba(24,21,21,.96);border:1px solid var(--tl-line);border-radius:12px;padding:8px!important;box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(8px);animation:tl-drop .28s cubic-bezier(.2,.8,.2,1)}
+.tl-svc-menu{position:absolute;left:0;margin-top:8px!important;min-width:210px;background:rgba(24,21,21,.96);border:1px solid var(--tl-line);border-radius:12px;padding:8px!important;box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(8px);transform-origin:12px 0;transition:opacity 180ms var(--tl-ease-out),transform 180ms var(--tl-ease-out)}
+@starting-style{.tl-svc-menu{opacity:0;transform:translateY(-4px) scale(.97)}}
 .tl-svc-menu button{display:flex;gap:10px;align-items:center;width:100%;padding:8px 10px;border-radius:8px;font-size:13.5px;color:var(--tl-ui)}
 .tl-svc-menu button:hover{background:rgba(243,230,211,.06);color:var(--tl-ui-hi)}
-@keyframes tl-drop{from{opacity:0;transform:translateY(-6px)}}
 .tl-frame .tl-logo{display:grid;place-items:center;width:34px;height:34px;background:var(--tl-red);border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.06),0 6px 24px rgba(232,50,31,.35)}
 .tl-logo .tl-mark{width:14px;height:18px}
 .tl-frame .tl-logo-xl{width:132px;height:132px;border-radius:10px}
@@ -1447,12 +1555,15 @@ const CSS = `
 .tl-actions{position:absolute;right:26px;top:22px;display:flex;align-items:center;gap:14px}
 .tl-lamp{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--tl-ui);padding:8px 2px}
 .tl-lamp:hover{color:var(--tl-ui-hi)}
-.tl-lamp-dot{width:22px;height:12px;border-radius:12px;background:#3a302b;position:relative;transition:background .3s}
-.tl-lamp-dot::after{content:"";position:absolute;left:2px;top:2px;width:8px;height:8px;border-radius:50%;background:#8e847a;transition:transform .3s,background .3s}
+.tl-lamp-dot{width:22px;height:12px;border-radius:12px;background:#3a302b;position:relative;transition:background-color 220ms ease}
+.tl-lamp-dot::after{content:"";position:absolute;left:2px;top:2px;width:8px;height:8px;border-radius:50%;background:#8e847a;transition:transform 220ms var(--tl-ease-out),background-color 220ms ease}
 .tl-day .tl-lamp-dot{background:#e6c88e}
 .tl-day .tl-lamp-dot::after{transform:translateX(10px);background:#fff;box-shadow:0 0 8px #ffd27a}
 .tl-frame .tl-cta{background:var(--tl-red);color:#fff4ea;font-family:"Instrument Serif",ui-serif,Georgia,serif;font-size:18px;line-height:1;padding:11px 16px 12px;border-radius:4px;box-shadow:0 8px 30px rgba(232,50,31,.3);transition:background .2s,transform .2s}
-.tl-frame .tl-cta:hover{background:#ff4430;transform:translateY(-1px)}
+.tl-frame .tl-cta:hover{background:#ff4430}
+.tl-frame .tl-cta,.tl-lamp,.tl-ask button,.tl-card-b,.tl-acc-h button,.tl-link,.tl-next{transition:transform 160ms var(--tl-ease-out),background-color 200ms ease,color 200ms ease}
+.tl-frame .tl-cta:active,.tl-lamp:active,.tl-ask button:active,.tl-acc-h button:active,.tl-link:active{transform:scale(.97)}
+.tl-card-b:active,.tl-next:active{transform:scale(.99)}
 
 /* ---- type ---- */
 .tl-serif,.tl-hero-h,.tl-h1,.tl-h2,.tl-h3,.tl-row-l,.tl-row-p,.tl-card-t,.tl-mega,.tl-foot-mark,.tl-stat-n,.tl-acc-t,.tl-case-p,.tl-lede,.tl-hero-sub,.tl-list-a,.tl-next-t,.tl-bg-word,.tl-type-aa,.tl-voice-t,.tl-sw-n,.tl-band-cap p,.tl-acc-text,.tl-bul-lg{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-weight:400;letter-spacing:-.005em}
@@ -1491,9 +1602,9 @@ const CSS = `
 .tl-emb{width:150px;height:105px;background:none;overflow:visible}
 .tl-src{position:absolute;left:50%;top:16px;width:2px;height:2px}
 .tl-emb-wrap:not(.tl-lit-up) .tl-emb-torch .tl-fl{visibility:hidden}
-.tl-emb-halo{position:absolute;left:50%;top:16px;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.42) 0,rgba(232,50,31,.18) 30%,rgba(232,50,31,0) 62%);opacity:0;transform:scale(.3);transition:opacity .5s,transform .9s cubic-bezier(.2,.9,.2,1.2);pointer-events:none;mix-blend-mode:screen}
+.tl-emb-halo{position:absolute;left:50%;top:16px;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.42) 0,rgba(232,50,31,.18) 30%,rgba(232,50,31,0) 62%);opacity:0;transform:scale(.3);transition:opacity .5s,transform .9s var(--tl-ease-catch);pointer-events:none;mix-blend-mode:screen}
 .tl-emb-wrap.tl-lit-up .tl-emb-halo{opacity:1;transform:scale(1);animation:tl-flick 2.2s .9s infinite}
-.tl-emb-wrap.tl-lit-up .tl-emb-torch svg{animation:tl-catch .7s cubic-bezier(.2,.9,.3,1.4)}
+.tl-emb-wrap.tl-lit-up .tl-emb-torch svg{animation:tl-catch .7s var(--tl-ease-catch)}
 @keyframes tl-catch{0%{transform:scale(.85);filter:brightness(2.4)}60%{transform:scale(1.08)}100%{transform:none;filter:none}}
 .tl-emb .tl-lo{filter:saturate(.35) brightness(.5)}
 .tl-emb .tl-hi{filter:drop-shadow(0 0 10px rgba(255,190,80,.45))}
@@ -1521,8 +1632,8 @@ const CSS = `
 .tl-grid-4{grid-template-columns:repeat(4,minmax(0,1fr));padding:20px var(--gr) clamp(60px,8cqw,120px) var(--gl)}
 .tl-card-b{display:block;width:100%}
 .tl-thumb{aspect-ratio:4/5;border-radius:8px}
-.tl-thumb img{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
-.tl-card-b:hover .tl-thumb img{transform:scale(1.045)}
+.tl-thumb img{transition:transform 600ms var(--tl-ease-out)}
+@media (hover:hover) and (pointer:fine){.tl-card-b:hover .tl-thumb img{transform:scale(1.04)}}
 .tl-card-meta{display:flex;align-items:baseline;gap:10px;margin-top:14px}
 .tl-card-n{font-size:11px;color:var(--tl-red);font-variant-numeric:tabular-nums}
 .tl-card-t{font-size:clamp(20px,1.7cqw,25px);line-height:1.1;flex:1}
@@ -1572,11 +1683,11 @@ const CSS = `
 .tl-acc-t{font-size:clamp(34px,4.6cqw,76px);line-height:1;letter-spacing:-.02em}
 .tl-acc-l{font-size:14px}
 .tl-acc-x{position:relative;width:20px;height:20px}
-.tl-acc-x::before,.tl-acc-x::after{content:"";position:absolute;left:0;top:9px;width:20px;height:1.5px;background:var(--tl-ui);transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.tl-acc-x::before,.tl-acc-x::after{content:"";position:absolute;left:0;top:9px;width:20px;height:1.5px;background:var(--tl-ui);transition:transform 240ms var(--tl-ease-out),background-color 240ms ease}
 .tl-acc-x::after{transform:rotate(90deg)}
 .tl-open .tl-acc-x::after{transform:rotate(0)}
 .tl-open .tl-acc-x::before,.tl-open .tl-acc-x::after{background:var(--tl-red)}
-.tl-acc-p{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.2,.8,.2,1)}
+.tl-acc-p{display:grid;grid-template-rows:0fr;transition:grid-template-rows 380ms var(--tl-ease-out)}
 .tl-open .tl-acc-p{grid-template-rows:1fr}
 .tl-acc-p > .tl-acc-in{overflow:hidden;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(24px,4cqw,64px);padding-left:72px}
 .tl-open .tl-acc-in{padding-bottom:40px}
@@ -1653,9 +1764,9 @@ const CSS = `
 .tl-sconce::before{content:"";position:absolute;left:50%;top:26px;width:18px;height:26px;margin-left:-9px;background:#1d1817;border:1px solid rgba(243,230,211,.06);border-radius:3px;z-index:-1}
 .tl-sconce::after{content:"";position:absolute;left:7px;right:7px;top:33px;height:4px;background:#2d2522;border-radius:2px}
 .tl-sconce:not(.tl-lit-up) .tl-fl{visibility:hidden}
-.tl-sconce.tl-lit-up > svg{filter:none;animation:tl-catch .7s cubic-bezier(.2,.9,.3,1.4)}
+.tl-sconce.tl-lit-up > svg{filter:none;animation:tl-catch .7s var(--tl-ease-catch)}
 .tl-sconce .tl-src{top:10px}
-.tl-sconce-halo{position:absolute;left:50%;top:10px;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.4) 0,rgba(232,50,31,.16) 32%,rgba(232,50,31,0) 62%);opacity:0;transform:scale(.3);transition:opacity .5s,transform .9s cubic-bezier(.2,.9,.2,1.2);pointer-events:none;mix-blend-mode:screen}
+.tl-sconce-halo{position:absolute;left:50%;top:10px;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,60,.4) 0,rgba(232,50,31,.16) 32%,rgba(232,50,31,0) 62%);opacity:0;transform:scale(.3);transition:opacity .5s,transform .9s var(--tl-ease-catch);pointer-events:none;mix-blend-mode:screen}
 .tl-sconce.tl-lit-up .tl-sconce-halo{opacity:1;transform:scale(1);animation:tl-flick 2s .9s infinite}
 .tl-sconce-left{left:max(14px,calc(var(--gl) - 84px))}
 .tl-sconce-right{right:clamp(18px,4cqw,64px)}
@@ -1667,11 +1778,12 @@ const CSS = `
 .tl-count{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tl-ui);font-variant-numeric:tabular-nums}
 .tl-count-done{color:#ffc95a}
 .tl-warm{--tl-dim:#a19483;--tl-dim-lg:#8a7d70}
-.tl-frame.tl-warm::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 60% at 50% 0%,rgba(255,140,60,.07),rgba(255,140,60,0) 70%);animation:tl-ask .9s both}
-.tl-toast{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:40px;background:#241b17;border:1px solid rgba(255,190,110,.25);color:#ffe2b0;font-size:13px;box-shadow:0 0 40px rgba(255,110,40,.25);white-space:nowrap;animation:tl-ask .7s both cubic-bezier(.2,.8,.2,1)}
+.tl-frame.tl-warm::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 60% at 50% 0%,rgba(255,140,60,.07),rgba(255,140,60,0) 70%);animation:tl-fade .9s var(--tl-ease-out) both}
+@keyframes tl-fade{from{opacity:0}}
+.tl-toast{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:40px;background:#241b17;border:1px solid rgba(255,190,110,.25);color:#ffe2b0;font-size:13px;box-shadow:0 0 40px rgba(255,110,40,.25);white-space:nowrap;animation:tl-ask .45s both var(--tl-ease-out)}
 .tl-frame.tl-day .tl-sconce-halo,.tl-frame.tl-day .tl-sparks,.tl-frame.tl-day .tl-moth{display:none}
-.tl-veil{position:fixed;inset:0;z-index:54;visibility:hidden;opacity:0;pointer-events:none;--vr:0px;--vx:50%;--vy:45%;-webkit-mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,0) 45%,#000 100%);mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,0) 45%,#000 100%)}
-.tl-ask{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:40px;background:#1a1616;color:#efe4d6;font-size:13px;box-shadow:0 14px 40px rgba(20,12,8,.28);white-space:nowrap;animation:tl-ask .8s 1.2s both cubic-bezier(.2,.8,.2,1)}
+.tl-veil{position:fixed;inset:0;z-index:54;visibility:hidden;opacity:0;pointer-events:none;--vr:0px;--vx:50%;--vy:45%;-webkit-mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,.12) 30%,rgba(0,0,0,.45) 58%,rgba(0,0,0,.8) 80%,#000 100%);mask-image:radial-gradient(circle var(--vr) at var(--vx) var(--vy),rgba(0,0,0,0) 0,rgba(0,0,0,.12) 30%,rgba(0,0,0,.45) 58%,rgba(0,0,0,.8) 80%,#000 100%)}
+.tl-ask{position:fixed;left:50%;bottom:22px;z-index:53;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:40px;background:#1a1616;color:#efe4d6;font-size:13px;box-shadow:0 14px 40px rgba(20,12,8,.28);white-space:nowrap;animation:tl-ask .5s 1.2s both var(--tl-ease-out)}
 .tl-ask-t{display:inline-flex;align-items:center;gap:8px}
 .tl-ask button{background:var(--tl-red);color:#fff4ea;border-radius:30px;padding:8px 14px;font-size:13px}
 .tl-ask button:hover{background:#ff4430}
@@ -1754,6 +1866,6 @@ const CSS = `
   .tl-glow i,.tl-hint::before,.tl-lit-up .tl-embers i{animation:none}
   .tl-on .tl-lit-up .tl-fire{animation:none}
   .tl-acc-p,.tl-thumb img,.tl-torch,.tl-glow{transition:none}
-  .tl-svc-menu{animation:none}
+  .tl-svc-menu{transition:none}
 }
 `

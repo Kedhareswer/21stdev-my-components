@@ -15,7 +15,7 @@ A complete agency site for a fictional brand studio, **Vesper & Flint**. Turn th
 7. **Agency, Services, Brand Guide.** Same world. Services has a dropdown in the nav and an accordion on the page. The Brand Guide documents the mark, colour, type, light rules and voice.
 8. **Contact.** The huge *Let's Connect* is soaked in oil. Bring the torch near and fire spreads through the letters from the point you touched. Embers rise, and it lights its surroundings.
 
-Changing page burns the current one away: it catches in the middle, chars and glows at the edge, and the next page is underneath.
+Changing page burns the current one away (about 1.35 s): it scorches the moment you click, catches in the middle, and a ragged front of char and glowing embers runs outward with ash lifting off it; the next page is underneath. A second click mid-burn finishes the first at once.
 
 ## Play
 

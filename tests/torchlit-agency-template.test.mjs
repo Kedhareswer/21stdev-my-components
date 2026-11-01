@@ -144,14 +144,25 @@ assert.ok(src.includes("const fl = calmMq.matches ? 1 :"), "flicker stops under 
 assert.ok(css.includes("conic-gradient(from calc(var(--ha,171deg) - 16deg) at var(--tx) var(--ty)"), "the handle casts a wedge of shadow")
 assert.ok(!/filter: "blur/.test(src), "no tween fights the per-frame shadow filter")
 // Page change burns the old page away from the middle.
-assert.ok(src.includes("const done = burnAway(frameRef.current!, burnRef.current!, dayRef.current)"), "page changes burn through")
-assert.ok(src.includes(`ctx.fillStyle = "#000"`), "the hole is erased with an opaque fill, not the last gradient")
+assert.ok(src.includes("burning.current = burnAway(frameRef.current!, burnRef.current!, dayRef.current)"), "page changes burn through")
+assert.ok(src.includes("burning.current?.finish()"), "a click mid-burn finishes the old burn instead of being ignored")
+assert.ok(src.includes("probe.decode().then("), "mask swaps wait for decode, so the snapshot never blinks out")
 assert.ok(src.includes("layer.replaceChildren()"), "the snapshot is removed when the burn ends")
 const burn = src.slice(src.indexOf("// #region burn"), src.indexOf("// #endregion", src.indexOf("// #region burn")))
-const { burnBlobs } = new Function(stripTypeScriptTypes(burn) + "\nreturn { burnBlobs }")()
-const ring = burnBlobs(100, 0, Array.from({ length: 8 }, (_, i) => ({ a: i, k: 1, s: 0.35, p: 0 })), 50, 50)
-assert.equal(ring.length, 9, "centre disc plus one lobe per blob")
-assert.ok(ring.every(([, , r]) => r >= 0), "no negative radii")
-assert.equal(burnBlobs(0, 0, [{ a: 0, k: 1, s: 0.3, p: 0 }], 0, 0)[1][2], 0, "nothing burns before it starts")
+const { burnField } = new Function(stripTypeScriptTypes(burn) + "\nreturn { burnField }")()
+const { field } = burnField(80, 50, 40, 25, 7)
+const at = (x, y) => field[y * 80 + x]
+assert.equal(field.length, 4000, "one value per cell")
+let first = 0
+for (let i = 1; i < field.length; i++) if (field[i] < field[first]) first = i
+assert.ok(Math.hypot((first % 80) - 40, Math.floor(first / 80) - 25) < 6, "the fire starts at the spark, not somewhere random")
+assert.ok(at(40, 25) < at(2, 2) && at(40, 25) < at(78, 48), "it reaches the corners last")
+assert.deepEqual([...burnField(20, 10, 10, 5, 3).field], [...burnField(20, 10, 10, 5, 3).field], "same seed, same fire")
+
+// Motion rules: shared easing tokens, no hand-typed curves, no ease-in in CSS, the torch sits on the pointer.
+assert.ok(css.includes("--tl-ease-out:cubic-bezier(0.23,1,0.32,1)") && !/cubic-bezier\(\./.test(css), "curves come from tokens")
+assert.ok(!/\bease-in\b(?!-out)/.test(css), "no ease-in in the CSS")
+assert.ok(src.includes("rT = S.inside ? base : 0; follow = 1;"), "the torch does not lag the pointer")
+assert.ok(css.includes("@media (hover:hover) and (pointer:fine){.tl-card-b:hover"), "card hover is gated to real hover")
 
 console.log("torchlit-agency-template: ok")
