@@ -160,10 +160,15 @@ function Roll3D({ kind, brand }: { kind: HuggoRollKind; brand: string }) {
   )
 }
 
-/** A torn piece of tape. Outer element places it, inner one is what animates. */
-function Tape({ kind, x, y, w, r }: { kind: HuggoRollKind; x: string; y: string; w: string; r: number }) {
-  return (
-    <i className={"ht-tp ht-tp-" + kind} style={v({ left: x, top: y, width: w, "--r": r + "deg" })} aria-hidden="true">
+/** A torn piece of tape. Outer element places it, inner one is what animates. `peel` makes it a drag/press target. */
+function Tape({ kind, x, y, w, r, peel }: { kind: HuggoRollKind; x: string; y: string; w: string; r: number; peel?: boolean }) {
+  const pos = v({ left: x, top: y, width: w, "--r": r + "deg" })
+  return peel ? (
+    <i className={"ht-tp ht-tp-" + kind + " ht-peel"} style={pos} role="button" tabIndex={0} aria-label="Peel off this piece of tape">
+      <b className="ht-tp-in" />
+    </i>
+  ) : (
+    <i className={"ht-tp ht-tp-" + kind} style={pos} aria-hidden="true">
       <b className="ht-tp-in" />
     </i>
   )
@@ -204,7 +209,7 @@ function Daisy({ petals, color, center, className }: { petals: number; color: st
 
 function LemonPrint({ uid }: { uid: string }) {
   const lemon =
-    "M-31 0 Q-28 -4 -24 -7 C-18 -21 18 -21 24 -7 Q28 -4 31 0 Q28 4 24 7 C18 21 -18 21 -24 7 Q-28 4 -31 0Z"
+    "M-30 0 Q-28 -3 -25 -6 C-21 -24 21 -24 25 -6 Q28 -3 30 0 Q28 3 25 6 C21 24 -21 24 -25 6 Q-28 3 -30 0Z"
   const leaf = "M0 0 C8 -15 26 -19 40 -12 C30 -1 13 5 0 0Z"
   return (
     <svg className="ht-lemon-svg" viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -214,11 +219,23 @@ function LemonPrint({ uid }: { uid: string }) {
           <stop offset="0.5" stopColor="#ffd42e" />
           <stop offset="1" stopColor="#f0a514" />
         </radialGradient>
-        <pattern id={uid + "lp"} width="120" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(-9)">
-          <rect width="120" height="120" fill="#fffcf2" />
-          <path d="M0 0 L9 0 L0 9Z M120 0 L111 0 L120 9Z M0 120 L9 120 L0 111Z M120 120 L111 120 L120 111Z" fill="#17a08c" />
-          <path d="M60 2 l5 5 l-5 5 l-5 -5z M60 108 l5 5 l-5 5 l-5 -5z" fill="#ffc21a" />
-          <g transform="translate(60 60) rotate(-28)">
+        <linearGradient id={uid + "lg"} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.28" />
+          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#6b4a00" stopOpacity="0.12" />
+        </linearGradient>
+        <pattern id={uid + "lp"} width="150" height="150" patternUnits="userSpaceOnUse" patternTransform="rotate(-9)">
+          <rect width="150" height="150" fill="#fffcf2" />
+          <path d="M118 22 l8 8 l-8 8 l-8 -8z M26 112 l8 8 l-8 8 l-8 -8z" fill="#17a08c" />
+          <g transform="translate(112 108) rotate(14)">
+            <circle r="23" fill="#f2b31a" />
+            <circle r="20.5" fill="#fff4c6" />
+            <circle r="18" fill="#ffdf4f" />
+            <path d="M0 0 L0 -16 M0 0 L11.3 -11.3 M0 0 L16 0 M0 0 L11.3 11.3 M0 0 L0 16 M0 0 L-11.3 11.3 M0 0 L-16 0 M0 0 L-11.3 -11.3" stroke="#fff8dc" strokeWidth="1.8" strokeLinecap="round" />
+            <circle r="2.4" fill="#fff8dc" />
+            <path d={leaf} fill="#139a85" transform="translate(16 -16) rotate(-60) scale(.6)" />
+          </g>
+          <g transform="translate(54 50) rotate(-24) scale(1.18)">
             <path d={leaf} fill="#139a85" transform="translate(14 -10) rotate(-24)" />
             <path d={leaf} fill="#0d7f6d" transform="translate(14 -10) rotate(26) scale(.82)" />
             <path d="M14 -10 l20 -2" stroke="#0a5e51" strokeWidth="1.2" />
@@ -234,6 +251,7 @@ function LemonPrint({ uid }: { uid: string }) {
         </pattern>
       </defs>
       <rect width="300" height="380" fill={"url(#" + uid + "lp)"} />
+      <rect width="300" height="380" fill={"url(#" + uid + "lg)"} />
     </svg>
   )
 }
@@ -349,6 +367,7 @@ export default function HuggoTapeTemplate({
         body.style.setProperty("--tilt", tilt.toFixed(2) + "deg")
         body.style.setProperty("--spin", spin.toFixed(2) + "deg")
         strip.style.height = Math.max(0, full ? y1 - y0 : dist + D * 0.04).toFixed(1) + "px"
+        strip.style.setProperty("--gy", (dist * 0.55).toFixed(1) + "px")
       }
 
       // ---- the lime ribbon: a sine wave, a marquee printed along it, a roll that lays it ------
@@ -359,29 +378,22 @@ export default function HuggoTapeTemplate({
       const bRoll = q(".ht-bn-roll")
       const glyphs = qa(".ht-mq-i")
       const perCycle = glyphs.length / REPEAT
-      const bn = { W: 0, H: 0, A: 0, k: 0, mid: 0, T: 0, X: [0], Y: [0], S: [0], w: [0], h: [0], cum: [0], cyc: 1, off: 0, reveal: 0, boost: 0 }
-      const PH = 0.9
-      const measureBanner = () => {
-        if (!banner || !bsvg || !glyphLayer) return
-        const W = banner.clientWidth
-        const H = banner.clientHeight
-        const T = H * 0.34
-        const A = H * 0.12
-        const mid = H * 0.5
-        const k = (2 * Math.PI) / Math.max(620, W * 0.7)
+      const bn = { W: 0, H: 0, A: 0, A0: 0, k: 0, mid: 0, T: 0, ph: 0.9, X: [0], Y: [0], S: [0], w: [0], h: [0], cum: [0], cyc: 1, off: 0, reveal: 0, boost: 0 }
+      const buildWave = (A: number) => {
+        if (!bsvg) return
+        const { W, H, T, mid, k, ph } = bn
         const X: number[] = []
         const Y: number[] = []
         const S: number[] = []
         let s = 0
         for (let x = -240; x <= W + 240; x += 4) {
-          const y = mid + A * Math.sin(k * x + PH)
+          const y = mid + A * Math.sin(k * x + ph)
           if (X.length) s += Math.hypot(x - X[X.length - 1], y - Y[Y.length - 1])
           X.push(x)
           Y.push(y)
           S.push(s)
         }
-        Object.assign(bn, { W, H, A, k, mid, T, X, Y, S })
-        bsvg.setAttribute("viewBox", "0 0 " + W + " " + H)
+        Object.assign(bn, { A, X, Y, S })
         let d = ""
         for (let i = 0; i < X.length; i += 2) d += (i ? " L" : "M") + X[i].toFixed(1) + " " + Y[i].toFixed(1)
         for (const p of Array.from(bsvg.querySelectorAll(".ht-bn-line"))) {
@@ -392,7 +404,16 @@ export default function HuggoTapeTemplate({
         const sheen = bsvg.querySelector(".ht-bn-sheen")
         if (sheen) sheen.setAttribute("transform", "translate(0 " + (-T * 0.24).toFixed(1) + ")")
         const fill = bsvg.querySelector(".ht-bn-fill")
-        if (fill) fill.setAttribute("d", d + " L" + (W + 240) + " " + (H + 4) + " L-240 " + (H + 4) + "Z")
+        if (fill) fill.setAttribute("d", d + " L" + (W + 240) + " " + (H + 0.5) + " L-240 " + (H + 0.5) + "Z")
+      }
+      const measureBanner = () => {
+        if (!banner || !bsvg || !glyphLayer) return
+        const W = banner.clientWidth
+        const H = banner.clientHeight
+        const T = H * 0.34
+        Object.assign(bn, { W, H, T, A0: H * 0.12, mid: H * 0.5, k: (2 * Math.PI) / Math.max(620, W * 0.7) })
+        bsvg.setAttribute("viewBox", "0 0 " + W + " " + H)
+        buildWave(bn.A0)
         glyphLayer.style.setProperty("--fs", (T * 0.58).toFixed(1) + "px")
         if (bRoll) bRoll.style.setProperty("--d", (T * 1.9).toFixed(1) + "px")
         bn.w = glyphs.map((g) => g.offsetWidth)
@@ -425,14 +446,14 @@ export default function HuggoTapeTemplate({
           const t = (s - S[j]) / Math.max(0.001, S[j + 1] - S[j])
           const x = X[j] + (X[j + 1] - X[j]) * t
           const y = Y[j] + (Y[j + 1] - Y[j]) * t
-          const ang = Math.atan(A * k * Math.cos(k * x + PH))
+          const ang = Math.atan(A * k * Math.cos(k * x + bn.ph))
           el.style.visibility = x > W + 60 ? "hidden" : "visible"
           el.style.transform =
             "translate(" + (x - bn.w[i] / 2).toFixed(1) + "px," + (y - bn.h[i] / 2).toFixed(1) + "px) rotate(" + ang.toFixed(4) + "rad)"
         }
         if (bRoll) {
           const d = bn.T * 1.9
-          const y = mid + A * Math.sin(k * xr + PH)
+          const y = mid + A * Math.sin(k * xr + bn.ph)
           bRoll.style.opacity = bn.reveal > 0.001 && bn.reveal < 0.999 ? "1" : "0"
           bRoll.style.transform =
             "translate(" + (xr - d / 2).toFixed(1) + "px," + (y - d / 2).toFixed(1) + "px) rotate(" + ((xr / (d / 2)) * 57.3).toFixed(1) + "deg)"
@@ -490,6 +511,116 @@ export default function HuggoTapeTemplate({
           .to(ms, { t: 1, duration: 1, ease: "none" }, 0)
           .fromTo(q(".ht-mask-stamp"), { scale: 2.2, opacity: 0, rotation: -24 }, { scale: 1, opacity: 1, rotation: -9, duration: 0.05, ease: "power4.in" }, 0.95)
         return tl
+      }
+
+      // ---- play: peel the collage tape off; drag across the hero to lay your own ----------------
+      const calm = () => window.matchMedia(REDUCE).matches
+      for (const tp of qa(".ht-peel")) {
+        const bit = tp.querySelector(".ht-tp-in")
+        let sx = 0
+        let sy = 0
+        let held = false
+        const peel = (dx: number, dy: number) => {
+          tp.classList.add("ht-peeled")
+          tp.setAttribute("aria-hidden", "true")
+          tp.tabIndex = -1
+          const side = dx >= 0 ? 1 : -1
+          ctx.add(() => {
+            if (calm()) gsap.to(bit, { opacity: 0, duration: 0.3 })
+            else gsap.to(bit, { x: dx * 3, y: dy * 3 + 280, rotation: side * 140, opacity: 0, duration: 0.95, ease: "power2.in" })
+            // the last piece gone: the thing it held drops and tips
+            const item = tp.closest("[data-drop]")
+            if (item && !item.querySelector(".ht-peel:not(.ht-peeled)") && !calm())
+              gsap.to(item, { y: "+=110", rotation: "+=" + side * 11, duration: 1.2, ease: "bounce.out" })
+          })
+        }
+        const onDown = (e: PointerEvent) => {
+          held = true
+          sx = e.clientX
+          sy = e.clientY
+          tp.setPointerCapture(e.pointerId)
+          tp.classList.add("ht-lifting")
+        }
+        const onMove = (e: PointerEvent) => {
+          if (!held) return
+          const dx = e.clientX - sx
+          const dy = e.clientY - sy
+          gsap.set(bit, { x: dx * 0.35, y: dy * 0.35, rotation: dx * 0.06, scale: 1.05 })
+        }
+        const onUp = (e: PointerEvent) => {
+          if (!held) return
+          held = false
+          tp.classList.remove("ht-lifting")
+          const dx = e.clientX - sx
+          const dy = e.clientY - sy
+          if (Math.hypot(dx, dy) > 46) peel(dx, dy)
+          else ctx.add(() => gsap.to(bit, { x: 0, y: 0, rotation: 0, scale: 1, duration: 0.6, ease: "elastic.out(1,.4)" }))
+        }
+        const onKey = (e: KeyboardEvent) => {
+          if (e.key !== "Enter" && e.key !== " ") return
+          e.preventDefault()
+          peel(24, 12)
+        }
+        tp.addEventListener("pointerdown", onDown)
+        tp.addEventListener("pointermove", onMove)
+        tp.addEventListener("pointerup", onUp)
+        tp.addEventListener("pointercancel", onUp)
+        tp.addEventListener("keydown", onKey)
+        cleanups.push(() => {
+          tp.removeEventListener("pointerdown", onDown)
+          tp.removeEventListener("pointermove", onMove)
+          tp.removeEventListener("pointerup", onUp)
+          tp.removeEventListener("pointercancel", onUp)
+          tp.removeEventListener("keydown", onKey)
+        })
+      }
+
+      const doodles = q(".ht-doodles")
+      if (hero && doodles && window.matchMedia("(pointer: fine)").matches) {
+        let cur = null as HTMLElement | null
+        let ox = 0
+        let oy = 0
+        const at = (e: PointerEvent) => {
+          const r = hero.getBoundingClientRect()
+          return [e.clientX - r.left, e.clientY - r.top]
+        }
+        const onDown = (e: PointerEvent) => {
+          if (e.button !== 0 || (e.target as HTMLElement).closest("button,a,input")) return
+          ;[ox, oy] = at(e)
+          cur = document.createElement("i")
+          cur.className = "ht-doodle"
+          cur.textContent = (brand + " \u2726 ").repeat(24)
+          cur.style.left = ox + "px"
+          cur.style.top = oy + "px"
+          doodles.appendChild(cur)
+          hero.setPointerCapture(e.pointerId)
+        }
+        const onMove = (e: PointerEvent) => {
+          if (!cur) return
+          const [x, y] = at(e)
+          cur.style.width = Math.hypot(x - ox, y - oy).toFixed(1) + "px"
+          cur.style.transform = "rotate(" + Math.atan2(y - oy, x - ox).toFixed(4) + "rad)"
+        }
+        const onUp = () => {
+          const el = cur
+          cur = null
+          if (!el) return
+          if (el.offsetWidth < 28) return el.remove()
+          if (!calm()) ctx.add(() => gsap.fromTo(el, { scaleY: 1.6, opacity: 0.6 }, { scaleY: 1, opacity: 1, duration: 0.4, ease: "back.out(3)" }))
+          // keep the hero readable: the oldest strip falls off once there are eight
+          while (doodles.children.length > 8) doodles.firstElementChild?.remove()
+        }
+        hero.addEventListener("pointerdown", onDown)
+        hero.addEventListener("pointermove", onMove)
+        hero.addEventListener("pointerup", onUp)
+        hero.addEventListener("pointercancel", onUp)
+        cleanups.push(() => {
+          hero.removeEventListener("pointerdown", onDown)
+          hero.removeEventListener("pointermove", onMove)
+          hero.removeEventListener("pointerup", onUp)
+          hero.removeEventListener("pointercancel", onUp)
+          doodles.replaceChildren()
+        })
       }
 
       const refreshAll = () => {
@@ -617,7 +748,7 @@ export default function HuggoTapeTemplate({
         // collage pieces slide in, settle, then their tape slaps on
         qa("[data-drop]").forEach((el, i) => {
           const s = i % 2 ? 1 : -1
-          const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 90%", toggleActions: "play none none reverse" } })
+          const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top 90%", toggleActions: "play none none none" } })
           tl.from(el, { y: 170, x: s * 80, rotation: s * 16, scale: 1.07, opacity: 0, duration: 1.05, ease: "back.out(1.5)" })
           const bits = el.querySelectorAll(".ht-tp-in")
           if (bits.length) tl.from(bits, { scale: 1.8, opacity: 0, duration: 0.28, ease: "power4.in", stagger: 0.09 }, 0.6)
@@ -632,6 +763,11 @@ export default function HuggoTapeTemplate({
         })
         const tick = (_t: number, dt: number) => {
           bn.off += (dt / 1000) * (70 + bn.boost)
+          // the ribbon ripples while the page moves, then lies flat again
+          if (bn.boost > 2) {
+            bn.ph += (dt / 1000) * bn.boost * 0.004
+            buildWave(bn.A0 * (1 + Math.min(0.55, bn.boost / 900)))
+          } else if (bn.A !== bn.A0) buildWave(bn.A0)
           bn.boost *= 0.93
           drawBanner()
         }
@@ -715,7 +851,7 @@ export default function HuggoTapeTemplate({
       ctxRef.current = null
       for (const fn of cleanups) fn()
     }
-  }, [preloader, items.length])
+  }, [preloader, items.length, brand])
 
   return (
     <div ref={rootRef} className={"ht-root" + (className ? " " + className : "")} style={v({ "--h": height })}>
@@ -765,6 +901,7 @@ export default function HuggoTapeTemplate({
             <path d="M0 150 Q800 -10 1600 150 L1600 300 L0 300Z" fill="#26ad46" />
             <path d="M0 176 Q800 16 1600 176 L1600 300 L0 300Z" fill="#1f9e3c" />
           </svg>
+          <div className="ht-doodles" aria-hidden="true" />
           <div className="ht-hero-copy">
             <p className="ht-kicker">
               <span className="ht-kw">We&rsquo;re</span>
@@ -791,7 +928,7 @@ export default function HuggoTapeTemplate({
             <b>New</b> Clear Grip 48&nbsp;mm
           </p>
           <p className="ht-cue">
-            Scroll, it rolls <span aria-hidden="true">&darr;</span>
+            <span className="ht-cue-drag">Drag to tape &middot; </span>Scroll, it rolls <span aria-hidden="true">&darr;</span>
           </p>
         </section>
 
@@ -800,6 +937,7 @@ export default function HuggoTapeTemplate({
             <div className="ht-item ht-i-head" style={v({ "--r": "-3deg" })}>
               <div className="ht-in" data-drop>
                 <p className="ht-label">02 &mdash; The junk drawer</p>
+                <p className="ht-hint">psst, peel the tape off &rarr;</p>
                 <h2 className="ht-collage-h">
                   For the
                   <br />
@@ -815,8 +953,8 @@ export default function HuggoTapeTemplate({
                   <p className="ht-card-t">{story}</p>
                   <p className="ht-card-sign">&mdash; the {brand.toLowerCase()} crew</p>
                 </article>
-                <Tape kind="masking" x="88%" y="2%" w="30%" r={38} />
-                <Tape kind="masking" x="86%" y="98%" w="26%" r={-30} />
+                <Tape kind="masking" x="88%" y="2%" w="30%" r={38} peel />
+                <Tape kind="masking" x="86%" y="98%" w="26%" r={-30} peel />
               </div>
             </div>
 
@@ -832,7 +970,7 @@ export default function HuggoTapeTemplate({
                     ))}
                   </ul>
                 </div>
-                <Tape kind="clear" x="50%" y="1%" w="56%" r={-4} />
+                <Tape kind="clear" x="50%" y="1%" w="56%" r={-4} peel />
               </div>
             </div>
 
@@ -841,8 +979,8 @@ export default function HuggoTapeTemplate({
                 <div className="ht-lemon ht-paper">
                   <LemonPrint uid={uid} />
                 </div>
-                <Tape kind="masking" x="34%" y="2%" w="44%" r={-14} />
-                <Tape kind="clear" x="90%" y="94%" w="34%" r={48} />
+                <Tape kind="masking" x="34%" y="2%" w="44%" r={-14} peel />
+                <Tape kind="clear" x="90%" y="94%" w="34%" r={48} peel />
               </div>
             </div>
 
@@ -858,7 +996,7 @@ export default function HuggoTapeTemplate({
                     <small>don&rsquo;t peek</small>
                   </div>
                 </div>
-                <Tape kind="clear" x="8%" y="64%" w="30%" r={70} />
+                <Tape kind="clear" x="8%" y="64%" w="30%" r={70} peel />
               </div>
             </div>
 
@@ -869,7 +1007,7 @@ export default function HuggoTapeTemplate({
                   <span className="ht-ticket-big">Sat 9:00</span>
                   <span className="ht-ticket-s">14 boxes &middot; 2 rolls &middot; 1 cat</span>
                 </div>
-                <Tape kind="print" x="50%" y="0%" w="64%" r={-3} />
+                <Tape kind="print" x="50%" y="0%" w="64%" r={-3} peel />
               </div>
             </div>
 
@@ -902,7 +1040,7 @@ export default function HuggoTapeTemplate({
             </clipPath>
           </defs>
           <path className="ht-bn-fill" fill="#ff7a1a" />
-          <g clipPath={"url(#" + uid + "bc)"}>
+          <g className="ht-bn-band" clipPath={"url(#" + uid + "bc)"}>
             <path className="ht-bn-line" data-w="1.06" fill="none" stroke="rgba(10,60,20,.28)" transform="translate(0 7)" />
             <path className="ht-bn-line" data-w="1" fill="none" stroke="#c9f227" />
             <path className="ht-bn-line" data-w="0.9" fill="none" stroke="#d6fa4a" />
@@ -1159,7 +1297,7 @@ const CSS = `
 .ht-bag-n{display:grid;place-items:center;min-width:24px;height:24px;border-radius:99px;background:var(--ht-ink);color:var(--ht-lime);font-size:12px}
 
 .ht-run{position:relative}
-.ht-hero{position:relative;height:var(--h);min-height:600px;overflow:hidden;background:radial-gradient(120% 85% at 50% 38%,var(--ht-lime2),var(--ht-lime) 52%,#b6e11a)}
+.ht-hero{position:relative;height:var(--h);min-height:600px;overflow:hidden;user-select:none;-webkit-user-select:none;background:radial-gradient(120% 85% at 50% 38%,var(--ht-lime2),var(--ht-lime) 52%,#b6e11a)}
 .ht-hill{position:absolute;left:0;bottom:-1px;width:100%;height:23%;max-width:none}
 .ht-hero-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;padding-top:max(96px,calc(var(--h) * .12))}
 .ht-kicker{display:flex;align-items:center;gap:.6em;font-weight:800;font-stretch:80%;font-size:clamp(14px,1.55cqw,24px);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.1em}
@@ -1171,6 +1309,9 @@ const CSS = `
 .ht-sp{display:inline-block;width:.18em}
 .ht-hero-note{position:absolute;z-index:3;left:clamp(14px,4cqw,64px);bottom:calc(var(--h) * .09);display:grid;place-items:center;width:clamp(84px,8.5cqw,124px);aspect-ratio:1;border-radius:50%;background:var(--ht-pink);color:var(--ht-ink);text-align:center;font-weight:800;font-stretch:80%;text-transform:uppercase;font-size:clamp(11px,1.05cqw,15px);line-height:1.05;padding:10px;rotate:-12deg;box-shadow:0 0 0 4px var(--ht-paper),0 8px 14px rgba(0,50,10,.3)}
 .ht-hero-note b{display:block;font-size:1.9em;color:var(--ht-paper);text-shadow:0 2px 0 var(--ht-ink)}
+.ht-cue-drag{display:none}
+.ht-doodles{position:absolute;inset:0;z-index:3;pointer-events:none}
+.ht-doodle{position:absolute;display:block;height:clamp(30px,3cqw,46px);margin-top:calc(clamp(30px,3cqw,46px) / -2);transform-origin:0 50%;overflow:hidden;white-space:nowrap;padding:0 10px;font-style:normal;font-weight:800;font-stretch:75%;font-size:clamp(11px,1cqw,15px);letter-spacing:.08em;line-height:clamp(30px,3cqw,46px);color:rgba(13,79,32,.32);background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.14) 16%,rgba(255,255,255,.05) 50%,rgba(255,255,255,.16) 84%,rgba(255,255,255,.55)),rgba(236,248,214,.3);box-shadow:0 6px 10px rgba(0,50,10,.12);clip-path:polygon(0 0,6px 18%,0 36%,5px 54%,0 72%,6px 90%,2px 100%,calc(100% - 4px) 100%,100% 82%,calc(100% - 6px) 64%,100% 46%,calc(100% - 5px) 28%,100% 10%,calc(100% - 3px) 0)}
 .ht-cue{position:absolute;z-index:3;right:clamp(14px,4cqw,64px);bottom:calc(var(--h) * .07);color:var(--ht-paper);font-weight:800;font-stretch:85%;text-transform:uppercase;letter-spacing:.08em;font-size:13px}
 
 .ht-collage{position:relative;background:radial-gradient(90% 60% at 50% 30%,#27b048,transparent 70%),radial-gradient(70% 50% at 20% 85%,#22a542,transparent 70%),var(--ht-grass);padding:clamp(30px,4cqw,70px) 0 clamp(150px,19cqw,280px)}
@@ -1181,7 +1322,7 @@ const CSS = `
 .ht-i-head{left:2%;top:1%;width:40%;color:var(--ht-lime)}
 .ht-i-head .ht-label{color:var(--ht-paper);margin-bottom:.8em}
 .ht-collage-h{font-weight:800;font-stretch:75%;font-variation-settings:"opsz" 96;text-transform:uppercase;font-size:clamp(54px,8.4cqw,128px);line-height:.82;text-shadow:0 .04em 0 #0b5a22}
-.ht-i-card{left:47%;top:5%;width:45%}
+.ht-i-card{left:51.5%;top:5%;width:42%}
 .ht-i-note{left:7%;top:28%;width:24%}
 .ht-i-lemon{left:3%;top:55%;width:30%}
 .ht-i-gift{left:57%;top:56%;width:31%}
@@ -1190,6 +1331,7 @@ const CSS = `
 .ht-fine{position:relative;z-index:2;width:min(1300px,94%);margin:24px auto 0;color:rgba(255,250,240,.75);font-size:12px;font-weight:500;font-stretch:90%}
 
 .ht-paper{position:relative}
+.ht-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.28),transparent 32%,transparent 70%,rgba(120,40,0,.08))}
 .ht-card{background:linear-gradient(160deg,#ffd2b3,var(--ht-peach) 40%,#f6b48b);color:var(--ht-brown);padding:clamp(22px,3cqw,46px) clamp(22px,3cqw,48px) clamp(24px,3cqw,44px);box-shadow:0 1px 1px rgba(0,0,0,.1),0 22px 34px -12px rgba(0,40,10,.5),inset 0 0 40px rgba(170,80,20,.12)}
 .ht-card-k{font-family:var(--ht-display);font-weight:700;font-stretch:90%;text-transform:uppercase;letter-spacing:.14em;font-size:12px;opacity:.75;margin-bottom:1em}
 .ht-card-t{font-family:var(--ht-cond);text-transform:uppercase;font-size:clamp(26px,3.65cqw,56px);line-height:1.02;letter-spacing:.005em}
@@ -1204,6 +1346,7 @@ const CSS = `
 .ht-note li.ht-done{text-decoration:line-through;text-decoration-thickness:2px;opacity:.65}
 .ht-note li.ht-done::after{content:"";position:absolute;left:.12em;top:.12em;width:.32em;height:.62em;border:solid #d5266e;border-width:0 3px 3px 0;rotate:40deg}
 
+.ht-lemon::before{content:"";position:absolute;right:0;bottom:0;z-index:1;width:24%;height:15%;background:linear-gradient(135deg,transparent 48%,rgba(0,0,0,.14) 50%,#efe9d6 52%,#fffdf6 100%);border-top-left-radius:60% 30%;box-shadow:-4px -4px 8px rgba(0,0,0,.06)}
 .ht-lemon{aspect-ratio:300/380;background:#fffcf2;box-shadow:0 2px 2px rgba(0,0,0,.08),0 22px 30px -12px rgba(0,40,10,.55);overflow:hidden}
 .ht-lemon-svg{display:block;width:100%;height:100%;max-width:none}
 
@@ -1226,6 +1369,14 @@ const CSS = `
 
 .ht-tp{position:absolute;z-index:3;height:clamp(24px,2.3cqw,36px);transform:translate(-50%,-50%) rotate(var(--r)) translateY(var(--lift,0px));transition:transform .3s;pointer-events:none}
 .ht-in:hover .ht-tp{--lift:-2px}
+.ht-tp-in::after{content:"";position:absolute;inset:0;background-image:var(--ht-noise);opacity:.32;mix-blend-mode:multiply}
+.ht-tp-in::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.5),transparent 14%,transparent 86%,rgba(0,0,0,.08))}
+.ht-peel{pointer-events:auto;cursor:grab;touch-action:none}
+.ht-peel:focus-visible{outline:3px dashed var(--ht-paper);outline-offset:4px}
+.ht-peel:hover .ht-tp-in{filter:brightness(1.07)}
+.ht-lifting{cursor:grabbing;filter:drop-shadow(0 12px 8px rgba(0,40,10,.4))}
+.ht-peeled{pointer-events:none}
+.ht-hint{font-family:var(--ht-hand);font-weight:700;font-size:clamp(20px,1.8cqw,28px);color:var(--ht-yellow);margin:.1em 0 .5em;rotate:-3deg}
 .ht-tp-in{position:absolute;inset:0;display:block;clip-path:polygon(0 4%,3% 22%,0 40%,4% 58%,1% 78%,3% 100%,97% 96%,100% 78%,96% 60%,100% 42%,97% 22%,100% 0)}
 .ht-tp-clear .ht-tp-in{background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.18) 18%,rgba(255,255,255,.08) 55%,rgba(255,255,255,.32)),rgba(240,250,220,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
 .ht-tp-masking .ht-tp-in{background:repeating-linear-gradient(118deg,rgba(150,115,50,.12) 0 1px,transparent 1px 4px),linear-gradient(180deg,#efe0b5,#e5d29d 50%,#dcc68c);opacity:.94}
@@ -1235,6 +1386,7 @@ const CSS = `
 
 .ht-tape{position:absolute;inset:0;z-index:4;pointer-events:none}
 .ht-strip{position:absolute;left:50%;top:0;width:calc(clamp(124px,16.5cqw,250px) * .5);height:0;transform:translateX(-50%);overflow:hidden;clip-path:polygon(0 9px,8% 0,17% 8px,25% 1px,34% 10px,42% 2px,50% 8px,59% 0,67% 9px,76% 1px,84% 10px,92% 2px,100% 8px,100% 100%,0 100%);background:linear-gradient(90deg,rgba(255,255,255,.62),rgba(255,255,255,.16) 9%,rgba(255,255,255,.05) 45%,rgba(255,255,255,.14) 88%,rgba(255,255,255,.6)),rgba(236,248,214,.26);box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 16px rgba(0,40,10,.14)}
+.ht-strip::before{content:"";position:absolute;inset:0;background:linear-gradient(172deg,transparent 0 38%,rgba(255,255,255,.5) 46%,rgba(255,255,255,.12) 50%,transparent 58%) 0 var(--gy,0px)/100% 520px repeat-y;mix-blend-mode:screen}
 .ht-strip::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 3px 5px,rgba(255,255,255,.55),transparent) 30% 0/46px 140px,radial-gradient(ellipse 2px 4px,rgba(255,255,255,.4),transparent) 70% 60px/38px 210px;opacity:.7}
 .ht-strip-print{position:absolute;left:50%;top:14px;writing-mode:vertical-rl;transform:translateX(-50%) rotate(180deg);white-space:nowrap;font-weight:800;font-stretch:75%;text-transform:uppercase;font-size:calc(clamp(124px,16.5cqw,250px) * .17);letter-spacing:.06em;color:rgba(13,79,32,.32)}
 
@@ -1264,13 +1416,15 @@ const CSS = `
 .ht-face.ht-k-duct{--ring1:#d4d9de;--ring2:#a9b1b8;--rim:#7d868e;--lab:var(--ht-cocoa);--labink:var(--ht-peach)}
 
 .ht-banner{position:relative;z-index:6;height:clamp(170px,21cqw,320px);margin-top:calc(clamp(170px,21cqw,320px) * -.5);pointer-events:none}
-.ht-bn-svg{position:absolute;inset:0;width:100%;height:100%;max-width:none;overflow:visible;filter:drop-shadow(0 10px 10px rgba(60,20,0,.25))}
+.ht-bn-svg{position:absolute;inset:0;width:100%;height:100%;max-width:none;overflow:visible}
+.ht-banner::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--ht-noise);opacity:.12;mix-blend-mode:multiply;-webkit-mask-image:linear-gradient(transparent 55%,#000 90%);mask-image:linear-gradient(transparent 55%,#000 90%)}
+.ht-bn-band{filter:drop-shadow(0 10px 10px rgba(60,20,0,.25))}
 .ht-bn-glyphs{position:absolute;inset:0}
 .ht-mq-i{position:absolute;left:0;top:0;display:block;font-weight:800;font-stretch:75%;font-variation-settings:"opsz" 96;text-transform:uppercase;font-size:var(--fs,40px);line-height:1;white-space:pre;color:var(--ht-ink);will-change:transform}
 .ht-mq-logo{width:1.05em;height:1em;padding:0 .02em}
 .ht-mq-logo .ht-badge{width:1em;height:1em}
 .ht-bn-roll{position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 10px 8px rgba(40,20,0,.35))}
-.ht-bn-roll .ht-face{--d:var(--d,120px)}
+.ht-bn-roll .ht-face{--d:inherit}
 
 .ht-mask{position:relative;height:calc(max(var(--h),600px) * 2.7);background:var(--ht-orange)}
 .ht-mask-stage{position:sticky;top:0;height:max(var(--h),600px);overflow:hidden}
@@ -1337,7 +1491,7 @@ const CSS = `
 }
 @container ht (max-width:720px){
 .ht-nav-links{display:none}
-.ht-hero-copy{padding-top:max(130px,calc(var(--h) * .25))}
+.ht-hero-copy{position:absolute;inset:0 0 24% 0;justify-content:center;padding-top:60px}
 .ht-h1{font-size:clamp(64px,30cqw,300px);line-height:.82}
 .ht-kicker{font-size:15px}
 .ht-hero-note{bottom:calc(var(--h) * .2);width:84px;font-size:11px}
@@ -1369,6 +1523,7 @@ const CSS = `
 .ht-word{font-size:36cqw}
 }
 
+@media (pointer: fine){.ht-cue-drag{display:inline}}
 @media (prefers-reduced-motion: reduce){
 .ht-pre{display:none}
 .ht-mask{height:auto}
