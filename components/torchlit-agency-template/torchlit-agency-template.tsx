@@ -671,6 +671,7 @@ export default function TorchlitAgencyTemplate({
   // Torches lit on this page; light them all and the room warms up.
   const [torches, setTorches] = React.useState({ lit: 0, total: 0 })
   const [toast, setToast] = React.useState(false)
+  const [askClosed, setAskClosed] = React.useState(false)
   const sparksRef = React.useRef<HTMLDivElement>(null)
   const mothRef = React.useRef<HTMLDivElement>(null)
   const burstRef = React.useRef<(n: number) => void>(() => {})
@@ -730,6 +731,11 @@ export default function TorchlitAgencyTemplate({
     }
   }
   const [menu, setMenu] = React.useState(false)
+  const [sheet, setSheet] = React.useState(false)
+  // The bar is clear at the top of the page, gains a backdrop once you scroll, steps aside going down, returns going up.
+  const [bar, setBar] = React.useState({ solid: false, hidden: false })
+  const linksRef = React.useRef<HTMLUListElement>(null)
+  const indRef = React.useRef<HTMLSpanElement>(null)
   const [openService, setOpenService] = React.useState(0)
 
   const calm = () => typeof window !== "undefined" && window.matchMedia(REDUCE).matches
@@ -1244,6 +1250,43 @@ export default function TorchlitAgencyTemplate({
 
   const current = view.page === "case" ? "work" : view.page
 
+  React.useEffect(() => {
+    let lastY = window.scrollY
+    const onScroll = () => {
+      const top = rootRef.current ? rootRef.current.getBoundingClientRect().top + window.scrollY : 0
+      const y = window.scrollY - top
+      const dy = window.scrollY - lastY
+      lastY = window.scrollY
+      setBar((b) => {
+        const solid = y > 24
+        const hidden = y > 260 && dy > 4 ? true : dy < -4 || y <= 260 ? false : b.hidden
+        return b.solid === solid && b.hidden === hidden ? b : { solid, hidden }
+      })
+    }
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  // Slide the page marker under the current link.
+  useIso(() => {
+    const place = () => {
+      const ul = linksRef.current
+      const ind = indRef.current
+      if (!ul || !ind) return
+      const cur = ul.querySelector<HTMLElement>(".tl-cur")
+      if (!cur || !cur.getClientRects().length) { ind.style.opacity = "0"; return }
+      const head = ind.parentElement!.getBoundingClientRect()
+      const c = cur.getBoundingClientRect()
+      ind.style.opacity = "1"
+      ind.style.transform = "translate(" + (c.left - head.left + c.width / 2 - 4).toFixed(1) + "px," + (c.bottom - head.top - 2).toFixed(1) + "px)"
+    }
+    place()
+    window.addEventListener("resize", place)
+    document.fonts?.ready.then(place)
+    return () => window.removeEventListener("resize", place)
+  }, [current])
+
   // ---- shared pieces --------------------------------------------------------------
   const card = (p: TorchProject, i: number, w = 800) => (
     <li key={p.title + i} className="tl-card">
@@ -1514,7 +1557,7 @@ export default function TorchlitAgencyTemplate({
           <h2 className="tl-h3"><span className="tl-bg-n">05</span><T as="span">Voice</T></h2>
           <div className="tl-voice">
             <div><span className="tl-voice-k">We say</span>{["Let's make it louder.", "Here's what we'd cut.", "It's ready when it's right."].map((t) => <T key={t} className="tl-voice-t">{t}</T>)}</div>
-            <div><span className="tl-voice-k tl-voice-no">We never say</span>{["Synergy.", "Best-in-class solutions.", "Per my last email."].map((t) => <T key={t} className="tl-voice-t tl-strike">{t}</T>)}</div>
+            <div><span className="tl-voice-k tl-voice-no">We never say</span>{["Synergy.", "Best-in-class solutions.", "Per my last email."].map((t) => <T key={t} className="tl-voice-t"><s className="tl-strike">{t}</s></T>)}</div>
           </div>
         </section>
       </>
@@ -1529,50 +1572,77 @@ export default function TorchlitAgencyTemplate({
       <style>{CSS}</style>
       <div ref={frameRef} className={"tl-frame" + (env.on ? " tl-on" : "") + (env.fine && !day ? " tl-fine" : "") + (day ? " tl-day" : "") + (warm ? " tl-warm" : "")}>
         <div className="tl-bar">
-          <nav className="tl-nav" aria-label="Main">
-            <button type="button" className="tl-logo" onClick={() => go({ page: "home" })} aria-label={studio + ", home"}>
-              <FlameMark mono />
+          <header className={"tl-nav" + (bar.solid || sheet ? " tl-nav-solid" : "") + (bar.hidden && !sheet && !menu ? " tl-nav-hide" : "")}>
+            <button type="button" className="tl-brand" onClick={() => go({ page: "home" })} aria-label={studio + ", home"}>
+              <span className="tl-logo"><FlameMark mono /></span>
+              <span className="tl-brand-name">{rich(studio.replace("&", "*&*"))}</span>
             </button>
-            <ul>
-              {navItems.map(([pg, label]) => (
-                <li key={pg}>
-                  {pg === "services" ? (
-                    <>
-                      <button type="button" className={"tl-nl tl-svc-btn" + (current === pg ? " tl-cur" : "")} aria-expanded={menu} aria-haspopup="true" onClick={() => setMenu((m) => !m)}>
-                        {label} <span className="tl-chev" aria-hidden="true" />
+            <nav className="tl-links" aria-label="Main">
+              <ul ref={linksRef}>
+                {navItems.map(([pg, label]) => (
+                  <li key={pg}>
+                    {pg === "services" ? (
+                      <>
+                        <button type="button" className={"tl-nl tl-svc-btn" + (current === pg ? " tl-cur" : "")} aria-expanded={menu} aria-haspopup="true" onClick={() => setMenu((m) => !m)}>
+                          {label} <span className="tl-chev" aria-hidden="true" />
+                        </button>
+                        {menu && (
+                          <ul className="tl-svc-menu">
+                            {services.map((sv, i) => (
+                              <li key={sv.name}>
+                                <button type="button" onClick={() => { setOpenService(i); go({ page: "services" }) }}>
+                                  <FlameMark /> {sv.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <button type="button" className={"tl-nl" + (current === pg ? " tl-cur" : "")} aria-current={current === pg ? "page" : undefined} onClick={() => go({ page: pg })}>
+                        {label}
                       </button>
-                      {menu && (
-                        <ul className="tl-svc-menu">
-                          {services.map((s, i) => (
-                            <li key={s.name}>
-                              <button type="button" onClick={() => { setOpenService(i); go({ page: "services" }) }}>
-                                <FlameMark /> {s.name}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    <button type="button" className={"tl-nl" + (current === pg ? " tl-cur" : "")} aria-current={current === pg ? "page" : undefined} onClick={() => go({ page: pg })}>
-                      {label}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="tl-actions">
-            {!day && torches.total > 0 && (
-              <span className={"tl-count" + (warm ? " tl-count-done" : "")} aria-live="polite">
-                <FlameMark /> {torches.lit}/{torches.total}<span className="tl-count-l"> torches lit</span>
-              </span>
-            )}
-            <button type="button" className="tl-lamp" aria-pressed={!day} onClick={() => setLights(!day)}>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            {/* A small flame marks the page you are on and slides to the next one. */}
+            <span className="tl-ind" ref={indRef} aria-hidden="true"><FlameMark /></span>
+            <div className="tl-actions">
+              {!day && torches.total > 0 && (
+                <span className={"tl-count" + (warm ? " tl-count-done" : "")} aria-live="polite">
+                  <FlameMark /> {torches.lit}/{torches.total}<span className="tl-count-l"> torches lit</span>
+                </span>
+              )}
+              <button type="button" className="tl-lamp" aria-pressed={!day} onClick={() => setLights(!day)}>
+                <span className="tl-lamp-dot" aria-hidden="true" />
+                <span className="tl-lamp-l">{day ? "Lights off" : "Lights on"}</span>
+              </button>
+              <a className="tl-cta" href={"mailto:" + email}>Let's Connect</a>
+              <button type="button" className={"tl-burger" + (sheet ? " tl-x" : "")} aria-expanded={sheet} aria-controls="tl-sheet" aria-label={sheet ? "Close menu" : "Open menu"} onClick={() => setSheet((v) => !v)}>
+                <i /><i />
+              </button>
+            </div>
+          </header>
+        </div>
+        {/* Phone menu: opens like light spreading from the button; links rise in one after another. */}
+        <div id="tl-sheet" className={"tl-sheet" + (sheet ? " tl-open" : "")} aria-hidden={!sheet}>
+          <ul>
+            {([["home", "Home"], ...navItems] as [TorchPage, string][]).map(([pg, label], i) => (
+              <li key={pg} style={{ "--i": i } as React.CSSProperties}>
+                <button type="button" tabIndex={sheet ? 0 : -1} className={current === pg ? "tl-cur" : ""} onClick={() => { setSheet(false); go({ page: pg }) }}>
+                  {current === pg && <FlameMark />}{label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="tl-sheet-foot" style={{ "--i": 6 } as React.CSSProperties}>
+            <button type="button" className="tl-lamp" tabIndex={sheet ? 0 : -1} aria-pressed={!day} onClick={() => setLights(!day)}>
               <span className="tl-lamp-dot" aria-hidden="true" />
-              {day ? "Lights off" : "Lights on"}
+              <span className="tl-lamp-l">{day ? "Lights off" : "Lights on"}</span>
             </button>
-            <a className="tl-cta" href={"mailto:" + email}>Let's Connect</a>
+            <a className="tl-k" tabIndex={sheet ? 0 : -1} href={"mailto:" + email}>{email}</a>
           </div>
         </div>
 
@@ -1626,12 +1696,13 @@ export default function TorchlitAgencyTemplate({
           </svg>
         </div>
         <div ref={torchRef} className="tl-torch" aria-hidden="true"><PixelTorch /></div>
-        {toast && <div className="tl-toast" role="status"><FlameMark /> Every torch here is lit. The room is warmer now.</div>}
+        {toast && !day && <div className="tl-toast" role="status"><FlameMark /> Every torch here is lit. The room is warmer now.</div>}
         <img ref={ghostRef} className="tl-ghost" alt="" aria-hidden="true" />
-        {day && (
+        {day && !askClosed && (
           <div className="tl-ask" role="note">
             <span className="tl-ask-t"><FlameMark /> This studio is best seen in the dark.</span>
             <button type="button" onClick={() => setLights(false)}>Turn the lights off</button>
+            <button type="button" className="tl-ask-x" aria-label="Dismiss" onClick={() => setAskClosed(true)} />
           </div>
         )}
       </div>
@@ -1703,15 +1774,33 @@ const CSS = `
 
 /* ---- nav ---- */
 .tl-bar{position:sticky;top:10px;height:0;z-index:50}
-.tl-nav{position:absolute;left:30px;top:24px;font-size:12.5px;line-height:1.45;color:var(--tl-ui)}
-.tl-nav ul{list-style:none;margin:10px 0 0;padding:0}
-.tl-nl{display:inline-flex;align-items:center;gap:6px;transition:color .2s}
+.tl-nav{position:absolute;left:14px;right:14px;top:0;height:60px;display:flex;align-items:center;gap:20px;padding:0 10px 0 12px;border-radius:16px;border:1px solid transparent;color:var(--tl-ui);font-size:13.5px;transition:transform 380ms var(--tl-ease-out),background-color 300ms ease,border-color 300ms ease,box-shadow 300ms ease}
+.tl-nav-solid{background:rgba(18,16,16,.74);border-color:var(--tl-line);-webkit-backdrop-filter:blur(12px) saturate(1.15);backdrop-filter:blur(12px) saturate(1.15);box-shadow:0 12px 40px rgba(0,0,0,.28)}
+.tl-frame.tl-day .tl-nav-solid{background:rgba(242,235,226,.8);box-shadow:0 12px 30px rgba(60,40,30,.08)}
+.tl-nav-hide{transform:translateY(-130%)}
+.tl-brand{display:flex;align-items:center;gap:12px;flex:none}
+.tl-brand-name{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-size:21px;line-height:1;letter-spacing:-.01em;color:var(--tl-ui-hi);white-space:nowrap}
+.tl-links{flex:1;display:flex;justify-content:center;min-width:0}
+.tl-links > ul{position:relative;display:flex;gap:4px;list-style:none;margin:0;padding:0}
+.tl-links li{position:relative}
+.tl-ind{position:absolute;left:0;top:0;width:8px;height:10px;pointer-events:none;opacity:0;transition:transform 520ms var(--tl-ease-in-out),opacity 200ms ease}
+.tl-ind .tl-mark{display:block;width:8px;height:10px}
+.tl-burger{display:none;position:relative;width:40px;height:40px;border-radius:12px}
+.tl-burger i{position:absolute;left:11px;width:18px;height:1.5px;background:currentColor;transition:transform 300ms var(--tl-ease-out)}
+.tl-burger i:first-child{top:16px}
+.tl-burger i:last-child{top:23px}
+.tl-burger.tl-x i:first-child{transform:translateY(3.5px) rotate(45deg)}
+.tl-burger.tl-x i:last-child{transform:translateY(-3.5px) rotate(-45deg)}
+.tl-sheet{display:none}
+.tl-frame .tl-nl{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;transition:color 200ms ease,background-color 200ms ease}
+.tl-nl:hover{background:rgba(243,230,211,.07)}
+.tl-frame.tl-day .tl-nl:hover{background:rgba(43,36,33,.06)}
 .tl-nl:hover{color:var(--tl-ui-hi)}
-.tl-cur{color:var(--tl-red)}
-.tl-cur:hover{color:#ff5a45}
+.tl-frame .tl-cur{color:var(--tl-red)}
+.tl-frame .tl-cur:hover{color:#ff5a45}
 .tl-chev{width:6px;height:6px;border-right:1.5px solid var(--tl-red);border-bottom:1.5px solid var(--tl-red);transform:translateY(-2px) rotate(45deg);transition:transform .25s}
 .tl-svc-btn[aria-expanded="true"] .tl-chev{transform:translateY(1px) rotate(225deg)}
-.tl-svc-menu{position:absolute;left:0;margin-top:8px!important;min-width:210px;background:rgba(24,21,21,.96);border:1px solid var(--tl-line);border-radius:12px;padding:8px!important;box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(8px);transform-origin:12px 0;transition:opacity 180ms var(--tl-ease-out),transform 180ms var(--tl-ease-out)}
+.tl-svc-menu{position:absolute;left:0;top:calc(100% + 12px);min-width:210px;background:rgba(24,21,21,.96);border:1px solid var(--tl-line);border-radius:12px;padding:8px!important;box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(8px);transform-origin:12px 0;transition:opacity 180ms var(--tl-ease-out),transform 180ms var(--tl-ease-out)}
 @starting-style{.tl-svc-menu{opacity:0;transform:translateY(-4px) scale(.97)}}
 .tl-svc-menu button{display:flex;gap:10px;align-items:center;width:100%;padding:8px 10px;border-radius:8px;font-size:13.5px;color:var(--tl-ui)}
 .tl-svc-menu button:hover{background:rgba(243,230,211,.06);color:var(--tl-ui-hi)}
@@ -1719,7 +1808,7 @@ const CSS = `
 .tl-logo .tl-mark{width:14px;height:18px}
 .tl-frame .tl-logo-xl{width:132px;height:132px;border-radius:10px}
 .tl-frame .tl-logo-xl .tl-mark{width:49px;height:63px}
-.tl-actions{position:absolute;right:26px;top:22px;display:flex;align-items:center;gap:14px}
+.tl-actions{display:flex;align-items:center;gap:14px;flex:none}
 .tl-lamp{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--tl-ui);padding:8px 2px}
 .tl-lamp:hover{color:var(--tl-ui-hi)}
 .tl-lamp-dot{width:22px;height:12px;border-radius:12px;background:#3a302b;position:relative;transition:background-color 220ms ease}
@@ -1876,17 +1965,18 @@ const CSS = `
 .tl-sw-hex{display:block;font-size:12px;color:var(--tl-ui-2);margin:4px 0 6px;font-variant-numeric:tabular-nums}
 .tl-sw-u{display:block;font-size:13px}
 .tl-type{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:end}
-.tl-type-aa{font-size:clamp(90px,13cqw,220px);line-height:.9;letter-spacing:-.03em}
+.tl-type-aa{font-size:clamp(90px,13cqw,220px);line-height:1.02;letter-spacing:-.03em;margin:6px 0 10px}
 .tl-type-sans{display:inline-block;font-size:clamp(44px,5cqw,80px);font-weight:500;letter-spacing:-.03em;line-height:1}
 .tl-voice{display:grid;grid-template-columns:1fr 1fr;gap:40px}
 .tl-voice-k{display:block;font-size:12px;color:var(--tl-ui-2);margin-bottom:12px}
 .tl-voice-no{color:var(--tl-red)}
 .tl-voice-t{font-size:clamp(24px,2.6cqw,38px);line-height:1.15;margin:0 0 8px}
-.tl-strike{text-decoration:line-through;text-decoration-color:rgba(232,50,31,.7);text-decoration-thickness:1.5px}
+/* Drawn, not text-decoration: the serif's own strike sits low. Through the x-height, per line. */
+.tl-strike{text-decoration:none;background:linear-gradient(transparent 56%,rgba(232,50,31,.75) 56%,rgba(232,50,31,.75) calc(56% + 1.5px),transparent calc(56% + 1.5px));-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
 /* ---- contact ---- */
 .tl-contact{position:relative;z-index:1;text-align:center;padding:clamp(100px,13cqw,200px) clamp(20px,5cqw,80px) clamp(60px,7cqw,100px)}
-.tl-ignite{position:relative;display:inline-block;margin:26px 0 8px}
+.tl-ignite{position:relative;display:inline-block;margin:clamp(28px,4cqw,48px) 0 clamp(14px,2cqw,24px)}
 .tl-mega{font-size:clamp(76px,15cqw,250px);line-height:.92;letter-spacing:-.035em}
 .tl-fire{position:absolute;left:0;top:0;pointer-events:none;opacity:0;color:transparent;-webkit-text-fill-color:transparent;-webkit-background-clip:text;background-clip:text;background-image:linear-gradient(0deg,#e8321f 8%,#ff7a1f 38%,#ffc95a 66%,#fff3d6 92%);background-size:100% 180%;-webkit-mask-image:radial-gradient(circle var(--ig,0px) at var(--ix,50%) var(--iy,50%),#000 72%,rgba(0,0,0,0) 100%);mask-image:radial-gradient(circle var(--ig,0px) at var(--ix,50%) var(--iy,50%),#000 72%,rgba(0,0,0,0) 100%)}
 .tl-on .tl-lit-up .tl-fire{opacity:1;animation:tl-burn 2.4s ease-in-out infinite alternate}
@@ -1896,7 +1986,7 @@ const CSS = `
 .tl-embers i{position:absolute;bottom:20%;width:4px;height:4px;background:#ffb347;box-shadow:0 0 6px #ff6a1a;opacity:0}
 .tl-lit-up .tl-embers i{animation:tl-ember 2.4s linear infinite}
 @keyframes tl-ember{0%{opacity:0;transform:translate(0,0)}15%{opacity:1}100%{opacity:0;transform:translate(14px,-150px)}}
-.tl-ign-hint{font-size:13px;color:var(--tl-ui-2);margin:0}
+.tl-ign-hint{font-size:13px;color:var(--tl-ui-2);margin:12px 0 0}
 .tl-ign-b{display:none;color:var(--tl-red)}
 .tl-contact:has(.tl-lit-up) .tl-ign-a{display:none}
 .tl-contact:has(.tl-lit-up) .tl-ign-b{display:inline}
@@ -1948,13 +2038,17 @@ const CSS = `
 .tl-frame.tl-warm::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(120% 60% at 50% 0%,rgba(255,140,60,.07),rgba(255,140,60,0) 70%);animation:tl-fade .9s var(--tl-ease-out) both}
 @keyframes tl-fade{from{opacity:0}}
 .tl-toast{position:fixed;left:50%;bottom:22px;z-index:70;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:11px 18px;border-radius:40px;background:#241b17;border:1px solid rgba(255,190,110,.25);color:#ffe2b0;font-size:13px;box-shadow:0 0 40px rgba(255,110,40,.25);white-space:nowrap;animation:tl-ask .45s both var(--tl-ease-out)}
-.tl-frame.tl-day .tl-sconce-halo,.tl-frame.tl-day .tl-sparks,.tl-frame.tl-day .tl-moth{display:none}
+.tl-frame.tl-day .tl-sconce-halo,.tl-frame.tl-day .tl-sparks,.tl-frame.tl-day .tl-moth,.tl-frame.tl-day .tl-flame::before{display:none}
 .tl-rim,.tl-room{position:absolute;inset:0;pointer-events:none}
 .tl-nav,.tl-nl,.tl-lamp,.tl-count,.tl-chev{transition:color 600ms ease,border-color 600ms ease}
 .tl-ask{position:fixed;left:50%;bottom:22px;z-index:53;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:40px;background:#1a1616;color:#efe4d6;font-size:13px;box-shadow:0 14px 40px rgba(20,12,8,.28);white-space:nowrap;animation:tl-ask .5s 1.2s both var(--tl-ease-out)}
 .tl-ask-t{display:inline-flex;align-items:center;gap:8px}
 .tl-ask button{background:var(--tl-red);color:#fff4ea;border-radius:30px;padding:8px 14px;font-size:13px}
 .tl-ask button:hover{background:#ff4430}
+.tl-frame .tl-ask .tl-ask-x{position:relative;width:28px;height:28px;padding:0;border-radius:50%;background:transparent;color:#efe4d6}
+.tl-frame .tl-ask .tl-ask-x:hover{background:rgba(255,255,255,.08)}
+.tl-ask-x::before,.tl-ask-x::after{content:"";position:absolute;left:8px;top:13.5px;width:12px;height:1.5px;background:currentColor;transform:rotate(45deg)}
+.tl-ask-x::after{transform:rotate(-45deg)}
 @keyframes tl-ask{from{opacity:0;transform:translate(-50%,20px)}}
 .tl-hint-day{color:var(--tl-red);border-bottom:1px solid currentColor;padding-bottom:2px}
 
@@ -1965,18 +2059,22 @@ const CSS = `
 .tl-frame.tl-day .tl-lo{display:none}
 .tl-frame.tl-day .tl-hi{-webkit-mask-image:none;mask-image:none}
 .tl-frame.tl-day .tl-i{background:#ddd2c4}
+.tl-frame.tl-day .tl-emb{background:none}
 .tl-frame.tl-day .tl-emb .tl-hi{filter:none}
 .tl-frame.tl-day .tl-torch,.tl-frame.tl-day .tl-glow,.tl-frame.tl-day .tl-fire,.tl-frame.tl-day .tl-embers,.tl-frame.tl-day .tl-ign-hint,.tl-frame.tl-day .tl-emb-halo{display:none}
 .tl-frame.tl-day .tl-lit-up.tl-ignite{filter:none}
 .tl-frame.tl-day .tl-svc-menu{background:rgba(250,245,238,.97);border-color:var(--tl-line);box-shadow:0 20px 50px rgba(60,40,30,.18)}
 .tl-frame.tl-day .tl-svc-menu button:hover{background:rgba(43,36,33,.06)}
 .tl-frame.tl-day .tl-band-img{background:#d9cbb8}
-.tl-frame.tl-day .tl-bar::before{background:linear-gradient(#efe7dc 66%,rgba(239,231,220,0))}
 
 /* ---- wide frames: text clears the fixed nav ---- */
 @container tl (min-width: 1001px){
   .tl-page,.tl-contact,.tl-foot{--gl:clamp(160px,13cqw,210px)}
 }
+
+/* ---- the bar tightens before it folds into the phone menu ---- */
+@container tl (max-width: 1100px){ .tl-nav .tl-count-l,.tl-nav .tl-lamp-l{display:none} .tl-nav{gap:14px} }
+@container tl (max-width: 900px){ .tl-brand-name{display:none} .tl-frame .tl-nl{padding:8px 9px} }
 
 /* ---- narrow frames ---- */
 @container tl (max-width: 1000px){
@@ -1985,12 +2083,26 @@ const CSS = `
   .tl-sw{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @container tl (max-width: 720px){
-  .tl-bar::before{content:"";position:absolute;left:0;right:0;top:-10px;height:178px;background:linear-gradient(#141212 66%,rgba(20,18,18,0));pointer-events:none}
-  .tl-nav{left:18px;top:16px;font-size:12px}
-  .tl-actions{right:16px;top:16px;gap:10px}
-  .tl-count-l,.tl-hero > .tl-sconce,.tl-ph > .tl-sconce-left{display:none}
-  .tl-ph > .tl-sconce-right{top:150px}
+  .tl-nav{left:10px;right:10px;height:56px;gap:10px;padding:0 6px 0 10px}
+  .tl-actions{gap:8px}
+  .tl-links,.tl-lamp-l,.tl-nav .tl-lamp,.tl-nav .tl-count{display:none}
+  .tl-brand-name{display:inline;font-size:18px}
+  .tl-burger{display:block}
+  .tl-sheet{display:flex;flex-direction:column;justify-content:space-between;position:fixed;inset:0;z-index:48;background:var(--tl-bg);padding:96px 24px 32px;visibility:hidden;clip-path:circle(0 at calc(100% - 44px) 46px);transition:clip-path 480ms var(--tl-ease-out),visibility 0s 480ms}
+  .tl-sheet.tl-open{visibility:visible;clip-path:circle(150% at calc(100% - 44px) 46px);transition:clip-path 640ms var(--tl-ease-out),visibility 0s}
+  .tl-sheet ul{list-style:none;margin:0;padding:0}
+  .tl-sheet li,.tl-sheet-foot{opacity:0;transform:translateY(16px);transition:opacity 300ms ease,transform 300ms var(--tl-ease-out)}
+  .tl-sheet.tl-open li,.tl-sheet.tl-open .tl-sheet-foot{opacity:1;transform:none;transition:opacity 500ms ease calc(var(--i) * 55ms + 140ms),transform 600ms var(--tl-ease-out) calc(var(--i) * 55ms + 140ms)}
+  .tl-sheet li button{display:flex;align-items:center;gap:14px;padding:10px 0;font-family:"Instrument Serif",ui-serif,Georgia,serif;font-size:46px;line-height:1;letter-spacing:-.02em;color:var(--tl-ui-hi)}
+  .tl-sheet li button.tl-cur{color:var(--tl-red)}
+  .tl-sheet li .tl-mark{width:12px;height:16px}
+  .tl-sheet-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--tl-line);padding-top:18px}
+  .tl-sheet-foot .tl-lamp-l{display:inline}
+  /* No room beside full-width titles on a phone: header torches go (and drop out of the count). */
+  .tl-count-l,.tl-hero > .tl-sconce,.tl-ph > .tl-sconce{display:none}
   .tl-toast{white-space:normal;width:calc(100% - 32px);justify-content:center}
+  .tl-ask{white-space:normal;width:calc(100vw - 24px);max-width:440px;gap:10px;padding:8px 6px 8px 14px;font-size:12px;line-height:1.3}
+  .tl-ask button{white-space:nowrap;flex:none}
   .tl-frame .tl-cta{font-size:16px;padding:9px 12px 10px}
   .tl-lamp{font-size:11.5px}
   .tl-hero{padding-top:150px}
@@ -2034,6 +2146,6 @@ const CSS = `
   .tl-glow i,.tl-hint::before,.tl-lit-up .tl-embers i{animation:none}
   .tl-on .tl-lit-up .tl-fire{animation:none}
   .tl-acc-p,.tl-thumb img,.tl-torch,.tl-glow{transition:none}
-  .tl-svc-menu{transition:none}
+  .tl-svc-menu,.tl-nav,.tl-ind,.tl-sheet,.tl-sheet li,.tl-sheet-foot,.tl-burger i{transition:none!important}
 }
 `
