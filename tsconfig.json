@@ -14,8 +14,6 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
-      "@/components/ui/plein-workspace-template": ["./components/plein-workspace-template/plein-workspace-template.tsx"],
-      "@/components/ui/halftone-dissolve-hero": ["./components/halftone-dissolve-hero/halftone-dissolve-hero.tsx"],
       "@/components/ui/huggo-tape-template": ["./components/huggo-tape-template/huggo-tape-template.tsx"],
       "@/components/ui/repair-bay-concept-template": ["./components/repair-bay-concept-template/repair-bay-concept-template.tsx"],
       "@/components/ui/alto-coffee-template": ["./components/alto-coffee-template/alto-coffee-template.tsx"],
@@ -210,9 +208,7 @@
       "@/components/ui/venom-vial-preloader": ["./components/venom-vial-preloader/venom-vial-preloader.tsx"],
       "@/components/ui/silk-spider-cursor": ["./components/silk-spider-cursor/silk-spider-cursor.tsx"],
       "@/components/ui/crumple-changelog": ["./components/crumple-changelog/crumple-changelog.tsx"],
-      "@/components/ui/crab-perch-buttons": ["./components/crab-perch-buttons/crab-perch-buttons.tsx"],
       "@/components/ui/crumpled-paper-reveal": ["./components/crumpled-paper-reveal/crumpled-paper-reveal.tsx"],
-      "@/components/ui/galaxy-effort-slider": ["./components/galaxy-effort-slider/galaxy-effort-slider.tsx"],
       "@/components/ui/torchlit-agency-template": ["./components/torchlit-agency-template/torchlit-agency-template.tsx"]
     }
   },
