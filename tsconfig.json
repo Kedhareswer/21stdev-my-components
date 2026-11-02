@@ -14,6 +14,7 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/plein-workspace-template": ["./components/plein-workspace-template/plein-workspace-template.tsx"],
       "@/components/ui/halftone-dissolve-hero": ["./components/halftone-dissolve-hero/halftone-dissolve-hero.tsx"],
       "@/components/ui/huggo-tape-template": ["./components/huggo-tape-template/huggo-tape-template.tsx"],
       "@/components/ui/repair-bay-concept-template": ["./components/repair-bay-concept-template/repair-bay-concept-template.tsx"],
