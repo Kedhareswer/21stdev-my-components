@@ -758,12 +758,16 @@ export default function OrielStudioTemplate({
         const st = q(".or-work")
         const path = q<SVGPathElement>(".or-thread path", st)
         const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } })
-        tl.fromTo(path, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.3 }, 0.24)
-          .to(q(".or-car", st), { scale: 0.9, opacity: 0, duration: 0.2 }, 0.3)
-          .fromTo(q(".or-hand", st), { scale: 1 }, { scale: 0, duration: 0.24 }, 0.3)
-          .to(path, { opacity: 0, duration: 0.06 }, 0.58)
-          .fromTo(q(".or-slit", st), { scaleY: 0, scaleX: () => 1 / W() }, { scaleY: 1, duration: 0.16, ease: "power2.in" }, 0.6)
-          .to(q(".or-slit", st), { scaleX: 1, duration: 0.18, ease: "power3.in" }, 0.78)
+        const slit = q(".or-slit", st)
+        // like the reference: the work scrolls up and away (it is not faded in place), the hand
+        // circle shrinks and lets a thread out to the top centre, a 1px line drops from there,
+        // then the line widens into white
+        tl.fromTo(q(".or-work-lift", st), { y: 0 }, { y: () => -1.15 * H(), duration: 0.36, ease: "power1.in" }, 0.1)
+          .fromTo(q(".or-hand", st), { scale: 1 }, { scale: 0, duration: 0.2, ease: "power2.in" }, 0.32)
+          .fromTo(path, { strokeDashoffset: 1, opacity: 1 }, { strokeDashoffset: 0, duration: 0.2 }, 0.34)
+          .fromTo(slit, { scaleY: 0, scaleX: () => 1.5 / W() }, { scaleY: 1, duration: 0.12, ease: "power2.in" }, 0.54)
+          .to(path, { opacity: 0, duration: 0.05 }, 0.64)
+          .to(slit, { scaleX: 1, duration: 0.24, ease: "power3.in" }, 0.72)
         let last = 0
         if (deck) scrub(i, q(".or-work-track"), tl, 0, (p) => {
           if (crossed(last, p, 0.9)) setTone(i, p >= 0.9 ? "light" : undefined)
@@ -775,7 +779,8 @@ export default function OrielStudioTemplate({
       {
         const i = 6
         const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } })
-        tl.fromTo(q(".or-cube"), { rotateY: 0 }, { rotateY: -90, duration: 0.6, ease: "power1.inOut" }, 0.2)
+        // starts a little turned so it reads as a cube, not a list
+        tl.fromTo(q(".or-cube"), { rotateY: 16 }, { rotateY: -90, duration: 0.6, ease: "power1.inOut" }, 0.2)
         scrub(i, q(".or-proof-track"), tl, 1)
       }
 
@@ -789,7 +794,8 @@ export default function OrielStudioTemplate({
         const idea = q(".or-idea", st)
         const ideaL = qa(".or-l", idea)
         const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } })
-        tl.fromTo(box, { width: () => 34 * R(), height: () => 22 * R(), borderRadius: () => 9 * R() }, { width: () => W(), height: () => H(), borderRadius: 0, duration: 0.28, ease: "power2.inOut" }, 0.58)
+        tl.fromTo(q(".or-rope-bg path", st), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.36 }, 0)
+          .fromTo(box, { width: () => (deck ? 28 : 20) * R(), height: () => (deck ? 19 : 14) * R(), borderRadius: () => (deck ? 7 : 4.5) * R(), y: 0 }, { width: () => W() - 3 * R(), height: () => H() - 7.5 * R(), borderRadius: () => 4 * R(), y: () => -1.5 * R(), duration: 0.28, ease: "power2.inOut" }, 0.58)
           .fromTo(q(".or-rope-fill", st), { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.62)
           .fromTo(q(".or-rope-line", st), { opacity: 1, y: 0 }, { opacity: 0, y: () => -6 * R(), duration: 0.12 }, 0.5)
           .fromTo(q(".or-marq", st), { opacity: 0 }, { opacity: 1, duration: 0.1 }, 0.8)
@@ -1614,17 +1620,19 @@ export default function OrielStudioTemplate({
       <section className="or-scene or-s-work" id="work" aria-label="Selected work">
         <div className="or-track or-work-track">
           <div className="or-stage or-work">
-            <p className="or-work-k" data-rise="">
-              Selected work, 2024 – 2026
-            </p>
-            <div data-rise="" className="or-car-wrap">
-              <Carousel projects={projects} />
+            <div className="or-work-lift">
+              <p className="or-work-k" data-rise="">
+                Selected work, 2024 – 2026
+              </p>
+              <div data-rise="" className="or-car-wrap">
+                <Carousel projects={projects} />
+              </div>
             </div>
             <div className="or-hand" aria-hidden="true">
               <Clip src={VID(15863511, "sd_960_540")} />
             </div>
-            <svg className="or-thread" viewBox="0 0 1728 507" preserveAspectRatio="none" aria-hidden="true">
-              <path pathLength={1} d="M-20 420C220 380 300 120 520 150s210 300 430 260 160-330 380-300 260 240 420 180" />
+            <svg className="or-thread" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+              <path pathLength={1} d="M1272 748C1262 520 1060 410 900 330C780 270 722 170 720 -10" />
             </svg>
             <span className="or-slit" aria-hidden="true" />
           </div>
@@ -1667,6 +1675,9 @@ export default function OrielStudioTemplate({
         <div className="or-track or-rope-track">
           <div className="or-stage or-rope">
             <span className="or-rope-fill" aria-hidden="true" />
+            <svg className="or-rope-bg" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+              <path pathLength={1} d="M1460 470C1180 560 860 600 640 640C430 680 330 820 230 800C110 776 120 640 300 620C520 596 560 760 470 900" />
+            </svg>
             <p className="or-rope-line" data-rise="">
               Our studio is a calm room where knotty problems come undone.
             </p>
@@ -1674,7 +1685,13 @@ export default function OrielStudioTemplate({
               <canvas className="or-rope-c" aria-hidden="true" />
               <canvas className="or-rope-seq" aria-hidden="true" />
               <h2 className="or-idea">
-                <Spell text="Have a knotty idea?" />
+                <span className="or-sr">Have a knotty idea?</span>
+                <span className="or-idea-l">
+                  <Spell text="Have a" hidden />
+                </span>
+                <span className="or-idea-l">
+                  <Spell text="knotty idea?" hidden />
+                </span>
               </h2>
               <div className="or-marq" aria-label="Clients">
                 <div>
@@ -1856,8 +1873,8 @@ function mountRope(canvas: HTMLCanvasElement, dpr: number) {
   key.shadow.radius = 6
   key.shadow.bias = -0.0005
   scene.add(key)
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 20), new THREE.ShadowMaterial({ color: 0x2a1f5c, opacity: 0.22 }))
-  wall.position.z = -1.4
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 20), new THREE.ShadowMaterial({ color: 0x2a1f5c, opacity: 0.16 }))
+  wall.position.z = -0.75
   wall.receiveShadow = true
   scene.add(wall)
   const rim = new THREE.DirectionalLight(0xc8c2ff, 1.6)
@@ -2218,8 +2235,7 @@ const CSS = rr(`
 .or-car{position:absolute;inset:0;touch-action:pan-y;user-select:none}
 .or-car-ring{position:absolute;left:50%;top:calc(var(--h) / 2 - 1R);width:0;height:0}
 .or-car-card{position:absolute;left:-18.8R;top:-12.7R;width:37.6R;height:25.4R;margin:0;border-radius:1.4R;overflow:hidden;cursor:grab;transform:translateX(calc(var(--d) * 42R)) scale(calc(1 - min(1, max(var(--d), -1 * var(--d))) * .12));transition:transform .8s cubic-bezier(.6,0,.2,1),opacity .5s}
-.or-car-card img{width:100%;height:100%;object-fit:cover;pointer-events:none;transform:scale(1.08);filter:brightness(.5) saturate(.7);transition:filter .8s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)}
-.or-car-card.is-on img{filter:none;transform:none}
+.or-car-card img{width:100%;height:100%;object-fit:cover;pointer-events:none}
 .or-car-card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgb(27 26 26 / 0) 40%,#1b1a1a)}
 .or-car-meta{position:absolute;left:1.4R;right:1.4R;top:1.2R;display:flex;justify-content:space-between;z-index:1}
 .or-car-meta span{border:1px solid rgb(255 255 255 / .55);border-radius:2R;padding:.3R .8R;font-size:.8R;backdrop-filter:blur(6px)}
@@ -2229,13 +2245,14 @@ const CSS = rr(`
 .or-car-bars{display:flex;gap:.4R}
 .or-car-bars span{width:1.25R;height:.19R;background:#4a4a4f;border-radius:1R;transition:width .5s ease,background .5s}
 .or-car-bars span.is-on{width:4.2R;background:#fff}
-.or-car-count{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:1.1R}
+.or-car-count{white-space:nowrap;font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:1.1R}
 .or-car-btn{width:3.4R;height:3.4R;border-radius:50%;border:1px solid #4a4a4f;font-size:1.2R;transition:border-color .3s}
 .or-car-btn:hover{border-color:#fff}
 .or-hand{position:absolute;right:6R;bottom:5R;width:9R;height:9R;border-radius:50%;overflow:hidden;border:.12R solid #fff}
-.or-thread{position:absolute;left:0;top:18%;width:100%;height:56%;overflow:visible}
+.or-work-lift{position:absolute;inset:0}
+.or-thread{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .or-thread path{fill:none;stroke:#fff;stroke-width:2.2;stroke-dasharray:1;stroke-dashoffset:1}
-.or-slit{position:absolute;inset:0;background:var(--or-paper);transform:scaleX(0) scaleY(0)}
+.or-slit{position:absolute;inset:0;background:var(--or-paper);transform:scaleX(0) scaleY(0);transform-origin:50% 0}
 @keyframes or-up{from{transform:translateY(70%);opacity:0}}
 
 /* 6 proof */
@@ -2244,26 +2261,29 @@ const CSS = rr(`
 .or-blob{position:absolute;left:-12R;top:-12R;width:24R;height:24R;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#dad2f4 0 30%,#c9d2f2 45%,rgb(220 210 244 / 0) 70%);opacity:.75;filter:blur(1.5R)}
 .or-dark .or-blob{opacity:.25}
 .or-cube-wrap{position:absolute;inset:0;perspective:50R;display:grid;place-items:center}
-.or-cube{position:relative;width:34R;height:34R;transform-style:preserve-3d;margin-top:2R;translate:0 0 -17R}
+.or-cube{position:relative;width:40R;height:38R;transform-style:preserve-3d;margin-top:3R;translate:0 0 -20R}
 .or-face{position:absolute;inset:0;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;justify-content:center;backface-visibility:hidden;text-transform:uppercase;font-weight:800;letter-spacing:-.03em;background:var(--or-paper)}
-.or-face-a{transform:translateZ(17R);font-size:2.05R;line-height:1.08;gap:.06R;white-space:nowrap}
+.or-face-a{transform:translateZ(20R);font-size:2.42R;line-height:1.06;gap:.04R;white-space:nowrap}
 .or-face-a em{font-style:normal;color:#9c90d8}
 .or-face-a .is-hi{color:#9c90d8}
-.or-face-b{transform:rotateY(90deg) translateZ(17R);font-size:3.3R;line-height:1.08}
+.or-face-b{transform:rotateY(90deg) translateZ(20R);font-size:3.9R;line-height:1.04}
+.or-face-b li:first-child{color:#8f84d6}
 .or-face-b a:hover{color:#a996f2}
 
 /* 7 rope */
 .or-rope-track{height:calc(var(--h) * 4)}
-.or-rope-fill{position:absolute;inset:0;background:#c9c0d6;opacity:0}
+.or-rope-fill{position:absolute;inset:0;background:#9e99a8;opacity:0}
+.or-rope-bg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.or-rope-bg path{fill:none;stroke:#47474c;stroke-width:1.4;stroke-dasharray:1;stroke-dashoffset:1}
 .or-dark .or-rope-fill{background:#2c2638}
-.or-rope-line{position:absolute;left:50%;top:8.5R;width:42R;margin:0 0 0 -21R;text-align:center;font-size:2.5R;line-height:1.2;letter-spacing:-.04em;z-index:2}
-.or-squircle{position:absolute;left:50%;top:calc(50% + 2R);width:34R;height:22R;translate:-50% -50%;border-radius:9R;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#eee8f6,#dcd2ee 55%,#cbbfe3)}
+.or-rope-line{position:absolute;left:50%;top:15.5R;width:42R;margin:0 0 0 -21R;text-align:center;font-size:2.5R;line-height:1.2;letter-spacing:-.04em;z-index:2}
+.or-squircle{position:absolute;left:50%;top:calc(50% + 4R);width:28R;height:19R;translate:-50% -50%;border-radius:7R;overflow:hidden;z-index:3;background:radial-gradient(120% 90% at 50% 40%,#eee8f6,#dcd2ee 55%,#cbbfe3)}
 .or-dark .or-squircle{background:radial-gradient(120% 90% at 50% 40%,#3a3350,#2a2440)}
 .or-rope-c,.or-rope-seq{position:absolute;left:50%;top:50%;width:100cqw;height:var(--h);translate:-50% -50%}
 .or-rope-seq{display:none}
 .or-seq-on .or-rope-seq{display:block}
 .or-seq-on .or-rope-c{visibility:hidden}
-.or-idea{position:absolute;left:0;right:0;top:50%;margin:-8R 0 0;text-align:center;font-size:7.5R;line-height:1;font-weight:500;letter-spacing:-.05em;color:#fff;text-transform:uppercase;text-shadow:0 .5R 3R rgb(60 40 120 / .25)}
+.or-idea{position:absolute;left:0;right:0;top:50%;margin:-8.4R 0 0;display:flex;flex-direction:column;align-items:center;text-align:center;font-size:7R;line-height:1.08;font-weight:300;letter-spacing:-.04em;color:#fff;text-transform:uppercase;text-shadow:0 .5R 3R rgb(60 40 120 / .25)}
 .or-idea .or-l{opacity:0}
 .or-marq{position:absolute;left:0;right:0;bottom:3R;overflow:hidden;opacity:0;color:#5d5670;mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent)}
 .or-marq>div{display:flex;gap:4R;width:max-content;animation:or-marq 40s linear infinite}
@@ -2272,7 +2292,6 @@ const CSS = rr(`
 @keyframes or-marq{to{transform:translateX(-50%)}}
 
 /* 8 contact */
-.or-s-contact{background:var(--or-blush-soft)}
 .or-contact{display:grid;grid-template-columns:33R 1fr;gap:3R;padding:15R 9.375R 6R}
 .or-contact-h{margin:0;font-size:2.6R;line-height:1.2;font-weight:500;letter-spacing:-.04em}
 .or-contact-h .or-contact-face{display:inline-block;width:3.2R;height:3.2R;border-radius:50%;object-fit:cover;vertical-align:middle;background:#f2c84b}
@@ -2432,7 +2451,9 @@ const CSS = rr(`
 .or-stack .or-blob{display:none}
 .or-stack .or-rope-track{height:calc(var(--h) * 2.6)}
 .or-stack .or-rope-line{width:auto;left:1.25R;right:1.25R;margin:0;top:6.5R;font-size:1.5R}
-.or-stack .or-idea{font-size:2.9R;margin-top:-3R}
+.or-stack .or-idea{font-size:2.6R;margin-top:-3R}
+.or-stack .or-squircle{width:20R;height:14R;border-radius:4.5R}
+.or-stack .or-rope-line{top:6.5R}
 .or-stack .or-contact{grid-template-columns:1fr;padding:7R 1.25R 3R}
 .or-stack .or-contact-h{font-size:1.75R}
 .or-stack .or-contact-h .or-contact-face{width:2.3R;height:2.3R}
