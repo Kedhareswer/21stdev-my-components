@@ -158,7 +158,6 @@ export default function TumbleDeckShowcase({
     let tween: gsap.core.Tween | gsap.core.Tween[] | null = null
     let wait: gsap.core.Tween | null = null
     let visible = true
-    let hovering = false
 
     const kill = () => {
       ;[tween, wait].flat().forEach((t) => t && t.kill())
@@ -175,12 +174,11 @@ export default function TumbleDeckShowcase({
     }
     const schedule = () => {
       kill()
-      if (!autoplay || reduce || !visible || hovering) return
+      if (!autoplay || reduce || !visible) return
       const at = Math.round(s.pos)
       if (at >= n - 1) {
-        wait = gsap.delayedCall(dwell + 0.3, () =>
-          go(0, rewind * (n - 1), () => (wait = gsap.delayedCall(0.2, schedule))),
-        )
+        // The rewind runs straight into the next forward pass: a seamless loop.
+        wait = gsap.delayedCall(dwell, () => go(0, rewind * (n - 1), schedule))
       } else {
         wait = gsap.delayedCall(dwell, () => go(at + 1, fall, schedule))
       }
@@ -199,23 +197,11 @@ export default function TumbleDeckShowcase({
       else kill()
     })
     io.observe(root)
-    const enter = () => {
-      hovering = true
-      if (wait) kill()
-    }
-    const leave = () => {
-      hovering = false
-      if (!tween || !(tween as gsap.core.Tween).isActive?.()) schedule()
-    }
-    root.addEventListener("pointerenter", enter)
-    root.addEventListener("pointerleave", leave)
     paint()
     schedule()
     return () => {
       kill()
       io.disconnect()
-      root.removeEventListener("pointerenter", enter)
-      root.removeEventListener("pointerleave", leave)
     }
   }, [n, autoplay, dwell, fall, rewind, paint])
 

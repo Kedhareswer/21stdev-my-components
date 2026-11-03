@@ -35,7 +35,7 @@ import TumbleDeckShowcase from "@/components/ui/tumble-deck-showcase"
 | `background` | `var(--color-background)` | Page colour |
 
 Click or press Space, Enter or → for the next card, and ← for the previous one.
-Autoplay pauses on hover and while the deck is off screen. With reduced motion
+Autoplay loops without a break; it only pauses while the deck is off screen. With reduced motion
 turned on there's no autoplay, and a step jumps straight to the next card.
 
 Demo images are covers of my own templates, inlined as WebP.
