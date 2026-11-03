@@ -129,6 +129,7 @@
       "@/components/ui/grid-loupe-shader": ["./components/grid-loupe-shader/grid-loupe-shader.tsx"],
       "@/components/ui/card-deck-carousel": ["./components/card-deck-carousel/card-deck-carousel.tsx"],
       "@/components/ui/focus-pull-carousel": ["./components/focus-pull-carousel/focus-pull-carousel.tsx"],
+      "@/components/ui/arc-card-carousel": ["./components/arc-card-carousel/arc-card-carousel.tsx"],
       "@/components/ui/aperture-carousel": ["./components/aperture-carousel/aperture-carousel.tsx"],
       "@/components/ui/index-list-carousel": ["./components/index-list-carousel/index-list-carousel.tsx"],
       "@/components/ui/rgb-glitch-carousel": ["./components/rgb-glitch-carousel/rgb-glitch-carousel.tsx"],
