@@ -81,13 +81,19 @@ const FACE_W = 1280
 const FACE_H = 800
 
 // #region stack-layout
+/** How far a card falls past the front before it wraps round to the back of the stack. */
+const FALL = 1.6
+
+/** Card k's slot behind the front one, wrapped so the stack loops both ways. */
+export const slotOf = (k: number, roll: number, n: number) => ((((k - roll + FALL) % n) + n) % n) - FALL
+
 /**
- * Where card k sits when the stack is rolled to `roll` and card `hover` is lifted
- * by `lift` (0..1). `s` is the card's slot behind the front one; y and z are in
- * card heights and rot in degrees, so the same numbers work at any size.
+ * Where card k of n sits when the stack is rolled to `roll` and card `hover` is
+ * lifted by `lift` (0..1). y and z are in card heights and rot in degrees, so the
+ * same numbers work at any size.
  */
-export function cardPose(k: number, roll: number, hover: number, lift: number) {
-  const s = k - roll
+export function cardPose(k: number, roll: number, hover: number, lift: number, n: number) {
+  const s = slotOf(k, roll, n)
   let y: number
   let z: number
   let rot: number
@@ -108,15 +114,14 @@ export function cardPose(k: number, roll: number, hover: number, lift: number) {
       rot *= 1 - lift
       y -= lift * 0.1
       z += lift * 0.08
-    } else if (k < hover) y += lift * 0.62
+    } else if (s < slotOf(hover, roll, n)) y += lift * 0.62
     else y -= lift * 0.05
   }
-  const opacity = s < -1.6 ? 0 : s < -1 ? (s + 1.6) / 0.6 : s > 13 ? 0 : s > 11.5 ? (13 - s) / 1.5 : 1
+  // both ends fade to nothing before the wrap, so no card ever jumps in view
+  const back = Math.min(13, n - FALL)
+  const opacity = s < -1 ? Math.max(0, (s + FALL) / 0.6) : s > back - 1.5 ? Math.max(0, (back - s) / 1.5) : 1
   return { y, z, rot, opacity, slot: s }
 }
-
-/** The stack's travel: the last few cards stay filed at the back. */
-export const maxRoll = (n: number) => Math.max(0, n - 4)
 // #endregion
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
@@ -321,7 +326,6 @@ export default function CaseStackScroll({
     if (!root) return
     const st = state.current
     st.lifts = cards.map((_, i) => st.lifts[i] ?? 0)
-    st.target = Math.min(st.target, maxRoll(n))
 
     const size = () => {
       const w = root.clientWidth
@@ -339,11 +343,11 @@ export default function CaseStackScroll({
       for (let k = 0; k < n; k++) {
         const el = cardRefs.current[k]
         if (!el) continue
-        const p = cardPose(k, st.roll, st.hover, st.hover >= 0 ? st.lifts[st.hover] : 0)
+        const p = cardPose(k, st.roll, st.hover, st.hover >= 0 ? st.lifts[st.hover] : 0, n)
         el.style.transform =
           "translate3d(-50%," + (p.y * st.ch).toFixed(2) + "px," + (p.z * st.ch).toFixed(2) + "px) rotateX(" + (-p.rot).toFixed(2) + "deg)"
         el.style.opacity = p.opacity.toFixed(3)
-        el.style.zIndex = String(n - k)
+        el.style.zIndex = String(Math.round(1000 - p.slot * 10))
         el.style.visibility = p.opacity <= 0 ? "hidden" : "visible"
         // cards deep in the drawer sit a touch in shadow
         el.style.setProperty("--cs-shade", Math.min(0.22, Math.max(0, (p.slot - 3) * 0.025)).toFixed(3))
@@ -358,7 +362,7 @@ export default function CaseStackScroll({
         const goal = k === st.hover ? 1 : 0
         st.lifts[k] += (goal - st.lifts[k]) * (reduced() ? 1 : 0.12)
       }
-      const f = Math.min(n - 1, Math.max(0, Math.round(st.roll)))
+      const f = (((Math.round(st.roll) % n) + n) % n)
       if (f !== st.front) {
         st.front = f
         setFront(f)
@@ -380,18 +384,16 @@ export default function CaseStackScroll({
     }
   }, [n])
 
-  // wheel, drag and swipe roll the stack; at either end the wheel is handed back to the page
+  // wheel, drag and swipe roll the stack, which loops both ways
   useEffect(() => {
     const root = rootRef.current
     if (!root) return
     const st = state.current
-    const max = maxRoll(n)
     const onWheel = (e: WheelEvent) => {
       const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX
-      if ((d < 0 && st.target <= 0) || (d > 0 && st.target >= max)) return
       e.preventDefault()
       const px = e.deltaMode === 1 ? d * 32 : d
-      st.target = Math.min(max, Math.max(0, st.target + px / 420))
+      st.target += px / 420
       // once the wheel rests, settle on a whole card
       clearTimeout(snap)
       snap = window.setTimeout(() => (st.target = Math.round(st.target)), 160)
@@ -409,7 +411,7 @@ export default function CaseStackScroll({
         drag.moved = true
         root.setPointerCapture(e.pointerId)
       }
-      if (drag.moved) st.target = Math.min(max, Math.max(0, drag.t + d / (st.ch * 0.42)))
+      if (drag.moved) st.target = drag.t + d / (st.ch * 0.42)
     }
     const onUp = (e: PointerEvent) => {
       if (!drag || drag.id !== e.pointerId) return
@@ -460,7 +462,7 @@ export default function CaseStackScroll({
 
   const go = (d: number) => {
     const st = state.current
-    st.target = Math.min(maxRoll(n), Math.max(0, Math.round(st.target) + d))
+    st.target = Math.round(st.target) + d
   }
 
   const shown = hover >= 0 ? hover : front

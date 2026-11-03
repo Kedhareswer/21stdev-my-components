@@ -54,7 +54,7 @@ assert.ok(css.includes("touch-action:pan-x}"), "only the stage takes vertical sw
 
 // ---- interaction contracts ---------------------------------------------------------
 assert.ok(src.includes('addEventListener("wheel", onWheel, { passive: false })'), "the wheel drives the stack")
-assert.match(src, /if \(\(d < 0 && st\.target <= 0\) \|\| \(d > 0 && st\.target >= max\)\) return/, "at either end the wheel is handed back to the page")
+assert.ok(src.includes("st.target += px / 420") && !/Math\.min\(max/.test(src), "the wheel is never clamped: the stack loops")
 assert.ok(src.indexOf("root.setPointerCapture") > src.indexOf("Math.abs(d) > 6"), "pointer is captured only once it is a drag")
 assert.ok(src.includes("gsap.ticker.remove(tick)") && src.includes("ro.disconnect()") && src.includes("clearTimeout(snap)"), "loop, observer and snap timer are torn down")
 assert.ok(src.includes("tabIndex={k === front ? 0 : -1}"), "the stack is one tab stop")
@@ -64,25 +64,33 @@ assert.ok(src.includes('if (e.pointerType !== "mouse") return') && css.includes(
 const start = src.indexOf("// #region stack-layout")
 const end = src.indexOf("// #endregion")
 assert.ok(start > -1 && end > start, "stack-layout region markers missing")
-const { cardPose, maxRoll } = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end))))
+const { cardPose, slotOf } = await import("data:text/javascript," + encodeURIComponent(stripTypeScriptTypes(src.slice(start, end))))
 
-const front = cardPose(0, 0, -1, 0)
-assert.deepEqual([front.y, front.z, front.rot, front.opacity].map((v) => v + 0), [0, 0, 0, 1], "the front card faces you at the anchor")
+const front = cardPose(0, 0, -1, 0, 12)
+assert.deepEqual([front.y, front.z, front.rot, front.opacity].map((v) => Math.round(v * 1e9) / 1e9 + 0), [0, 0, 0, 1], "the front card faces you at the anchor")
 // Behind the front, every card sits higher and deeper, and keeps a visible strip.
 for (let k = 1; k < 11; k++) {
-  const a = cardPose(k - 1, 0, -1, 0)
-  const b = cardPose(k, 0, -1, 0)
+  const a = cardPose(k - 1, 0, -1, 0, 12)
+  const b = cardPose(k, 0, -1, 0, 12)
   assert.ok(b.y < a.y && b.z < a.z, "card " + k + " is filed above and behind card " + (k - 1))
   assert.ok(a.y - b.y > 0.12, "card " + k + " keeps a visible strip")
 }
-assert.equal(cardPose(14, 0, -1, 0).opacity, 0, "cards deep in the drawer fade out")
-assert.equal(cardPose(0, 2, -1, 0).opacity, 0, "cards rolled past the front are gone")
-assert.ok(cardPose(0, 0.5, -1, 0).y > 0, "a card rolling past the front drops down")
+assert.ok(cardPose(10, -0.399, -1, 0, 12).opacity < 0.001, "the card about to wrap to the front is invisible at the back")
+assert.equal(cardPose(0, 1.6, -1, 0, 12).opacity, 0, "a card is invisible by the time it falls far enough to wrap")
+// The loop: rolling a whole lap puts every card back, both ways, and slots stay in [-1.6, n - 1.6).
+for (const roll of [-25.3, -12, -0.4, 0, 3.7, 12, 30.9])
+  for (let k = 0; k < 12; k++) {
+    const s = slotOf(k, roll, 12)
+    assert.ok(s >= -1.6 && s < 10.4, "slot in range for roll " + roll)
+    assert.ok(Math.abs(slotOf(k, roll + 12, 12) - s) < 1e-9 && Math.abs(slotOf(k, roll - 12, 12) - s) < 1e-9, "a lap either way is the same stack")
+  }
+assert.ok(Math.abs(slotOf(11, -1, 12)) < 1e-9, "rolling back brings the last card to the front")
+assert.ok(cardPose(0, 0.5, -1, 0, 12).y > 0, "a card rolling past the front drops down")
 // Lifting card 4 turns it flat and slides the cards in front down; the ones behind barely move.
-assert.equal(cardPose(4, 0, 4, 1).rot, 0, "the lifted card faces you")
-assert.ok(cardPose(2, 0, 4, 1).y - cardPose(2, 0, -1, 0).y > 0.5, "cards in front slide down")
-assert.ok(Math.abs(cardPose(7, 0, 4, 1).y - cardPose(7, 0, -1, 0).y) < 0.1, "cards behind barely move")
-assert.equal(maxRoll(12), 8, "the last cards stay filed at the back")
-assert.equal(maxRoll(2), 0)
+assert.equal(cardPose(4, 0, 4, 1, 12).rot, 0, "the lifted card faces you")
+assert.ok(cardPose(2, 0, 4, 1, 12).y - cardPose(2, 0, -1, 0, 12).y > 0.5, "cards in front slide down")
+assert.ok(Math.abs(cardPose(7, 0, 4, 1, 12).y - cardPose(7, 0, -1, 0, 12).y) < 0.1, "cards behind barely move")
+// Lifting works across the wrap: with card 11 at the front, card 1 is behind it.
+assert.ok(cardPose(11, -1, 1, 1, 12).y - cardPose(11, -1, -1, 0, 12).y > 0.5, "cards in front of a lifted card slide down across the wrap")
 
 console.log(slug + ": ok")
