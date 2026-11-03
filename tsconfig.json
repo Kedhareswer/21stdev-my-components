@@ -43,6 +43,7 @@
       "@/components/ui/maroon-fintech-landing": ["./components/maroon-fintech-landing/maroon-fintech-landing.tsx"],
       "@/components/ui/zero-melt-preloader": ["./components/zero-melt-preloader/zero-melt-preloader.tsx"],
       "@/components/ui/magic-hour": ["./components/magic-hour/magic-hour.tsx"],
+      "@/components/ui/case-stack-scroll": ["./components/case-stack-scroll/case-stack-scroll.tsx"],
       "@/components/ui/hover-expand-gallery": ["./components/hover-expand-gallery/hover-expand-gallery.tsx"],
       "@/components/ui/tile-scrollbar": ["./components/tile-scrollbar/tile-scrollbar.tsx"],
       "@/components/ui/pinboard-portfolio-hero": ["./components/pinboard-portfolio-hero/pinboard-portfolio-hero.tsx"],
