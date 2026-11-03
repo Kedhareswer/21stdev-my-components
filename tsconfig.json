@@ -15,6 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/oriel-studio-template": ["./components/oriel-studio-template/oriel-studio-template.tsx"],
+      "@/components/ui/meadow-rise-footer": ["./components/meadow-rise-footer/meadow-rise-footer.tsx"],
       "@/components/ui/huggo-tape-template": ["./components/huggo-tape-template/huggo-tape-template.tsx"],
       "@/components/ui/repair-bay-concept-template": ["./components/repair-bay-concept-template/repair-bay-concept-template.tsx"],
       "@/components/ui/alto-coffee-template": ["./components/alto-coffee-template/alto-coffee-template.tsx"],
