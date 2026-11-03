@@ -6,12 +6,15 @@ import gsap from "gsap"
 /*
  * Tumble Deck Showcase — a stack of website screenshots standing on edge, one
  * behind the other. The front card tips forward on its bottom edge and lands
- * flat on the floor, the deck slides up to the line, the next one falls. After
- * the last card the whole pile rewinds: the cards swing back up, quicker.
+ * flat on the floor, the deck slides up to the line, the next one falls. It
+ * never runs out: after the last card the first one is already standing behind
+ * it, so the deck keeps tumbling forward forever.
  *
  * Pure CSS 3D (one perspective, every card hinged on the same floor line) with
- * GSAP driving a single number — the deck position. Every card's pose is a
- * function of that number, so autoplay, the rewind and clicks share one path.
+ * GSAP driving a single number — the deck position, which only ever grows. A
+ * small pool of card elements is recycled along it: slot j always holds the
+ * virtual card k ≡ j (mod pool), showing image k mod n, and a slot is only
+ * re-pointed while it is invisible (under the floor pile or past the back).
  */
 
 export type TumbleCard = {
@@ -29,8 +32,6 @@ export type TumbleDeckShowcaseProps = {
   dwell?: number
   /** Seconds for one fall. */
   fall?: number
-  /** Seconds per card on the way back up. */
-  rewind?: number
   /** Turn autoplay off and only step on click / keys. */
   autoplay?: boolean
   /** How many upright cards show behind the front one. */
@@ -43,6 +44,9 @@ export type TumbleDeckShowcaseProps = {
 
 // #region pose
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
+
+/** Euclidean modulo: card k of an endless deck shows image wrap(k, n). */
+export const wrap = (k: number, n: number) => (n ? ((k % n) + n) % n : 0)
 
 /**
  * Hinge angle (deg, CSS rotateX) of a card `t` of the way through its fall.
@@ -70,14 +74,20 @@ export function deckAdvance(pos: number): number {
 
 export type Pose = { angle: number; z: number; lift: number; opacity: number; flat: boolean }
 
-/** Pose of card `k` when the deck is at `pos` (0 = card 0 at the front). */
+/**
+ * Pose of virtual card `k` when the deck is at `pos` (card k is at the front
+ * when pos = k). Both may run past the number of images, and below zero.
+ */
 export function cardPose(k: number, pos: number, depth: number): Pose {
   const t = pos - k
+  // Floor cards lie a hair apart, the newest highest. Relative to the front
+  // index so the pile doesn't creep upward as the loop runs on.
+  const lift = (k - Math.floor(pos) + 3) * 0.6
   if (t >= 1) {
-    // On the floor. Only the two latest show; newer ones lie a hair higher.
-    return { angle: -90, z: 0, lift: k * 0.6, opacity: t < 3 ? 1 : 0, flat: true }
+    // On the floor. Only the two latest show.
+    return { angle: -90, z: 0, lift, opacity: t < 3 ? 1 : 0, flat: true }
   }
-  if (t > 0) return { angle: fallAngle(t), z: 0, lift: k * 0.6, opacity: 1, flat: false }
+  if (t > 0) return { angle: fallAngle(t), z: 0, lift, opacity: 1, flat: false }
   const rel = k - deckAdvance(pos)
   const opacity = clamp01(depth + 1 - rel)
   return { angle: 0, z: -Math.max(rel, 0), lift: 0, opacity, flat: false }
@@ -90,7 +100,6 @@ export default function TumbleDeckShowcase({
   aspect = 2.06,
   dwell = 0.26,
   fall = 0.42,
-  rewind = 0.32,
   autoplay = true,
   depth = 5,
   background = "var(--color-background)",
@@ -101,15 +110,28 @@ export default function TumbleDeckShowcase({
   const rootRef = React.useRef<HTMLDivElement>(null)
   const sceneRef = React.useRef<HTMLDivElement>(null)
   const cardRefs = React.useRef<(HTMLDivElement | null)[]>([])
+  const imgRefs = React.useRef<(HTMLImageElement | null)[]>([])
+  const slotK = React.useRef<number[]>([])
   const state = React.useRef({ pos: 0 })
   const geo = React.useRef({ h: 200, gap: 44 })
   const n = cards.length
+  // Two on the floor, the falling one, the front one, `depth` behind, one fading in.
+  const pool = n ? depth + 5 : 0
 
   const paint = React.useCallback(() => {
     const { pos } = state.current
     const { gap } = geo.current
-    cardRefs.current.forEach((el, k) => {
-      if (!el) return
+    const base = Math.floor(pos) - 2
+    cardRefs.current.forEach((el, j) => {
+      const img = imgRefs.current[j]
+      if (!el || !img || j >= pool) return
+      const k = base + wrap(j - base, pool)
+      if (slotK.current[j] !== k) {
+        slotK.current[j] = k
+        const c = cards[wrap(k, n)]
+        img.src = c.src
+        img.alt = c.alt ?? ""
+      }
       const p = cardPose(k, pos, depth)
       el.style.transform = `translate3d(0, ${-p.lift}px, ${p.z * gap}px) rotateX(${p.angle}deg)`
       el.style.opacity = String(p.opacity)
@@ -118,7 +140,12 @@ export default function TumbleDeckShowcase({
       const shade = p.flat ? 0.06 : (-p.angle / 90) * 0.06
       el.style.setProperty("--td-shade", String(shade))
     })
-  }, [depth])
+  }, [depth, pool, cards, n])
+
+  // New images: re-point every slot on the next paint.
+  React.useLayoutEffect(() => {
+    slotK.current = []
+  }, [cards])
 
   // Fit: the card, the deck above it and the floor card below all inside the
   // root. Perspective and eye height are fixed ratios of the card height,
@@ -175,20 +202,11 @@ export default function TumbleDeckShowcase({
     const schedule = () => {
       kill()
       if (!autoplay || reduce || !visible) return
-      const at = Math.round(s.pos)
-      if (at >= n - 1) {
-        // The rewind runs straight into the next forward pass: a seamless loop.
-        wait = gsap.delayedCall(dwell, () => go(0, rewind * (n - 1), schedule))
-      } else {
-        wait = gsap.delayedCall(dwell, () => go(at + 1, fall, schedule))
-      }
+      wait = gsap.delayedCall(dwell, () => go(Math.round(s.pos) + 1, fall, schedule))
     }
     api.current.step = (dir) => {
       kill()
-      const at = Math.round(s.pos)
-      const to = dir > 0 ? (at >= n - 1 ? 0 : at + 1) : at <= 0 ? n - 1 : at - 1
-      const steps = Math.abs(to - s.pos)
-      go(to, steps > 1.01 ? rewind * steps : fall, schedule)
+      go(Math.round(s.pos) + dir, fall, schedule)
     }
 
     const io = new IntersectionObserver(([e]) => {
@@ -203,7 +221,7 @@ export default function TumbleDeckShowcase({
       kill()
       io.disconnect()
     }
-  }, [n, autoplay, dwell, fall, rewind, paint])
+  }, [n, autoplay, dwell, fall, paint])
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "Enter") {
@@ -251,17 +269,20 @@ export default function TumbleDeckShowcase({
         .td-root:focus-visible { box-shadow: inset 0 0 0 2px var(--color-primary); }
       `}</style>
       <div ref={sceneRef} className="td-scene">
-        {cards.map((c, k) => (
+        {Array.from({ length: pool }, (_, j) => (
           <div
-            key={k}
+            key={j}
             ref={(el) => {
-              cardRefs.current[k] = el
+              cardRefs.current[j] = el
             }}
             className="td-card"
           >
+            {/* src/alt are set in paint() as the slot moves along the deck. */}
             <img
-              src={c.src}
-              alt={c.alt ?? ""}
+              ref={(el) => {
+                imgRefs.current[j] = el
+              }}
+              alt=""
               width={720}
               height={Math.round(720 / aspect)}
               draggable={false}

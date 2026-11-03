@@ -20,7 +20,7 @@ const js = src
   .slice(start, end)
   .replace(/^export type Pose = .*$/m, "")
   .replace(/:\s*(number|Pose)(?=[,)=\s{])/g, "")
-const { fallAngle, deckAdvance, cardPose } = await import(
+const { fallAngle, deckAdvance, cardPose, wrap } = await import(
   "data:text/javascript," + encodeURIComponent(js)
 )
 
@@ -48,8 +48,18 @@ assert.equal(cardPose(2, 3, 5).angle, -90)
 assert.equal(cardPose(2, 3, 5).opacity, 1)
 assert.equal(cardPose(0, 3, 5).opacity, 0)
 assert.equal(cardPose(9, 3, 5).opacity, 0, "cards past `depth` are hidden")
-// Newer floor cards lie higher, so the 3D sort keeps the latest on top.
+// Newer floor cards lie higher, so the 3D sort keeps the latest on top...
 assert.ok(cardPose(2, 3, 5).lift > cardPose(1, 3, 5).lift)
+// ...and the pile doesn't creep up as the endless loop runs on.
+assert.equal(cardPose(1002, 1003, 5).lift, cardPose(2, 3, 5).lift)
+
+// Endless deck: virtual card k shows image wrap(k, n), negatives included, so
+// the first image stands right behind the last one.
+assert.equal(wrap(9, 9), 0)
+assert.equal(wrap(-1, 9), 8)
+assert.equal(wrap(20, 9), 2)
+// Past the last image the deck keeps going forward; nothing rewinds.
+assert.doesNotMatch(src, /rewind/, "the loop runs forward, no rewind")
 // #endregion
 
 // A root that inherits its height renders here and collapses to 0px installed.
