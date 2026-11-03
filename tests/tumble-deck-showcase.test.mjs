@@ -60,6 +60,11 @@ assert.equal(wrap(-1, 9), 8)
 assert.equal(wrap(20, 9), 2)
 // Past the last image the deck keeps going forward; nothing rewinds.
 assert.doesNotMatch(src, /rewind/, "the loop runs forward, no rewind")
+
+// Scroll-driven, not a timer: the wheel must be able to preventDefault, and
+// nothing advances the deck on its own.
+assert.ok(src.includes('addEventListener("wheel", onWheel, { passive: false })'), "wheel drives the deck")
+assert.doesNotMatch(src, /delayedCall|setInterval|autoplay =/, "no autoplay")
 // #endregion
 
 // A root that inherits its height renders here and collapses to 0px installed.

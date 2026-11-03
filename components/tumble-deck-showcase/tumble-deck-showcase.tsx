@@ -6,12 +6,13 @@ import gsap from "gsap"
 /*
  * Tumble Deck Showcase — a stack of website screenshots standing on edge, one
  * behind the other. The front card tips forward on its bottom edge and lands
- * flat on the floor, the deck slides up to the line, the next one falls. It
- * never runs out: after the last card the first one is already standing behind
- * it, so the deck keeps tumbling forward forever.
+ * flat on the floor, the deck slides up to the line, the next one falls. It is
+ * scroll-driven: the wheel, a trackpad or a drag scrubs the deck, and it never
+ * runs out — after the last card the first one is standing behind it again,
+ * both ways.
  *
  * Pure CSS 3D (one perspective, every card hinged on the same floor line) with
- * GSAP driving a single number — the deck position, which only ever grows. A
+ * a single number driving it — the deck position, which may run any distance. A
  * small pool of card elements is recycled along it: slot j always holds the
  * virtual card k ≡ j (mod pool), showing image k mod n, and a slot is only
  * re-pointed while it is invisible (under the floor pile or past the back).
@@ -28,12 +29,8 @@ export type TumbleDeckShowcaseProps = {
   height?: number | string
   /** Card width ÷ height. Images are cropped to it from the top. */
   aspect?: number
-  /** Seconds a card stands at the front before it falls. */
-  dwell?: number
-  /** Seconds for one fall. */
-  fall?: number
-  /** Turn autoplay off and only step on click / keys. */
-  autoplay?: boolean
+  /** Wheel / trackpad travel (px) that tips one card. */
+  scrollPerCard?: number
   /** How many upright cards show behind the front one. */
   depth?: number
   background?: string
@@ -98,9 +95,7 @@ export default function TumbleDeckShowcase({
   cards,
   height = "100svh",
   aspect = 2.06,
-  dwell = 0.26,
-  fall = 0.42,
-  autoplay = true,
+  scrollPerCard = 240,
   depth = 5,
   background = "var(--color-background)",
   className,
@@ -175,53 +170,111 @@ export default function TumbleDeckShowcase({
     return () => ro.disconnect()
   }, [aspect, paint])
 
-  // Playback. One tween at a time on `pos`; the pose functions do the easing.
+  // Scroll-driven. Wheel, trackpad and drag push a target position; the deck
+  // eases after it every frame and, once the input goes quiet, settles on the
+  // nearest whole card so nothing is left half-fallen. No autoplay.
   const api = React.useRef<{ step: (dir: 1 | -1) => void }>({ step: () => {} })
+  const dragged = React.useRef(false)
   React.useEffect(() => {
     const root = rootRef.current
     if (!root || n === 0) return
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const s = state.current
-    let tween: gsap.core.Tween | gsap.core.Tween[] | null = null
-    let wait: gsap.core.Tween | null = null
-    let visible = true
+    let target = s.pos
+    let running = false
+    let idle: ReturnType<typeof setTimeout> | undefined
+    let acc = 0
 
-    const kill = () => {
-      ;[tween, wait].flat().forEach((t) => t && t.kill())
-      tween = wait = null
+    const follow = () => {
+      const dt = gsap.ticker.deltaRatio(60) / 60
+      s.pos += (target - s.pos) * (1 - Math.exp(-dt * 9))
+      if (Math.abs(target - s.pos) < 2e-3) {
+        s.pos = target
+        gsap.ticker.remove(follow)
+        running = false
+      }
+      paint()
     }
-    const go = (to: number, duration: number, then?: () => void) => {
+    const push = (to: number) => {
+      // A hard fling still travels card by card instead of skipping the deck.
+      target = Math.max(Math.round(s.pos) - 3, Math.min(Math.round(s.pos) + 3, to))
       if (reduce) {
-        s.pos = to
+        s.pos = target
         paint()
-        then?.()
+      } else if (!running) {
+        running = true
+        gsap.ticker.add(follow)
+      }
+    }
+    // Settle on a whole card, leaning the way the input was heading.
+    const settle = (bias = 0) =>
+      push(bias > 0 ? Math.floor(target + 0.7) : bias < 0 ? Math.ceil(target - 0.7) : Math.round(target))
+    api.current.step = (dir) => push(Math.round(target) + dir)
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? root.clientHeight : 1
+      const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * scale
+      if (reduce) {
+        // No scrubbing: whole cards only, one per `scrollPerCard` of travel.
+        acc += d
+        while (Math.abs(acc) >= scrollPerCard) {
+          const dir = Math.sign(acc)
+          acc -= dir * scrollPerCard
+          push(target + dir)
+        }
         return
       }
-      tween = gsap.to(s, { pos: to, duration, ease: "none", onUpdate: paint, onComplete: then })
-    }
-    const schedule = () => {
-      kill()
-      if (!autoplay || reduce || !visible) return
-      wait = gsap.delayedCall(dwell, () => go(Math.round(s.pos) + 1, fall, schedule))
-    }
-    api.current.step = (dir) => {
-      kill()
-      go(Math.round(s.pos) + dir, fall, schedule)
+      push(target + d / scrollPerCard)
+      clearTimeout(idle)
+      idle = setTimeout(() => settle(Math.sign(d)), 140)
     }
 
-    const io = new IntersectionObserver(([e]) => {
-      visible = e.isIntersecting
-      if (visible) schedule()
-      else kill()
-    })
-    io.observe(root)
-    paint()
-    schedule()
-    return () => {
-      kill()
-      io.disconnect()
+    let drag: { id: number; y: number; travel: number; last: number } | null = null
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return
+      drag = { id: e.pointerId, y: e.clientY, travel: 0, last: 0 }
+      dragged.current = false
+      clearTimeout(idle)
     }
-  }, [n, autoplay, dwell, fall, paint])
+    const onMove = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      const dy = drag.y - e.clientY
+      drag.y = e.clientY
+      drag.travel += Math.abs(dy)
+      if (dy) drag.last = Math.sign(dy)
+      if (drag.travel > 6 && !dragged.current) {
+        dragged.current = true
+        root.setPointerCapture(e.pointerId)
+      }
+      // Drag up = scroll down = the deck moves on. One card per card height.
+      if (dragged.current && !reduce) push(target + dy / (geo.current.h * 1.1))
+    }
+    const onUp = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      if (dragged.current) {
+        if (reduce) push(Math.round(target) + (drag.last || 0))
+        else settle(drag.last)
+      }
+      drag = null
+    }
+
+    root.addEventListener("wheel", onWheel, { passive: false })
+    root.addEventListener("pointerdown", onDown)
+    root.addEventListener("pointermove", onMove)
+    root.addEventListener("pointerup", onUp)
+    root.addEventListener("pointercancel", onUp)
+    paint()
+    return () => {
+      clearTimeout(idle)
+      gsap.ticker.remove(follow)
+      root.removeEventListener("wheel", onWheel)
+      root.removeEventListener("pointerdown", onDown)
+      root.removeEventListener("pointermove", onMove)
+      root.removeEventListener("pointerup", onUp)
+      root.removeEventListener("pointercancel", onUp)
+    }
+  }, [n, scrollPerCard, paint])
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "Enter") {
@@ -241,8 +294,10 @@ export default function TumbleDeckShowcase({
       aria-label={ariaLabel}
       tabIndex={0}
       onKeyDown={onKey}
-      onClick={() => api.current.step(1)}
-      className={["td-root relative w-full overflow-hidden outline-none select-none", className]
+      onClick={() => {
+        if (!dragged.current) api.current.step(1)
+      }}
+      className={["td-root relative w-full touch-none overflow-hidden outline-none select-none", className]
         .filter(Boolean)
         .join(" ")}
       style={{ height, background, ...style }}
@@ -292,7 +347,7 @@ export default function TumbleDeckShowcase({
         ))}
       </div>
       <span className="sr-only" aria-live="polite">
-        {n} pages. Click, or press the arrow keys, to flip through them.
+        {n} pages. Scroll, drag, click or press the arrow keys to flip through them.
       </span>
     </div>
   )
