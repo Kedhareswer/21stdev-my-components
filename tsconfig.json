@@ -214,7 +214,10 @@
       "@/components/ui/silk-spider-cursor": ["./components/silk-spider-cursor/silk-spider-cursor.tsx"],
       "@/components/ui/crumple-changelog": ["./components/crumple-changelog/crumple-changelog.tsx"],
       "@/components/ui/crumpled-paper-reveal": ["./components/crumpled-paper-reveal/crumpled-paper-reveal.tsx"],
-      "@/components/ui/torchlit-agency-template": ["./components/torchlit-agency-template/torchlit-agency-template.tsx"]
+      "@/components/ui/torchlit-agency-template": ["./components/torchlit-agency-template/torchlit-agency-template.tsx"],
+      "@/components/ui/craft-beer-product-template": ["./components/craft-beer-product-template/craft-beer-product-template.tsx"],
+      "@/components/ui/runway-lookbook": ["./components/runway-lookbook/runway-lookbook.tsx"],
+      "@/components/ui/sneaker-product-hero": ["./components/sneaker-product-hero/sneaker-product-hero.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
