@@ -129,6 +129,7 @@
       "@/components/ui/stepped-morph-slider": ["./components/stepped-morph-slider/stepped-morph-slider.tsx"],
       "@/components/ui/grid-loupe-shader": ["./components/grid-loupe-shader/grid-loupe-shader.tsx"],
       "@/components/ui/card-deck-carousel": ["./components/card-deck-carousel/card-deck-carousel.tsx"],
+      "@/components/ui/tumble-deck-showcase": ["./components/tumble-deck-showcase/tumble-deck-showcase.tsx"],
       "@/components/ui/focus-pull-carousel": ["./components/focus-pull-carousel/focus-pull-carousel.tsx"],
       "@/components/ui/arc-card-carousel": ["./components/arc-card-carousel/arc-card-carousel.tsx"],
       "@/components/ui/aperture-carousel": ["./components/aperture-carousel/aperture-carousel.tsx"],
