@@ -221,6 +221,16 @@
       "@/components/ui/runway-lookbook": ["./components/runway-lookbook/runway-lookbook.tsx"],
       "@/components/ui/sneaker-product-hero": ["./components/sneaker-product-hero/sneaker-product-hero.tsx"],
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
+      "@/components/ui/approval-morph-tray": ["./components/approval-morph-tray/approval-morph-tray.tsx"],
+      "@/components/ui/layered-context-menu": ["./components/layered-context-menu/layered-context-menu.tsx"],
+      "@/components/ui/activity-deck-dropdown": ["./components/activity-deck-dropdown/activity-deck-dropdown.tsx"],
+      "@/components/ui/morph-filter-bar": ["./components/morph-filter-bar/morph-filter-bar.tsx"],
+      "@/components/ui/liquid-stack-accordion": ["./components/liquid-stack-accordion/liquid-stack-accordion.tsx"],
+      "@/components/ui/editorial-expand-accordion": ["./components/editorial-expand-accordion/editorial-expand-accordion.tsx"],
+      "@/components/ui/chain-network-selector": ["./components/chain-network-selector/chain-network-selector.tsx"],
+      "@/components/ui/crew-avatar-picker": ["./components/crew-avatar-picker/crew-avatar-picker.tsx"],
+      "@/components/ui/drifting-interest-picker": ["./components/drifting-interest-picker/drifting-interest-picker.tsx"],
+      "@/components/ui/inline-label-composer": ["./components/inline-label-composer/inline-label-composer.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
