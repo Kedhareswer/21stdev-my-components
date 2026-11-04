@@ -54,7 +54,7 @@ export function tint(x: number, y: number, cols: number, rows: number): number {
 const CSS =
   ".pwl-root{display:inline-flex;flex-direction:column;align-items:center;gap:14px;color:var(--color-foreground,#111)}" +
   ".pwl-grid{display:grid;grid-template-columns:repeat(var(--pwl-cols),var(--pwl-size));gap:var(--pwl-gap)}" +
-  ".pwl-p{width:var(--pwl-size);height:var(--pwl-size);border-radius:28%;background:color-mix(in oklab,var(--pwl-to) var(--t),var(--pwl-from));" +
+  ".pwl-p{width:var(--pwl-size);height:var(--pwl-size);border-radius:28%;background:color-mix(in oklab,var(--pwl-to) var(--t),var(--pwl-from));box-shadow:0 0 calc(var(--pwl-size) * .9) color-mix(in oklab,color-mix(in oklab,var(--pwl-to) var(--t),var(--pwl-from)) 55%,transparent);" +
   "transform:scale(.38);opacity:.2;animation:pwl-wave var(--pwl-d) cubic-bezier(.45,0,.4,1) infinite;animation-delay:calc(var(--ph) * var(--pwl-d) * .7 - var(--pwl-d));will-change:transform,opacity}" +
   ".pwl-label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif}" +
   "@keyframes pwl-wave{0%,62%,100%{transform:scale(.38);opacity:.2}18%{transform:scale(1.06);opacity:1}32%{transform:scale(.92);opacity:.86}}" +
