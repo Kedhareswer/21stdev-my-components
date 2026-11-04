@@ -35,6 +35,9 @@ assert.ok(rules >= 20, "the scope check saw real rules, saw " + rules)
 assert.match(flat, /\.sps-img>img\{[^}]*max-width:none/, "photos override Preflight's max-width")
 assert.match(flat, /\.sps-dot>img\{[^}]*max-width:none/, "thumbnails override Preflight's max-width")
 assert.match(flat, /\.sps-root\{position:sticky;top:0/, "the stage pins with sticky, no pin-spacer")
+// container-type:inline-size stops the track sizing from its content; inside a centring
+// flex parent (21st's preview) it would collapse to 0 px without an explicit width.
+assert.match(flat, /\.sps-track\{[^}]*width:100%[^}]*container-type:inline-size/, "the size-contained track carries its own width")
 
 const allowed = new Set(["--color-background", "--color-foreground", "--color-muted-foreground", "--color-border", "--color-primary", "--sps-accent", "--sps-ring", "--sps-font"])
 for (const [, v] of src.matchAll(/var\((--[a-z-]+)/g)) assert.ok(allowed.has(v), "token not guaranteed in a host: " + v)

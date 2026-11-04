@@ -90,7 +90,7 @@ const FONT =
 
 const CSS =
   FONT +
-  ".sps-track{position:relative;container-type:inline-size}" +
+  ".sps-track{position:relative;width:100%;container-type:inline-size}" +
   ".sps-root{position:sticky;top:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;" +
   "color:var(--color-foreground);background:color-mix(in oklab,var(--color-background) 76%,var(--sps-accent));font-family:ui-sans-serif,system-ui,sans-serif;outline:none}" +
   ".sps-root:focus-visible{box-shadow:inset 0 0 0 2px var(--sps-accent)}" +
