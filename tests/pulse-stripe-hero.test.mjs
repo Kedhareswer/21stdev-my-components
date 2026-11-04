@@ -9,11 +9,11 @@ const src = readFileSync(new URL("pulse-stripe-hero.tsx", dir), "utf8")
 
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react", "gsap", "gsap/ScrollTrigger"], "imports are react and gsap only")
-assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo-ember.tsx", "demo.tsx", "pulse-stripe-hero.tsx"])
+assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo-paper.tsx", "demo.tsx", "pulse-stripe-hero.tsx"])
 assert.ok(src.includes('height = "calc(100svh - 24px)"'), "card height defaults to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 assert.doesNotMatch(src, /use(Ref|State|Memo|Callback|LayoutEffect|Effect)</, "no generic hook type arguments")
-assert.ok(src.length < 120_000, "lean: " + src.length)
+assert.ok(src.length < 170_000, "lean (three embedded faces): " + src.length)
 
 const cssAt = src.indexOf("const CSS =")
 const css = src.slice(cssAt, src.indexOf("\n\n", cssAt))
@@ -22,7 +22,7 @@ const flat = css.replace(/"\s*\+\s*\n\s*"/g, "")
 let rules = 0
 for (const m of flat.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
   const sel = m[1].trim()
-  if (sel.startsWith("@") || sel.startsWith("const CSS") || sel === "FONT +" || /^(to|from|\d+%)$/.test(sel)) continue
+  if (sel.startsWith("@") || sel.startsWith("const CSS") || sel === "FONT +" || /^(to|from|[\d%,]+)$/.test(sel)) continue
   rules++
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".psh-")), "unscoped selector: " + sel)
 }
@@ -33,7 +33,9 @@ assert.deepEqual([...src.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]).fil
 
 // motion and runtime hygiene: the stripes are CSS transforms; JS only counts and scrubs
 assert.match(flat, /@keyframes psh-pulse\{0%\{transform:translateY\(0\)\}100%\{transform:translateY\(270%\)\}\}/, "the pulse moves by transform only")
-assert.match(flat, /@media \(prefers-reduced-motion:reduce\)\{[^}]*\.psh-col>i,\.psh-track\{animation:none\}/, "reduced motion stops the pulse and the band")
+assert.match(flat, /@media \(prefers-reduced-motion:reduce\)\{[^}]*\.psh-col>i,\.psh-track,\.psh-lamp\{animation:none\}/, "reduced motion stops the pulse, the band and the lamp")
+assert.doesNotMatch(src, /#3d5cff|#0a1466|cobalt/, "no royal-blue SaaS gradient")
+assert.ok(src.includes('palette = "sodium"'), "sodium ink is the default world")
 assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "reduced motion is read in JS")
 assert.ok(src.includes("ctx.revert()") && src.includes("cancelAnimationFrame(raf)"), "cleanup")
 assert.ok(src.includes("once: true") && src.includes("scrub: 0.6"), "stats count once; the statement scrubs")
