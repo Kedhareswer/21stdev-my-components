@@ -8,7 +8,7 @@ const TOKENS = ["--color-background", "--color-foreground", "--color-muted-foreg
 
 /**
  * @param {string} slug
- * @param {{ prefix: string, imports: string[], vars?: string[], minRules?: number, maxDemoBytes?: number, runtimeMotion?: boolean }} o
+ * @param {{ prefix: string, imports: string[], vars?: string[], minRules?: number, maxDemoBytes?: number, runtimeMotion?: boolean, inline?: boolean }} o
  */
 export function checkComponent(slug, o) {
   const dir = new URL("../components/" + slug + "/", import.meta.url)
@@ -23,7 +23,8 @@ export function checkComponent(slug, o) {
   const ts = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
   assert.ok(ts.includes('"@/components/ui/' + slug + '": ["./components/' + slug + "/" + slug + '.tsx"]'), slug + ": tsconfig paths line")
 
-  assert.match(src, /height = "100svh"/, slug + ": height defaults to a definite length")
+  // Inline pieces (an avatar group) size to their content; stage pieces take a definite height.
+  if (!o.inline) assert.match(src, /height = "100svh"/, slug + ": height defaults to a definite length")
   assert.doesNotMatch(src, /\bh-full\b/, slug + ": no h-full")
   assert.doesNotMatch(src + demo, /use(Ref|State|Memo|Callback|Reducer|Context)</, slug + ": no generic hook type arguments (they hang the 21st CLI)")
   assert.ok(src.length < 60_000, slug + ": component stays lean, " + src.length)

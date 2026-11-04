@@ -14,6 +14,7 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/presence-avatar-stack": ["./components/presence-avatar-stack/presence-avatar-stack.tsx"],
       "@/components/ui/automation-flow-card": ["./components/automation-flow-card/automation-flow-card.tsx"],
       "@/components/ui/focus-usage-card": ["./components/focus-usage-card/focus-usage-card.tsx"],
       "@/components/ui/postcard-flip-cards": ["./components/postcard-flip-cards/postcard-flip-cards.tsx"],
