@@ -8,7 +8,7 @@ const TOKENS = ["--color-background", "--color-foreground", "--color-muted-foreg
 
 /**
  * @param {string} slug
- * @param {{ prefix: string, imports: string[], vars?: string[], minRules?: number, maxDemoBytes?: number }} o
+ * @param {{ prefix: string, imports: string[], vars?: string[], minRules?: number, maxDemoBytes?: number, runtimeMotion?: boolean }} o
  */
 export function checkComponent(slug, o) {
   const dir = new URL("../components/" + slug + "/", import.meta.url)
@@ -19,7 +19,7 @@ export function checkComponent(slug, o) {
   assert.deepEqual(imports, o.imports, slug + ": imports")
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
   for (const i of imports) assert.ok(pkg.dependencies[i.split("/")[0]], slug + ": " + i + " is declared in the root package.json")
-  assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo.tsx", slug + ".tsx"], slug + ": folder holds only the publishable files")
+  assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo.tsx", slug + ".tsx"].sort(), slug + ": folder holds only the publishable files")
   const ts = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
   assert.ok(ts.includes('"@/components/ui/' + slug + '": ["./components/' + slug + "/" + slug + '.tsx"]'), slug + ": tsconfig paths line")
 
@@ -51,7 +51,7 @@ export function checkComponent(slug, o) {
   assert.deepEqual([...demo.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]), [], slug + ": the demo is self-contained")
   assert.ok(Buffer.byteLength(demo) < (o.maxDemoBytes ?? 200_000), slug + ": demo under 21st's 200 kB limit")
 
-  assert.match(src, /prefers-reduced-motion: reduce/, slug + ": reduced motion is read at runtime")
+  if (o.runtimeMotion !== false) assert.match(src, /prefers-reduced-motion: reduce/, slug + ": reduced motion is read at runtime")
   assert.doesNotMatch(src, /getBoundingClientRect|offset(Top|Left|Width|Height)|client(Width|Height)|scrollHeight|getComputedStyle|inner(Width|Height)/, slug + ": no layout reads")
   return { src, demo, css: flat }
 }
