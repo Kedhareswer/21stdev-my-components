@@ -224,6 +224,7 @@
       "@/components/ui/folio-fold-menu": ["./components/folio-fold-menu/folio-fold-menu.tsx"],
       "@/components/ui/paper-stack-drawer": ["./components/paper-stack-drawer/paper-stack-drawer.tsx"],
       "@/components/ui/utility-dock-panel": ["./components/utility-dock-panel/utility-dock-panel.tsx"],
+      "@/components/ui/compass-mega-header": ["./components/compass-mega-header/compass-mega-header.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
