@@ -226,6 +226,7 @@
       "@/components/ui/halftone-flow-hero": ["./components/halftone-flow-hero/halftone-flow-hero.tsx"],
       "@/components/ui/pulse-stripe-hero": ["./components/pulse-stripe-hero/pulse-stripe-hero.tsx"],
       "@/components/ui/aura-focus-list": ["./components/aura-focus-list/aura-focus-list.tsx"],
+      "@/components/ui/signal-scramble-scroll": ["./components/signal-scramble-scroll/signal-scramble-scroll.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
