@@ -229,6 +229,7 @@
       "@/components/ui/lissajous-orbit-loader": ["./components/lissajous-orbit-loader/lissajous-orbit-loader.tsx"],
       "@/components/ui/swarm-table-loader": ["./components/swarm-table-loader/swarm-table-loader.tsx"],
       "@/components/ui/live-voice-room": ["./components/live-voice-room/live-voice-room.tsx"],
+      "@/components/ui/tiered-pricing-table": ["./components/tiered-pricing-table/tiered-pricing-table.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
