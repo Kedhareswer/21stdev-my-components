@@ -46,7 +46,7 @@ const SPRING =
   "linear(0,0.009,0.035 2.1%,0.141,0.281 6.7%,0.723 12.9%,0.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,0.991,0.977 51%,0.974 53.8%,0.975 57.1%,0.997 69.8%,1.003 76.9%,1)"
 
 const CSS = [
-  ".lms-root{--lms-accent:#ffb547;position:relative;width:100%;max-width:720px;border-radius:26px;padding:22px 22px 18px;color:#f6ead8;",
+  ".lms-root{--lms-accent:#ffb547;position:relative;width:100%;max-width:980px;border-radius:28px;padding:28px 30px 22px;color:#f6ead8;",
   "background:radial-gradient(120% 90% at 100% 0%,color-mix(in oklab,var(--lms-accent) 26%,transparent),transparent 55%),radial-gradient(80% 60% at 0% 100%,#2a1d12,transparent 70%),linear-gradient(180deg,#1b140e,#100c08);",
   "box-shadow:0 1px 0 rgba(255,236,200,.09) inset,0 0 0 1px rgba(255,214,150,.07) inset,0 30px 60px -24px rgba(20,10,0,.55),0 12px 24px -12px rgba(20,10,0,.4);",
   "font-family:'Inter Tight','Inter',ui-sans-serif,system-ui,sans-serif;overflow:hidden;isolation:isolate}",
@@ -56,10 +56,10 @@ const CSS = [
   ".lms-id{display:flex;align-items:center;gap:12px}",
   ".lms-chip{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#2a1700;",
   "background:linear-gradient(160deg,color-mix(in oklab,var(--lms-accent) 70%,#fff),var(--lms-accent));box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 6px 16px -4px color-mix(in oklab,var(--lms-accent) 60%,transparent)}",
-  ".lms-title{font-size:15px;font-weight:600;letter-spacing:-.01em}",
+  ".lms-title{font-size:17px;font-weight:600;letter-spacing:-.01em}",
   ".lms-cap{font-size:12px;color:rgba(246,234,216,.55);margin-top:2px}",
   ".lms-sum{text-align:right}",
-  ".lms-big{font:600 34px/1 'JetBrains Mono','SF Mono',ui-monospace,monospace;letter-spacing:-.04em;display:flex;justify-content:flex-end}",
+  ".lms-big{font:600 42px/1 'JetBrains Mono','SF Mono',ui-monospace,monospace;letter-spacing:-.04em;display:flex;justify-content:flex-end}",
   ".lms-delta{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:rgba(246,234,216,.55)}",
   ".lms-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-weight:600;font-variant-numeric:tabular-nums}",
   ".lms-up{background:rgba(124,220,150,.12);color:#8ee6a8;box-shadow:0 0 0 1px rgba(124,220,150,.22) inset}",
@@ -82,12 +82,14 @@ const CSS = [
   ".lms-act .lms-top{fill:#fffaf0}",
   ".lms-guide{position:absolute;top:0;bottom:0;width:1px;margin-left:-.5px;pointer-events:none;opacity:0;",
   "background:linear-gradient(180deg,transparent,rgba(255,236,200,.5) 30%,rgba(255,236,200,.08));transition:left .45s " + SPRING + ",opacity .2s}",
-  ".lms-tip{position:absolute;pointer-events:none;transform:translate(-50%,calc(-100% - 12px)) scale(.9);transform-origin:50% 100%;opacity:0;",
+  ".lms-tip{position:absolute;z-index:2;pointer-events:none;transform:translate(16px,-50%) scale(.9);transform-origin:0 50%;opacity:0;",
   "transition:left .45s " + SPRING + ",top .45s " + SPRING + ",opacity .2s,transform .35s " + SPRING + ";",
   "background:linear-gradient(180deg,#fffaf2,#f3e7d4);color:#24160a;border-radius:12px;padding:7px 11px 8px;white-space:nowrap;",
   "box-shadow:0 1px 0 #fff inset,0 10px 24px -8px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.06)}",
   ".lms-hot .lms-tip,.lms-hot .lms-guide{opacity:1}",
-  ".lms-hot .lms-tip{transform:translate(-50%,calc(-100% - 12px)) scale(1)}",
+  ".lms-hot .lms-tip{transform:translate(16px,-50%) scale(1)}",
+  ".lms-tip.lms-flipx{transform:translate(calc(-100% - 16px),-50%) scale(.9);transform-origin:100% 50%}",
+  ".lms-hot .lms-tip.lms-flipx{transform:translate(calc(-100% - 16px),-50%) scale(1)}",
   ".lms-tip-d{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8a6b4c;font-weight:600}",
   ".lms-tip-v{font:700 15px/1 'JetBrains Mono','SF Mono',ui-monospace,monospace;margin-top:4px;display:flex}",
   ".lms-hit{fill:transparent;cursor:crosshair}",
@@ -261,11 +263,12 @@ export default function LedMatrixSales({
         </svg>
         <div className="lms-guide" style={{ left: ((Math.max(active, 0) + 0.5) / Math.max(n, 1)) * 100 + "%" }} />
         <div
-          className="lms-tip"
+          className={"lms-tip" + (active > n * 0.66 ? " lms-flipx" : "")}
           aria-live="polite"
           style={{
-            left: "clamp(48px," + ((Math.max(active, 0) + 0.5) / Math.max(n, 1)) * 100 + "%,calc(100% - 48px))",
-            top: (1 - peak / rows) * 100 + "%",
+            left: ((Math.max(active, 0) + 0.5) / Math.max(n, 1)) * 100 + "%",
+            // Beside the column's top dot, clamped inside the board so it never reaches the header.
+            top: "clamp(26px," + ((1 - peak / rows) * 100 + 50 / rows) + "%,calc(100% - 26px))",
           }}
         >
           <div className="lms-tip-d">{a ? a.label : ""}</div>

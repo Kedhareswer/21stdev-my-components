@@ -14,7 +14,7 @@ const metrics = [
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[620px] w-full items-center justify-center bg-background p-4 sm:p-10">
+    <div className="flex min-h-svh w-full items-center justify-center bg-background p-4 sm:p-10">
       <TiltedMetricDeck metrics={metrics} />
     </div>
   )

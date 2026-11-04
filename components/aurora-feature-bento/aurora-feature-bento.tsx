@@ -54,11 +54,17 @@ const CSS = [
   "background:#0c1122;box-shadow:0 0 0 1px rgba(150,180,255,.1) inset,0 1px 0 rgba(255,255,255,.08) inset;",
   "opacity:0;transform:translateY(24px);filter:blur(6px);transition:opacity .7s,transform 1s " + SPRING + ",filter .7s;transition-delay:calc(var(--i)*110ms)}",
   ".afb-in .afb-card{opacity:1;transform:none;filter:none}",
-  ".afb-sky{position:absolute;inset:-30%;z-index:-2;pointer-events:none}",
-  ".afb-sky i{position:absolute;width:60%;height:60%;border-radius:50%;filter:blur(48px);opacity:.75;animation:afb-drift 16s ease-in-out infinite alternate}",
-  ".afb-sky i:nth-child(1){left:5%;top:10%;background:var(--a)}",
-  ".afb-sky i:nth-child(2){right:0;top:30%;background:var(--b);animation-duration:21s;animation-delay:-6s}",
-  ".afb-sky i:nth-child(3){left:25%;bottom:0;background:var(--c);opacity:.5;animation-duration:26s;animation-delay:-11s}",
+  ".afb-sky{position:absolute;inset:0;z-index:-2;pointer-events:none;overflow:hidden;",
+  "background:radial-gradient(120% 60% at 50% 115%,color-mix(in oklab,var(--c) 45%,transparent),transparent 62%),linear-gradient(180deg,#03060f,#081024 55%,#0b1226)}",
+  ".afb-sky i{position:absolute}",
+  ".afb-sky i:nth-child(1){inset:0;opacity:.75;animation:afb-twinkle 5s ease-in-out infinite alternate;",
+  "background-image:radial-gradient(1px 1px at 8% 12%,#fff,transparent),radial-gradient(1px 1px at 22% 34%,#dfe9ff,transparent),radial-gradient(1.5px 1.5px at 37% 8%,#fff,transparent),radial-gradient(1px 1px at 52% 26%,#cfe0ff,transparent),",
+  "radial-gradient(1px 1px at 66% 14%,#fff,transparent),radial-gradient(1.5px 1.5px at 81% 30%,#fff,transparent),radial-gradient(1px 1px at 92% 9%,#dfe9ff,transparent),radial-gradient(1px 1px at 14% 52%,#fff,transparent),radial-gradient(1px 1px at 74% 46%,#fff,transparent),radial-gradient(1px 1px at 44% 58%,#cfe0ff,transparent)}",
+  ".afb-sky i:nth-child(2),.afb-sky i:nth-child(3){left:-25%;right:-25%;top:-8%;height:78%;transform-origin:50% 0;mix-blend-mode:screen;",
+  "background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 3px,rgba(255,255,255,.28) 3px 4px,rgba(255,255,255,0) 4px 10px),linear-gradient(180deg,transparent 0%,var(--a) 38%,var(--b) 72%,transparent 100%);",
+  "-webkit-mask-image:radial-gradient(52% 50% at 50% 48%,#000 35%,transparent 72%);mask-image:radial-gradient(52% 50% at 50% 48%,#000 35%,transparent 72%);",
+  "filter:blur(1.6px) saturate(1.35);opacity:.85;animation:afb-sway 15s ease-in-out infinite alternate}",
+  ".afb-sky i:nth-child(3){left:-10%;right:-40%;top:2%;height:60%;opacity:.5;background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 2px,rgba(255,255,255,.24) 2px 3px,rgba(255,255,255,0) 3px 8px),linear-gradient(180deg,transparent,var(--c) 45%,transparent);animation-duration:21s;animation-delay:-8s}",
   ".afb-card:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(7,10,20,0) 30%,rgba(7,10,20,.55) 62%,rgba(7,10,20,.92));pointer-events:none}",
   ".afb-ui{position:absolute;left:18px;right:18px;top:18px}",
   ".afb-glass{border-radius:16px;background:rgba(14,19,36,.55);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);",
@@ -102,7 +108,8 @@ const CSS = [
   ".afb-cur svg{flex:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}",
   ".afb-tag{margin-top:14px;padding:4px 9px;border-radius:99px;font-size:11.5px;font-weight:650;color:#fff;background:var(--k);box-shadow:0 6px 14px -6px var(--k);white-space:nowrap}",
   ".afb-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}",
-  "@keyframes afb-drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(12%,-8%) scale(1.15)}100%{transform:translate(-10%,10%) scale(.95)}}",
+  "@keyframes afb-sway{0%{transform:skewX(-10deg) translateX(-5%) scaleY(1)}50%{transform:skewX(4deg) translateX(2%) scaleY(1.1)}100%{transform:skewX(12deg) translateX(6%) scaleY(.95)}}",
+  "@keyframes afb-twinkle{0%{opacity:.45}100%{opacity:.85}}",
   "@keyframes afb-blink{50%{opacity:0}}",
   "@keyframes afb-sheen{to{transform:translateX(120%)}}",
   "@keyframes afb-p1{0%,100%{transform:translate(190px,-4px)}30%{transform:translate(206px,44px)}55%{transform:translate(70px,62px)}80%{transform:translate(130px,10px)}}",
@@ -209,7 +216,7 @@ export default function AuroraFeatureBento({
       <style>{CSS}</style>
 
       <section className="afb-card" style={{ ["--i" as string]: 0 }}>
-        <Sky a="#1d4ed8" b="#22d3ee" c="#6366f1" />
+        <Sky a="#34f5c5" b="#2b7bff" c="#5b8cff" />
         <div className="afb-ui">
           <div className="afb-avatar" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -234,7 +241,7 @@ export default function AuroraFeatureBento({
       </section>
 
       <section className="afb-card" style={{ ["--i" as string]: 1 }}>
-        <Sky a="#7c3aed" b="#2563eb" c="#db2777" />
+        <Sky a="#b48cff" b="#ff5fa2" c="#7c5cff" />
         <div className="afb-ui afb-glass afb-tools">
           <div className="afb-th">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -273,7 +280,7 @@ export default function AuroraFeatureBento({
       </section>
 
       <section className="afb-card" style={{ ["--i" as string]: 2 }}>
-        <Sky a="#0ea5e9" b="#f43f5e" c="#8b5cf6" />
+        <Sky a="#7cffb2" b="#26c6ff" c="#ffb36b" />
         <div className="afb-ui" aria-hidden="true">
           <div className="afb-lbl">Work email</div>
           <div className="afb-glass afb-field">

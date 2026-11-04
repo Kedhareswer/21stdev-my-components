@@ -1,6 +1,6 @@
 # Aurora Feature Bento
 
-A three-card SaaS feature bento over slow-drifting aurora light. Each card holds a small live interface in frosted glass, above a title and a line of copy.
+A three-card SaaS feature bento under a night sky. Each card has curtains of aurora rays that sway over a starfield and a coloured horizon glow. Each card holds a small live interface in frosted glass, above a title and a line of copy.
 
 1. **Prompt.** A message types itself out, bold phrases and all. Then the Generate button catches a sheen of light. Click Generate to type it again.
 2. **Integrations.** A field of round tool tiles. The one under the pointer swells with a spring and glows in its colour, the rest shrink back, and the footer names the tool.
@@ -34,7 +34,7 @@ import AuroraFeatureBento from "@/components/ui/aurora-feature-bento"
 
 ## Notes
 
-- React only. The aurora is three blurred blobs per card drifting on CSS transforms. Typing is a 38 ms interval, and the cursors are CSS keyframes. Nothing reads layout.
+- React only. The aurora is two masked, ray-striped curtains per card swaying on CSS skew transforms, over a twinkling star layer. Typing is a 38 ms interval, and the cursors are CSS keyframes. Nothing reads layout.
 - The prompt is in an `sr-only` span, so screen readers get the full text, not the typing.
 - Below 860 px the cards stack.
 - `prefers-reduced-motion` shows the prompt typed out and stops the aurora, cursors, sheen and springs.

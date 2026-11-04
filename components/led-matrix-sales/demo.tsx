@@ -18,8 +18,8 @@ const data = Array.from({ length: 42 }, (_, i) => {
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[560px] w-full items-center justify-center bg-background p-4 sm:p-10">
-      <LedMatrixSales data={data} title="Net sales" caption="Daily revenue · Sep 14 – Oct 25" delta={12.4} deltaLabel="vs previous 6 weeks" />
+    <div className="flex min-h-svh w-full items-center justify-center bg-background p-4 sm:p-10">
+      <LedMatrixSales data={data} rows={11} title="Net sales" caption="Daily revenue · Sep 14 – Oct 25" delta={12.4} deltaLabel="vs previous 6 weeks" />
     </div>
   )
 }

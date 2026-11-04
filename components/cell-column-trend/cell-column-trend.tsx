@@ -232,7 +232,7 @@ export default function CellColumnTrend({
               </div>
             ))}
           <span className="cct-line" style={{ left: pct + "%" }} aria-hidden="true" />
-          <div className={"cct-tip" + (pct > 66 ? " cct-flipx" : "")} style={{ left: pct + "%", top: tipTop + "%" }} aria-live="polite">
+          <div className={"cct-tip" + (pct > 66 ? " cct-flipx" : "")} style={{ left: pct + "%", top: "clamp(26px," + tipTop + "%,calc(100% - 26px))" }} aria-live="polite">
             <div className="cct-tip-d">{active >= 0 ? labels[active] : ""}</div>
             <div className="cct-tip-v">
               <i aria-hidden="true" />
