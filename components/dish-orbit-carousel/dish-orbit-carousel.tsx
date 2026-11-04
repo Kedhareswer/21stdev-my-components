@@ -130,7 +130,7 @@ const VISIBLE = 4
 const FONT = "dsh-face"
 
 const CSS =
-  ".dsh-trk{position:relative}" +
+  ".dsh-trk{position:relative;width:100%}" +
   ".dsh-root{position:sticky;top:0;overflow:hidden;width:100%;background:var(--color-background);color:var(--color-foreground);" +
   "font-family:" + FONT + ",ui-sans-serif,system-ui,sans-serif;container-type:inline-size;-webkit-tap-highlight-color:transparent}" +
   ".dsh-root *{box-sizing:border-box}" +
