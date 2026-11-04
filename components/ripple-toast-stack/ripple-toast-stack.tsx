@@ -80,7 +80,7 @@ export const toast = Object.assign((title: string, o?: ToastOptions) => push("in
 export function stackOffset(index: number, expanded: boolean, height: number, gap: number) {
   if (expanded) return { y: index * (height + gap), scale: 1, opacity: 1 }
   const shown = Math.min(index, 3)
-  return { y: shown * 14, scale: 1 - shown * 0.055, opacity: index > 2 ? 0 : 1 - index * 0.1 }
+  return { y: shown * 17, scale: 1 - shown * 0.06, opacity: index > 2 ? 0 : 1 }
 }
 
 /** A swipe dismisses past 30 % of the toast's width, or on a fast flick. */
@@ -116,6 +116,7 @@ const CSS =
   ".rts-t:focus-visible{outline:none}" +
   ".rts-t:focus-visible .rts-card{box-shadow:0 0 0 2px var(--rts-c),var(--rts-shadow)}" +
   ".rts-t[data-back=true] .rts-card>*{opacity:0}" +
+  ".rts-t[data-back=true] .rts-card{background:color-mix(in srgb,var(--rts-bg),var(--rts-text) calc(var(--rts-depth,1) * 4%))}" +
   ".rts-card>*{transition:opacity .3s}" +
   ".rts-t[data-kind=success]{--rts-c:var(--rts-ok)}" +
   ".rts-t[data-kind=error]{--rts-c:var(--rts-bad)}" +
@@ -185,6 +186,7 @@ function Toast({ t, index, expanded, duration, width, onGone }: { t: ToastItem; 
   const style = {
     ["--rts-y" as string]: o.y,
     ["--rts-s" as string]: o.scale,
+    ["--rts-depth" as string]: Math.min(index, 3),
     ["--rts-d" as string]: ms + "ms",
     opacity: out === "swipe" ? 0 : o.opacity,
     zIndex: 100 - index,
