@@ -2,10 +2,9 @@
 
 import * as React from "react"
 import * as THREE from "three"
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 
-// A 3D work showcase. Project screens orbit a slowly turning chrome knot on a
-// tilted ring; the far side sinks into fog. Drag to spin the ring, hover a
+// A 3D work showcase. Project screens are the hero: they orbit a pool of stage
+// light on a tilted ring, and the far side sinks into fog. Drag to spin the ring, hover a
 // screen to lift it, click (or use the arrows) to bring it to the front, where
 // its details slide in beside the scene.
 
@@ -62,8 +61,8 @@ export function toNdc(x: number, y: number, left: number, top: number, w: number
 
 /** Camera distance and ring radius for a stage aspect ratio: phones step back. */
 export function framing(aspect: number): { dist: number; radius: number; x: number; y: number } {
-  if (aspect < 0.8) return { dist: 14, radius: 2.4, x: 0, y: 1.2 }
-  return { dist: 10.5, radius: 2.85, x: aspect > 1.3 ? 1.05 : 0.4, y: 0.15 }
+  if (aspect < 0.8) return { dist: 14.5, radius: 2.5, x: 0, y: 1.1 }
+  return { dist: 11, radius: 3.05, x: aspect > 1.3 ? 0.8 : 0.3, y: 0.05 }
 }
 // #endregion
 
@@ -180,25 +179,15 @@ export default function OrbitScreensShowcase({
     }
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.outputColorSpace = THREE.SRGBColorSpace
 
     const scene = new THREE.Scene()
     const bg = new THREE.Color(background)
     const fog = new THREE.Fog(bg, 9, 15)
     scene.fog = fog
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const room = new RoomEnvironment()
-    const env = pmrem.fromScene(room, 0.04).texture
-    scene.environment = env
     const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 60)
 
-    // the centrepiece
-    const knotGeo = new THREE.TorusKnotGeometry(0.78, 0.25, 260, 36, 2, 3)
-    const knotMat = new THREE.MeshPhysicalMaterial({ color: 0xd8dcef, metalness: 1, roughness: 0.14, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.25 })
-    const knot = new THREE.Mesh(knotGeo, knotMat)
     const center = new THREE.Group()
-    center.add(knot)
     scene.add(center)
 
     // the ring
@@ -211,7 +200,25 @@ export default function OrbitScreensShowcase({
     orbitLine.rotation.x = -Math.PI / 2
     ring.add(orbitLine)
 
-    const plane = new THREE.PlaneGeometry(1.6, 1)
+    // a pool of stage light the screens circle, tinted by the accent
+    const glow = document.createElement("canvas")
+    glow.width = glow.height = 256
+    const gg = glow.getContext("2d") as CanvasRenderingContext2D
+    const rg = gg.createRadialGradient(128, 128, 0, 128, 128, 128)
+    rg.addColorStop(0, "rgba(255,255,255,.95)")
+    rg.addColorStop(0.35, "rgba(255,255,255,.3)")
+    rg.addColorStop(1, "rgba(255,255,255,0)")
+    gg.fillStyle = rg
+    gg.fillRect(0, 0, 256, 256)
+    const poolTex = new THREE.CanvasTexture(glow)
+    const poolGeo = new THREE.PlaneGeometry(1, 1)
+    const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(accent), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })
+    const pool = new THREE.Mesh(poolGeo, poolMat)
+    pool.rotation.x = -Math.PI / 2
+    pool.position.y = -0.55
+    ring.add(pool)
+
+    const plane = new THREE.PlaneGeometry(1.84, 1.15)
     const blank = new THREE.MeshBasicMaterial({ color: 0x1a1c24 })
     const items = screens.map((s, i) => {
       const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide, opacity: 1 })
@@ -268,6 +275,7 @@ export default function OrbitScreensShowcase({
       fog.near = f.dist - 1.5
       fog.far = f.dist + 5
       orbitLine.scale.setScalar(radius)
+      pool.scale.setScalar(radius * 2.4)
       camera.updateProjectionMatrix()
       kick()
     }
@@ -296,9 +304,8 @@ export default function OrbitScreensShowcase({
       } else drift += dt * 0.05
       px += (tx - px) * (1 - Math.exp(-dt * 4))
       py += (ty - py) * (1 - Math.exp(-dt * 4))
-      knot.rotation.set(still ? 0.4 : time * 0.21 + py * 0.3, still ? 0.6 : time * 0.33 + px * 0.5, 0)
       const ki = still ? 1 : Math.min(1, time / 1.4)
-      knot.scale.setScalar(0.6 + 0.4 * (1 - Math.pow(1 - ki, 3)))
+      poolMat.opacity = (1 - Math.pow(1 - ki, 3)) * (still ? 0.9 : 0.8 + 0.2 * Math.sin(time * 0.9))
       center.rotation.x = py * 0.12
       center.rotation.y = px * 0.18
       dust.rotation.y = still ? 0 : time * 0.012
@@ -442,18 +449,16 @@ export default function OrbitScreensShowcase({
       }
       blank.dispose()
       plane.dispose()
-      knotGeo.dispose()
-      knotMat.dispose()
+      poolTex.dispose()
+      poolGeo.dispose()
+      poolMat.dispose()
       orbitGeo.dispose()
       orbitMat.dispose()
       dustGeo.dispose()
       dustMat.dispose()
-      env.dispose()
-      room.dispose()
-      pmrem.dispose()
       renderer.dispose()
     }
-  }, [n, screens, background])
+  }, [n, screens, background, accent])
 
   if (n === 0) return null
   const s = screens[index]
