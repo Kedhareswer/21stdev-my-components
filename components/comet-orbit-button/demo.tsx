@@ -3,7 +3,6 @@
 import CometOrbitButton from "@/components/ui/comet-orbit-button"
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
-let attempts = 0
 
 export default function Demo() {
   return (
@@ -38,18 +37,25 @@ export default function Demo() {
         <div className="mt-8">
           <CometOrbitButton width="100%" onAction={() => wait(2200)} />
         </div>
-        <div className="mt-3">
-          <CometOrbitButton
-            width="100%"
-            label="Withdraw to card"
-            doneLabel="Sent to •• 8817"
-            onAction={async () => {
-              await wait(1600)
-              if (attempts++ % 2 === 0) throw new Error("declined")
-            }}
-          />
+        <div className="mt-8 border-t border-dashed pt-6" style={{ borderColor: "rgba(255,255,255,.08)" }}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium tracking-[0.16em] text-[#ff8a7a]">ERROR STATE</p>
+              <p className="mt-1 text-[13px] leading-snug text-[#8e8473]">A card that always declines, to show the coral ring.</p>
+            </div>
+            <CometOrbitButton
+              width={168}
+              label="Try card"
+              busyLabel="Checking"
+              errorLabel="Declined"
+              accent="#ff9d8a"
+              onAction={async () => {
+                await wait(1400)
+                throw new Error("declined")
+              }}
+            />
+          </div>
         </div>
-        <p className="mt-5 text-center text-[12px] text-[#6f6758]">The card withdrawal declines every other try, to show the error ring.</p>
       </div>
     </div>
   )

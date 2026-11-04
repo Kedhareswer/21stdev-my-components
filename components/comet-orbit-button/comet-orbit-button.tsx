@@ -38,9 +38,10 @@ const CSS =
   ".cob-btn:focus-visible{box-shadow:0 0 0 2px #0b0c0f,0 0 0 4px var(--cob-c),0 10px 24px -10px rgba(0,0,0,.7)}" +
   ".cob-btn[aria-disabled=true]{cursor:default}" +
   // the orbit: a conic comet masked down to a hairline ring, plus a blurred twin behind for the glow
-  ".cob-ring,.cob-glow{position:absolute;pointer-events:none;border-radius:999px;background:conic-gradient(from var(--cob-a),transparent 0turn,transparent .5turn,color-mix(in oklab,var(--cob-c) 35%,transparent) .78turn,var(--cob-c) .965turn,#fff .985turn,transparent 1turn);opacity:0;transition:opacity .5s}" +
-  ".cob-ring{inset:0;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);z-index:2}" +
-  ".cob-glow{inset:-5px;filter:blur(14px) saturate(1.4);z-index:-1}" +
+  ".cob-ring,.cob-glow{position:absolute;pointer-events:none;border-radius:999px;background:conic-gradient(from var(--cob-a),transparent 0turn,transparent .42turn,color-mix(in oklab,var(--cob-c) 30%,transparent) .7turn,var(--cob-c) .93turn,#fff .975turn,var(--cob-c) .99turn,transparent 1turn);opacity:0;transition:opacity .5s}" +
+  ".cob-ring{inset:0;padding:2.5px;filter:drop-shadow(0 0 3px var(--cob-c));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);z-index:2}" +
+  ".cob-glow{inset:-3px;filter:blur(11px) saturate(1.5) brightness(1.25);z-index:-1}" +
+  ".cob-root[data-s=busy] .cob-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(0,0,0,.6),0 1px 2px rgba(0,0,0,.4),0 10px 30px -8px color-mix(in oklab,var(--cob-c) 35%,transparent),0 30px 60px -30px rgba(0,0,0,.8)}" +
   ".cob-root[data-s=idle]:hover .cob-ring,.cob-root[data-s=idle]:focus-within .cob-ring{opacity:.55}.cob-root[data-s=idle]:hover .cob-glow{opacity:.25}" +
   ".cob-root[data-s=idle] .cob-ring,.cob-root[data-s=idle] .cob-glow{animation:cob-spin 4.2s linear infinite}" +
   ".cob-root[data-s=busy] .cob-ring{opacity:1}.cob-root[data-s=busy] .cob-glow{opacity:1}" +
