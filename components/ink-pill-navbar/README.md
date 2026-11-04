@@ -19,7 +19,7 @@ import InkPillNavbar from "@/components/ui/ink-pill-navbar"
 |---|---|---|
 | `items` | required | `{ label, href? }[]`. |
 | `brand` | none | Logo on the left (node). |
-| `cta` | none | `{ label, href? }`, the accent button on the right. It hides below 620 px of container width. |
+| `cta` | none | `{ label, href? }`, the accent button on the right. It hides below 720 px of container width. |
 | `current` | `-1` | Index of the current page. It gets an accent dot and `aria-current="page"`. |
 | `accent` | `#ff4d2e` | The button, the dot and focus rings. |
 | `onNavigate` | none | `(item, index)`. |
