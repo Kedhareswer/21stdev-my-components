@@ -2,6 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { gsap } from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+
+gsap.registerPlugin(ScrollTrigger)
 
 /*
  * Dish Orbit Carousel: a smart-kitchen-display menu. The plated dish sits on
@@ -9,8 +12,9 @@ import { gsap } from "gsap"
  * next plate swings in from the other side. The two-weight title wipes out and
  * back in (thin line from the right, heavy line from the left), the chef card
  * and its coloured rating badge cross-fade, and a pastel arc behind the scene
- * turns and takes the dish's colour. Arrows, thumbnails, the side pager,
- * arrow keys and swipes all drive it, endlessly in both directions.
+ * turns and takes the dish's colour. The page scroll drives it: the section
+ * pins and each stretch of scroll brings the next dish, endlessly both ways.
+ * Arrows, thumbnails, the side pager, arrow keys and swipes jump too.
  */
 
 export type Dish = {
@@ -42,7 +46,8 @@ export type DishOrbitCarouselProps = {
   height?: string
   /** Optional photo behind the display, e.g. a kitchen wall. Washed by the theme background. */
   backdrop?: string
-  initialIndex?: number
+  /** Scroll on forever: past the last dish comes the first again, and up from the first, the last. */
+  loop?: boolean
   /** Embedded display face (Outfit, OFL). Pass null to use the host's font. */
   fontSrc?: string | null
   onPlay?: (dish: Dish, index: number) => void
@@ -62,6 +67,16 @@ export function stepDirection(from: number, to: number, n: number): 1 | -1 {
   if (n <= 0) return 1
   const fwd = (((to - from) % n) + n) % n
   return fwd <= n - fwd ? 1 : -1
+}
+
+/** Scroll stretches in the section: one per dish change, plus one back round to the first when looping. */
+export function scrollSteps(n: number, loop: boolean): number {
+  return Math.max(0, loop ? n : n - 1)
+}
+
+/** The scroll stretch for dish `i` nearest the current one (when looping, dish 0 is also the last stretch). */
+export function segmentFor(i: number, current: number, n: number, loop: boolean): number {
+  return loop && i === 0 && current > n / 2 ? n : i
 }
 
 /** First thumbnail shown in the strip window, keeping the current one in view. */
@@ -107,6 +122,7 @@ export const ARC_SWEEP = [38, 146]
 const ORBIT_X = 299
 const ORBIT_Y = -450
 const ORBIT_R = 650
+const SCROLL_PER_DISH = 0.7 // stage heights of scroll per dish
 const SWING = 50 // degrees the plate travels round the orbit's pivot
 const ITEM = 118 // thumbnail pitch in canvas px
 const VISIBLE = 4
@@ -114,7 +130,8 @@ const VISIBLE = 4
 const FONT = "dsh-face"
 
 const CSS =
-  ".dsh-root{position:relative;overflow:hidden;width:100%;background:var(--color-background);color:var(--color-foreground);" +
+  ".dsh-trk{position:relative}" +
+  ".dsh-root{position:sticky;top:0;overflow:hidden;width:100%;background:var(--color-background);color:var(--color-foreground);" +
   "font-family:" + FONT + ",ui-sans-serif,system-ui,sans-serif;container-type:inline-size;-webkit-tap-highlight-color:transparent}" +
   ".dsh-root *{box-sizing:border-box}" +
   ".dsh-bd{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;pointer-events:none}" +
@@ -122,8 +139,8 @@ const CSS =
   // multiply by the background: a no-op on a light theme, lights-off on a dark one
   ".dsh-dim{position:absolute;inset:0;background:var(--color-background);mix-blend-mode:multiply;opacity:.72;pointer-events:none}" +
   ".dsh-root:focus-visible{outline:2px solid var(--color-primary);outline-offset:-4px}" +
-  ".dsh-canvas{position:absolute;left:50%;top:50%;width:960px;height:600px;transform:translate(-50%,-50%) scale(var(--dsh-s,1));transform-origin:50% 50%}" +
-  ".dsh-arc{position:absolute;left:0;top:0;width:960px;height:600px;overflow:visible;pointer-events:none}" +
+  ".dsh-canvas{position:absolute;left:50%;top:50%;width:960px;height:520px;transform:translate(-50%,-50%) scale(var(--dsh-s,1));transform-origin:50% 50%}" +
+  ".dsh-arc{position:absolute;left:0;top:0;width:960px;height:520px;overflow:visible;pointer-events:none}" +
   ".dsh-btn{appearance:none;border:0;background:none;color:inherit;font:inherit;padding:0;margin:0;cursor:pointer}" +
   ".dsh-btn:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:10px}" +
   ".dsh-ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}" +
@@ -184,32 +201,22 @@ const CSS =
   ".dsh-th img{width:56px;height:56px;max-width:none;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18));transition:transform .45s}" +
   ".dsh-th .dsh-btn[aria-current] img{transform:scale(1.06)}" +
   ".dsh-th span{font-size:10px;line-height:1.25;text-align:center;font-weight:500;color:color-mix(in oklab,var(--color-foreground) 78%,transparent);max-width:78px}" +
-  ".dsh-nav{position:absolute;left:186px;top:504px;display:flex;align-items:center;gap:27px}" +
-  ".dsh-nav .dsh-btn{width:52px;height:50px;display:grid;place-items:center;border-radius:14px;transition:background .3s}" +
-  ".dsh-nav .dsh-btn[aria-current]{background:color-mix(in oklab,var(--color-foreground) 7%,transparent)}" +
-  ".dsh-mic.dsh-btn{width:52px;height:52px;border-radius:99px;margin-left:34px;background:var(--color-background);" +
-  "box-shadow:0 10px 24px -10px rgba(0,0,0,.3);transition:box-shadow .3s,transform .3s}" +
-  ".dsh-mic[aria-pressed=true]{box-shadow:0 0 0 6px color-mix(in oklab,var(--color-primary) 18%,transparent),0 10px 24px -10px rgba(0,0,0,.3)}" +
-  ".dsh-mic[aria-pressed=true] .dsh-ico{animation:dsh-pulse 1.2s ease-in-out infinite}" +
-  "@keyframes dsh-pulse{50%{transform:scale(.82)}}" +
   ".dsh-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
   "@container (max-width:639px){" +
-  ".dsh-canvas{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;display:flex;flex-direction:column;align-items:center;padding:18px 16px 22px}" +
+  ".dsh-canvas{position:relative;left:auto;top:auto;width:100%;height:auto;transform:none;display:flex;flex-direction:column;align-items:center;padding:14px 16px 18px}" +
   ".dsh-arc{width:200%;height:auto;left:-60%;top:-30px}" +
   ".dsh-top{position:relative;left:auto;top:auto;align-self:flex-end}" +
   ".dsh-pager{left:14px;top:150px}" +
-  ".dsh-plates{position:relative;left:auto;top:auto;width:min(62vw,250px);height:min(62vw,250px);margin-top:4px}" +
+  ".dsh-plates{position:relative;left:auto;top:auto;width:min(52vw,32svh);height:min(52vw,32svh);margin-top:0}" +
   ".dsh-orbit>img{width:100%;height:100%}" +
-  ".dsh-head{position:relative;left:auto;top:auto;width:100%;height:138px;margin-top:18px}" +
-  ".dsh-hd{text-align:center}" +
+  ".dsh-head{position:relative;left:auto;top:auto;width:100%;height:132px;margin-top:10px}" +
+  ".dsh-hd{text-align:center;transform:scale(.78);transform-origin:50% 0}" +
   ".dsh-acts{position:relative;left:auto;top:auto;margin-top:4px}" +
-  ".dsh-card{position:relative;left:auto;top:auto;width:100%;max-width:420px;margin-top:14px;order:2}" +
-  ".dsh-strip{position:relative;left:auto;top:auto;width:100%;max-width:420px;margin-top:14px;justify-content:center;order:1}" +
-  ".dsh-win{width:min(" + ITEM * 3 + "px,calc(100% - 76px))}" +
-  ".dsh-nav{position:relative;left:auto;top:auto;gap:6px;margin-top:16px;order:3}" +
-  ".dsh-mic.dsh-btn{margin-left:10px}" +
+  ".dsh-card{position:relative;left:auto;top:auto;width:100%;max-width:420px;margin-top:12px}" +
+  // phone: the pinned stage has to fit one screen; the pager, swipes and scroll cover the strip
+  ".dsh-strip{display:none}" +
   "}" +
-  "@media (prefers-reduced-motion:reduce){.dsh-track,.dsh-dot,.dsh-dot i,.dsh-th .dsh-btn,.dsh-th img,.dsh-like,.dsh-mic.dsh-btn{transition:none}.dsh-mic[aria-pressed=true] .dsh-ico{animation:none}}"
+  "@media (prefers-reduced-motion:reduce){.dsh-track,.dsh-dot,.dsh-dot i,.dsh-th .dsh-btn,.dsh-th img,.dsh-like{transition:none}}"
 
 const HIDE_1 = "inset(0% 0% 0% 100%)" // thin line: wipes in from the right
 const HIDE_2 = "inset(0% 100% 0% 0%)" // heavy line: wipes in from the left
@@ -222,25 +229,13 @@ const Icon = {
   order: <svg className="dsh-ico dsh-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 3 15h18zM3 18h18v2.5H3z" /></svg>,
   up: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v10H3.5V10zM7 10l4-7c1.6 0 2.6 1.2 2.2 2.8L12.6 9H19a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17.7 20H7" /></svg>,
   down: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 14V4h3.5v10zM17 14l-4 7c-1.6 0-2.6-1.2-2.2-2.8l.6-3.2H5a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 6.3 4H17" /></svg>,
-  cutlery: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v6a2.5 2.5 0 0 0 5 0V3M8.5 3v18M17 21V3c-2.2 1.4-3 4-3 7v3h3" /></svg>,
-  drink: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-8 8zM12 13v8M8 21h8M15 3l-2 4" /></svg>,
-  chat: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11h-9l-4 3.5V16H4z" /></svg>,
-  user: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></svg>,
-  mic: <svg className="dsh-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg>,
 }
-
-const NAV = [
-  { label: "Menu", icon: Icon.cutlery },
-  { label: "Drinks", icon: Icon.drink },
-  { label: "Messages", icon: Icon.chat },
-  { label: "Profile", icon: Icon.user },
-]
 
 export function DishOrbitCarousel({
   dishes,
   height = "100svh",
   backdrop,
-  initialIndex = 0,
+  loop = true,
   fontSrc = FONT_DATA,
   onPlay,
   onOrder,
@@ -248,14 +243,18 @@ export function DishOrbitCarousel({
   className,
 }: DishOrbitCarouselProps) {
   const n = dishes.length
-  const [index, setIndex] = useState(() => wrapIndex(initialIndex, n))
+  const [index, setIndex] = useState(0)
   const [tab, setTab] = useState("overview")
   const [liked, setLiked] = useState({} as Record<number, boolean>)
   const [disliked, setDisliked] = useState({} as Record<number, boolean>)
-  const [nav, setNav] = useState(0)
-  const [listening, setListening] = useState(false)
 
+  const trackRef = useRef(null as HTMLDivElement | null)
   const rootRef = useRef(null as HTMLDivElement | null)
+  const stRef = useRef(null as ScrollTrigger | null)
+  const segRef = useRef(0)
+  const indexRef = useRef(0)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
   const orbits = useRef([] as (HTMLDivElement | null)[])
   const heads = useRef([] as (HTMLDivElement | null)[])
   const bodies = useRef([] as (HTMLDivElement | null)[])
@@ -267,14 +266,14 @@ export function DishOrbitCarousel({
   const reducedRef = useRef(false)
   const swipe = useRef(null as { x: number; y: number } | null)
 
-  // Fit the 960 x 600 design canvas to the root. Measured on resize only.
+  // Fit the 960 x 520 design canvas to the root. Measured on resize only.
   useLayoutEffect(() => {
     const el = rootRef.current
     if (!el) return
     const fit = () => {
       const w = el.clientWidth
       const h = el.clientHeight
-      el.style.setProperty("--dsh-s", String(Math.min(w / 960, h / 600, 1.6)))
+      el.style.setProperty("--dsh-s", String(Math.min(w / 960, h / 520, 1.6)))
     }
     fit()
     const ro = new ResizeObserver(fit)
@@ -356,13 +355,75 @@ export function DishOrbitCarousel({
 
   useEffect(() => () => { tlRef.current?.kill() }, [])
 
+  const select = (next: number, dir: 1 | -1) => {
+    if (next === indexRef.current) return
+    dirRef.current = dir
+    indexRef.current = next
+    setIndex(next)
+    onChangeRef.current?.(next)
+  }
+
+  // The page scroll drives the dish: the stage pins, one stretch of scroll per dish, snapping between them.
+  const steps = scrollSteps(n, loop)
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || steps < 1) return
+    const trigger = ScrollTrigger.create({
+      trigger: track,
+      start: "top top",
+      end: "bottom bottom",
+      snap: { snapTo: 1 / steps, duration: { min: 0.3, max: 0.8 }, delay: 0.08, ease: "power2.inOut" },
+      onUpdate: (self) => {
+        // Looping: the last stretch shows the first dish, so jump back to the top unseen.
+        if (loop && self.progress >= 1 && self.direction > 0) {
+          segRef.current = 0
+          self.scroll(self.start + 1)
+          select(0, 1)
+          return
+        }
+        const seg = Math.round(self.progress * steps)
+        if (seg === segRef.current) return
+        const dir = seg > segRef.current ? 1 : -1
+        segRef.current = seg
+        select(wrapIndex(seg, n), dir)
+      },
+    })
+    // At the very top no scroll is left to fire onUpdate, so scrolling up there wraps round to the last dish.
+    // Deferred a frame so the browser's own wheel scroll has landed first.
+    let raf = 0
+    const onWheel = (e: WheelEvent) => {
+      const y = trigger.scroll()
+      if (!loop || e.deltaY >= 0 || y < trigger.start - 1 || y > trigger.start + 1) return
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        segRef.current = n - 1
+        trigger.scroll(trigger.start + ((trigger.end - trigger.start) * (n - 1)) / steps)
+        select(n - 1, -1)
+      })
+    }
+    window.addEventListener("wheel", onWheel, { passive: true })
+    stRef.current = trigger
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener("wheel", onWheel)
+      trigger.kill()
+      stRef.current = null
+    }
+  }, [steps, loop, n])
+
+  // Buttons, keys and swipes jump to a dish and move the scroll to its stretch, so the two stay in step.
   const go = (to: number, dir?: 1 | -1) => {
     if (n < 2) return
     const next = wrapIndex(to, n)
     if (next === index) return
-    dirRef.current = dir ?? stepDirection(index, next, n)
-    setIndex(next)
-    onChange?.(next)
+    const st = stRef.current
+    const y = st ? st.scroll() : 0
+    if (st && y >= st.start - 1 && y <= st.end + 1) {
+      const seg = segmentFor(next, segRef.current, n, loop)
+      segRef.current = seg
+      st.scroll(st.start + ((st.end - st.start) * seg) / steps)
+    }
+    select(next, dir ?? stepDirection(index, next, n))
   }
   const step = (d: 1 | -1) => go(index + d, d)
 
@@ -383,10 +444,11 @@ export function DishOrbitCarousel({
   const dish = dishes[index]
 
   return (
+    <div ref={trackRef} className={"dsh-trk" + (className ? " " + className : "")} style={{ height: "calc(" + height + " * " + (1 + steps * SCROLL_PER_DISH) + ")" }}>
     <div
       ref={rootRef}
-      className={"dsh-root" + (className ? " " + className : "")}
-      style={{ height, minHeight: "fit-content" }}
+      className="dsh-root"
+      style={{ height }}
       role="region"
       aria-roledescription="carousel"
       aria-label="Dishes"
@@ -401,7 +463,7 @@ export function DishOrbitCarousel({
       {backdrop ? <div className="dsh-wash" /> : null}
 
       <div className="dsh-canvas">
-        <svg className="dsh-arc" viewBox="0 0 960 600" aria-hidden="true">
+        <svg className="dsh-arc" viewBox="0 0 960 520" aria-hidden="true">
           <path ref={arcRef} style={{ opacity: 0.34 }} />
         </svg>
 
@@ -504,18 +566,9 @@ export function DishOrbitCarousel({
           </button>
         </div>
 
-        <nav className="dsh-nav" aria-label="Kitchen display">
-          {NAV.map((x, i) => (
-            <button key={x.label} type="button" className="dsh-btn" aria-label={x.label} aria-current={nav === i ? "page" : undefined} onClick={() => setNav(i)}>
-              {x.icon}
-            </button>
-          ))}
-          <button type="button" className="dsh-btn dsh-mic" aria-label="Voice assistant" aria-pressed={listening} onClick={() => setListening((v) => !v)}>
-            {Icon.mic}
-          </button>
-        </nav>
       </div>
       <p className="dsh-sr" aria-live="polite">{dish ? "Dish " + (index + 1) + " of " + n + ": " + dish.title + " " + dish.subtitle : ""}</p>
+    </div>
     </div>
   )
 }

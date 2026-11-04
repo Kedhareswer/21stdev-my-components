@@ -10,7 +10,7 @@ const demo = readFileSync(new URL("demo.tsx", dir), "utf8")
 
 // ---- install safety ------------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
-assert.deepEqual(imports, ["react", "gsap"], "imports are react and gsap only")
+assert.deepEqual(imports, ["react", "gsap", "gsap/ScrollTrigger"], "imports are react and gsap only")
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
 assert.ok(pkg.dependencies.gsap, "gsap is declared in the root package.json")
 assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo.tsx", "dish-orbit-carousel.tsx"])
@@ -19,7 +19,8 @@ assert.ok(tsconfig.includes('"@/components/ui/dish-orbit-carousel": ["./componen
 assert.ok(demo.includes('from "@/components/ui/dish-orbit-carousel"'), "the demo imports the installer's path")
 
 assert.ok(src.includes('height = "100svh"'), "root height defaults to a definite length")
-assert.ok(src.includes("style={{ height, minHeight: \"fit-content\" }}"), "the root takes its height from the prop")
+assert.ok(src.includes('className="dsh-root"') && src.includes("style={{ height }}"), "the pinned stage takes its height from the prop")
+assert.match(src, /"calc\(" \+ height \+ " \* "/, "the scroll track is a definite multiple of the stage height")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full: percentage heights collapse on an installed page")
 assert.doesNotMatch(src, /use(Ref|State|Memo|Callback|LayoutEffect|Effect)</, "no generic hook type arguments (they hang the 21st CLI)")
 
@@ -41,6 +42,7 @@ for (const m of flat.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".dsh-")), "unscoped selector: " + sel)
 }
 assert.ok(rules >= 40, "the scope check saw real rules, saw " + rules)
+assert.match(flat, /\.dsh-root\{position:sticky;top:0/, "the stage pins with sticky, no pin-spacer")
 assert.match(flat, /\.dsh-orbit>img\{[^}]*max-width:none/, "plates override Preflight's max-width")
 assert.match(flat, /\.dsh-th img\{[^}]*max-width:none/, "thumbnails override Preflight's max-width")
 assert.match(flat, /\.dsh-bd\{[^}]*max-width:none/, "the backdrop overrides Preflight's max-width")
@@ -69,7 +71,14 @@ assert.ok(src.includes("const ORBIT_X = 299") && src.includes("const ORBIT_Y = -
 assert.doesNotMatch(src, /setInterval|autoplay/i, "no autoplay: the viewer drives it")
 assert.match(flat, /\.dsh-plates\{[^}]*touch-action:pan-y/, "swipes leave vertical page scroll alone")
 assert.ok(src.includes('aria-roledescription="carousel"') && src.includes('aria-live="polite"'), "carousel semantics")
-for (const label of ['aria-label="Previous dish"', 'aria-label="Next dish"', 'aria-label="Search"', 'aria-label="Voice assistant"'])
+assert.doesNotMatch(src, /dsh-nav|dsh-mic|Voice assistant/, "no bottom nav or mic")
+assert.ok(src.includes("snap: { snapTo: 1 / steps"), "scrolling snaps one dish at a time")
+assert.ok(src.includes("if (loop && self.progress >= 1 && self.direction > 0)") && src.includes("select(0, 1)"), "past the last dish the scroll wraps to the first")
+assert.ok(src.includes("select(n - 1, -1)"), "up past the first dish wraps to the last")
+assert.ok(src.includes('window.addEventListener("wheel", onWheel, { passive: true })'), "the wrap listener never blocks the page scroll")
+for (const gone of ['window.removeEventListener("wheel", onWheel)', "trigger.kill()", "cancelAnimationFrame(raf)"]) assert.ok(src.includes(gone), "cleanup is missing " + gone)
+assert.ok(src.includes("st.scroll(st.start + ((st.end - st.start) * seg) / steps)"), "buttons move the scroll with the dish")
+for (const label of ['aria-label="Previous dish"', 'aria-label="Next dish"', 'aria-label="Search"'])
   assert.ok(src.includes(label), "icon-only controls are labelled: " + label)
 assert.ok(src.includes('e.key === "ArrowRight"') && src.includes('e.key === "ArrowLeft"'), "arrow keys step")
 
@@ -78,7 +87,7 @@ const fitAt = src.indexOf("const fit = () =>")
 const fitEnd = src.indexOf("fit()", fitAt + 20)
 const outside = src.slice(0, fitAt) + src.slice(fitEnd)
 assert.doesNotMatch(outside, /getBoundingClientRect|offset(Top|Left|Width|Height)|client(Width|Height)|scrollHeight|getComputedStyle|innerWidth|innerHeight/, "layout is read only in the resize fit")
-assert.doesNotMatch(src, /requestAnimationFrame/, "no RAF loop")
+assert.equal(src.match(/requestAnimationFrame\(/g).length, 1, "only the one-shot deferred wrap uses a frame, no RAF loop")
 const drawAt = src.indexOf("const drawArc =")
 assert.doesNotMatch(src.slice(drawAt, src.indexOf(String.fromCharCode(10), drawAt)), /getBoundingClientRect|offset|client|getComputedStyle|inner(Width|Height)/, "the per-frame band update only writes")
 
@@ -108,5 +117,13 @@ assert.match(d, /^M[\d. -]+(L[\d. -]+){17}Z$/, "band path closes over both edges
 const pts = d.slice(1, -1).split("L").map((p) => p.split(" ").map(Number))
 const dist = (p) => Math.hypot(p[0] - 299, p[1] + 450)
 assert.ok(Math.abs(dist(pts[0]) - 650) < 0.2 && Math.abs(dist(pts[4]) - 709) < 0.2, "band tapers to nothing at the ends and is full width mid-way")
+
+assert.equal(L.scrollSteps(5, true), 5, "looping adds a stretch back round to the first dish")
+assert.equal(L.scrollSteps(5, false), 4)
+assert.equal(L.scrollSteps(1, true), 1)
+assert.equal(L.segmentFor(0, 4, 5, true), 5, "dish 1 from near the end lands on the last stretch")
+assert.equal(L.segmentFor(0, 1, 5, true), 0)
+assert.equal(L.segmentFor(0, 4, 5, false), 0)
+assert.equal(L.segmentFor(3, 1, 5, true), 3)
 
 console.log("dish-orbit-carousel: ok")
