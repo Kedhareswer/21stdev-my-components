@@ -224,6 +224,7 @@
       "@/components/ui/sticker-swap-headline": ["./components/sticker-swap-headline/sticker-swap-headline.tsx"],
       "@/components/ui/silk-mesh-shader-hero": ["./components/silk-mesh-shader-hero/silk-mesh-shader-hero.tsx"],
       "@/components/ui/halftone-flow-hero": ["./components/halftone-flow-hero/halftone-flow-hero.tsx"],
+      "@/components/ui/pulse-stripe-hero": ["./components/pulse-stripe-hero/pulse-stripe-hero.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
