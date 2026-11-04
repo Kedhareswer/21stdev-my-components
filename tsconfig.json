@@ -227,6 +227,7 @@
       "@/components/ui/compass-mega-header": ["./components/compass-mega-header/compass-mega-header.tsx"],
       "@/components/ui/ink-pill-navbar": ["./components/ink-pill-navbar/ink-pill-navbar.tsx"],
       "@/components/ui/shape-shift-tabs": ["./components/shape-shift-tabs/shape-shift-tabs.tsx"],
+      "@/components/ui/ripple-roll-menu": ["./components/ripple-roll-menu/ripple-roll-menu.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
