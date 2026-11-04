@@ -269,6 +269,16 @@
       "@/components/ui/dot-flood-button": ["./components/dot-flood-button/dot-flood-button.tsx"],
       "@/components/ui/magnet-dot-slider": ["./components/magnet-dot-slider/magnet-dot-slider.tsx"],
       "@/components/ui/vernier-precision-slider": ["./components/vernier-precision-slider/vernier-precision-slider.tsx"]
+      "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"],
+      "@/components/ui/led-matrix-sales": ["./components/led-matrix-sales/led-matrix-sales.tsx"],
+      "@/components/ui/pipeline-status-table": ["./components/pipeline-status-table/pipeline-status-table.tsx"],
+      "@/components/ui/cell-column-trend": ["./components/cell-column-trend/cell-column-trend.tsx"],
+      "@/components/ui/agent-usage-meter": ["./components/agent-usage-meter/agent-usage-meter.tsx"],
+      "@/components/ui/tilted-metric-deck": ["./components/tilted-metric-deck/tilted-metric-deck.tsx"],
+      "@/components/ui/aurora-feature-bento": ["./components/aurora-feature-bento/aurora-feature-bento.tsx"],
+      "@/components/ui/orbit-social-bento": ["./components/orbit-social-bento/orbit-social-bento.tsx"],
+      "@/components/ui/ai-workspace-shell": ["./components/ai-workspace-shell/ai-workspace-shell.tsx"],
+      "@/components/ui/ledger-ops-dashboard": ["./components/ledger-ops-dashboard/ledger-ops-dashboard.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
