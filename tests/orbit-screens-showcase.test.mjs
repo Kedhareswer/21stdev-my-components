@@ -9,7 +9,7 @@ const src = readFileSync(new URL("orbit-screens-showcase.tsx", dir), "utf8")
 
 // ---- install safety ------------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
-assert.deepEqual(imports, ["react", "three", "three/examples/jsm/environments/RoomEnvironment.js"], "imports react and three only")
+assert.deepEqual(imports, ["react", "three"], "imports react and three only")
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
 assert.ok(pkg.dependencies.three, "three is declared in the root package.json")
 assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo.tsx", "orbit-screens-showcase.tsx"])
@@ -35,6 +35,8 @@ const allowed = new Set(["--oss-bg", "--oss-ink", "--oss-accent"])
 for (const [, v] of src.matchAll(/var\((--[a-z-]+)/g)) assert.ok(allowed.has(v), "token not guaranteed in a host: " + v)
 assert.deepEqual([...src.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]), [], "the component fetches nothing itself")
 
+assert.doesNotMatch(src, /TorusKnot|knot/i, "no stock-3D centrepiece: the screens are the hero")
+
 // ---- runtime hygiene -------------------------------------------------------------
 assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "reduced motion is read")
 assert.match(flat, /@media \(prefers-reduced-motion:reduce\)/, "CSS animations honour reduced motion")
@@ -51,7 +53,7 @@ for (const [name, body] of [["frame", frame], ["onMove", onMove]]) {
   assert.ok(body.length > 200, name + " sliced")
   assert.doesNotMatch(body, /measure\(|getBoundingClientRect|offset(Top|Left|Width|Height|X|Y)|client(Width|Height)|getComputedStyle|inner(Width|Height)/, "no layout reads in " + name)
 }
-for (const gone of ["cancelAnimationFrame(raf)", "ro.disconnect()", "io.disconnect()", "renderer.dispose()", "pmrem.dispose()", "env.dispose()", "knotGeo.dispose()", "knotMat.dispose()", "dustGeo.dispose()", "plane.dispose()", "it.mat.map?.dispose()", 'canvas.removeEventListener("pointermove", onMove)', 'root.removeEventListener("keydown", onKey)'])
+for (const gone of ["cancelAnimationFrame(raf)", "ro.disconnect()", "io.disconnect()", "renderer.dispose()", "poolTex.dispose()", "poolGeo.dispose()", "poolMat.dispose()", "dustGeo.dispose()", "plane.dispose()", "it.mat.map?.dispose()", 'canvas.removeEventListener("pointermove", onMove)', 'root.removeEventListener("keydown", onKey)'])
   assert.ok(src.includes(gone), "cleanup is missing " + gone)
 assert.doesNotMatch(src, /addEventListener\("wheel"|passive: false/, "the page scroll is never hijacked")
 assert.match(flat, /touch-action:pan-y/, "vertical swipes still scroll the page")
