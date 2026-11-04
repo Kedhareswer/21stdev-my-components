@@ -32,7 +32,7 @@ export type Dish = {
   description: string
   likes: number
   ingredients?: string[]
-  /** Badge and arc colour, any CSS colour. */
+  /** Badge and band colour: hex or rgb(), so the band can morph between dishes. */
   accent: string
 }
 
@@ -74,12 +74,39 @@ export function stripStart(index: number, n: number, visible: number): number {
 export function fitSize(chars: number, max: number, width: number, em: number): number {
   return Math.min(max, width / (Math.max(1, chars) * em))
 }
-/** Arc angle for a dish: it sways between three resting angles so it stays behind the title. */
-export function arcTurn(index: number): number {
-  return -11 * (((index % 3) + 3) % 3)
+/**
+ * The pastel band: a thick stroke along the plates' orbit circle, tapering at
+ * both ends. Angles in degrees, screen space (0 = right, 90 = straight down).
+ */
+export function arcPath(a0: number, a1: number, cx: number, cy: number, r: number, w: number, steps = 48): string {
+  const outer: string[] = []
+  const inner: string[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const a = ((a0 + (a1 - a0) * t) * Math.PI) / 180
+    const h = (w / 2) * Math.pow(Math.sin(Math.PI * t), 0.45)
+    const c = Math.cos(a)
+    const s = Math.sin(a)
+    outer.push((cx + c * (r + h)).toFixed(1) + " " + (cy + s * (r + h)).toFixed(1))
+    inner.push((cx + c * (r - h)).toFixed(1) + " " + (cy + s * (r - h)).toFixed(1))
+  }
+  return "M" + outer.join("L") + "L" + inner.reverse().join("L") + "Z"
 }
+
+/** Where the band rests for each dish, as [start, end] angles along the orbit. Measured off the reference. */
+export const ARC_REST = [[50, 98], [46, 124], [60, 126], [40, 100]]
+export function arcRest(index: number): number[] {
+  return ARC_REST[((index % ARC_REST.length) + ARC_REST.length) % ARC_REST.length]
+}
+
+/** The band mid-swap: it stretches to trail between the outgoing and incoming plate. */
+export const ARC_SWEEP = [38, 146]
 // #endregion
 
+// The plates' orbit: its pivot sits above the canvas (the .dsh-orbit transform-origin).
+const ORBIT_X = 299
+const ORBIT_Y = -450
+const ORBIT_R = 650
 const SWING = 50 // degrees the plate travels round the orbit's pivot
 const ITEM = 118 // thumbnail pitch in canvas px
 const VISIBLE = 4
@@ -97,7 +124,6 @@ const CSS =
   ".dsh-root:focus-visible{outline:2px solid var(--color-primary);outline-offset:-4px}" +
   ".dsh-canvas{position:absolute;left:50%;top:50%;width:960px;height:600px;transform:translate(-50%,-50%) scale(var(--dsh-s,1));transform-origin:50% 50%}" +
   ".dsh-arc{position:absolute;left:0;top:0;width:960px;height:600px;overflow:visible;pointer-events:none}" +
-  ".dsh-arc circle{transition:stroke .9s ease}" +
   ".dsh-btn{appearance:none;border:0;background:none;color:inherit;font:inherit;padding:0;margin:0;cursor:pointer}" +
   ".dsh-btn:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:10px}" +
   ".dsh-ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}" +
@@ -183,7 +209,7 @@ const CSS =
   ".dsh-nav{position:relative;left:auto;top:auto;gap:6px;margin-top:16px;order:3}" +
   ".dsh-mic.dsh-btn{margin-left:10px}" +
   "}" +
-  "@media (prefers-reduced-motion:reduce){.dsh-arc circle,.dsh-track,.dsh-dot,.dsh-dot i,.dsh-th .dsh-btn,.dsh-th img,.dsh-like,.dsh-mic.dsh-btn{transition:none}.dsh-mic[aria-pressed=true] .dsh-ico{animation:none}}"
+  "@media (prefers-reduced-motion:reduce){.dsh-track,.dsh-dot,.dsh-dot i,.dsh-th .dsh-btn,.dsh-th img,.dsh-like,.dsh-mic.dsh-btn{transition:none}.dsh-mic[aria-pressed=true] .dsh-ico{animation:none}}"
 
 const HIDE_1 = "inset(0% 0% 0% 100%)" // thin line: wipes in from the right
 const HIDE_2 = "inset(0% 100% 0% 0%)" // heavy line: wipes in from the left
@@ -233,7 +259,8 @@ export function DishOrbitCarousel({
   const orbits = useRef([] as (HTMLDivElement | null)[])
   const heads = useRef([] as (HTMLDivElement | null)[])
   const bodies = useRef([] as (HTMLDivElement | null)[])
-  const arcRef = useRef(null as SVGGElement | null)
+  const arcRef = useRef(null as SVGPathElement | null)
+  const arc = useRef({ a0: 0, a1: 0 })
   const shown = useRef(-1)
   const dirRef = useRef(1 as 1 | -1)
   const tlRef = useRef(null as gsap.core.Timeline | null)
@@ -278,6 +305,10 @@ export function DishOrbitCarousel({
         body: bodies.current[i],
       }
     }
+    // Writes the band's path only; no layout is read.
+    const drawArc = () => arcRef.current?.setAttribute("d", arcPath(arc.current.a0, arc.current.a1, ORBIT_X, ORBIT_Y, ORBIT_R, 118))
+    const rest = arcRest(to)
+    const tint = dishes[to] ? dishes[to].accent : "transparent"
     if (tlRef.current) tlRef.current.progress(1).kill()
     const b = parts(to)
     if (from === -1 || from === to || reducedRef.current) {
@@ -288,7 +319,10 @@ export function DishOrbitCarousel({
       gsap.set([b.orbit, b.head, b.body, b.eye], { autoAlpha: 1, rotation: 0, y: 0 })
       gsap.set(b.t1, { clipPath: SHOW })
       gsap.set(b.t2, { clipPath: SHOW })
-      if (arcRef.current) gsap.set(arcRef.current, { rotation: arcTurn(to), svgOrigin: "900 500" })
+      arc.current.a0 = rest[0]
+      arc.current.a1 = rest[1]
+      drawArc()
+      if (arcRef.current) gsap.set(arcRef.current, { fill: tint })
       shown.current = to
       return
     }
@@ -313,10 +347,12 @@ export function DishOrbitCarousel({
     tl.to(a.body, { autoAlpha: 0, y: -6, duration: 0.3, ease: "power1.in" }, 0.05)
       .set(b.body, { autoAlpha: 1, y: 0 }, 0.4)
     if (b.body) tl.fromTo(b.body.children, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.06, ease: "power2.out" }, 0.4)
-    // the pastel arc turns with the plate
-    if (arcRef.current) tl.to(arcRef.current, { rotation: arcTurn(to), svgOrigin: "900 500", duration: 1.3, ease: "power2.inOut" }, 0)
+    // the band stretches along the orbit with the plates, then settles into the next dish's span, morphing colour
+    tl.to(arc.current, { a0: ARC_SWEEP[0], a1: ARC_SWEEP[1], duration: 0.6, ease: "power2.inOut", onUpdate: drawArc }, 0)
+      .to(arc.current, { a0: rest[0], a1: rest[1], duration: 0.85, ease: "power3.out", onUpdate: drawArc }, 0.6)
+    if (arcRef.current) tl.to(arcRef.current, { fill: tint, duration: 1.1, ease: "power1.inOut" }, 0.1)
     shown.current = to
-  }, [index, n])
+  }, [index, n, dishes])
 
   useEffect(() => () => { tlRef.current?.kill() }, [])
 
@@ -366,10 +402,7 @@ export function DishOrbitCarousel({
 
       <div className="dsh-canvas">
         <svg className="dsh-arc" viewBox="0 0 960 600" aria-hidden="true">
-          <g ref={arcRef}>
-            <circle cx="900" cy="500" r="560" fill="none" strokeWidth="92" strokeLinecap="round"
-              strokeDasharray="640 2880" strokeDashoffset="-1980" style={{ stroke: dish ? dish.accent : "transparent", opacity: 0.34 }} />
-          </g>
+          <path ref={arcRef} style={{ opacity: 0.34 }} />
         </svg>
 
         <div className="dsh-top">
