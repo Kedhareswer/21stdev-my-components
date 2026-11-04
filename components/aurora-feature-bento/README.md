@@ -4,7 +4,7 @@ A three-card SaaS feature bento under a night sky. Each card has curtains of aur
 
 1. **Prompt.** A message types itself out, bold phrases and all. Then the Generate button catches a sheen of light. Click Generate to type it again.
 2. **Integrations.** A field of round tool tiles. The one under the pointer swells with a spring and glows in its colour, the rest shrink back, and the footer names the tool.
-3. **Collaboration.** A shared form with a blinking caret and an access toggle, while two teammates' named cursors wander across it.
+3. **Collaboration.** A shared form with a blinking caret and an access toggle, while two teammates’ named cursors wander the open space below it.
 
 The cards rise in one after another, coming out of a blur, when the bento scrolls into view.
 

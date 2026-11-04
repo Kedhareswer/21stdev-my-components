@@ -70,7 +70,7 @@ const CSS = [
   ".afb-glass{border-radius:16px;background:rgba(14,19,36,.55);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);",
   "box-shadow:0 0 0 1px rgba(200,220,255,.12) inset,0 1px 0 rgba(255,255,255,.12) inset,0 20px 40px -20px rgba(0,0,0,.7)}",
   ".afb-t{font-size:20px;font-weight:650;letter-spacing:-.025em}",
-  ".afb-d{font-size:13.5px;line-height:1.5;color:rgba(238,243,255,.62);margin-top:8px;max-width:30ch}",
+  ".afb-d{font-size:13.5px;line-height:1.5;color:rgba(238,243,255,.62);margin-top:8px;max-width:30ch;min-height:4.5em}",
   ".afb-avatar{width:30px;height:30px;border-radius:50%;margin-left:auto;display:grid;place-items:center;background:rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(255,255,255,.14) inset}",
   ".afb-bubble{margin-top:10px;padding:14px 16px;font-size:14px;line-height:1.5;color:rgba(238,243,255,.7);min-height:88px}",
   ".afb-bubble b{color:#fff;font-weight:650}",
@@ -112,8 +112,8 @@ const CSS = [
   "@keyframes afb-twinkle{0%{opacity:.45}100%{opacity:.85}}",
   "@keyframes afb-blink{50%{opacity:0}}",
   "@keyframes afb-sheen{to{transform:translateX(120%)}}",
-  "@keyframes afb-p1{0%,100%{transform:translate(190px,-4px)}30%{transform:translate(206px,44px)}55%{transform:translate(70px,62px)}80%{transform:translate(130px,10px)}}",
-  "@keyframes afb-p2{0%,100%{transform:translate(24px,98px)}35%{transform:translate(140px,112px)}60%{transform:translate(176px,32px)}85%{transform:translate(70px,72px)}}",
+  "@keyframes afb-p1{0%,100%{transform:translate(150px,152px)}30%{transform:translate(176px,180px)}55%{transform:translate(60px,168px)}80%{transform:translate(110px,188px)}}",
+  "@keyframes afb-p2{0%,100%{transform:translate(12px,214px)}35%{transform:translate(120px,232px)}60%{transform:translate(170px,210px)}85%{transform:translate(50px,228px)}}",
   "@media (max-width:860px){.afb-root{grid-template-columns:1fr;padding:10px;gap:10px;border-radius:24px}.afb-card{min-height:460px}}",
   "@media (prefers-reduced-motion:reduce){.afb-root *,.afb-root *:before{animation:none!important;transition:none!important}.afb-card{opacity:1;transform:none;filter:none}}",
 ].join("")
@@ -280,7 +280,7 @@ export default function AuroraFeatureBento({
       </section>
 
       <section className="afb-card" style={{ ["--i" as string]: 2 }}>
-        <Sky a="#7cffb2" b="#26c6ff" c="#ffb36b" />
+        <Sky a="#5eead4" b="#38bdf8" c="#2dd4bf" />
         <div className="afb-ui" aria-hidden="true">
           <div className="afb-lbl">Work email</div>
           <div className="afb-glass afb-field">
