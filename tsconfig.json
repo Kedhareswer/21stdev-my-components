@@ -228,7 +228,8 @@
       "@/components/ui/heart-burst-button": ["./components/heart-burst-button/heart-burst-button.tsx"],
       "@/components/ui/checkout-flow-button": ["./components/checkout-flow-button/checkout-flow-button.tsx"],
       "@/components/ui/titanium-dock": ["./components/titanium-dock/titanium-dock.tsx"],
-      "@/components/ui/aurora-ring-button": ["./components/aurora-ring-button/aurora-ring-button.tsx"]
+      "@/components/ui/aurora-ring-button": ["./components/aurora-ring-button/aurora-ring-button.tsx"],
+      "@/components/ui/dot-flood-button": ["./components/dot-flood-button/dot-flood-button.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
