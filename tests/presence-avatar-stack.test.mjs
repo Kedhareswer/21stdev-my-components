@@ -6,7 +6,7 @@ import { checkComponent, liftRegion } from "./_component-safety.mjs"
 const { src, css } = checkComponent("presence-avatar-stack", {
   prefix: "pas2-",
   imports: ["react"],
-  vars: ["--sz", "--i", "--k", "--st", "--a", "--pas2-ring"],
+  vars: ["--sz", "--i", "--k", "--st", "--a", "--pas2-ring", "--pin", "--pas2-anchor"],
   minRules: 30,
   runtimeMotion: false, // CSS-only motion
   inline: true, // sizes to its content
@@ -15,7 +15,14 @@ const { src, css } = checkComponent("presence-avatar-stack", {
 assert.match(css, /\.pas2-face img\{[^}]*max-width:none/, "faces override Preflight")
 assert.match(css, /\.pas2-mini img\{[^}]*max-width:none/, "list faces override Preflight")
 assert.match(css, /@media \(hover:hover\)\{\.pas2-root:hover \.pas2-item/, "the fan-out only happens where hover exists")
-assert.match(css, /translateX\(calc\(var\(--i\) \* var\(--sz\) \* \.26\)\)/, "the fan-out is a transform from a CSS index")
+assert.match(css, /translateX\(calc\(\(var\(--i\) - var\(--pin\)\) \* var\(--sz\) \* \.26\)\)/, "the fan-out is a transform from a CSS index, pinned to the aligned edge")
+assert.match(css, /\.pas2-root\[data-peek=true\] \.pas2-item/, "a demo can show the hover state without a pointer")
+assert.ok(src.includes("onPointerEnter={() => setPeekAt(-1)}"), "the forced hover ends when the pointer arrives")
+assert.match(css, /@supports \(position-try-fallbacks:flip-block\)\{[^@]*position-try-fallbacks:flip-block/, "the list flips sides when there is no room, where supported")
+assert.match(css, /\.pas2-pop\[data-side=top\]\{top:auto;bottom:calc\(100% \+ 12px\)\}/, "the list can open upward")
+const chipAt = src.indexOf('className="pas2-chip"')
+const popAt = src.indexOf('className="pas2-pop"')
+assert.ok(popAt > chipAt && popAt < src.indexOf("</li>", chipAt), "the list is anchored inside the chip item")
 assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[^@]*\.pas2-talk[^{]*\{animation:none\}/, "reduced motion stops the speaking ring")
 assert.ok(src.includes('role="group"') && src.includes("aria-expanded={open}"), "group and disclosure semantics")
 assert.ok(src.includes('e.key === "Escape"') && src.includes('document.removeEventListener("pointerdown", onDown)'), "the list closes and cleans up")

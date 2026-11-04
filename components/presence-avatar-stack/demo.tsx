@@ -34,11 +34,9 @@ const team = [
   { name: "Jonas Weber", role: "QA", photo: P8, status: "online" as const },
 ]
 
-const card = {
+const bar = {
   width: "100%",
-  maxWidth: 560,
-  borderRadius: 22,
-  padding: "18px 20px",
+  maxWidth: 600,
   boxSizing: "border-box" as const,
   display: "flex",
   alignItems: "center",
@@ -47,37 +45,47 @@ const card = {
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
 }
 
+const mono = { fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase" as const }
+
 export default function Demo() {
   return (
-    <div style={{ minHeight: "100svh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22, padding: "56px 16px", boxSizing: "border-box", background: "var(--color-background)", color: "var(--color-foreground)" }}>
-      <div style={{ ...card, boxShadow: "0 0 0 1px var(--color-border), 0 24px 50px -30px rgba(0,0,0,.35)" }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: "var(--color-muted-foreground)", fontFamily: "ui-monospace, monospace" }}>Editing now</div>
-          <div style={{ fontSize: 17, fontWeight: 650, marginTop: 6, letterSpacing: "-.02em" }}>Q4 launch plan</div>
-        </div>
-        <PresenceAvatarStack people={team} max={4} size={42} label="Editing now" align="end" />
-      </div>
-
-      <div style={{ ...card, color: "#fafafa", background: "radial-gradient(120% 120% at 0% 0%, #2b1d5c, #0e0c16 60%)", boxShadow: "0 30px 60px -30px rgba(20,10,60,.7), inset 0 1px 0 rgba(255,255,255,.08)", flexDirection: "column", alignItems: "flex-start", padding: "22px 22px 24px" }}>
-        <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(250,250,250,.7)" }}>
-            <span style={{ width: 8, height: 8, borderRadius: 4, background: "#ef4444", boxShadow: "0 0 0 4px rgba(239,68,68,.25)" }} />
-            Live · 12:04
+    <div style={{ minHeight: "100svh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 64, padding: "120px 16px", boxSizing: "border-box", background: "var(--color-background)", color: "var(--color-foreground)" }}>
+      {/* A call bar: its "+N" list opens upward, into the space above. */}
+      <div
+        style={{
+          ...bar,
+          color: "#f4f2ff",
+          padding: "16px 18px 16px 22px",
+          borderRadius: 999,
+          background: "linear-gradient(180deg, #221a45, #120e24)",
+          boxShadow: "0 30px 60px -28px rgba(20,10,60,.7), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(255,255,255,.06)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <span style={{ width: 9, height: 9, flex: "none", borderRadius: 5, background: "#ef4444", boxShadow: "0 0 0 4px rgba(239,68,68,.22)" }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-.01em", whiteSpace: "nowrap" }}>Design crit</div>
+            <div style={{ ...mono, fontSize: 10, color: "rgba(244,242,255,.5)", marginTop: 4 }}>Live · 12:04</div>
           </div>
-          <span style={{ fontSize: 12, color: "rgba(250,250,250,.55)" }}>Design crit</span>
         </div>
         <PresenceAvatarStack
           people={[{ ...team[0], speaking: true }, team[1], team[4], team[2], team[7], team[3]]}
-          max={5}
-          size={58}
-          ring="#1a1430"
+          max={4}
+          size={46}
+          ring="#1b1538"
+          side="top"
+          align="end"
           label="In the call"
         />
       </div>
 
-      <div style={{ ...card, maxWidth: 560, boxShadow: "0 0 0 1px var(--color-border)", padding: "12px 16px" }}>
-        <span style={{ fontSize: 13, color: "var(--color-muted-foreground)" }}>Seen by 3 people</span>
-        <PresenceAvatarStack people={[team[5], team[6], team[1]]} max={3} size={26} label="Seen by" />
+      {/* A doc header: hovered face shown fanned with its tooltip until the pointer arrives. */}
+      <div style={{ ...bar, padding: "18px 22px", borderRadius: 22, boxShadow: "0 0 0 1px var(--color-border), 0 24px 50px -30px rgba(0,0,0,.35)" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...mono, color: "var(--color-muted-foreground)" }}>Editing now</div>
+          <div style={{ fontSize: 18, fontWeight: 650, marginTop: 6, letterSpacing: "-.02em", whiteSpace: "nowrap" }}>Q4 launch plan</div>
+        </div>
+        <PresenceAvatarStack people={team} max={4} size={42} label="Editing now" align="end" peek={1} />
       </div>
     </div>
   )

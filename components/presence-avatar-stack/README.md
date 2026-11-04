@@ -1,6 +1,6 @@
 # Presence Avatar Stack
 
-An overlapping avatar group with live presence. Faces pop in one after another, each with a status dot (online pulses softly; away, busy and offline are still). Hovering the group fans the faces apart on a spring; hovering or tabbing to one lifts it and shows a tooltip with name, status and role. A turning gradient ring marks whoever is speaking. Past `max`, the rest fold into a "+N" chip that opens a list of everyone else, rows sliding in with a stagger.
+An overlapping avatar group with live presence. Faces pop in one after another, each with a status dot (online pulses softly; away, busy and offline are still). Hovering the group fans the faces apart on a spring; hovering or tabbing to one lifts it and shows a tooltip with name, status and role. A turning gradient ring marks whoever is speaking. Past `max`, the rest fold into a "+N" chip that opens a floating list of everyone else, anchored to the chip, rows sliding in with a stagger.
 
 The ring around each face matches your page background by default, so the stack sits cleanly on light, dark or tinted surfaces (pass `ring` for a custom surface).
 
@@ -28,7 +28,9 @@ import PresenceAvatarStack from "@/components/ui/presence-avatar-stack"
 | `size` | `44` | Diameter in px; dots, rings and type scale with it. |
 | `label` | `"People here"` | Accessible name of the group. |
 | `ring` | page background | Colour of the ring around each face. |
-| `align` | `"start"` | Which edge the "+N" list lines up with; use `"end"` near the right edge. |
+| `align` | `"center"` | The edge the stack is pinned to (`start`, `center`, `end`): the fan-out grows away from it and the "+N" list lines up with it. Use `"end"` at the right of a bar. |
+| `side` | `"bottom"` | Which side of the chip the list opens on. Where CSS anchor positioning exists it flips when there is no room. |
+| `peek` | `-1` | Show face `i` hovered (fanned, lifted, tooltip) until the pointer arrives. For demos and docs. |
 | `className` | `""` | On the root. |
 
 ## Notes
