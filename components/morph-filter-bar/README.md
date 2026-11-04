@@ -23,6 +23,7 @@ import MorphFilterBar from "@/components/ui/morph-filter-bar"
 | `fields` | required | `{ key, label, icon?, options: { value, label, swatch?, avatar? }[] }[]`. `icon` is an SVG path on a 24-unit grid. |
 | `defaultValue` | `[]` | `{ key, value }[]`. One filter per field; picking a new value replaces the old one. |
 | `onChange` | none | Called with the full filter list. |
+| `onOpenChange` | none | Called when the picker opens or closes, e.g. to dim the results behind it. |
 | `title` | `"Filters"` | Label above the row, with a count and "Clear all". |
 
 ## Notes

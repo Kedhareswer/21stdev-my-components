@@ -83,6 +83,7 @@ export default function Demo() {
   const [applied, setApplied] = useState([
     { key: "status", value: "progress" },
   ] as AppliedFilter[])
+  const [picking, setPicking] = useState(false)
   const shown = issues.filter((it) => applied.every((f) => (it as Record<string, string>)[f.key] === f.value))
 
   return (
@@ -98,15 +99,26 @@ export default function Demo() {
         fontFamily: "'Inter Tight', ui-sans-serif, system-ui, sans-serif",
       }}
     >
-      <div style={{ width: "min(680px, 100%)" }}>
-        <MorphFilterBar title="Issues · Spring launch" fields={fields} defaultValue={applied} onChange={setApplied} />
-        <ul style={{ listStyle: "none", margin: "22px 0 0", padding: 0, borderTop: "1px solid var(--color-border)", minHeight: 300 }}>
+      <div style={{ width: "min(780px, 100%)" }}>
+        <MorphFilterBar title="Issues · Spring launch" fields={fields} defaultValue={applied} onChange={setApplied} onOpenChange={setPicking} />
+        <ul
+          style={{
+            listStyle: "none",
+            margin: "26px 0 0",
+            padding: 0,
+            borderTop: "1px solid var(--color-border)",
+            minHeight: 340,
+            opacity: picking ? 0.28 : 1,
+            filter: picking ? "blur(1.5px)" : "none",
+            transition: "opacity .35s ease, filter .35s ease",
+          }}
+        >
           {shown.map((it) => {
             const st = opt("status", it.status)
             const who = opt("assignee", it.assignee)
             const pr = opt("priority", it.priority)
             return (
-              <li key={it.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 4px", borderBottom: "1px solid var(--color-border)", fontSize: 15 }}>
+              <li key={it.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 4px", borderBottom: "1px solid var(--color-border)", fontSize: 16 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 99, flex: "none", background: st?.swatch }} title={st?.label} />
                 <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", fontVariantNumeric: "tabular-nums", width: 62, flex: "none" }}>{it.id}</span>
                 <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 520 }}>{it.title}</span>

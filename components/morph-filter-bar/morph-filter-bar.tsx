@@ -10,6 +10,8 @@ export type MorphFilterBarProps = {
   fields: FilterField[]
   defaultValue?: AppliedFilter[]
   onChange?: (filters: AppliedFilter[]) => void
+  /** Called when the picker opens or closes, e.g. to dim the results behind it. */
+  onOpenChange?: (open: boolean) => void
   title?: string
   className?: string
 }
@@ -49,7 +51,7 @@ const SOFT =
 
 const CSS =
   ".mfb-root{--mfb-ink:#121212;--mfb-ink2:#1f1f1f;--mfb-lime:#d6ff5c;--mfb-text:#f4f4ef;--mfb-dim:rgba(244,244,239,.5);--mfb-chip:#fff;--mfb-cink:#18181a;--mfb-cdim:#76767c;--mfb-spring:" + SPRING + ";--mfb-soft:" + SOFT + ";" +
-  "font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--color-foreground);animation:mfb-in .6s var(--mfb-soft) both}" +
+  "position:relative;z-index:2;font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--color-foreground);animation:mfb-in .6s var(--mfb-soft) both}" +
   ".mfb-title{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;font-size:13px;font-weight:650;letter-spacing:-.01em}" +
   ".mfb-title span{font-size:12px;font-weight:550;color:var(--color-muted-foreground);font-variant-numeric:tabular-nums}" +
   ".mfb-clear{margin-left:auto;border:0;background:none;padding:2px 4px;border-radius:6px;font:inherit;font-size:12px;font-weight:600;color:var(--color-muted-foreground);cursor:pointer;outline:none}" +
@@ -70,8 +72,10 @@ const CSS =
   ".mfb-add{position:relative;width:36px;height:34px;flex:none}" +
   ".mfb-morph{position:absolute;z-index:30;top:0;left:0;width:36px;height:34px;border-radius:11px;overflow:hidden;color:var(--mfb-text);" +
   "background:radial-gradient(120% 90% at 0% 0%,#2b2b2b,var(--mfb-ink) 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 1px 2px rgba(0,0,0,.25),0 8px 18px -8px rgba(0,0,0,.45);" +
-  "transition:width .55s var(--mfb-spring),height .55s var(--mfb-spring),border-radius .45s var(--mfb-soft),box-shadow .3s}" +
-  ".mfb-root[data-open=true] .mfb-morph{width:min(272px,calc(100vw - 48px));border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 2px 4px rgba(0,0,0,.2),0 24px 50px -16px rgba(0,0,0,.55),0 50px 90px -40px rgba(30,40,0,.45)}" +
+  "transition:width .55s var(--mfb-spring),height .55s var(--mfb-spring),top .5s var(--mfb-spring),border-radius .45s var(--mfb-soft),box-shadow .3s}" +
+  ".mfb-add::before{content:'';position:absolute;inset:0;border-radius:11px;outline:1.5px dashed color-mix(in oklab,var(--color-foreground) 28%,transparent);outline-offset:-1.5px;opacity:0;transition:opacity .25s}" +
+  ".mfb-root[data-open=true] .mfb-add::before{opacity:1}" +
+  ".mfb-root[data-open=true] .mfb-morph{top:44px;width:min(272px,calc(100vw - 48px));border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 2px 4px rgba(0,0,0,.2),0 24px 50px -16px rgba(0,0,0,.55),0 50px 90px -40px rgba(30,40,0,.45)}" +
   ".mfb-plus{position:absolute;inset:0;width:36px;height:34px;display:grid;place-items:center;border:0;background:none;color:inherit;cursor:pointer;outline:none;border-radius:11px;transition:opacity .2s,transform .45s var(--mfb-spring)}" +
   ".mfb-plus:hover svg{transform:rotate(90deg)}.mfb-plus svg{transition:transform .45s var(--mfb-spring)}" +
   ".mfb-plus:focus-visible{box-shadow:inset 0 0 0 2px var(--mfb-lime)}" +
@@ -108,7 +112,7 @@ const Glyph = ({ d, size = 14 }: { d: string; size?: number }) => (
 
 const Mark = ({ o }: { o?: FilterOption }) => (o?.avatar ? <img className="mfb-av" src={o.avatar} alt="" width={18} height={18} /> : o?.swatch ? <span className="mfb-sw" style={{ background: o.swatch }} /> : null)
 
-export function MorphFilterBar({ fields, defaultValue = [], onChange, title = "Filters", className }: MorphFilterBarProps) {
+export function MorphFilterBar({ fields, defaultValue = [], onChange, onOpenChange, title = "Filters", className }: MorphFilterBarProps) {
   const id = useId()
   const [applied, setApplied] = useState(defaultValue)
   const [leaving, setLeaving] = useState("")
@@ -139,6 +143,10 @@ export function MorphFilterBar({ fields, defaultValue = [], onChange, title = "F
   }, [open])
 
   useEffect(() => () => clearTimeout(timer.current), [])
+
+  useEffect(() => {
+    onOpenChange?.(open)
+  }, [open])
 
   const commit = (next: AppliedFilter[]) => {
     setApplied(next)
