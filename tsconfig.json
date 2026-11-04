@@ -230,6 +230,7 @@
       "@/components/ui/letter-rain-reveal": ["./components/letter-rain-reveal/letter-rain-reveal.tsx"],
       "@/components/ui/shimmer-wave-text": ["./components/shimmer-wave-text/shimmer-wave-text.tsx"],
       "@/components/ui/pixel-wave-loader": ["./components/pixel-wave-loader/pixel-wave-loader.tsx"],
+      "@/components/ui/curved-thread-timeline": ["./components/curved-thread-timeline/curved-thread-timeline.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
