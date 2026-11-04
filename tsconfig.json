@@ -224,7 +224,8 @@
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"],
       "@/components/ui/led-matrix-sales": ["./components/led-matrix-sales/led-matrix-sales.tsx"],
       "@/components/ui/pipeline-status-table": ["./components/pipeline-status-table/pipeline-status-table.tsx"],
-      "@/components/ui/cell-column-trend": ["./components/cell-column-trend/cell-column-trend.tsx"]
+      "@/components/ui/cell-column-trend": ["./components/cell-column-trend/cell-column-trend.tsx"],
+      "@/components/ui/agent-usage-meter": ["./components/agent-usage-meter/agent-usage-meter.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
