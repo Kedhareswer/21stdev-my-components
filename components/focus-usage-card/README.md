@@ -1,6 +1,6 @@
 # Focus Usage Card
 
-A usage-analytics card on warm paper: a big total, a change chip, and a stacked bar chart split by category. The bars grow from the baseline on a spring with a left-to-right stagger. Hovering or focusing a bar dims the rest and pops a dark tooltip with that slot's breakdown. A segmented control swaps between views (say Day and Week); its pill slides across, the total blurs in, and the new bars grow. Under the chart, each category shows its time and a meter that fills to its share.
+A usage-analytics card on warm paper: a big total, a change chip, and a stacked bar chart split by category. The bars grow from the baseline on a spring with a left-to-right stagger. Hovering or focusing a bar dims the rest and pops a dark tooltip beside it, inside the plot, with that slot's breakdown. A segmented control swaps between views (say Day and Week); its pill slides across, the total blurs in, and the new bars grow. Under the chart, each category shows its time and a meter that fills to its share.
 
 ```tsx
 import FocusUsageCard from "@/components/ui/focus-usage-card"
@@ -31,7 +31,7 @@ import FocusUsageCard from "@/components/ui/focus-usage-card"
 
 ## Notes
 
-- Bar heights are percentages of a rounded y-axis top (`niceMax`), and the tooltip sits at a percentage across the plot, so nothing is measured.
+- Bar heights are percentages of a rounded y-axis top (`niceMax`), and the tooltip hangs off the hovered bar at a percentage of the plot (flipping left past the middle), so nothing is measured.
 - Every bar is a button with an `aria-label`, and the tooltip follows keyboard focus.
 - Reduced motion: no growth, pop-in or slide; the chart just appears.
 - No images and no dependencies beyond React.

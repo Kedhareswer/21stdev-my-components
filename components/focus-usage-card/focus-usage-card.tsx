@@ -57,8 +57,14 @@ export function niceMax(max: number) {
   return Math.ceil(max / 300) * 300
 }
 
-/** Tooltip anchor, in percent of the chart width, kept clear of the edges. */
-export const tipLeft = (i: number, n: number) => Math.min(84, Math.max(16, ((i + 0.5) / Math.max(n, 1)) * 100))
+/** Where the tooltip sits: inside the plot, beside the hovered bar. Left of the middle it
+ *  hangs off the bar's right edge (left = % from the left); past it, off the bar's left
+ *  edge (right = % from the right). */
+export const tipAt = (i: number, n: number) => {
+  const m = Math.max(n, 1)
+  const flip = (i + 0.5) / m > 0.5
+  return flip ? { flip, right: ((m - i) / m) * 100 } : { flip, left: ((i + 1) / m) * 100 }
+}
 // #endregion
 
 const SANS = 'ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif'
@@ -103,9 +109,10 @@ const CSS =
   ".fuc-bar:focus-visible .fuc-stack{outline:2px solid #3d5afe;outline-offset:2px;border-radius:4px}" +
   ".fuc-y{display:flex;flex-direction:column;justify-content:space-between;height:170px;font:500 10.5px/1 " + MONO + ";color:rgba(27,26,23,.42);text-align:right;margin-top:-5px}" +
   ".fuc-x{display:flex;justify-content:space-between;margin:10px 0 0;padding-right:36px;font:500 10.5px/1 " + MONO + ";color:rgba(27,26,23,.45)}" +
-  ".fuc-tip{position:absolute;bottom:calc(100% + 10px);z-index:3;transform:translateX(-50%);min-width:150px;padding:10px 12px;border-radius:14px;color:#fff;background:rgba(27,26,23,.94);" +
-  "box-shadow:0 12px 24px -10px rgba(27,26,23,.5);pointer-events:none;animation:fuc-tip .3s " + SPRING + " both;transition:left .25s " + EASE + "}" +
-  "@keyframes fuc-tip{from{opacity:0;transform:translate(-50%,6px) scale(.96)}to{opacity:1;transform:translateX(-50%)}}" +
+  ".fuc-tip{position:absolute;top:0;z-index:3;margin:0 8px;min-width:150px;padding:10px 12px;border-radius:14px;color:#fff;background:rgba(27,26,23,.94);" +
+  "box-shadow:0 12px 24px -10px rgba(27,26,23,.5);pointer-events:none;transform-origin:0 0;animation:fuc-tip .3s " + SPRING + " both}" +
+  ".fuc-tip[data-flip=true]{transform-origin:100% 0}" +
+  "@keyframes fuc-tip{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}" +
   ".fuc-tip b{display:flex;justify-content:space-between;font:600 12px/1 " + SANS + ";margin-bottom:8px}" +
   ".fuc-tip b span{font-family:" + MONO + ";font-weight:500;color:rgba(255,255,255,.6)}" +
   ".fuc-tip div{display:flex;align-items:center;gap:7px;font:500 11.5px/1.7 " + SANS + ";color:rgba(255,255,255,.82)}" +
@@ -188,7 +195,13 @@ export default function FocusUsageCard({ title = "Screen time", categories, view
               <i />
             </div>
             {h && (
-              <div className="fuc-tip" style={{ left: tipLeft(hover, bars.length) + "%" }} role="status">
+              <div
+                className="fuc-tip"
+                key={hover}
+                data-flip={tipAt(hover, bars.length).flip}
+                style={tipAt(hover, bars.length).flip ? { right: tipAt(hover, bars.length).right + "%" } : { left: tipAt(hover, bars.length).left + "%" }}
+                role="status"
+              >
                 <b>
                   {h.label}
                   <span>{fmtMinutes(h.values.reduce((a, b) => a + b, 0))}</span>
