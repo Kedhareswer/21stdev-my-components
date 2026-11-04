@@ -289,8 +289,8 @@ export default function RotatingFlavorSlider({
                   ref={(el) => { photos.current[i] = el }}
                   src={s.image}
                   alt={i === active ? s.alt ?? s.title : ""}
-                  width={600}
-                  height={600}
+                  width={440}
+                  height={440}
                   draggable={false}
                   style={{ opacity: i ? 0 : 1 }}
                 />
