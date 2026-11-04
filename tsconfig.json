@@ -20,6 +20,7 @@
       "@/components/ui/fanned-deck-slider": ["./components/fanned-deck-slider/fanned-deck-slider.tsx"],
       "@/components/ui/orbit-screens-showcase": ["./components/orbit-screens-showcase/orbit-screens-showcase.tsx"],
       "@/components/ui/swipe-stack-cards": ["./components/swipe-stack-cards/swipe-stack-cards.tsx"],
+      "@/components/ui/elastic-column-gallery": ["./components/elastic-column-gallery/elastic-column-gallery.tsx"],
       "@/components/ui/tacit-deck-template": ["./components/tacit-deck-template/tacit-deck-template.tsx"],
       "@/components/ui/oriel-studio-template": ["./components/oriel-studio-template/oriel-studio-template.tsx"],
       "@/components/ui/meadow-rise-footer": ["./components/meadow-rise-footer/meadow-rise-footer.tsx"],
