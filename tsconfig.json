@@ -18,6 +18,7 @@
       "@/components/ui/bending-strip-carousel": ["./components/bending-strip-carousel/bending-strip-carousel.tsx"],
       "@/components/ui/orbit-ring-gallery": ["./components/orbit-ring-gallery/orbit-ring-gallery.tsx"],
       "@/components/ui/fanned-deck-slider": ["./components/fanned-deck-slider/fanned-deck-slider.tsx"],
+      "@/components/ui/orbit-screens-showcase": ["./components/orbit-screens-showcase/orbit-screens-showcase.tsx"],
       "@/components/ui/tacit-deck-template": ["./components/tacit-deck-template/tacit-deck-template.tsx"],
       "@/components/ui/oriel-studio-template": ["./components/oriel-studio-template/oriel-studio-template.tsx"],
       "@/components/ui/meadow-rise-footer": ["./components/meadow-rise-footer/meadow-rise-footer.tsx"],
