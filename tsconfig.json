@@ -229,6 +229,7 @@
       "@/components/ui/signal-scramble-scroll": ["./components/signal-scramble-scroll/signal-scramble-scroll.tsx"],
       "@/components/ui/letter-rain-reveal": ["./components/letter-rain-reveal/letter-rain-reveal.tsx"],
       "@/components/ui/shimmer-wave-text": ["./components/shimmer-wave-text/shimmer-wave-text.tsx"],
+      "@/components/ui/pixel-wave-loader": ["./components/pixel-wave-loader/pixel-wave-loader.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
