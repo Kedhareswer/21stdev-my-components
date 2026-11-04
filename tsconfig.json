@@ -228,6 +228,7 @@
       "@/components/ui/ripple-toast-stack": ["./components/ripple-toast-stack/ripple-toast-stack.tsx"],
       "@/components/ui/lissajous-orbit-loader": ["./components/lissajous-orbit-loader/lissajous-orbit-loader.tsx"],
       "@/components/ui/swarm-table-loader": ["./components/swarm-table-loader/swarm-table-loader.tsx"],
+      "@/components/ui/live-voice-room": ["./components/live-voice-room/live-voice-room.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
