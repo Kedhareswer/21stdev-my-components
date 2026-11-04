@@ -189,7 +189,10 @@ export default function MagnetDotSlider({
     const t = track.current
     if (!t) return
     // measured once per press; the moves that follow use this edge
-    sim.current.left = t.getBoundingClientRect().left
+    const r = t.getBoundingClientRect()
+    sim.current.left = r.left
+    // a press can beat the ResizeObserver's first callback; take the width from the same read
+    if (!sim.current.w) sim.current.w = r.width - 34
     t.setPointerCapture?.(e.pointerId)
     setDrag(true)
     const f = fromPointer(e.clientX)
