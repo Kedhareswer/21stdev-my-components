@@ -1,6 +1,6 @@
 # Automation Flow Card
 
-A workflow card for an automation builder's dashboard. The cover is a live mini-flow: four glass step chips over a drifting aurora, with light pulses running along the wires from the trigger to each branch and a ping on the trigger. Below it: when it was edited, an Active/Paused status with a spring switch, a "more" menu that pops from the corner, the title and description, three stats, collaborators' faces that spread on hover, and the connected apps.
+A workflow card for an automation builder's dashboard. The cover is a live mini-flow on a dark dot-grid canvas: four white step chips with tinted app-icon tiles, indigo light pulses running along the wires from the trigger to each branch, a ping on the trigger, and a Running badge. Below it: when it was edited, an Active/Paused status with a spring switch, a "more" menu that pops from the corner, the title and description, three stats, collaborators' faces that spread on hover, and the connected apps.
 
 Pausing the workflow freezes the cover and desaturates it, so state reads at a glance. The card surface comes from your `--color-background` and `--color-foreground`, so it matches light and dark pages.
 
@@ -26,6 +26,7 @@ import AutomationFlowCard from "@/components/ui/automation-flow-card"
 | `title` | required | Workflow name. |
 | `description` | none | One or two lines. |
 | `edited` | `"Edited 5 days ago"` | Meta text. |
+| `runs` | `"v3 · 4 steps"` | Mono note top right of the cover. |
 | `steps` | email triage | Four `{ label, icon? }`: trigger, action, two branches. Icons: `mail`, `spark`, `tag`, `chat`, `bolt`, `doc`. |
 | `stats` | `[]` | Up to three `{ label, value }`. |
 | `people` / `extraPeople` | `[]` / `0` | Collaborator photos and a "+N" count. |
@@ -38,5 +39,5 @@ import AutomationFlowCard from "@/components/ui/automation-flow-card"
 ## Notes
 
 - The cover is CSS and one SVG; node positions and wires share percentage coordinates, so nothing is measured.
-- Reduced motion: no drift, pulses, pings or pop-ins.
+- Reduced motion: no pulses, pings or pop-ins.
 - The demo inlines four free Unsplash portraits as tiny WebP so it makes no off-origin requests.

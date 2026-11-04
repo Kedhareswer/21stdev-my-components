@@ -12,6 +12,8 @@ export type AutomationFlowCardProps = {
   description?: string
   /** e.g. "Edited 5 days ago". */
   edited?: string
+  /** Small mono note top right of the cover, e.g. "v3 · 4 steps". */
+  runs?: string
   /** Exactly four steps read best: one trigger, one action, two branches. */
   steps?: FlowStep[]
   stats?: FlowStat[]
@@ -44,33 +46,39 @@ const SURFACE = "color-mix(in oklab,var(--color-foreground) 2.5%,var(--color-bac
 const LINE = "color-mix(in oklab,var(--color-foreground) 9%,transparent)"
 
 const CSS =
-  ".afc-stage{display:flex;align-items:center;justify-content:center;padding:48px 16px;box-sizing:border-box;background:var(--color-background);color:var(--color-foreground);font-family:" + SANS + "}" +
-  ".afc-card{position:relative;width:100%;max-width:420px;border-radius:26px;background:" + SURFACE + ";" +
-  "box-shadow:0 0 0 1px " + LINE + ",0 1px 0 color-mix(in oklab,#fff 50%,transparent) inset,0 2px 6px -2px rgba(15,10,40,.12),0 34px 60px -30px rgba(15,10,40,.45);" +
+  ".afc-stage{display:flex;align-items:center;justify-content:center;padding:56px 16px;box-sizing:border-box;color:var(--color-foreground);font-family:" + SANS + ";" +
+  "background:radial-gradient(55% 45% at 50% 42%,color-mix(in oklab,var(--color-foreground) 6%,transparent),transparent 72%),var(--color-background)}" +
+  ".afc-card{position:relative;width:100%;max-width:400px;border-radius:24px;padding:6px;box-sizing:border-box;background:" + SURFACE + ";" +
+  "box-shadow:0 0 0 1px " + LINE + ",0 1px 0 color-mix(in oklab,#fff 50%,transparent) inset,0 2px 6px -2px rgba(12,14,20,.12),0 40px 70px -34px rgba(12,14,20,.5);" +
   "transition:transform .6s " + SPRING + ",box-shadow .6s;animation:afc-in .9s " + EASE + " both}" +
   "@keyframes afc-in{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}" +
   ".afc-card:hover{transform:translateY(-4px)}" +
-  ".afc-cover{position:relative;height:200px;border-radius:26px 26px 0 0;overflow:hidden;isolation:isolate;background:#160f38;margin:0}" +
-  ".afc-blob{position:absolute;border-radius:50%;filter:blur(30px);mix-blend-mode:screen;opacity:.9;animation:afc-drift var(--d) ease-in-out infinite alternate}" +
-  "@keyframes afc-drift{from{transform:translate(0,0) scale(1)}to{transform:translate(var(--x),var(--y)) scale(1.15)}}" +
-  ".afc-cover::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1.2px) 0 0/14px 14px;-webkit-mask-image:linear-gradient(180deg,transparent,#000 40%,#000 70%,transparent);mask-image:linear-gradient(180deg,transparent,#000 40%,#000 70%,transparent);pointer-events:none}" +
-  ".afc-card[data-active=false] .afc-blob,.afc-card[data-active=false] .afc-pulse,.afc-card[data-active=false] .afc-node[data-k='0'] .afc-ping{animation-play-state:paused}" +
-  ".afc-card[data-active=false] .afc-cover{filter:saturate(.25) brightness(.85)}" +
-  ".afc-cover{transition:filter .6s}" +
+  ".afc-cover{position:relative;height:210px;border-radius:19px;overflow:hidden;isolation:isolate;margin:0;transition:filter .6s;" +
+  "background:radial-gradient(110% 90% at 12% -10%,rgba(99,102,241,.32),transparent 55%),radial-gradient(80% 70% at 105% 110%,rgba(56,189,248,.16),transparent 60%),#0c0e14;" +
+  "box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.08)}" +
+  ".afc-cover::before{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(rgba(255,255,255,.11) 1px,transparent 1.3px) 6px 6px/14px 14px;-webkit-mask-image:radial-gradient(85% 75% at 50% 55%,#000 30%,transparent);mask-image:radial-gradient(85% 75% at 50% 55%,#000 30%,transparent);pointer-events:none}" +
+  ".afc-badge{position:absolute;left:12px;top:12px;z-index:4;display:inline-flex;align-items:center;gap:7px;padding:6px 9px;border-radius:999px;font:600 11px/1 " + SANS + ";color:#e7e9f5;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}" +
+  ".afc-badge i{position:relative;width:6px;height:6px;border-radius:50%;background:#34d399}" +
+  ".afc-badge i::after{content:'';position:absolute;inset:0;border-radius:50%;background:#34d399;animation:afc-ping 2.4s " + EASE + " infinite}" +
+  ".afc-card[data-active=false] .afc-badge i,.afc-card[data-active=false] .afc-badge i::after{background:#fbbf24}" +
+  ".afc-ver{position:absolute;right:14px;top:16px;z-index:4;font:500 10.5px/1 " + MONO + ";letter-spacing:.06em;color:rgba(231,233,245,.45)}" +
+  ".afc-card[data-active=false] .afc-pulse,.afc-card[data-active=false] .afc-badge i::after,.afc-card[data-active=false] .afc-ping{animation-play-state:paused}" +
+  ".afc-card[data-active=false] .afc-pulse,.afc-card[data-active=false] .afc-ping{opacity:0}" +
+  ".afc-card[data-active=false] .afc-node{filter:saturate(0);opacity:.75}" +
   ".afc-wires{position:absolute;inset:0;z-index:2;width:100%;height:100%;overflow:visible}" +
-  ".afc-wires path{fill:none;stroke:rgba(255,255,255,.28);stroke-width:1.4}" +
-  ".afc-wires .afc-pulse{stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:14 400;stroke-dashoffset:14;filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px #ff7ad9);animation:afc-flow 3.2s linear infinite;animation-delay:var(--dl)}" +
-  "@keyframes afc-flow{0%{stroke-dashoffset:14;opacity:1}50%{stroke-dashoffset:-260;opacity:1}51%,100%{stroke-dashoffset:-260;opacity:0}}" +
-  ".afc-node{position:absolute;z-index:3;display:flex;align-items:center;gap:7px;padding:7px 10px 7px 7px;border-radius:12px;font:600 11.5px/1 " + SANS + ";color:#fff;white-space:nowrap;transform:translate(-50%,-50%);" +
-  "background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 20px -8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25);" +
-  "animation:afc-pop .7s " + SPRING + " both;animation-delay:calc(var(--k) * 110ms + 350ms);transition:translate .6s " + SPRING + "}" +
+  ".afc-wires path{fill:none;stroke:rgba(255,255,255,.24);stroke-width:1.3;stroke-linecap:round}" +
+  ".afc-wires .afc-pulse{stroke:#c7d2fe;stroke-width:2.4;stroke-dasharray:9 100;stroke-dashoffset:9;filter:drop-shadow(0 0 3px #a5b4fc) drop-shadow(0 0 8px #6366f1);animation:afc-flow 2.6s cubic-bezier(.45,0,.35,1) infinite;animation-delay:var(--dl)}" +
+  "@keyframes afc-flow{0%{stroke-dashoffset:9;opacity:1}60%{stroke-dashoffset:-100;opacity:1}61%,100%{stroke-dashoffset:-100;opacity:0}}" +
+  ".afc-node{position:absolute;z-index:3;display:flex;align-items:center;gap:7px;padding:5px 9px 5px 5px;border-radius:11px;font:600 11.5px/1 " + SANS + ";letter-spacing:-.01em;color:#111318;white-space:nowrap;transform:translate(-50%,-50%);" +
+  "background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.6),0 10px 24px -8px rgba(0,0,0,.7),inset 0 -1px 0 rgba(17,19,24,.08);" +
+  "animation:afc-pop .7s " + SPRING + " both;animation-delay:calc(var(--k) * 110ms + 350ms);transition:translate .6s " + SPRING + ",filter .6s,opacity .6s}" +
   "@keyframes afc-pop{from{opacity:0;scale:.6}to{opacity:1;scale:1}}" +
   ".afc-card:hover .afc-node{translate:0 -3px}" +
   ".afc-card:hover .afc-node[data-k='1']{translate:0 -6px}" +
-  ".afc-node b{display:grid;place-items:center;width:20px;height:20px;border-radius:7px;background:rgba(255,255,255,.95);color:#2a1a6e}" +
-  ".afc-ping{position:absolute;inset:-1px;border-radius:12px;border:1px solid #fff;animation:afc-ping 3.2s " + EASE + " infinite;pointer-events:none}" +
-  "@keyframes afc-ping{0%{opacity:.9;transform:scale(1)}40%,100%{opacity:0;transform:scale(1.35)}}" +
-  ".afc-body{padding:16px 20px 18px}" +
+  ".afc-node b{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;color:#fff;background:var(--t);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 4px -1px rgba(0,0,0,.3)}" +
+  ".afc-ping{position:absolute;inset:-1px;border-radius:11px;border:1.5px solid #a5b4fc;animation:afc-ping 2.6s " + EASE + " infinite;pointer-events:none}" +
+  "@keyframes afc-ping{0%{opacity:.9;transform:scale(1)}45%,100%{opacity:0;transform:scale(1.4)}}" +
+  ".afc-body{padding:16px 16px 12px}" +
   ".afc-meta{display:flex;align-items:center;gap:8px;font:500 12px/1 " + SANS + ";color:var(--color-muted-foreground)}" +
   ".afc-meta i{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.6}" +
   ".afc-status{display:inline-flex;align-items:center;gap:6px}" +
@@ -90,13 +98,13 @@ const CSS =
   ".afc-menu button{width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:9px;font:500 13px/1 " + SANS + ";color:var(--color-foreground);cursor:pointer}" +
   ".afc-menu button:hover{background:color-mix(in oklab,var(--color-foreground) 6%,transparent)}" +
   ".afc-menu button[data-danger=true]{color:#e5484d}" +
-  ".afc-title{font:650 19px/1.2 " + SANS + ";letter-spacing:-.02em;margin:12px 0 6px}" +
+  ".afc-title{font:700 20px/1.15 " + SANS + ";letter-spacing:-.03em;margin:12px 0 6px}" +
   ".afc-desc{font:400 13.5px/1.5 " + SANS + ";color:var(--color-muted-foreground);margin:0}" +
   ".afc-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:16px 0;border-radius:14px;box-shadow:0 0 0 1px " + LINE + "}" +
   ".afc-stats div{padding:11px 12px}" +
   ".afc-stats div+div{box-shadow:-1px 0 0 " + LINE + "}" +
   ".afc-stats dt{font:500 10px/1 " + MONO + ";letter-spacing:.12em;text-transform:uppercase;color:var(--color-muted-foreground);margin-bottom:7px}" +
-  ".afc-stats dd{margin:0;font:650 16px/1 " + SANS + ";letter-spacing:-.02em;font-variant-numeric:tabular-nums}" +
+  ".afc-stats dd{margin:0;font:650 17px/1 " + SANS + ";letter-spacing:-.03em;font-variant-numeric:tabular-nums lining-nums}" +
   ".afc-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid " + LINE + "}" +
   ".afc-people{display:flex;align-items:center}" +
   ".afc-people span{position:relative;width:28px;height:28px;border-radius:50%;overflow:hidden;margin-left:-8px;box-shadow:0 0 0 2px " + SURFACE + ";transition:transform .45s " + SPRING + ",margin .45s " + SPRING + "}" +
@@ -108,9 +116,17 @@ const CSS =
   ".afc-ints{display:flex}" +
   ".afc-ints span{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;margin-left:-6px;box-shadow:0 0 0 2px " + SURFACE + "}" +
   ".afc-ints span:first-child{margin-left:0}" +
-  "@media (prefers-reduced-motion:reduce){.afc-card,.afc-blob,.afc-node,.afc-ping,.afc-menu,.afc-wires .afc-pulse{animation:none}.afc-card,.afc-switch::after,.afc-node,.afc-people span{transition:none}.afc-card:hover{transform:none}.afc-wires .afc-pulse{opacity:0}}"
+  "@media (prefers-reduced-motion:reduce){.afc-card,.afc-node,.afc-ping,.afc-menu,.afc-badge i::after,.afc-wires .afc-pulse{animation:none}.afc-card,.afc-switch::after,.afc-node,.afc-people span{transition:none}.afc-card:hover{transform:none}.afc-wires .afc-pulse{opacity:0}}"
 
 const INT_COLORS = ["#3b82f6", "#a855f7", "#ef4444", "#f59e0b", "#10b981", "#ec4899"]
+const TINT: Record<FlowIcon, string> = {
+  mail: "linear-gradient(160deg,#f87171,#dc2626)",
+  spark: "linear-gradient(160deg,#a78bfa,#6d28d9)",
+  doc: "linear-gradient(160deg,#fbbf24,#d97706)",
+  tag: "linear-gradient(160deg,#34d399,#059669)",
+  chat: "linear-gradient(160deg,#60a5fa,#1d4ed8)",
+  bolt: "linear-gradient(160deg,#fb923c,#ea580c)",
+}
 
 function Icon({ name, size = 12 }: { name: FlowIcon; size?: number }) {
   return (
@@ -122,17 +138,18 @@ function Icon({ name, size = 12 }: { name: FlowIcon; size?: number }) {
 
 // Node centres in percent of the cover, and the wires between them in a 400x200 box.
 const POS = [
-  [17, 50],
-  [47, 50],
-  [80, 27],
-  [80, 73],
+  [17, 54],
+  [48, 54],
+  [81, 32],
+  [81, 76],
 ]
-const WIRES = ["M68 100 C 120 100, 140 100, 188 100", "M188 100 C 250 100, 250 54, 320 54", "M188 100 C 250 100, 250 146, 320 146"]
+const WIRES = ["M68 113 C 110 113, 150 113, 192 113", "M192 113 C 262 113, 254 67, 324 67", "M192 113 C 262 113, 254 160, 324 160"]
 
 export default function AutomationFlowCard({
   title,
   description,
   edited = "Edited 5 days ago",
+  runs = "v3 · 4 steps",
   steps = [
     { label: "New email", icon: "mail" },
     { label: "Classify", icon: "spark" },
@@ -182,20 +199,21 @@ export default function AutomationFlowCard({
       <style>{CSS}</style>
       <article className="afc-card" data-active={active} aria-labelledby={id + "t"}>
         <figure className="afc-cover" aria-hidden="true">
-          <span className="afc-blob" style={{ width: 260, height: 220, left: -60, top: -70, background: "#ff3d9a", ["--d" as string]: "9s", ["--x" as string]: "40px", ["--y" as string]: "30px" }} />
-          <span className="afc-blob" style={{ width: 240, height: 220, right: -50, top: -40, background: "#ff9a3c", ["--d" as string]: "11s", ["--x" as string]: "-50px", ["--y" as string]: "40px" }} />
-          <span className="afc-blob" style={{ width: 300, height: 200, left: 60, bottom: -110, background: "#2bb7ff", ["--d" as string]: "13s", ["--x" as string]: "30px", ["--y" as string]: "-30px" }} />
-          <span className="afc-blob" style={{ width: 200, height: 180, right: 20, bottom: -90, background: "#7b4dff", ["--d" as string]: "10s", ["--x" as string]: "-30px", ["--y" as string]: "-20px" }} />
-          <svg className="afc-wires" viewBox="0 0 400 200" preserveAspectRatio="none">
+          <span className="afc-badge">
+            <i />
+            {active ? "Running" : "Paused"}
+          </span>
+          <span className="afc-ver">{runs}</span>
+          <svg className="afc-wires" viewBox="0 0 400 210" preserveAspectRatio="none">
             {WIRES.map((d, k) => (
               <g key={k}>
                 <path d={d} />
-                <path className="afc-pulse" d={d} style={{ ["--dl" as string]: (k === 0 ? 0 : 1.1) + "s" }} />
+                <path className="afc-pulse" d={d} pathLength={100} style={{ ["--dl" as string]: (k === 0 ? 0 : 0.9) + "s" }} />
               </g>
             ))}
           </svg>
           {steps.slice(0, 4).map((s, k) => (
-            <span key={s.label + k} className="afc-node" data-k={k} style={{ left: POS[k][0] + "%", top: POS[k][1] + "%", ["--k" as string]: k }}>
+            <span key={s.label + k} className="afc-node" data-k={k} style={{ left: POS[k][0] + "%", top: POS[k][1] + "%", ["--k" as string]: k, ["--t" as string]: TINT[s.icon ?? "bolt"] }}>
               <b>
                 <Icon name={s.icon ?? "bolt"} />
               </b>
