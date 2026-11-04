@@ -30,5 +30,5 @@ import MorphFilterBar from "@/components/ui/morph-filter-bar"
 
 - React only. No other dependencies.
 - The search box is an ARIA combobox with `aria-activedescendant`. Up and Down move through options, Enter picks one, Backspace in an empty box or Escape goes back to the fields, and Escape again closes. Tab and outside clicks close it.
-- The panel height comes from the row count (36 px rows, six visible), so nothing is measured.
+- The panel height comes from the row count (40 px rows, six visible), so nothing is measured.
 - Reduced motion makes every change instant.
