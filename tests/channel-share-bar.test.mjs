@@ -9,7 +9,7 @@ const src = readFileSync(new URL("channel-share-bar.tsx", dir), "utf8")
 
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react"], "react is the only import")
-assert.deepEqual(readdirSync(dir).sort(), ["README.md", "channel-share-bar.tsx", "demo.tsx"])
+assert.deepEqual(readdirSync(dir).sort(), ["README.md", "channel-share-bar.tsx", "demo-paper.tsx", "demo.tsx"])
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full")
 assert.doesNotMatch(src, /use(Ref|State|Memo|Callback)</, "no generic hook type arguments (they hang the 21st CLI)")
 assert.doesNotMatch(src, /getBoundingClientRect|offset(Width|Height|Top|Left)|client(Width|Height)|getComputedStyle|innerWidth/, "no layout reads")
@@ -20,7 +20,7 @@ const css = src.slice(cssAt, src.indexOf("\n\n", cssAt)).replace(/"\s*\+\s*\n\s*
 assert.doesNotMatch(css, /`|\$\{|@import/, "no backticks, ${ or @import in the CSS string")
 for (const m of css.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
   const sel = m[1].trim()
-  if (sel.startsWith("@") || sel.startsWith("const CSS")) continue
+  if (sel.startsWith("@") || sel.startsWith("const CSS") || /^(from|to|[\d.,%\s]+)$/.test(sel)) continue
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".csb-")), "unscoped selector: " + sel)
 }
 
@@ -35,4 +35,7 @@ for (const vals of [[8410, 6115, 2490, 1832, 755, 318], [1, 1, 1], [3, 3, 3, 3, 
 }
 assert.deepEqual(mod.shares([0, 0]), [0, 0], "all-zero input gives zeros")
 assert.deepEqual(mod.starts([42.2, 30.7, 27.1]), [0, 42.2, 72.9])
+assert.equal(mod.change(0, 50), null, "no base, no delta")
+assert.equal(mod.change(4324, 19920), 360.7)
+assert.equal(mod.change(200, 150), -25)
 console.log("channel-share-bar: ok")

@@ -1,29 +1,33 @@
 # Channel Share Bar
 
-A stacked share bar for "where does it come from" numbers: support tickets by channel, traffic by source, revenue by plan. A Week / Month / Quarter switch slides a pill between periods. The segments re-flow to the new shares, and the percentages and total count over to their new values.
+A stacked share bar for "where does it come from" numbers: support tickets by channel, signups by source, revenue by plan.
 
-- Wide slices carry their label inside the bar. Medium ones show just their percentage, and thin ones (under `inlineMin`, default 7%) get a callout row under the bar tail.
-- Hover or focus a segment to dim the rest of the bar and the legend.
-- The shares are rounded to one decimal and always add up to exactly 100.0%.
-- Arrow keys move between periods.
-- Reduced motion swaps every tween for an instant change.
+- **Entrance:** the card rises in and the segments grow one after another.
+- **Totals:** the total rolls in like an odometer.
+- **Period switch:** a sprung pill moves between periods. A sheen sweeps the bar, the segments re-flow, every percentage counts to its new value, and a delta chip shows the change against the period you came from.
+- **Labels:** wide slices carry their name and share. Medium ones carry the share. Thin ones (under `inlineMin`) drop a coloured leader line to a staggered callout.
+- **Hover or focus:** a segment or legend chip lifts it, dims the rest and shows a tooltip with its share and volume.
+- **Tones:** `dark` (the default ink panel) and `light` (paper).
+- **Maths:** the shares are rounded to one decimal and always add up to exactly 100.0%.
+- **Accessibility:** arrow keys move between periods, and reduced motion turns every tween and sweep off.
 
-No dependencies beyond React. Styles are scoped under `.csb-` and use the semantic colour tokens.
+No dependencies beyond React. Styles are scoped under `.csb-`, and the component never reads layout. Positions come from the data.
 
 ```tsx
 <ChannelShareBar
+  tone="light"
   title="Signups by source"
-  subtitle="Last 90 days"
   unit="signups"
-  periods={[{ label: "Q3", slices: [{ label: "Organic", value: 4200, color: "#2f8a68" }, /* … */] }]}
+  periods={[{ label: "30 days", slices: [{ label: "Organic", value: 4210, color: "#2f8a68" } /* … */] }]}
 />
 ```
 
 | Prop | Default | |
 |---|---|---|
-| `title` / `subtitle` | support-desk copy | heading text |
+| `title` / `subtitle` / `eyebrow` | support-desk copy | heading text |
 | `unit` | `"tickets"` | word after the total |
-| `periods` | three demo periods | `{ label, slices: { label, value, color }[] }[]` |
+| `periods` | Week / Month / Quarter | `{ label, slices: { label, value, color }[] }[]` |
 | `defaultPeriod` | last period | index shown first |
-| `inlineMin` | `7` | share (%) at which the percentage moves inside the bar; thinner slices get a callout |
+| `inlineMin` | `7` | share (%) at which the percentage moves inside the bar |
 | `labelMin` | `20` | share (%) at which the name also shows inside the bar |
+| `tone` | `"dark"` | `"dark"` or `"light"` |

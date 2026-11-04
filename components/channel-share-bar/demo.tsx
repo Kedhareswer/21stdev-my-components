@@ -6,12 +6,10 @@ export default function Demo() {
       style={{
         minHeight: "100svh",
         display: "grid",
-        gridTemplateColumns: "minmax(0, 640px)",
+        gridTemplateColumns: "minmax(0, 680px)",
         placeContent: "center",
         padding: 16,
-        background: "var(--color-background)",
-        backgroundImage: "radial-gradient(color-mix(in oklab, var(--color-foreground) 14%, transparent) 1px, transparent 1px)",
-        backgroundSize: "14px 14px",
+        background: "radial-gradient(80% 60% at 50% 0%, #1a2030 0%, #0a0c11 70%)",
       }}
     >
       <ChannelShareBar />
