@@ -222,6 +222,7 @@
       "@/components/ui/sneaker-product-hero": ["./components/sneaker-product-hero/sneaker-product-hero.tsx"],
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
       "@/components/ui/sticker-swap-headline": ["./components/sticker-swap-headline/sticker-swap-headline.tsx"],
+      "@/components/ui/silk-mesh-shader-hero": ["./components/silk-mesh-shader-hero/silk-mesh-shader-hero.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
