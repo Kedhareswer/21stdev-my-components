@@ -221,6 +221,7 @@
       "@/components/ui/runway-lookbook": ["./components/runway-lookbook/runway-lookbook.tsx"],
       "@/components/ui/sneaker-product-hero": ["./components/sneaker-product-hero/sneaker-product-hero.tsx"],
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
+      "@/components/ui/sticker-swap-headline": ["./components/sticker-swap-headline/sticker-swap-headline.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
