@@ -222,7 +222,8 @@
       "@/components/ui/sneaker-product-hero": ["./components/sneaker-product-hero/sneaker-product-hero.tsx"],
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"],
-      "@/components/ui/cube-roll-button": ["./components/cube-roll-button/cube-roll-button.tsx"]
+      "@/components/ui/cube-roll-button": ["./components/cube-roll-button/cube-roll-button.tsx"],
+      "@/components/ui/comet-orbit-button": ["./components/comet-orbit-button/comet-orbit-button.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
