@@ -12,8 +12,10 @@ const { src, css } = checkComponent("automation-flow-card", {
 })
 
 assert.match(css, /\.afc-people img\{[^}]*max-width:none/, "faces override Preflight")
-assert.match(css, /\.afc-card\[data-active=false\] \.afc-blob[^{]*\{animation-play-state:paused\}/, "pausing freezes the cover")
-assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[^@]*\.afc-blob[^{]*\{animation:none\}/, "reduced motion stops the cover")
+assert.match(css, /\.afc-card\[data-active=false\] \.afc-pulse[^{]*\{animation-play-state:paused\}/, "pausing freezes the cover")
+assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[^@]*\.afc-wires \.afc-pulse\{animation:none\}/, "reduced motion stops the cover")
+assert.ok(src.includes("pathLength={100}"), "pulses use a normalised length")
+assert.ok(src.includes("const [open, setOpen] = useState(false)"), "the action menu starts closed")
 assert.ok(src.includes('role="switch"') && src.includes("aria-checked={active}"), "the switch is a real switch")
 assert.ok(src.includes('aria-haspopup="menu"') && src.includes('role="menuitem"'), "menu semantics")
 assert.ok(src.includes('e.key === "Escape"') && src.includes('document.removeEventListener("pointerdown", onDown)'), "the menu closes and cleans up")
