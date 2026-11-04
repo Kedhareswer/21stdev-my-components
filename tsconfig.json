@@ -223,6 +223,7 @@
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
       "@/components/ui/folio-fold-menu": ["./components/folio-fold-menu/folio-fold-menu.tsx"],
       "@/components/ui/paper-stack-drawer": ["./components/paper-stack-drawer/paper-stack-drawer.tsx"],
+      "@/components/ui/utility-dock-panel": ["./components/utility-dock-panel/utility-dock-panel.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
