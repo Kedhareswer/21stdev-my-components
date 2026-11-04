@@ -227,7 +227,8 @@
       "@/components/ui/cell-column-trend": ["./components/cell-column-trend/cell-column-trend.tsx"],
       "@/components/ui/agent-usage-meter": ["./components/agent-usage-meter/agent-usage-meter.tsx"],
       "@/components/ui/tilted-metric-deck": ["./components/tilted-metric-deck/tilted-metric-deck.tsx"],
-      "@/components/ui/aurora-feature-bento": ["./components/aurora-feature-bento/aurora-feature-bento.tsx"]
+      "@/components/ui/aurora-feature-bento": ["./components/aurora-feature-bento/aurora-feature-bento.tsx"],
+      "@/components/ui/orbit-social-bento": ["./components/orbit-social-bento/orbit-social-bento.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
