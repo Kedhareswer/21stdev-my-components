@@ -55,7 +55,7 @@ const SOFT =
 const CSS =
   ".dip-root{--dip-bg:#120f1a;--dip-text:#f5f2fb;--dip-dim:rgba(236,230,250,.55);--dip-spring:" + SPRING + ";--dip-soft:" + SOFT + ";" +
   "position:relative;width:min(720px,calc(100vw - 32px));padding:28px 0 22px;border-radius:30px;overflow:hidden;color:var(--dip-text);font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;" +
-  "background:radial-gradient(70% 60% at 15% 0%,rgba(140,90,255,.28),transparent 60%),radial-gradient(60% 60% at 95% 100%,rgba(255,120,170,.2),transparent 60%),var(--dip-bg);" +
+  "background:linear-gradient(180deg,#1d1829,var(--dip-bg) 46%);" +
   "box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 1px rgba(255,255,255,.05),0 30px 70px -30px rgba(30,10,60,.7);animation:dip-in .8s var(--dip-soft) both}" +
   ".dip-head{padding:0 28px;margin-bottom:22px}" +
   ".dip-head h2{margin:0;font-size:clamp(24px,4vw,32px);font-weight:680;letter-spacing:-.035em;line-height:1.05}" +

@@ -18,8 +18,8 @@ export default function Demo() {
         minHeight: "100svh",
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "72px 16px",
+        alignItems: "center",
+        padding: "48px 16px",
         background: "var(--color-background)",
       }}
     >

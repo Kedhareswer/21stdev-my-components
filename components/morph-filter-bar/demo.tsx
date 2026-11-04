@@ -1,6 +1,7 @@
 "use client"
 
-import MorphFilterBar, { type FilterField } from "@/components/ui/morph-filter-bar"
+import { useState } from "react"
+import MorphFilterBar, { type AppliedFilter, type FilterField } from "@/components/ui/morph-filter-bar"
 
 // Free Unsplash portraits. Swap in your own.
 const face = (id: string) => "https://images.unsplash.com/photo-" + id + "?w=64&h=64&fit=crop&crop=faces&q=70"
@@ -66,27 +67,56 @@ const fields: FilterField[] = [
   },
 ]
 
+const issues = [
+  { id: "SPR-214", title: "Hero video stutters on first load", status: "progress", assignee: "maya", priority: "urgent", label: "perf", due: "today" },
+  { id: "SPR-209", title: "Pricing toggle loses state on back", status: "progress", assignee: "maya", priority: "high", label: "bug", due: "week" },
+  { id: "SPR-201", title: "New onboarding illustrations", status: "review", assignee: "priya", priority: "medium", label: "design", due: "week" },
+  { id: "SPR-198", title: "Checkout copy pass", status: "todo", assignee: "lena", priority: "low", label: "docs", due: "month" },
+  { id: "SPR-190", title: "Image CDN cache headers", status: "progress", assignee: "theo", priority: "high", label: "perf", due: "overdue" },
+  { id: "SPR-187", title: "Dark mode for the docs site", status: "backlog", assignee: "jonah", priority: "medium", label: "feature", due: "month" },
+  { id: "SPR-183", title: "Launch email template", status: "done", assignee: "maya", priority: "medium", label: "design", due: "today" },
+]
+
+const opt = (key: string, value: string) => fields.find((f) => f.key === key)?.options.find((o) => o.value === value)
+
 export default function Demo() {
+  const [applied, setApplied] = useState([
+    { key: "status", value: "progress" },
+  ] as AppliedFilter[])
+  const shown = issues.filter((it) => applied.every((f) => (it as Record<string, string>)[f.key] === f.value))
+
   return (
     <div
       style={{
         minHeight: "100svh",
-        padding: "88px 16px",
+        padding: "48px 16px",
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
-        background: "radial-gradient(60% 50% at 30% 0%, color-mix(in oklab, #d6ff5c 22%, transparent), transparent 70%), var(--color-background)",
+        alignItems: "center",
+        background: "var(--color-background)",
+        color: "var(--color-foreground)",
+        fontFamily: "'Inter Tight', ui-sans-serif, system-ui, sans-serif",
       }}
     >
-      <div style={{ width: "min(560px, 100%)" }}>
-        <MorphFilterBar
-          title="Issues · Spring launch"
-          fields={fields}
-          defaultValue={[
-            { key: "status", value: "progress" },
-            { key: "assignee", value: "maya" },
-          ]}
-        />
+      <div style={{ width: "min(680px, 100%)" }}>
+        <MorphFilterBar title="Issues · Spring launch" fields={fields} defaultValue={applied} onChange={setApplied} />
+        <ul style={{ listStyle: "none", margin: "22px 0 0", padding: 0, borderTop: "1px solid var(--color-border)", minHeight: 300 }}>
+          {shown.map((it) => {
+            const st = opt("status", it.status)
+            const who = opt("assignee", it.assignee)
+            const pr = opt("priority", it.priority)
+            return (
+              <li key={it.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 4px", borderBottom: "1px solid var(--color-border)", fontSize: 15 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 99, flex: "none", background: st?.swatch }} title={st?.label} />
+                <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", fontVariantNumeric: "tabular-nums", width: 62, flex: "none" }}>{it.id}</span>
+                <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 520 }}>{it.title}</span>
+                <span style={{ width: 8, height: 8, borderRadius: 2, flex: "none", background: pr?.swatch }} title={pr?.label} />
+                {who?.avatar && <img src={who.avatar} alt={who.label} width={22} height={22} style={{ borderRadius: 99, objectFit: "cover", maxWidth: "none", flex: "none" }} />}
+              </li>
+            )
+          })}
+          {!shown.length && <li style={{ padding: "22px 4px", fontSize: 14, color: "var(--color-muted-foreground)" }}>No issues match these filters.</li>}
+        </ul>
       </div>
     </div>
   )

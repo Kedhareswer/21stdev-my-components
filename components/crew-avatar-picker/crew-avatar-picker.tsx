@@ -59,7 +59,7 @@ const SOFT =
 
 const CSS =
   ".cap-root{--cap-card:#fbf7f0;--cap-ink:#221c16;--cap-dim:#8a8076;--cap-line:rgba(34,28,22,.09);--cap-accent:#ff7a1a;--cap-spring:" + SPRING + ";--cap-soft:" + SOFT + ";" +
-  "position:relative;width:min(468px,calc(100vw - 32px));padding:20px 20px 18px;border-radius:26px;color:var(--cap-ink);font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;" +
+  "position:relative;width:min(548px,calc(100vw - 32px));padding:24px 24px 20px;border-radius:26px;color:var(--cap-ink);font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;" +
   "background:radial-gradient(120% 80% at 100% 0%,rgba(255,122,26,.08),transparent 60%),var(--cap-card);box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(34,28,22,.06),0 2px 4px rgba(34,28,22,.04),0 24px 48px -20px rgba(80,44,10,.3);animation:cap-in .7s var(--cap-soft) both}" +
   ".cap-top{display:flex;align-items:center;gap:12px;margin-bottom:18px}" +
   ".cap-title{flex:1;min-width:0}" +
@@ -68,11 +68,11 @@ const CSS =
   ".cap-stack{display:flex;align-items:center;height:34px;padding-left:10px}" +
   ".cap-stack>img{width:34px;height:34px;max-width:none;margin-left:-10px;border-radius:999px;object-fit:cover;box-shadow:0 0 0 2.5px var(--cap-card),0 4px 10px -4px rgba(34,28,22,.4);animation:cap-pop .55s var(--cap-spring) both}" +
   ".cap-stack>i{margin-left:-10px;height:34px;min-width:34px;padding:0 7px;border-radius:999px;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;color:#fff;background:var(--cap-ink);box-shadow:0 0 0 2.5px var(--cap-card);animation:cap-pop .55s var(--cap-spring) both}" +
-  ".cap-row{display:flex;gap:10px;margin:0 -20px;padding:6px 20px 12px;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:20px;scrollbar-width:none}" +
+  ".cap-row{display:flex;gap:10px;margin:0 -24px;padding:6px 24px 12px;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:24px;scrollbar-width:none}" +
   ".cap-row::-webkit-scrollbar{display:none}" +
-  ".cap-p{flex:none;display:grid;justify-items:center;gap:8px;width:60px;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;outline:none;scroll-snap-align:start;animation:cap-up .6s var(--cap-soft) both;animation-delay:calc(.1s + var(--cap-i) * .05s)}" +
-  ".cap-face{position:relative;display:block;width:60px;height:60px;border-radius:999px;transition:transform .5s var(--cap-spring)}" +
-  ".cap-face>img{width:60px;height:60px;max-width:none;border-radius:999px;object-fit:cover;display:block;filter:grayscale(1) contrast(.95) brightness(1.04);opacity:.72;transition:filter .45s,opacity .45s}" +
+  ".cap-p{flex:none;display:grid;justify-items:center;gap:8px;width:72px;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;outline:none;scroll-snap-align:start;animation:cap-up .6s var(--cap-soft) both;animation-delay:calc(.1s + var(--cap-i) * .05s)}" +
+  ".cap-face{position:relative;display:block;width:72px;height:72px;border-radius:999px;transition:transform .5s var(--cap-spring)}" +
+  ".cap-face>img{width:72px;height:72px;max-width:none;border-radius:999px;object-fit:cover;display:block;filter:grayscale(1) contrast(.95) brightness(1.04);opacity:.72;transition:filter .45s,opacity .45s}" +
   ".cap-face::before{content:'';position:absolute;inset:-4px;border-radius:999px;box-shadow:0 0 0 2px var(--cap-c,var(--cap-accent));opacity:0;transform:scale(.86);transition:opacity .25s,transform .5s var(--cap-spring)}" +
   ".cap-badge{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:999px;display:grid;place-items:center;color:var(--cap-ink);background:#fff;box-shadow:0 0 0 2px var(--cap-card),0 2px 6px rgba(34,28,22,.2);transition:background .3s,color .3s,transform .5s var(--cap-spring)}" +
   ".cap-badge svg{transition:transform .5s var(--cap-spring)}" +
@@ -85,7 +85,7 @@ const CSS =
   ".cap-p[aria-pressed=true] .cap-face::before{opacity:1;transform:none}" +
   ".cap-p[aria-pressed=true] .cap-badge{background:var(--cap-c,var(--cap-accent));color:#fff;transform:scale(1.08)}" +
   ".cap-p[aria-pressed=true] .cap-badge svg{transform:rotate(360deg)}" +
-  ".cap-name{max-width:64px;font-size:12.5px;font-weight:560;letter-spacing:-.01em;color:var(--cap-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .3s}" +
+  ".cap-name{max-width:76px;font-size:12.5px;font-weight:560;letter-spacing:-.01em;color:var(--cap-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .3s}" +
   ".cap-p[aria-pressed=true] .cap-name{color:var(--cap-ink);font-weight:650}" +
   ".cap-add .cap-face{display:grid;place-items:center;color:var(--cap-dim);background:none;outline:1.5px dashed rgba(34,28,22,.28);outline-offset:-1.5px;box-shadow:none}" +
   ".cap-add:hover .cap-face{color:var(--cap-ink);outline-color:var(--cap-ink)}" +
@@ -99,7 +99,7 @@ const CSS =
   ".cap-go:focus-visible{box-shadow:0 0 0 2px var(--cap-card),0 0 0 4px var(--cap-ink)}" +
   ".cap-go:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}" +
   ".cap-go b{font-variant-numeric:tabular-nums}" +
-  ".cap-dir{position:absolute;z-index:40;left:20px;right:20px;top:calc(100% - 8px);padding:8px;border-radius:18px;background:#fff;box-shadow:0 0 0 1px rgba(34,28,22,.08),0 20px 44px -16px rgba(80,44,10,.4);transform-origin:top right;animation:cap-open .45s var(--cap-spring) both}" +
+  ".cap-dir{position:absolute;z-index:40;left:24px;right:24px;top:calc(100% - 8px);padding:8px;border-radius:18px;background:#fff;box-shadow:0 0 0 1px rgba(34,28,22,.08),0 20px 44px -16px rgba(80,44,10,.4);transform-origin:top right;animation:cap-open .45s var(--cap-spring) both}" +
   ".cap-q{width:100%;height:38px;padding:0 12px;border:0;border-radius:11px;background:rgba(34,28,22,.05);font:inherit;font-size:13.5px;color:var(--cap-ink);outline:none}" +
   ".cap-q:focus-visible{box-shadow:inset 0 0 0 1.5px var(--cap-accent)}" +
   ".cap-dl{list-style:none;margin:6px 0 0;padding:0}" +
@@ -223,7 +223,7 @@ export function CrewAvatarPicker({
             onClick={() => set(flipId(sel, p.id))}
           >
             <span className="cap-face">
-              <img src={p.photo} alt="" width={60} height={60} />
+              <img src={p.photo} alt="" width={72} height={72} />
               <span className="cap-badge">{sel.includes(p.id) ? <Tick /> : <Plus size={10} />}</span>
             </span>
             <span className="cap-name">{p.name.split(" ")[0]}</span>

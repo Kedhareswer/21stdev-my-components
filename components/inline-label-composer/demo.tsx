@@ -12,8 +12,8 @@ const labels: Label[] = [
   { id: "q3", name: "Q3 launch", color: "#12a594" },
 ]
 
-const row = { display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 12, minHeight: 40 } as const
-const key = { fontSize: 13, color: "var(--color-muted-foreground)", display: "flex", alignItems: "center", gap: 8 } as const
+const row = { display: "grid", gridTemplateColumns: "120px 1fr", alignItems: "center", gap: 12, minHeight: 46 } as const
+const key = { fontSize: 14, color: "var(--color-muted-foreground)", display: "flex", alignItems: "center", gap: 8 } as const
 
 export default function Demo() {
   return (
@@ -23,15 +23,15 @@ export default function Demo() {
         display: "flex",
         justifyContent: "center",
         alignItems: "flex-start",
-        padding: "72px 16px",
+        padding: "max(48px, 12vh) 16px 48px",
         background: "var(--color-background)",
         color: "var(--color-foreground)",
         fontFamily: "'Inter Tight', ui-sans-serif, system-ui, sans-serif",
       }}
     >
-      <article style={{ width: "min(560px, 100%)" }}>
+      <article style={{ width: "min(660px, 100%)" }}>
         <div style={{ fontSize: 12.5, color: "var(--color-muted-foreground)", marginBottom: 10 }}>Storefront / Issues / SF-482</div>
-        <h1 style={{ margin: "0 0 22px", fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}>Checkout button flickers on Safari 17</h1>
+        <h1 style={{ margin: "0 0 22px", fontSize: 38, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}>Checkout button flickers on Safari 17</h1>
         <div style={row}>
           <span style={key}>Status</span>
           <span style={{ fontSize: 13.5, display: "inline-flex", alignItems: "center", gap: 8 }}>

@@ -21,12 +21,12 @@ export default function Demo() {
         minHeight: "100svh",
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "80px 16px",
-        background: "radial-gradient(70% 55% at 50% 0%, color-mix(in oklab, #5ef0c6 14%, transparent), transparent 70%), var(--color-background)",
+        alignItems: "center",
+        padding: "48px 16px",
+        background: "var(--color-background)",
       }}
     >
-      <ActivityDeckDropdown activities={activities} />
+      <ActivityDeckDropdown activities={activities} defaultOpen />
     </div>
   )
 }

@@ -53,7 +53,7 @@ const SOFT =
 
 const CSS =
   ".adk-root{--adk-ink:#0d1322;--adk-card:#151d31;--adk-card2:#1b2540;--adk-text:#eef2fb;--adk-dim:rgba(222,230,248,.55);--adk-mint:#5ef0c6;--adk-line:rgba(190,210,255,.09);--adk-spring:" + SPRING + ";--adk-soft:" + SOFT + ";" +
-  "width:min(384px,calc(100vw - 32px));font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;color:var(--adk-text);-webkit-font-smoothing:antialiased;animation:adk-in .7s var(--adk-soft) both}" +
+  "width:min(440px,calc(100vw - 32px));font-family:'Inter Tight','Geist',ui-sans-serif,system-ui,sans-serif;color:var(--adk-text);-webkit-font-smoothing:antialiased;animation:adk-in .7s var(--adk-soft) both}" +
   ".adk-head{display:flex;align-items:center;gap:12px;width:100%;padding:12px 12px 12px 12px;margin-bottom:12px;border:0;border-radius:20px;font:inherit;text-align:left;color:inherit;cursor:pointer;outline:none;" +
   "background:radial-gradient(120% 140% at 0% 0%,#22305a 0%,var(--adk-ink) 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 1px var(--adk-line),0 18px 40px -18px rgba(6,10,24,.7);transition:transform .45s var(--adk-spring),box-shadow .2s}" +
   ".adk-head:hover{transform:translateY(-1px)}.adk-head:active{transform:scale(.985)}" +

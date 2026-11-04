@@ -82,7 +82,7 @@ const CSS =
   ".cns-pop{position:absolute;z-index:50;top:calc(100% + 10px);left:0;width:min(320px,calc(100vw - 32px));border-radius:22px;overflow:hidden;background:var(--cns-paper);" +
   "box-shadow:inset 0 0 0 1px rgba(21,20,28,.07),0 2px 4px rgba(21,20,28,.05),0 24px 48px -18px rgba(40,24,120,.35),0 60px 90px -50px rgba(40,24,120,.35);" +
   "transform-origin:24px -10px;animation:cns-open .5s var(--cns-spring) both}" +
-  ".cns-glow{position:absolute;inset:-40px -10% auto;height:130px;pointer-events:none;filter:blur(34px);opacity:.85;transition:background .6s}" +
+  ".cns-glow{position:absolute;inset:-40px -10% auto;height:130px;pointer-events:none;filter:blur(34px);opacity:.32;transition:background .6s}" +
   ".cns-list{position:relative;margin:0;padding:6px;list-style:none;outline:none;max-height:min(70vh,520px);overflow:auto;scrollbar-width:thin}" +
   ".cns-rule{height:1px;margin:4px 10px;background:rgba(21,20,28,.07)}" +
   ".cns-opt{display:flex;align-items:center;gap:12px;height:52px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;opacity:0;animation:cns-row .45s var(--cns-soft) both;animation-delay:calc(.05s + var(--cns-i) * .035s);transition:background .15s}" +

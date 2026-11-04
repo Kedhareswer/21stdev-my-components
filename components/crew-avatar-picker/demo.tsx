@@ -26,9 +26,9 @@ export default function Demo() {
         minHeight: "100svh",
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "88px 16px",
-        background: "radial-gradient(60% 45% at 50% 0%, rgba(255,122,26,.14), transparent 70%), var(--color-background)",
+        alignItems: "center",
+        padding: "48px 16px",
+        background: "var(--color-background)",
       }}
     >
       <CrewAvatarPicker people={people} directory={directory} defaultValue={["maya", "priya"]} />

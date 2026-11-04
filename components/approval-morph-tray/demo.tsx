@@ -21,10 +21,9 @@ export default function Demo() {
         minHeight: "100svh",
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "96px 16px",
-        background:
-          "radial-gradient(70% 60% at 50% 0%, color-mix(in oklab, var(--color-foreground) 7%, transparent), transparent 70%), var(--color-background)",
+        alignItems: "center",
+        padding: "48px 16px",
+        background: "var(--color-background)",
       }}
     >
       <ApprovalMorphTray requests={requests} resource="Q4 Brand kit · Figma" defaultOpen />
