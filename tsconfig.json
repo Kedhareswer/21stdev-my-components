@@ -225,7 +225,8 @@
       "@/components/ui/cube-roll-button": ["./components/cube-roll-button/cube-roll-button.tsx"],
       "@/components/ui/comet-orbit-button": ["./components/comet-orbit-button/comet-orbit-button.tsx"],
       "@/components/ui/hold-trace-button": ["./components/hold-trace-button/hold-trace-button.tsx"],
-      "@/components/ui/heart-burst-button": ["./components/heart-burst-button/heart-burst-button.tsx"]
+      "@/components/ui/heart-burst-button": ["./components/heart-burst-button/heart-burst-button.tsx"],
+      "@/components/ui/checkout-flow-button": ["./components/checkout-flow-button/checkout-flow-button.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
