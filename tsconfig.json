@@ -223,6 +223,7 @@
       "@/components/ui/split-photo-slider": ["./components/split-photo-slider/split-photo-slider.tsx"],
       "@/components/ui/aurora-dropzone-upload": ["./components/aurora-dropzone-upload/aurora-dropzone-upload.tsx"],
       "@/components/ui/odometer-currency-converter": ["./components/odometer-currency-converter/odometer-currency-converter.tsx"],
+      "@/components/ui/halo-ai-composer": ["./components/halo-ai-composer/halo-ai-composer.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
