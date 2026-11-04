@@ -2,7 +2,7 @@
 
 A workflow card for an automation builder's dashboard. The cover is a live mini-flow on a dark dot-grid canvas: four white step chips with tinted app-icon tiles, indigo light pulses running along the wires from the trigger to each branch, a ping on the trigger, and a Running badge. Below it: when it was edited, an Active/Paused status with a spring switch, a "more" menu that pops from the corner, the title and description, three stats, collaborators' faces that spread on hover, and the connected apps.
 
-Pausing the workflow freezes the cover and desaturates it, so state reads at a glance. The card surface comes from your `--color-background` and `--color-foreground`, so it matches light and dark pages.
+Pausing the workflow freezes the cover and desaturates it, so state reads at a glance. The card surface comes from your `--color-background` and `--color-foreground`, so it matches light and dark pages; the stage behind it carries a soft indigo glow.
 
 ```tsx
 import AutomationFlowCard from "@/components/ui/automation-flow-card"

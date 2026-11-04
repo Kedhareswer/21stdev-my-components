@@ -47,13 +47,13 @@ const LINE = "color-mix(in oklab,var(--color-foreground) 9%,transparent)"
 
 const CSS =
   ".afc-stage{display:flex;align-items:center;justify-content:center;padding:56px 16px;box-sizing:border-box;color:var(--color-foreground);font-family:" + SANS + ";" +
-  "background:radial-gradient(55% 45% at 50% 42%,color-mix(in oklab,var(--color-foreground) 6%,transparent),transparent 72%),var(--color-background)}" +
-  ".afc-card{position:relative;width:100%;max-width:400px;border-radius:24px;padding:6px;box-sizing:border-box;background:" + SURFACE + ";" +
+  "background:radial-gradient(42% 38% at 46% 40%,rgba(99,102,241,.16),transparent 70%),radial-gradient(34% 30% at 60% 66%,rgba(56,189,248,.10),transparent 70%),radial-gradient(70% 60% at 50% 50%,color-mix(in oklab,var(--color-foreground) 5%,transparent),transparent 75%),var(--color-background)}" +
+  ".afc-card{position:relative;width:100%;max-width:450px;border-radius:26px;padding:6px;box-sizing:border-box;background:" + SURFACE + ";" +
   "box-shadow:0 0 0 1px " + LINE + ",0 1px 0 color-mix(in oklab,#fff 50%,transparent) inset,0 2px 6px -2px rgba(12,14,20,.12),0 40px 70px -34px rgba(12,14,20,.5);" +
   "transition:transform .6s " + SPRING + ",box-shadow .6s;animation:afc-in .9s " + EASE + " both}" +
   "@keyframes afc-in{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}" +
   ".afc-card:hover{transform:translateY(-4px)}" +
-  ".afc-cover{position:relative;height:210px;border-radius:19px;overflow:hidden;isolation:isolate;margin:0;transition:filter .6s;" +
+  ".afc-cover{position:relative;height:232px;border-radius:19px;overflow:hidden;isolation:isolate;margin:0;transition:filter .6s;" +
   "background:radial-gradient(110% 90% at 12% -10%,rgba(99,102,241,.32),transparent 55%),radial-gradient(80% 70% at 105% 110%,rgba(56,189,248,.16),transparent 60%),#0c0e14;" +
   "box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.08)}" +
   ".afc-cover::before{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(rgba(255,255,255,.11) 1px,transparent 1.3px) 6px 6px/14px 14px;-webkit-mask-image:radial-gradient(85% 75% at 50% 55%,#000 30%,transparent);mask-image:radial-gradient(85% 75% at 50% 55%,#000 30%,transparent);pointer-events:none}" +
@@ -69,13 +69,13 @@ const CSS =
   ".afc-wires path{fill:none;stroke:rgba(255,255,255,.24);stroke-width:1.3;stroke-linecap:round}" +
   ".afc-wires .afc-pulse{stroke:#c7d2fe;stroke-width:2.4;stroke-dasharray:9 100;stroke-dashoffset:9;filter:drop-shadow(0 0 3px #a5b4fc) drop-shadow(0 0 8px #6366f1);animation:afc-flow 2.6s cubic-bezier(.45,0,.35,1) infinite;animation-delay:var(--dl)}" +
   "@keyframes afc-flow{0%{stroke-dashoffset:9;opacity:1}60%{stroke-dashoffset:-100;opacity:1}61%,100%{stroke-dashoffset:-100;opacity:0}}" +
-  ".afc-node{position:absolute;z-index:3;display:flex;align-items:center;gap:7px;padding:5px 9px 5px 5px;border-radius:11px;font:600 11.5px/1 " + SANS + ";letter-spacing:-.01em;color:#111318;white-space:nowrap;transform:translate(-50%,-50%);" +
+  ".afc-node{position:absolute;z-index:3;display:flex;align-items:center;gap:7px;padding:5px 9px 5px 5px;border-radius:11px;font:600 12.5px/1 " + SANS + ";letter-spacing:-.01em;color:#111318;white-space:nowrap;transform:translate(-50%,-50%);" +
   "background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.6),0 10px 24px -8px rgba(0,0,0,.7),inset 0 -1px 0 rgba(17,19,24,.08);" +
   "animation:afc-pop .7s " + SPRING + " both;animation-delay:calc(var(--k) * 110ms + 350ms);transition:translate .6s " + SPRING + ",filter .6s,opacity .6s}" +
   "@keyframes afc-pop{from{opacity:0;scale:.6}to{opacity:1;scale:1}}" +
   ".afc-card:hover .afc-node{translate:0 -3px}" +
   ".afc-card:hover .afc-node[data-k='1']{translate:0 -6px}" +
-  ".afc-node b{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;color:#fff;background:var(--t);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 4px -1px rgba(0,0,0,.3)}" +
+  ".afc-node b{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;color:#fff;background:var(--t);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 4px -1px rgba(0,0,0,.3)}" +
   ".afc-ping{position:absolute;inset:-1px;border-radius:11px;border:1.5px solid #a5b4fc;animation:afc-ping 2.6s " + EASE + " infinite;pointer-events:none}" +
   "@keyframes afc-ping{0%{opacity:.9;transform:scale(1)}45%,100%{opacity:0;transform:scale(1.4)}}" +
   ".afc-body{padding:16px 16px 12px}" +
@@ -98,8 +98,8 @@ const CSS =
   ".afc-menu button{width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:9px;font:500 13px/1 " + SANS + ";color:var(--color-foreground);cursor:pointer}" +
   ".afc-menu button:hover{background:color-mix(in oklab,var(--color-foreground) 6%,transparent)}" +
   ".afc-menu button[data-danger=true]{color:#e5484d}" +
-  ".afc-title{font:700 20px/1.15 " + SANS + ";letter-spacing:-.03em;margin:12px 0 6px}" +
-  ".afc-desc{font:400 13.5px/1.5 " + SANS + ";color:var(--color-muted-foreground);margin:0}" +
+  ".afc-title{font:700 22px/1.15 " + SANS + ";letter-spacing:-.03em;margin:12px 0 6px}" +
+  ".afc-desc{font:400 14.5px/1.5 " + SANS + ";color:var(--color-muted-foreground);margin:0}" +
   ".afc-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:16px 0;border-radius:14px;box-shadow:0 0 0 1px " + LINE + "}" +
   ".afc-stats div{padding:11px 12px}" +
   ".afc-stats div+div{box-shadow:-1px 0 0 " + LINE + "}" +

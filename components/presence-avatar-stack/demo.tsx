@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import PresenceAvatarStack from "@/components/ui/presence-avatar-stack"
 
 // Free Unsplash portraits, inlined as small WebP so the demo fetches nothing
@@ -36,7 +37,7 @@ const team = [
 
 const bar = {
   width: "100%",
-  maxWidth: 600,
+  maxWidth: 760,
   boxSizing: "border-box" as const,
   display: "flex",
   alignItems: "center",
@@ -48,30 +49,40 @@ const bar = {
 const mono = { fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase" as const }
 
 export default function Demo() {
+  // Bigger faces on wide screens; phones keep them small enough to fit the bars.
+  const [wide, setWide] = useState(true)
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)")
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener("change", on)
+    return () => mq.removeEventListener("change", on)
+  }, [])
+
   return (
-    <div style={{ minHeight: "100svh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 64, padding: "120px 16px", boxSizing: "border-box", background: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div style={{ minHeight: "100svh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 64, padding: "120px 16px", boxSizing: "border-box", background: "radial-gradient(60% 55% at 50% 50%, color-mix(in oklab, #7c5cff 9%, transparent), transparent 75%), color-mix(in oklab, var(--color-foreground) 4%, var(--color-background))", color: "var(--color-foreground)" }}>
       {/* A call bar: its "+N" list opens upward, into the space above. */}
       <div
         style={{
           ...bar,
           color: "#f4f2ff",
-          padding: "16px 18px 16px 22px",
+          padding: "clamp(12px, 2.4vw, 20px) clamp(12px, 2.4vw, 22px) clamp(12px, 2.4vw, 20px) clamp(16px, 3vw, 30px)",
           borderRadius: 999,
           background: "linear-gradient(180deg, #221a45, #120e24)",
           boxShadow: "0 30px 60px -28px rgba(20,10,60,.7), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(255,255,255,.06)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ width: 9, height: 9, flex: "none", borderRadius: 5, background: "#ef4444", boxShadow: "0 0 0 4px rgba(239,68,68,.22)" }} />
+          <span style={{ width: 11, height: 11, flex: "none", borderRadius: 6, background: "#ef4444", boxShadow: "0 0 0 4px rgba(239,68,68,.22)" }} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-.01em", whiteSpace: "nowrap" }}>Design crit</div>
-            <div style={{ ...mono, fontSize: 10, color: "rgba(244,242,255,.5)", marginTop: 4 }}>Live · 12:04</div>
+            <div style={{ fontSize: "clamp(15px, 2.6vw, 21px)", fontWeight: 650, letterSpacing: "-.02em", whiteSpace: "nowrap" }}>Design crit</div>
+            <div style={{ ...mono, fontSize: 12, color: "rgba(244,242,255,.5)", marginTop: 6 }}>Live · 12:04</div>
           </div>
         </div>
         <PresenceAvatarStack
           people={[{ ...team[0], speaking: true }, team[1], team[4], team[2], team[7], team[3]]}
           max={4}
-          size={46}
+          size={wide ? 60 : 36}
           ring="#1b1538"
           side="top"
           align="end"
@@ -80,12 +91,12 @@ export default function Demo() {
       </div>
 
       {/* A doc header: hovered face shown fanned with its tooltip until the pointer arrives. */}
-      <div style={{ ...bar, padding: "18px 22px", borderRadius: 22, boxShadow: "0 0 0 1px var(--color-border), 0 24px 50px -30px rgba(0,0,0,.35)" }}>
+      <div style={{ ...bar, padding: "clamp(16px, 3vw, 26px) clamp(16px, 3.4vw, 30px)", borderRadius: 28, background: "var(--color-background)", boxShadow: "0 0 0 1px var(--color-border), 0 30px 60px -32px rgba(0,0,0,.35)" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ ...mono, color: "var(--color-muted-foreground)" }}>Editing now</div>
-          <div style={{ fontSize: 18, fontWeight: 650, marginTop: 6, letterSpacing: "-.02em", whiteSpace: "nowrap" }}>Q4 launch plan</div>
+          <div style={{ fontSize: "clamp(17px, 3.2vw, 26px)", fontWeight: 650, marginTop: 8, letterSpacing: "-.02em", whiteSpace: "nowrap" }}>Q4 launch plan</div>
         </div>
-        <PresenceAvatarStack people={team} max={4} size={42} label="Editing now" align="end" peek={1} />
+        <PresenceAvatarStack people={team} max={wide ? 4 : 3} size={wide ? 56 : 34} label="Editing now" align="end" peek={1} />
       </div>
     </div>
   )
