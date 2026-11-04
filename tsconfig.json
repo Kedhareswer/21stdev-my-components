@@ -226,6 +226,7 @@
       "@/components/ui/halo-ai-composer": ["./components/halo-ai-composer/halo-ai-composer.tsx"],
       "@/components/ui/cascade-signup-form": ["./components/cascade-signup-form/cascade-signup-form.tsx"],
       "@/components/ui/ripple-toast-stack": ["./components/ripple-toast-stack/ripple-toast-stack.tsx"],
+      "@/components/ui/lissajous-orbit-loader": ["./components/lissajous-orbit-loader/lissajous-orbit-loader.tsx"],
       "@/components/ui/rotating-flavor-slider": ["./components/rotating-flavor-slider/rotating-flavor-slider.tsx"]
     }
   },
