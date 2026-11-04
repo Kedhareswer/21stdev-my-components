@@ -29,7 +29,7 @@ function Stage({ dark }: { dark?: boolean }) {
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[640px] w-full flex-col items-center justify-center gap-6 bg-background px-4 py-16">
+    <div className="flex min-h-[max(640px,100svh)] w-full flex-col items-center justify-center gap-6 bg-background px-4 py-16">
       <Stage />
       <Stage dark />
     </div>

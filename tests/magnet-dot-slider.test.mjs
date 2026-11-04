@@ -33,7 +33,7 @@ for (const m of flat.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
 }
 assert.ok(rules >= 18, "the scope check saw real rules, saw " + rules)
 assert.match(flat, /@media \(prefers-reduced-motion:reduce\)/, "CSS honours reduced motion")
-const allowed = new Set(["--mds-from", "--mds-to", "--mds-font", "--c"])
+const allowed = new Set(["--mds-from", "--mds-to", "--mds-font", "--c", "--sy"])
 for (const [, v] of src.matchAll(/var\((--[a-z0-9-]+)/g)) assert.ok(allowed.has(v), "token not guaranteed in a host: " + v)
 assert.deepEqual([...src.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]), [], "the component fetches nothing itself")
 
@@ -88,5 +88,12 @@ assert.equal(L.fracOf(3800, 2700, 6500), 1100 / 3800)
 assert.equal(L.fracOf(5, 5, 5), 0)
 assert.equal(L.mix("#000000", "#ffffff", 0.5), "#808080")
 assert.equal(L.mix("#ffcf6b", "#ff5d3a", 0), "#ffcf6b")
+const rest = 4 / 30
+assert.equal(L.barScale(0, 0, rest), rest, "at rest a far dot is a dot")
+assert.equal(L.barScale(0, 1, rest), 1, "active, a far bar stands full height")
+assert.ok(Math.abs(L.barScale(1, 1, rest) - 0.2) < 1e-9, "active, the bar under the thumb is carved down into the pit")
+assert.ok(L.barScale(0.5, 0.5, rest) > rest && L.barScale(0.5, 0.5, rest) < 1, "blends while the field rises")
+assert.ok(src.includes("Math.abs(s.actT - s.act) > 0.002"), "the loop keeps running until the field has settled")
+assert.ok(src.includes("onPointerEnter={() => {") && src.includes("activate(sim.current.over)"), "hover raises the field; release keeps it only while still over")
 
 console.log(slug + ": ok")

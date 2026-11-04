@@ -10,7 +10,7 @@ function Post({ dark }: { dark?: boolean }) {
   const mute = dark ? "#9c8a91" : "#9a868d"
   return (
     <article
-      className="w-full max-w-[380px] rounded-[26px] p-6"
+      className="w-full max-w-[440px] rounded-[28px] p-7"
       style={{
         fontFamily: sans,
         color: ink,
@@ -29,7 +29,7 @@ function Post({ dark }: { dark?: boolean }) {
           <p className="text-[12px]" style={{ color: mute }}>{dark ? "@noor.builds · 2h" : "@adamarlow · 14m"}</p>
         </div>
       </header>
-      <p className="mt-4 text-[21px] leading-[1.3]" style={{ fontFamily: serif, letterSpacing: "-0.01em" }}>
+      <p className="mt-5 text-[24px] leading-[1.28]" style={{ fontFamily: serif, letterSpacing: "-0.01em" }}>
         {dark
           ? "Shipped the offline mode at 2 a.m. The sync conflict screen is the part I'm proudest of."
           : "Took the 6:04 ferry just to watch the fog peel off the harbour. Worth every yawn."}
@@ -44,7 +44,7 @@ function Post({ dark }: { dark?: boolean }) {
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[560px] w-full flex-wrap items-center justify-center gap-6 bg-background px-4 py-16">
+    <div className="flex min-h-[max(560px,100svh)] w-full flex-wrap items-center justify-center gap-6 bg-background px-4 py-16">
       <Post />
       <Post dark />
     </div>

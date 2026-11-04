@@ -23,9 +23,9 @@ export interface TitaniumDockProps {
   "aria-label"?: string
 }
 
-const SIZE = 54
-const GAP = 10
-const PAD = 9
+const SIZE = 62
+const GAP = 12
+const PAD = 10
 
 const CSS =
   ".tdk-root{--tdk-s:" + SIZE + "px;--tdk-g:" + GAP + "px;--tdk-a:#f6f7f9;--tdk-b:#d4d7dc;--tdk-c:#b9bdc4;--tdk-ink:#2b2e33;--tdk-dim:#7b8089;--tdk-line:rgba(255,255,255,.55);--tdk-shadow:rgba(30,35,45,.28);position:relative;display:inline-flex;max-width:100%;font-family:'Geist','Inter','SF Pro Text','Segoe UI Variable Text',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}" +
@@ -36,16 +36,16 @@ const CSS =
   "box-shadow:inset 0 1px 0 var(--tdk-line),inset 0 -1px 0 rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.08),0 2px 3px var(--tdk-shadow),0 18px 36px -16px var(--tdk-shadow),0 40px 60px -40px var(--tdk-shadow)}" +
   ".tdk-root[data-finish=graphite] .tdk-bar{background:radial-gradient(160px 70px at var(--tdk-hx,50%) 0%,rgba(255,255,255,.16),transparent 70%),repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,rgba(0,0,0,.08) 1px 2px,transparent 2px 3px),linear-gradient(180deg,var(--tdk-a),var(--tdk-b) 50%,var(--tdk-c))}" +
   // the bezel: a raised, polished cup with an anodised heat-tint rim that springs between items
-  ".tdk-bezel{position:absolute;left:" + PAD + "px;top:" + PAD + "px;width:var(--tdk-s);height:var(--tdk-s);border-radius:17px;z-index:0;pointer-events:none;" +
+  ".tdk-bezel{position:absolute;left:" + PAD + "px;top:" + PAD + "px;width:var(--tdk-s);height:var(--tdk-s);border-radius:20px;z-index:0;pointer-events:none;" +
   "transform:translateX(calc(var(--tdk-i)*(var(--tdk-s) + var(--tdk-g)))) scaleX(var(--tdk-sx,1));transition:transform .62s cubic-bezier(.3,1.35,.4,1)}" +
-  ".tdk-bezel::before{content:'';position:absolute;inset:-2px;border-radius:19px;padding:2px;background:conic-gradient(from var(--tdk-rot,200deg),#f0c27a,#d47ccf,#6c7cff,#58d5e6,#f0c27a);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);filter:saturate(1.15);transition:--tdk-rot .9s cubic-bezier(.3,1,.4,1)}" +
-  ".tdk-bezel::after{content:'';position:absolute;inset:0;border-radius:17px;background:radial-gradient(120% 90% at 30% 0%,#ffffff,#eceef1 40%,#cdd1d7 100%);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.12),0 2px 4px rgba(20,25,35,.25),0 10px 18px -8px rgba(20,25,35,.45)}" +
+  ".tdk-bezel::before{content:'';position:absolute;inset:-2px;border-radius:22px;padding:2px;background:conic-gradient(from var(--tdk-rot,200deg),#f0c27a,#d47ccf,#6c7cff,#58d5e6,#f0c27a);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);filter:saturate(1.15);transition:--tdk-rot .9s cubic-bezier(.3,1,.4,1)}" +
+  ".tdk-bezel::after{content:'';position:absolute;inset:0;border-radius:20px;background:radial-gradient(120% 90% at 30% 0%,#ffffff,#eceef1 40%,#cdd1d7 100%);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,.12),0 2px 4px rgba(20,25,35,.25),0 10px 18px -8px rgba(20,25,35,.45)}" +
   ".tdk-root[data-finish=graphite] .tdk-bezel::after{background:radial-gradient(120% 90% at 30% 0%,#7a7f88,#4b4f56 45%,#2c2f34 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 5px rgba(0,0,0,.4),0 2px 4px rgba(0,0,0,.5),0 10px 18px -8px rgba(0,0,0,.7)}" +
   "@property --tdk-rot{syntax:'<angle>';inherits:true;initial-value:200deg}" +
-  ".tdk-item{position:relative;z-index:1;display:grid;place-items:center;width:var(--tdk-s);height:var(--tdk-s);flex:none;border:0;border-radius:16px;background:none;color:var(--tdk-dim);cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transition:color .3s}" +
+  ".tdk-item{position:relative;z-index:1;display:grid;place-items:center;width:var(--tdk-s);height:var(--tdk-s);flex:none;border:0;border-radius:19px;background:none;color:var(--tdk-dim);cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transition:color .3s}" +
   ".tdk-item:hover,.tdk-item[aria-current=true]{color:var(--tdk-ink)}" +
   ".tdk-item:focus-visible{box-shadow:0 0 0 2px var(--tdk-ink)}" +
-  ".tdk-ico{display:block;width:24px;height:24px;transform:translateY(calc(var(--tdk-m,0)*-7px)) scale(calc(1 + var(--tdk-m,0)*var(--tdk-mag)));transition:transform .28s cubic-bezier(.3,1.4,.5,1)}" +
+  ".tdk-ico{display:block;width:26px;height:26px;transform:translateY(calc(var(--tdk-m,0)*-7px)) scale(calc(1 + var(--tdk-m,0)*var(--tdk-mag)));transition:transform .28s cubic-bezier(.3,1.4,.5,1)}" +
   ".tdk-ico svg{display:block;width:100%;height:100%}" +
   ".tdk-item[aria-current=true] .tdk-ico{filter:drop-shadow(0 1px 0 rgba(255,255,255,.6))}" +
   ".tdk-item:active .tdk-ico{transform:scale(.88);transition-duration:.1s}" +
@@ -58,7 +58,7 @@ const CSS =
   ".tdk-item[aria-current=true] .tdk-dot{opacity:.55;transform:none}" +
   ".tdk-root:not([data-in]) .tdk-bar{opacity:0;transform:translateY(14px) scale(.96)}.tdk-root[data-in] .tdk-bar{transition:opacity .5s,transform .8s cubic-bezier(.3,1.4,.5,1)}" +
   ".tdk-root:not([data-in]) .tdk-item{opacity:0;transform:translateY(10px)}.tdk-root[data-in] .tdk-item{transition:color .3s,opacity .4s calc(var(--n)*55ms + .12s),transform .6s calc(var(--n)*55ms + .12s) cubic-bezier(.3,1.5,.5,1)}" +
-  "@media (max-width:400px){.tdk-root{--tdk-s:46px;--tdk-g:5px}}" +
+  "@media (max-width:420px){.tdk-root{--tdk-s:48px;--tdk-g:5px}}" +
   "@media (prefers-reduced-motion:reduce){.tdk-bezel,.tdk-ico,.tdk-tip,.tdk-bar,.tdk-item,.tdk-bezel::before{transition-duration:.01ms!important;transition-delay:0s!important}.tdk-ico{transform:none!important}}"
 
 // #region dock

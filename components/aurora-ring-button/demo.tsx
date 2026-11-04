@@ -6,7 +6,7 @@ const sans = "'Geist','Inter','SF Pro Display','Segoe UI Variable Display',ui-sa
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[640px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(640px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div className="grid w-full max-w-[860px] gap-5 md:grid-cols-[1.25fr_1fr]" style={{ fontFamily: sans }}>
         <section
           className="relative flex flex-col items-start overflow-hidden rounded-[30px] p-8 sm:p-10"

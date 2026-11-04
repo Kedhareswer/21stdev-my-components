@@ -23,6 +23,8 @@ export interface MagnetDotSliderProps {
 
 const FONT = "'Geist','Inter','SF Pro Text','Segoe UI Variable Text',ui-sans-serif,system-ui,sans-serif"
 
+const BAR = 30
+
 const CSS =
   ".mds-root{--mds-from:#ffcf6b;--mds-to:#ff5d3a;position:relative;width:100%;max-width:520px;padding:22px 22px 26px;border-radius:24px;color:#ece9e4;font-family:var(--mds-font);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;" +
   "background:radial-gradient(120% 140% at 50% -40%,#24262c 0%,#141519 55%,#0c0d10 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 1px rgba(255,255,255,.04),0 2px 4px rgba(0,0,0,.25),0 30px 60px -30px rgba(0,0,0,.75)}" +
@@ -30,18 +32,18 @@ const CSS =
   ".mds-lbl{font-size:14px;font-weight:560;color:#cfcac2;letter-spacing:-.005em}" +
   ".mds-out{font-size:22px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;background:linear-gradient(90deg,var(--mds-from),var(--mds-to));-webkit-background-clip:text;background-clip:text;color:transparent}" +
   ".mds-out small{font-size:14px;margin-left:2px;opacity:.8}" +
-  ".mds-track{position:relative;height:34px;border-radius:999px;cursor:pointer;touch-action:pan-y;outline:none;" +
+  ".mds-track{position:relative;height:44px;border-radius:999px;cursor:pointer;touch-action:pan-y;outline:none;" +
   "background:linear-gradient(180deg,#0a0b0d,#16171b);box-shadow:inset 0 2px 5px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,255,255,.05),0 1px 0 rgba(255,255,255,.06)}" +
   ".mds-track:focus-visible{box-shadow:inset 0 2px 5px rgba(0,0,0,.7),0 0 0 2px #0c0d10,0 0 0 4px var(--mds-to)}" +
   ".mds-row{position:absolute;inset:0 17px;pointer-events:none}" +
-  ".mds-d{position:absolute;top:50%;left:0;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#3b3e46;will-change:transform}" +
+  ".mds-d{position:absolute;top:50%;left:0;width:4px;height:" + BAR + "px;margin:-" + BAR / 2 + "px 0 0 -2px;border-radius:2px/calc(2px / var(--sy,1));background:#3b3e46;will-change:transform}" +
   ".mds-d[data-lit]{background:var(--c);box-shadow:0 0 6px var(--c)}" +
   // the pit: a recessed lens with a hot rim; it never reads layout, only the stored x
   ".mds-pit{position:absolute;top:50%;left:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;pointer-events:none;will-change:transform;" +
   "background:radial-gradient(circle at 50% 60%,#050506 0 38%,#1b1c20 62%,#2e3036 100%);box-shadow:inset 0 2px 4px rgba(0,0,0,.9),inset 0 -1px 1px rgba(255,255,255,.18),0 0 0 1.5px color-mix(in oklab,var(--mds-to) 70%,#fff),0 0 18px 2px color-mix(in oklab,var(--mds-to) 55%,transparent),0 0 40px 6px color-mix(in oklab,var(--mds-from) 22%,transparent)}" +
   ".mds-pit::after{content:'';position:absolute;inset:7px;border-radius:50%;background:radial-gradient(circle,var(--mds-from),transparent 70%);opacity:.35;transition:opacity .3s}" +
   ".mds-root[data-drag] .mds-pit::after{opacity:.9}" +
-  ".mds-tip{position:absolute;bottom:calc(100% + 10px);left:0;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:#16110c;white-space:nowrap;background:linear-gradient(180deg,var(--mds-from),color-mix(in oklab,var(--mds-from) 60%,var(--mds-to)));box-shadow:0 6px 14px -6px color-mix(in oklab,var(--mds-to) 70%,transparent);opacity:0;transform:translateX(-50%) translateY(6px) scale(.9);transition:opacity .2s,transform .35s cubic-bezier(.3,1.6,.5,1);pointer-events:none}" +
+  ".mds-tip{position:absolute;bottom:calc(100% + 12px);left:0;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:#16110c;white-space:nowrap;background:linear-gradient(180deg,var(--mds-from),color-mix(in oklab,var(--mds-from) 60%,var(--mds-to)));box-shadow:0 6px 14px -6px color-mix(in oklab,var(--mds-to) 70%,transparent);opacity:0;transform:translateX(-50%) translateY(6px) scale(.9);transition:opacity .2s,transform .35s cubic-bezier(.3,1.6,.5,1);pointer-events:none}" +
   ".mds-tipw{position:absolute;top:0;left:0;will-change:transform}" +
   ".mds-root[data-drag] .mds-tip,.mds-track:focus-visible .mds-tip{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}" +
   ".mds-ticks{display:flex;justify-content:space-between;margin-top:12px;padding:0 17px;font-size:11px;color:#6d6a66;font-variant-numeric:tabular-nums}" +
@@ -61,6 +63,13 @@ export function spring(pos: number, vel: number, target: number, dt: number, k =
   const a = k * (target - pos) - c * vel
   const v = vel + a * h
   return [pos + v * h, v]
+}
+
+/** Bar height (as a scale of the full bar) for a dot: a round dot at rest, a bar with a pit carved round the thumb when active. */
+export function barScale(p: number, act: number, rest: number) {
+  const dot = rest * (1 + p * 1.5)
+  const bar = 1 - 0.8 * p
+  return dot + (bar - dot) * act
 }
 
 /** Snap a 0..1 fraction to the step grid and return the value. */
@@ -104,7 +113,7 @@ export default function MagnetDotSlider({
   const row = useRef(null as HTMLDivElement | null)
   const pit = useRef(null as HTMLDivElement | null)
   const tip = useRef(null as HTMLDivElement | null)
-  const sim = useRef({ pos: fracOf(v, min, max), vel: 0, target: fracOf(v, min, max), w: 0, left: 0, raf: 0, last: 0, reduced: false })
+  const sim = useRef({ pos: fracOf(v, min, max), vel: 0, target: fracOf(v, min, max), w: 0, left: 0, raf: 0, last: 0, reduced: false, act: 0, actT: 0, over: false })
 
   const setValue = (nv: number) => {
     if (nv === v) return
@@ -119,14 +128,18 @@ export default function MagnetDotSlider({
     if (!r || !s.w) return
     const x = s.pos * s.w
     const speed = Math.min(1, Math.abs(s.vel) * 0.35)
-    const reach = 66 + speed * 50
+    const a = s.act
+    const reach = 66 + speed * 50 + a * 40
+    const rest = 4 / BAR
     const kids = r.children
     for (let i = 0; i < kids.length; i++) {
       const dx0 = (i / (kids.length - 1)) * s.w
       const dx = dx0 - x
       const p = pull(dx, reach)
       const el = kids[i] as HTMLElement
-      el.style.transform = "translateX(" + (dx0 - Math.sign(dx) * p * (13 + speed * 10)).toFixed(2) + "px) scale(" + (1 + p * 1.5).toFixed(3) + ")"
+      const sy = barScale(p, a, rest)
+      el.style.setProperty("--sy", sy.toFixed(3))
+      el.style.transform = "translateX(" + (dx0 - Math.sign(dx) * p * (13 + speed * 10) * (1 - a * 0.6)).toFixed(2) + "px) scale(" + (1 + p * 1.5 * (1 - a)).toFixed(3) + "," + sy.toFixed(3) + ")"
       const lit = dx0 <= x
       if (lit !== el.hasAttribute("data-lit")) lit ? el.setAttribute("data-lit", "") : el.removeAttribute("data-lit")
     }
@@ -139,11 +152,14 @@ export default function MagnetDotSlider({
     const dt = s.last ? (t - s.last) / 1000 : 1 / 60
     s.last = t
     ;[s.pos, s.vel] = s.reduced ? [s.target, 0] : spring(s.pos, s.vel, s.target, dt)
+    // the field rises into bars while the slider is in use and settles back to dots after
+    s.act = s.reduced ? s.actT : s.act + (s.actT - s.act) * Math.min(1, dt * 9)
     paint()
-    if (Math.abs(s.target - s.pos) > 0.0005 || Math.abs(s.vel) > 0.002) s.raf = requestAnimationFrame(tick)
+    if (Math.abs(s.target - s.pos) > 0.0005 || Math.abs(s.vel) > 0.002 || Math.abs(s.actT - s.act) > 0.002) s.raf = requestAnimationFrame(tick)
     else {
       s.pos = s.target
       s.vel = 0
+      s.act = s.actT
       s.raf = 0
       s.last = 0
       paint()
@@ -182,6 +198,11 @@ export default function MagnetDotSlider({
     }
   }, [])
 
+  const activate = (on: boolean) => {
+    sim.current.actT = on ? 1 : 0
+    kick()
+  }
+
   const fromPointer = (clientX: number) => (clientX - sim.current.left - 17) / (sim.current.w || 1)
 
   const onDown = (e: React.PointerEvent) => {
@@ -195,6 +216,7 @@ export default function MagnetDotSlider({
     if (!sim.current.w) sim.current.w = r.width - 34
     t.setPointerCapture?.(e.pointerId)
     setDrag(true)
+    activate(true)
     const f = fromPointer(e.clientX)
     sim.current.target = Math.min(1, Math.max(0, f))
     setValue(valueAt(f, min, max, step))
@@ -210,6 +232,7 @@ export default function MagnetDotSlider({
   const onUp = () => {
     if (!drag) return
     setDrag(false)
+    activate(sim.current.over)
     sim.current.target = fracOf(v, min, max)
     kick()
   }
@@ -257,6 +280,16 @@ export default function MagnetDotSlider({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
+        onPointerEnter={() => {
+          sim.current.over = true
+          activate(true)
+        }}
+        onPointerLeave={() => {
+          sim.current.over = false
+          if (!drag) activate(false)
+        }}
+        onFocus={(e) => e.currentTarget.matches(":focus-visible") && activate(true)}
+        onBlur={() => !sim.current.over && activate(false)}
         onKeyDown={onKey}
       >
         <div ref={row} className="mds-row">

@@ -7,7 +7,7 @@ const sans = "'Geist','Inter','SF Pro Text','Segoe UI Variable Text',ui-sans-ser
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[620px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(620px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="relative w-full max-w-[720px] overflow-hidden rounded-[28px] px-7 py-12 sm:px-14 sm:py-16"
         style={{

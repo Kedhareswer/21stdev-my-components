@@ -11,7 +11,7 @@ export default function Demo() {
   // the lamp preview warms and brightens with the sliders
   const warm = Math.min(1, Math.max(0, (6500 - kelvin) / 3800))
   return (
-    <div className="flex min-h-[680px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(680px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="w-full max-w-[560px] rounded-[32px] p-4 sm:p-5"
         style={{

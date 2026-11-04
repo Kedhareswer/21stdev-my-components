@@ -10,7 +10,7 @@ export default function Demo() {
   const [temp, setTemp] = useState(93.5)
   const [dose, setDose] = useState(18.2)
   return (
-    <div className="flex min-h-[720px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(720px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="w-full max-w-[600px] rounded-[34px] p-4 sm:p-5"
         style={{ fontFamily: sans, background: "linear-gradient(180deg,#e9e4dc,#ddd6cb)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.7), 0 40px 80px -40px rgba(60,45,30,.45)" }}

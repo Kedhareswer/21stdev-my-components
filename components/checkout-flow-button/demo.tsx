@@ -13,7 +13,7 @@ const lines = [
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[620px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(620px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="w-full max-w-[440px] rounded-[30px] p-6 sm:p-8"
         style={{

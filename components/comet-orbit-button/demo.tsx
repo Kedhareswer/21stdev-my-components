@@ -7,7 +7,7 @@ let attempts = 0
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[600px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(600px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="relative w-full max-w-[420px] overflow-hidden rounded-[30px] p-7 text-[#f4efe6] sm:p-9"
         style={{

@@ -4,7 +4,7 @@ import CubeRollButton from "@/components/ui/cube-roll-button"
 
 export default function Demo() {
   return (
-    <div className="flex min-h-[560px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(560px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="relative w-full max-w-[640px] overflow-hidden rounded-[28px] px-6 py-14 text-center sm:px-12"
         style={{

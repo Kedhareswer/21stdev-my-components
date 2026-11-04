@@ -12,7 +12,7 @@ const files = [
 export default function Demo() {
   const [gone, setGone] = useState(-1)
   return (
-    <div className="flex min-h-[620px] w-full items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[max(620px,100svh)] w-full items-center justify-center bg-background px-4 py-16">
       <div
         className="w-full max-w-[520px] rounded-[26px] p-3"
         style={{
