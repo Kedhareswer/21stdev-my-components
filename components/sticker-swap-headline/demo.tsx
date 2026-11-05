@@ -14,14 +14,5 @@ const words: StickerWord[] = [
 ]
 
 export default function Demo() {
-  return (
-    <StickerSwapHeadline
-      lead="Stay"
-      words={words}
-      eyebrow="Ripe Studio — brand & packaging"
-      description="We make labels, boxes and whole brands for food and music people who would rather be remembered than liked."
-      primaryCta={{ label: "Start a project", href: "#" }}
-      secondaryCta={{ label: "See the work", href: "#" }}
-    />
-  )
+  return <StickerSwapHeadline lead="Stay" words={words} />
 }

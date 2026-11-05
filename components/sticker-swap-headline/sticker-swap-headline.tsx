@@ -3,9 +3,9 @@
 import * as React from "react"
 import gsap from "gsap"
 
-// A poster-weight headline whose last word keeps changing. The outgoing letters
-// tip up and away, the next word springs up from the baseline, and a round photo
-// sticker slaps down in place of its "O", squashes, and settles with a shadow.
+// A poster-weight headline whose last word keeps changing. On each change the
+// sticker pops off, the word line rolls up to the next word, a gap opens where
+// its "O" was, and a round photo sticker pops into the gap.
 
 export type StickerWord = {
   /** The word. Its first "O" becomes the sticker; with no "O" the sticker lands after it. */
@@ -25,7 +25,6 @@ export type StickerSwapHeadlineProps = {
   /** First line, fixed. */
   lead?: string
   words: StickerWord[]
-  eyebrow?: string
   description?: React.ReactNode
   primaryCta?: StickerCta
   secondaryCta?: StickerCta
@@ -54,14 +53,15 @@ export function wrap(i: number, n: number): number {
   return n > 0 ? ((i % n) + n) % n : 0
 }
 
-/** "01" style counter. */
-export function pad2(n: number): string {
-  return n < 10 ? "0" + n : String(n)
-}
-
 /** Default tilt so neighbouring stickers lean different ways. */
 export function tiltFor(i: number, tilt?: number): number {
   return typeof tilt === "number" ? tilt : [-8, 6, -4, 9][i % 4]
+}
+
+/** Splits a word around its sticker slot: [before, after]. */
+export function splitAt(word: string): [string, string] {
+  const s = stickerSlot(word)
+  return s < 0 ? [word, ""] : [word.slice(0, s), word.slice(s + 1)]
 }
 // #endregion
 
@@ -71,76 +71,63 @@ const CSS =
   FONT +
   ".ssh-root{position:relative;width:100%;overflow:hidden;isolation:isolate;display:flex;align-items:center;justify-content:center;color:var(--ssh-ink);background:var(--ssh-paper);font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif}" +
   ".ssh-root *{box-sizing:border-box}" +
-  ".ssh-grain{position:absolute;inset:-50%;z-index:0;pointer-events:none;opacity:.22;mix-blend-mode:multiply;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")}" +
-  ".ssh-vignette{position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(60,35,10,.16) 100%)}" +
-  ".ssh-inner{position:relative;z-index:1;width:100%;max-width:1280px;padding:0 24px;container-type:inline-size;display:flex;flex-direction:column;align-items:center;text-align:center}" +
-  ".ssh-eyebrow{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;opacity:.75}" +
-  ".ssh-count{font-variant-numeric:tabular-nums}" +
-  ".ssh-bar{position:relative;width:56px;height:2px;border-radius:2px;background:color-mix(in oklab,var(--ssh-ink) 18%,transparent);overflow:hidden}" +
-  ".ssh-bar>i{position:absolute;inset:0;background:var(--ssh-accent);transform-origin:0 50%;transform:scaleX(0)}" +
-  ".ssh-h{margin:22px 0 0;font-family:var(--ssh-font);font-weight:400;text-transform:uppercase;font-size:clamp(64px,21cqi,300px);line-height:.84;letter-spacing:-.005em}" +
+  ".ssh-inner{position:relative;width:100%;max-width:1280px;padding:0 24px;container-type:inline-size;display:flex;flex-direction:column;align-items:center;text-align:center}" +
+  ".ssh-h{margin:0;font-family:var(--ssh-font);font-weight:400;text-transform:uppercase;font-size:clamp(64px,25cqi,340px);line-height:.86;letter-spacing:-.005em}" +
   ".ssh-line{display:block;white-space:nowrap}" +
-  ".ssh-word{cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}" +
-  ".ssh-word:focus-visible{outline:2px solid var(--ssh-accent);outline-offset:8px;border-radius:6px}" +
-  ".ssh-ch{display:inline-block;will-change:transform}" +
-  ".ssh-stk{position:relative;display:inline-block;width:.76em;height:.76em;margin:0 .015em;vertical-align:-.03em;will-change:transform}" +
-  ".ssh-shadow{position:absolute;inset:6% 4% -4% 6%;border-radius:50%;background:rgba(40,22,6,.5);filter:blur(.05em);transform:translate(.03em,.05em)}" +
-  ".ssh-disc{position:absolute;inset:0;border-radius:50%;background:#fbf8f2;padding:.045em;box-shadow:0 0 0 .006em rgba(0,0,0,.08),inset 0 -.01em .02em rgba(0,0,0,.08)}" +
-  ".ssh-disc>img{display:block;width:100%;height:100%;max-width:none;border-radius:50%;object-fit:cover;user-select:none;-webkit-user-drag:none}" +
+  ".ssh-reel{position:relative;display:block;overflow:hidden;padding:.07em 0;margin:-.07em 0}" +
+  ".ssh-word{display:block;white-space:nowrap;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}" +
+  ".ssh-word.is-out{position:absolute;left:0;right:0;top:.07em;pointer-events:none}" +
+  ".ssh-word:focus-visible{outline:2px solid var(--ssh-accent);outline-offset:4px;border-radius:6px}" +
+  ".ssh-part{display:inline-block}" +
+  ".ssh-slot{position:relative;display:inline-block;width:.74em;height:.74em;margin:0 .02em;vertical-align:-.02em}" +
+  ".ssh-stk{position:absolute;inset:0;border-radius:50%;background:#fbf8f2;padding:.04em;box-shadow:0 .03em .06em rgba(40,22,6,.28)}" +
+  ".ssh-stk>img{display:block;width:100%;height:100%;max-width:none;border-radius:50%;object-fit:cover;user-select:none;-webkit-user-drag:none}" +
   ".ssh-spin>img{animation:ssh-spin 6s linear infinite}" +
-  ".ssh-gloss{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:linear-gradient(140deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.08) 34%,transparent 50%,rgba(0,0,0,.08) 100%);mix-blend-mode:screen}" +
-  ".ssh-stk:hover .ssh-disc{animation:ssh-wiggle .5s cubic-bezier(.3,1.6,.5,1)}" +
-  ".ssh-desc{margin:30px 0 0;max-width:34ch;font-size:clamp(15px,1.6cqi,18px);line-height:1.55;opacity:.78;text-wrap:balance}" +
-  ".ssh-ctas{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:30px}" +
-  ".ssh-btn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:transform .35s cubic-bezier(.3,1.5,.5,1),box-shadow .35s,background-color .25s}" +
-  ".ssh-btn:active{transform:scale(.96)}" +
+  ".ssh-desc{margin:32px 0 0;max-width:36ch;font-size:clamp(15px,1.5cqi,18px);line-height:1.55;opacity:.72;text-wrap:balance}" +
+  ".ssh-ctas{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:28px}" +
+  ".ssh-btn{display:inline-flex;align-items:center;height:46px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:transform .2s cubic-bezier(.2,.8,.2,1),background-color .2s}" +
+  ".ssh-btn:active{transform:scale(.97)}" +
   ".ssh-btn:focus-visible{outline:2px solid var(--ssh-ink);outline-offset:3px}" +
-  ".ssh-primary{background:var(--ssh-accent);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 10px 24px -10px var(--ssh-accent)}" +
-  ".ssh-primary:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 16px 30px -12px var(--ssh-accent)}" +
-  ".ssh-primary svg{transition:transform .35s cubic-bezier(.3,1.5,.5,1)}" +
-  ".ssh-primary:hover svg{transform:translateX(3px) rotate(-45deg)}" +
-  ".ssh-ghost{background:transparent;color:var(--ssh-ink);box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--ssh-ink) 30%,transparent)}" +
-  ".ssh-ghost:hover{background:color-mix(in oklab,var(--ssh-ink) 7%,transparent);transform:translateY(-2px)}" +
-  ".ssh-mark{position:absolute;z-index:1;width:18px;height:18px;pointer-events:none;opacity:.45;border-color:var(--ssh-ink);border-style:solid;border-width:0}" +
-  ".ssh-mark.tl{top:22px;left:22px;border-top-width:1px;border-left-width:1px}.ssh-mark.tr{top:22px;right:22px;border-top-width:1px;border-right-width:1px}.ssh-mark.bl{bottom:22px;left:22px;border-bottom-width:1px;border-left-width:1px}.ssh-mark.br{bottom:22px;right:22px;border-bottom-width:1px;border-right-width:1px}" +
-  ".ssh-foot{position:absolute;z-index:1;left:52px;right:52px;bottom:24px;display:flex;justify-content:space-between;gap:16px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;opacity:.55;pointer-events:none}" +
-  ".ssh-foot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-  "@container (max-width:560px){.ssh-h{font-size:clamp(56px,30cqi,300px);line-height:.88}.ssh-eyebrow{flex-wrap:wrap;justify-content:center;row-gap:8px}.ssh-eyebrow>span:first-child{flex-basis:100%}}" +
-  "@media (max-width:560px){.ssh-foot{left:24px;right:24px;bottom:22px}.ssh-foot>span+span{display:none}.ssh-mark{display:none}}" +
+  ".ssh-primary{background:var(--ssh-ink);color:var(--ssh-paper)}" +
+  ".ssh-ghost{background:transparent;color:var(--ssh-ink);box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--ssh-ink) 25%,transparent)}" +
+  ".ssh-ghost:hover{background:color-mix(in oklab,var(--ssh-ink) 6%,transparent)}" +
+  "@container (max-width:560px){.ssh-h{font-size:clamp(52px,30cqi,340px);line-height:.9}}" +
   ".ssh-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
   "@keyframes ssh-spin{to{transform:rotate(360deg)}}" +
-  "@keyframes ssh-wiggle{0%{transform:rotate(0)}30%{transform:rotate(-9deg) scale(1.04)}65%{transform:rotate(6deg)}100%{transform:rotate(0)}}" +
-  "@media (prefers-reduced-motion:reduce){.ssh-spin>img,.ssh-stk:hover .ssh-disc{animation:none}.ssh-btn,.ssh-primary svg{transition:none}}"
-
-const Arrow = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
+  "@media (prefers-reduced-motion:reduce){.ssh-spin>img{animation:none}.ssh-btn{transition:none}}"
 
 function Cta({ cta, kind }: { cta: StickerCta; kind: "primary" | "ghost" }) {
   const cls = "ssh-btn ssh-" + kind
-  const inner = (
-    <>
-      {cta.label}
-      {kind === "primary" ? <Arrow /> : null}
-    </>
-  )
   return cta.href ? (
     <a className={cls} href={cta.href} onClick={cta.onClick}>
-      {inner}
+      {cta.label}
     </a>
   ) : (
     <button type="button" className={cls} onClick={cta.onClick}>
-      {inner}
+      {cta.label}
     </button>
+  )
+}
+
+function Word({ w, i }: { w: StickerWord; i: number }) {
+  const [before, after] = splitAt(w.word)
+  const tilt = tiltFor(i, w.tilt)
+  return (
+    <>
+      <span className="ssh-part ssh-before">{before}</span>
+      <span className="ssh-slot">
+        <span className={"ssh-stk" + (w.spin ? " ssh-spin" : "")} style={{ transform: "rotate(" + tilt + "deg)" }} data-tilt={tilt}>
+          <img src={w.sticker} alt="" draggable={false} width={320} height={320} />
+        </span>
+      </span>
+      {after ? <span className="ssh-part ssh-after">{after}</span> : null}
+    </>
   )
 }
 
 export default function StickerSwapHeadline({
   lead = "Stay",
   words,
-  eyebrow = "Independent studio",
   description,
   primaryCta,
   secondaryCta,
@@ -154,35 +141,25 @@ export default function StickerSwapHeadline({
   onChange,
 }: StickerSwapHeadlineProps) {
   const root = React.useRef(null as HTMLElement | null)
-  const wordEl = React.useRef(null as HTMLSpanElement | null)
-  const barEl = React.useRef(null as HTMLElement | null)
+  const reel = React.useRef(null as HTMLSpanElement | null)
   const busy = React.useRef(false)
   const first = React.useRef(true)
   const visible = React.useRef(true)
   const reduced = React.useRef(false)
-  const [index, setIndex] = React.useState(0)
+  const [state, setState] = React.useState({ index: 0, prev: -1 })
   const n = words.length
-  const current = words[wrap(index, n)]
+  const index = wrap(state.index, n)
+  const current = words[index]
 
+  // Step 1 of a change: the sticker pops off. The roll starts once it is gone.
   const advance = React.useCallback(() => {
-    const el = wordEl.current
-    if (busy.current || n < 2 || !el) return
+    const r = reel.current
+    if (busy.current || n < 2 || !r) return
     busy.current = true
-    const letters = el.querySelectorAll(".ssh-ch")
-    const stk = el.querySelector(".ssh-stk")
-    const done = () => setIndex((i) => wrap(i + 1, n))
-    if (reduced.current) {
-      gsap.to(el, { opacity: 0, duration: 0.25, onComplete: done })
-      return
-    }
-    const tl = gsap.timeline({ onComplete: done })
-    // Letters drop off the line, each tipping its own way.
-    tl.to(letters, { yPercent: 38, rotate: (i: number) => (i % 2 ? 11 : -9) + (i % 3) * 3, opacity: 0, duration: 0.32, ease: "power2.in", stagger: 0.022 }, 0)
-    if (stk) {
-      // The sticker peels: lifts, turns and its shadow spreads before it goes.
-      tl.to(stk.querySelector(".ssh-shadow"), { x: "0.12em", y: "0.2em", scale: 1.15, opacity: 0, duration: 0.3, ease: "power2.in" }, 0)
-      tl.to(stk, { y: "-0.35em", rotate: "+=28", scale: 1.12, opacity: 0, duration: 0.36, ease: "power3.in" }, 0.04)
-    }
+    const go = () => setState((s) => ({ index: wrap(s.index + 1, n), prev: wrap(s.index, n) }))
+    const stk = r.querySelector(".ssh-word:not(.is-out) .ssh-stk")
+    if (reduced.current || !stk) return go()
+    gsap.to(stk, { scale: 0, duration: 0.14, ease: "power2.in", onComplete: go })
   }, [n])
 
   React.useEffect(() => {
@@ -198,49 +175,49 @@ export default function StickerSwapHeadline({
     }
   }, [])
 
-  // Every word arrival, including the first: letters spring up, the sticker slaps on.
+  // Steps 2–4: the line rolls up to the new word, the gap opens, the sticker pops in.
   React.useLayoutEffect(() => {
-    const el = wordEl.current
-    const r = root.current
-    if (!el || !r) return
+    const r = reel.current
+    if (!r) return
     const ctx = gsap.context(() => {
-      const letters = el.querySelectorAll(".ssh-ch")
-      const stk = el.querySelector(".ssh-stk")
-      const disc = stk && stk.querySelector(".ssh-disc")
-      const shadow = stk && stk.querySelector(".ssh-shadow")
-      const tilt = tiltFor(wrap(index, n), current && current.tilt)
-      gsap.set(el, { opacity: 1 })
-      if (reduced.current) {
-        gsap.set(letters, { clearProps: "all" })
-        if (stk) gsap.set(stk, { rotate: tilt })
-        gsap.from(el, { opacity: 0, duration: 0.35 })
-        if (first.current) gsap.from(r.querySelectorAll(".ssh-fade"), { opacity: 0, duration: 0.5 })
-      } else {
-        const tl = gsap.timeline({ onComplete: () => (busy.current = false) })
-        if (first.current) {
-          tl.from(r.querySelectorAll(".ssh-lead .ssh-ch"), { yPercent: 120, rotate: 9, opacity: 0, duration: 1, ease: "elastic.out(1,0.6)", stagger: 0.05 }, 0.1)
-          tl.from(r.querySelectorAll(".ssh-fade"), { y: 18, opacity: 0, duration: 0.9, ease: "power3.out", stagger: 0.08 }, 0.55)
-        }
-        const at = first.current ? 0.3 : 0
-        tl.fromTo(letters, { yPercent: 72, rotate: 9 }, { yPercent: 0, rotate: 0, duration: 1.05, ease: "elastic.out(1,0.55)", stagger: 0.04 }, at)
-        tl.fromTo(letters, { opacity: 0 }, { opacity: 1, duration: 0.22, ease: "power1.out", stagger: 0.04 }, at)
-        if (stk && disc && shadow) {
-          const land = at + 0.18
-          tl.fromTo(stk, { scale: 1.9, rotate: tilt - 34, opacity: 0, y: "-0.2em" }, { scale: 1, rotate: tilt, opacity: 1, y: 0, duration: 0.42, ease: "power4.in" }, land)
-          tl.fromTo(shadow, { x: "0.2em", y: "0.3em", scale: 1.3, opacity: 0 }, { x: "0.03em", y: "0.05em", scale: 1, opacity: 1, duration: 0.42, ease: "power4.in" }, land)
-          // The press: a quick squash as it hits the paper, then it settles.
-          tl.fromTo(disc, { scaleX: 1, scaleY: 1 }, { scaleX: 1.08, scaleY: 0.92, duration: 0.08, ease: "power2.out", yoyo: true, repeat: 1 }, land + 0.42)
-          tl.to(stk, { rotate: tilt + 3, duration: 0.5, ease: "elastic.out(1.2,0.35)", yoyo: false }, land + 0.5)
-        }
+      const word = r.querySelector(".ssh-word:not(.is-out)")
+      const out = r.querySelector(".ssh-word.is-out")
+      if (!word) return
+      const stk = word.querySelector(".ssh-stk") as HTMLElement | null
+      const tilt = stk ? Number(stk.dataset.tilt) || 0 : 0
+      const before = word.querySelector(".ssh-before")
+      const after = word.querySelector(".ssh-after")
+      const finish = () => {
+        busy.current = false
+        if (out) setState((s) => ({ index: s.index, prev: -1 }))
       }
+      if (reduced.current) {
+        if (out) gsap.set(out, { opacity: 0 })
+        gsap.fromTo(word, { opacity: 0 }, { opacity: 1, duration: 0.3, onComplete: finish })
+        return
+      }
+      const tl = gsap.timeline({ onComplete: finish })
+      if (first.current) {
+        // First paint: both lines settle from a pale, low start.
+        tl.fromTo(root.current!.querySelectorAll(".ssh-lead, .ssh-word"), { yPercent: 18, opacity: 0.18 }, { yPercent: 0, opacity: 1, duration: 0.7, ease: "power3.out", stagger: 0.06 }, 0)
+        tl.from(root.current!.querySelectorAll(".ssh-fade"), { y: 12, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.06 }, 0.3)
+      } else {
+        // The roll: old word up and out, the new one up from below, arriving pale and inking in.
+        if (out) tl.to(out, { yPercent: -100, opacity: 0, duration: 0.42, ease: "power3.out" }, 0)
+        tl.fromTo(word, { yPercent: 100 }, { yPercent: 0, duration: 0.42, ease: "power3.out" }, 0)
+        tl.fromTo(word, { opacity: 0.2 }, { opacity: 1, duration: 0.55, ease: "power1.out" }, 0.05)
+      }
+      const at = first.current ? 0.55 : 0.48
+      // The gap opens: the letters either side of the slot part to make room.
+      if (before) tl.fromTo(before, { x: "0.39em" }, { x: 0, duration: 0.22, ease: "power2.out" }, at)
+      if (after) tl.fromTo(after, { x: "-0.39em" }, { x: 0, duration: 0.22, ease: "power2.out" }, at)
+      if (stk) tl.fromTo(stk, { scale: 0, rotate: tilt - 24 }, { scale: 1, rotate: tilt, duration: 0.42, ease: "back.out(2.2)" }, at + 0.1)
       first.current = false
-      if (reduced.current) busy.current = false
-      if (barEl.current && interval > 0 && n > 1) gsap.fromTo(barEl.current, { scaleX: 0 }, { scaleX: 1, duration: interval / 1000, ease: "none" })
     }, r)
-    onChange?.(wrap(index, n))
+    onChange?.(index)
     return () => ctx.revert()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index])
+  }, [state.index])
 
   React.useEffect(() => {
     if (interval <= 0 || n < 2) return
@@ -248,21 +225,10 @@ export default function StickerSwapHeadline({
       if (visible.current && !document.hidden && !busy.current) advance()
     }, interval)
     return () => window.clearInterval(id)
-  }, [advance, interval, n, index])
+  }, [advance, interval, n])
 
   if (!current) return null
-  const slot = stickerSlot(current.word)
-  const chars = current.word.split("")
-  const tilt = tiltFor(wrap(index, n), current.tilt)
-  const sticker = (
-    <span className="ssh-stk" key={"stk-" + index}style={{ transform: "rotate(" + tilt + "deg)" }}>
-      <span className="ssh-shadow" />
-      <span className={"ssh-disc" + (current.spin ? " ssh-spin" : "")}>
-        <img src={current.sticker} alt="" draggable={false} width={320} height={320} />
-        <span className="ssh-gloss" />
-      </span>
-    </span>
-  )
+  const prev = state.prev >= 0 ? words[wrap(state.prev, n)] : null
 
   return (
     <section
@@ -279,63 +245,35 @@ export default function StickerSwapHeadline({
       }
     >
       <style>{CSS}</style>
-      <div className="ssh-grain" aria-hidden="true" />
-      <div className="ssh-vignette" aria-hidden="true" />
-      <i className="ssh-mark tl" aria-hidden="true" />
-      <i className="ssh-mark tr" aria-hidden="true" />
-      <i className="ssh-mark bl" aria-hidden="true" />
-      <i className="ssh-mark br" aria-hidden="true" />
       <div className="ssh-inner">
-        {eyebrow || n > 1 ? (
-          <div className="ssh-eyebrow ssh-fade">
-            {eyebrow ? <span>{eyebrow}</span> : null}
-            {n > 1 ? (
-              <>
-                <span className="ssh-bar" aria-hidden="true">
-                  <i ref={barEl} />
-                </span>
-                <span className="ssh-count" aria-hidden="true">
-                  {pad2(wrap(index, n) + 1)} / {pad2(n)}
-                </span>
-              </>
-            ) : null}
-          </div>
-        ) : null}
         <h1 className="ssh-h">
           <span className="ssh-sr" aria-live="polite">
             {lead} {current.word}
           </span>
           <span className="ssh-line ssh-lead" aria-hidden="true">
-            {lead.split("").map((c, i) => (
-              <span className="ssh-ch" key={i}>
-                {c === " " ? " " : c}
-              </span>
-            ))}
+            {lead}
           </span>
-          <span
-            ref={wordEl}
-            className="ssh-line ssh-word"
-            aria-hidden="true"
-            tabIndex={n > 1 ? 0 : -1}
-            title={current.alt}
-            onClick={advance}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                advance()
-              }
-            }}
-          >
-            {chars.map((c, i) =>
-              i === slot ? (
-                sticker
-              ) : (
-                <span className="ssh-ch" key={index + "-" + i}>
-                  {c === " " ? " " : c}
-                </span>
-              ),
-            )}
-            {slot < 0 ? sticker : null}
+          <span ref={reel} className="ssh-reel" aria-hidden="true">
+            {prev ? (
+              <span className="ssh-word is-out" key={"out-" + state.prev}>
+                <Word w={prev} i={wrap(state.prev, n)} />
+              </span>
+            ) : null}
+            <span
+              className="ssh-word"
+              key={"in-" + index}
+              tabIndex={n > 1 ? 0 : -1}
+              title={current.alt}
+              onClick={advance}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  advance()
+                }
+              }}
+            >
+              <Word w={current} i={index} />
+            </span>
           </span>
         </h1>
         {description ? <p className="ssh-desc ssh-fade">{description}</p> : null}
@@ -345,13 +283,6 @@ export default function StickerSwapHeadline({
             {secondaryCta ? <Cta cta={secondaryCta} kind="ghost" /> : null}
           </div>
         ) : null}
-      </div>
-      <div className="ssh-foot ssh-fade" aria-hidden="true">
-        <span>
-          Sticker Nº {pad2(wrap(index, n) + 1)}
-          {current.alt ? " — " + current.alt : ""}
-        </span>
-        {n > 1 ? <span>Tap the word</span> : null}
       </div>
     </section>
   )

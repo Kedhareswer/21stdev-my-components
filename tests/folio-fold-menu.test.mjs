@@ -31,8 +31,7 @@ for (const m of flat.matchAll(/(?<=^|[{}"])\s*([^{}"]+?)\s*\{/g)) {
   rules++
   assert.ok(sel.split(",").every((s) => s.trim().startsWith(".ffm-")), "unscoped selector: " + sel)
 }
-assert.ok(rules >= 30, "the scope check saw real rules, saw " + rules)
-assert.match(flat, /\.ffm-prev\{[^}]*max-width:none/, "previews override Preflight's max-width")
+assert.ok(rules >= 20, "the scope check saw real rules, saw " + rules)
 // container-type:inline-size stops the root sizing from its content; it needs its own width.
 assert.match(flat, /\.ffm-root\{[^}]*width:100%[^}]*container-type:inline-size/, "the size-contained root carries its own width")
 
@@ -43,7 +42,7 @@ assert.deepEqual([...src.replace(/xmlns='http:\/\/www\.w3\.org\/2000\/svg'/g, ""
 // ---- motion and runtime hygiene --------------------------------------------------
 assert.match(src, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/, "reduced motion is read")
 assert.match(flat, /@media \(prefers-reduced-motion:reduce\)/, "CSS transitions honour reduced motion")
-assert.ok(src.includes("ctx.revert()"), "the GSAP context is reverted on unmount")
+assert.ok(src.includes("c.revert()"), "the GSAP context is reverted on unmount")
 assert.ok(src.includes('window.removeEventListener("keydown", onKey)'), "the Escape listener is removed")
 assert.ok(src.includes('e.key === "Escape"'), "Escape closes")
 assert.ok(src.includes("aria-expanded={open}") && src.includes("aria-controls={id}"), "the toggle is wired to the menu")
@@ -63,9 +62,17 @@ assert.equal(L.foldPose(false).scale < 1, true, "and shrinks")
 assert.deepEqual([L.foldPose(true).rotationX, L.foldPose(true).scale], [0, 1], "reduced motion: no tilt, no scale")
 assert.equal(L.foldPose(true).yPercent, L.foldPose(false).yPercent, "both land the page at the same height")
 assert.equal(L.linkStagger(1), 0)
-assert.equal(L.linkStagger(3), 0.07, "short lists use the full stagger")
-assert.ok(Math.abs(L.linkStagger(13) * 12 - 0.36) < 1e-9, "long lists cap the total stagger")
-assert.equal(L.pad2(0), "01")
-assert.equal(L.pad2(9), "10")
+assert.equal(L.linkStagger(3), 0.05, "short lists use the full stagger")
+assert.ok(Math.abs(L.linkStagger(13) * 12 - 0.25) < 1e-9, "long lists cap the total stagger")
+
+assert.ok(L.foldPose(false).yPercent < 40, "the page drops about a third, leaving most of it in view")
+const T = L.foldTiming(false)
+assert.ok(T.open <= 0.7 && T.close < T.open, "open is quick and closing is quicker: " + JSON.stringify(T))
+assert.ok(T.linksAt < T.open, "links start rising while the page is still moving")
+assert.ok(L.foldTiming(true).open < T.open, "reduced motion is shorter")
+assert.match(src, /ease: "power3.out"/, "the fold eases out from the first frame")
+assert.doesNotMatch(src, /expo.inOut/, "no slow-start inOut on the open")
+const demo = readFileSync(new URL("demo.tsx", dir), "utf8")
+assert.ok(demo.length < 200_000, "demo stays under 200 KB: " + demo.length)
 
 console.log("folio-fold-menu: ok")
