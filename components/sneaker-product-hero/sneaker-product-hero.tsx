@@ -25,6 +25,9 @@ import gsap from "gsap"
  * everything changes in place and nothing floats, tilts or sweeps.
  */
 
+// Per-size stock. A mapped type, not Record<>: 21st's tokenizer stalls on runs of generics.
+export type StockBySize = { [size: string]: number }
+
 export type SneakerView = {
   src: string
   /** Shown in the gallery, e.g. "Heel". */
@@ -54,7 +57,7 @@ export type SneakerVariant = {
   /** Size labels this colourway is sold out in. */
   soldOut?: string[]
   /** Stock per size label for this colourway; overrides the size's own. */
-  stock?: Record<string, number>
+  stock?: StockBySize
 }
 
 export type SneakerSize = {
@@ -135,7 +138,7 @@ export function sizeStats(
 /** Whether a size is sold out in a colourway, and how many pairs are left. */
 export function availability(
   size: { label: string; soldOut?: boolean; stock?: number } | undefined,
-  variant: { soldOut?: string[]; stock?: Record<string, number> } | undefined,
+  variant: { soldOut?: string[]; stock?: StockBySize } | undefined,
 ) {
   if (!size) return { soldOut: true, stock: 0 }
   const stock = variant?.stock?.[size.label] ?? size.stock
@@ -208,14 +211,14 @@ export default function SneakerProductHero({
   const avail = (vi: number, label: string) => availability(sizes.find((s) => s.label === label), variants[vi])
   const firstFree = (vi: number) => sizes.find((s) => !avail(vi, s.label).soldOut)?.label ?? ""
   const [size, setSize] = React.useState(() => firstFree(Math.min(Math.max(defaultVariant, 0), Math.max(count - 1, 0))))
-  const [cart, setCart] = React.useState<"idle" | "busy" | "done">("idle")
-  const cartTimers = React.useRef<number[]>([])
+  const [cart, setCart] = React.useState("idle" as "idle" | "busy" | "done")
+  const cartTimers = React.useRef([] as number[])
   const [vZoom, setVZoom] = React.useState(false)
   const [hintSeen, setHintSeen] = React.useState(false)
   const [liked, setLiked] = React.useState(false)
   const [likeMsg, setLikeMsg] = React.useState("")
   const [toastNote, setToastNote] = React.useState("")
-  const [viewer, setViewer] = React.useState<number | null>(null)
+  const [viewer, setViewer] = React.useState(null as number | null)
   const [thumbSet, setThumbSet] = React.useState(active)
 
   const stats = sizeStats(
@@ -223,31 +226,31 @@ export default function SneakerProductHero({
     { price, rating, reviews },
   )
 
-  const shoeRefs = React.useRef<(HTMLImageElement | null)[]>([])
-  const wordRefs = React.useRef<(HTMLSpanElement | null)[]>([])
-  const reflectRefs = React.useRef<(HTMLImageElement | null)[]>([])
-  const tiltRef = React.useRef<HTMLDivElement>(null)
-  const sheenRef = React.useRef<HTMLSpanElement>(null)
-  const shoeStageRef = React.useRef<HTMLDivElement>(null)
-  const loupeRef = React.useRef<HTMLSpanElement>(null)
-  const loupeImgRef = React.useRef<HTMLSpanElement>(null)
+  const shoeRefs = React.useRef([] as (HTMLImageElement | null)[])
+  const wordRefs = React.useRef([] as (HTMLSpanElement | null)[])
+  const reflectRefs = React.useRef([] as (HTMLImageElement | null)[])
+  const tiltRef = React.useRef(null as HTMLDivElement | null)
+  const sheenRef = React.useRef(null as HTMLSpanElement | null)
+  const shoeStageRef = React.useRef(null as HTMLDivElement | null)
+  const loupeRef = React.useRef(null as HTMLSpanElement | null)
+  const loupeImgRef = React.useRef(null as HTMLSpanElement | null)
   const holding = React.useRef(false)
   const lastPointer = React.useRef("mouse")
-  const reflectWrapRef = React.useRef<HTMLDivElement>(null)
-  const floatRef = React.useRef<HTMLDivElement>(null)
-  const floorRef = React.useRef<HTMLSpanElement>(null)
-  const rootRef = React.useRef<HTMLElement>(null)
-  const thumbsRef = React.useRef<HTMLSpanElement>(null)
-  const priceRef = React.useRef<HTMLSpanElement>(null)
-  const countRef = React.useRef<HTMLSpanElement>(null)
-  const likeRef = React.useRef<HTMLButtonElement>(null)
-  const burstRef = React.useRef<HTMLSpanElement>(null)
-  const pillRef = React.useRef<HTMLSpanElement>(null)
-  const toastRef = React.useRef<HTMLDivElement>(null)
-  const toastTimer = React.useRef<gsap.core.Tween | null>(null)
-  const boxRef = React.useRef<HTMLDivElement>(null)
-  const closeRef = React.useRef<HTMLButtonElement>(null)
-  const opener = React.useRef<HTMLElement | null>(null)
+  const reflectWrapRef = React.useRef(null as HTMLDivElement | null)
+  const floatRef = React.useRef(null as HTMLDivElement | null)
+  const floorRef = React.useRef(null as HTMLSpanElement | null)
+  const rootRef = React.useRef(null as HTMLElement | null)
+  const thumbsRef = React.useRef(null as HTMLSpanElement | null)
+  const priceRef = React.useRef(null as HTMLSpanElement | null)
+  const countRef = React.useRef(null as HTMLSpanElement | null)
+  const likeRef = React.useRef(null as HTMLButtonElement | null)
+  const burstRef = React.useRef(null as HTMLSpanElement | null)
+  const pillRef = React.useRef(null as HTMLSpanElement | null)
+  const toastRef = React.useRef(null as HTMLDivElement | null)
+  const toastTimer = React.useRef(null as gsap.core.Tween | null)
+  const boxRef = React.useRef(null as HTMLDivElement | null)
+  const closeRef = React.useRef(null as HTMLButtonElement | null)
+  const opener = React.useRef(null as HTMLElement | null)
   const shown = React.useRef(active)
   // The numbers are rolled by hand; React renders their first values only.
   const first = React.useRef(stats)
@@ -573,7 +576,7 @@ export default function SneakerProductHero({
     if (!prefersReduced() && boxRef.current)
       gsap.fromTo(boxRef.current, { autoAlpha: 0, scale: 0.94, y: 16 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.45, ease: "power3.out" })
   }, [isOpen])
-  const frameRef = React.useRef<HTMLDivElement>(null)
+  const frameRef = React.useRef(null as HTMLDivElement | null)
   React.useLayoutEffect(() => {
     if (viewer === null || prefersReduced() || !frameRef.current) return
     gsap.fromTo(frameRef.current, { autoAlpha: 0.2, scale: 0.985 }, { autoAlpha: 1, scale: 1, duration: 0.35, ease: "power2.out" })
