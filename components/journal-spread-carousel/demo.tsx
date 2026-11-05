@@ -142,6 +142,6 @@ export default function Demo() {
   const bg = useSheetTiles(SPREAD_SHEET, 2, 4)
   const pr = useSheetTiles(PRINT_SHEET, 4, 4)
   const spreads = React.useMemo(() => (bg && pr ? build(bg, pr) : null), [bg, pr])
-  if (!spreads) return <div style={{ height: "100svh", background: "#363b58" }} />
+  if (!spreads) return <div style={{ width: "100%", height: "100svh", background: "#363b58" }} />
   return <JournalSpreadCarousel spreads={spreads} title="Summer Journal" initialIndex={3} />
 }

@@ -136,7 +136,7 @@ const FONT =
 
 const CSS =
   FONT +
-  ".jsc-root{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;" +
+  ".jsc-root{position:relative;width:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;" +
   "background:radial-gradient(120% 80% at 50% 35%,#3f4565 0%,#363b58 55%,#2d3149 100%);color:#f4f2ee;" +
   "font-family:ui-rounded,'SF Pro Rounded',system-ui,-apple-system,'Segoe UI',sans-serif;outline:none;user-select:none;-webkit-user-select:none;container-type:inline-size}" +
   ".jsc-root:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}" +
