@@ -1349,10 +1349,18 @@ export default function CrumpleChangelog({
     const ro = new ResizeObserver(layout)
     ro.observe(root)
     ro.observe(stage)
-    const io = new IntersectionObserver(([en]) => {
-      visible = en.isIntersecting
-      dirty = true
-    })
+    let seen = false
+    const io = new IntersectionObserver(
+      ([en]) => {
+        visible = en.isIntersecting
+        dirty = true
+        if (en.intersectionRatio >= 0.25) {
+          seen = true
+          begin()
+        }
+      },
+      { threshold: [0, 0.25] },
+    )
     io.observe(root)
     layout()
 
@@ -1403,6 +1411,16 @@ export default function CrumpleChangelog({
           .to(controls, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 1.6)
       }
     }
+    // ScrollTrigger starts it on a scrolling page; inside an iframe (21st's
+    // preview) it may never see a scroll, so being on screen starts it too
+    let begun = false
+    function begin() {
+      if (begun || !ready || disposed) return
+      begun = true
+      build()
+      if (software) intro.progress(1)
+      else intro.play()
+    }
     intro.eventCallback("onComplete", () => {
       mode = "scrub"
       st.p = pShown = 0
@@ -1421,16 +1439,8 @@ export default function CrumpleChangelog({
       }
       ready = true
       dirty = true
-      gsap.delayedCall(0.1, () => {
-        if (!disposed)
-          trigger = ScrollTrigger.create({ trigger: root, start: "top 78%", once: true,
-            onEnter: () => {
-              build()
-              if (software) intro.progress(1)
-              else intro.play()
-            },
-          })
-      })
+      trigger = ScrollTrigger.create({ trigger: root, start: "top 78%", once: true, onEnter: begin })
+      if (seen) begin()
     })
 
     return () => {

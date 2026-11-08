@@ -81,3 +81,7 @@ for (const dep of ["three", "gsap"]) assert.ok(pkg.dependencies?.[dep], dep + " 
 assert.ok(demo.includes('from "@/components/ui/crumple-changelog"'), "demo imports the installed path")
 
 console.log("crumple-changelog: ok")
+
+// 21st centres every demo in a flex row; an unsized wrapper collapses to 0 px
+// there because .cc-root is a size container (seen live 2026-11-01: blank preview).
+assert.ok(/width: "100%"/.test(demo), "demo wrapper must be width 100% or it is 0 px wide on 21st")

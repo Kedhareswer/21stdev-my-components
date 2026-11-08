@@ -69,6 +69,10 @@ import CrumpleChangelog, { CRUMPLE_INKS } from "@/components/ui/crumple-changelo
 | `changelogHref` | `"#"` | the "Full changelog ↗" link |
 | `height` | `"100svh"` | always a definite length |
 
+The root is a CSS size container (its layout answers to its own width), so
+it takes the width of its parent and gives none back: inside a centred flex
+row, wrap it in something with `width: 100%` or it collapses to 0 px.
+
 ## Interaction
 
 | Input | What happens |
