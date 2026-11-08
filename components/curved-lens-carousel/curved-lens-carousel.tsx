@@ -113,7 +113,7 @@ const FONT =
 
 const CSS =
   FONT +
-  ".clc-root{position:relative;overflow:hidden;isolation:isolate;outline:none;user-select:none;-webkit-user-select:none;font-family:ui-sans-serif,system-ui,sans-serif}" +
+  ".clc-root{position:relative;width:100%;overflow:hidden;isolation:isolate;outline:none;user-select:none;-webkit-user-select:none;font-family:ui-sans-serif,system-ui,sans-serif}" +
   ".clc-root:focus-visible{box-shadow:inset 0 0 0 2px var(--clc-ink)}" +
   ".clc-glow{position:absolute;inset:-20%;background:radial-gradient(50% 40% at 50% 46%,rgba(255,240,220,.07),transparent 70%);pointer-events:none}" +
   ".clc-grain{position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;pointer-events:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")}" +
