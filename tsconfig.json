@@ -15,7 +15,7 @@
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
       "@/components/ui/pastel-gaze": ["./components/pastel-gaze/pastel-gaze.tsx"],
-      "@/components/ui/curved-lens-carousel": ["./components/curved-lens-carousel/curved-lens-carousel.tsx"],
+      "@/components/ui/3d-curved-carousel": ["./components/3d-curved-carousel/3d-curved-carousel.tsx"],
       "@/components/ui/bending-strip-carousel": ["./components/bending-strip-carousel/bending-strip-carousel.tsx"],
       "@/components/ui/orbit-ring-gallery": ["./components/orbit-ring-gallery/orbit-ring-gallery.tsx"],
       "@/components/ui/fanned-deck-slider": ["./components/fanned-deck-slider/fanned-deck-slider.tsx"],

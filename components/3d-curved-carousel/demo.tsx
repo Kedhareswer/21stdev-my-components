@@ -1,6 +1,6 @@
 "use client"
 
-import CurvedLensCarousel, { type LensSlide } from "@/components/ui/curved-lens-carousel"
+import CurvedLensCarousel, { type LensSlide } from "@/components/ui/3d-curved-carousel"
 
 // Seven free Unsplash landscapes, inlined as WebP so the demo fetches nothing
 // off-origin. Swap in your own URLs (remote ones need CORS for WebGL).

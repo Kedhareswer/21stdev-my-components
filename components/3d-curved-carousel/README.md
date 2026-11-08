@@ -5,7 +5,7 @@ A photo carousel seen through a curved lens. Every card is drawn on one WebGL ca
 Drag or flick the cards, use the arrow keys when the carousel has focus, or the round buttons. It loops both ways. There is no autoplay, and the page scroll is never captured.
 
 ```tsx
-import CurvedLensCarousel from "@/components/ui/curved-lens-carousel"
+import CurvedLensCarousel from "@/components/ui/3d-curved-carousel"
 
 <CurvedLensCarousel
   label="Field Atlas — Vol. 04"

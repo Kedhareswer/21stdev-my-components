@@ -251,7 +251,7 @@ export default function CurvedLensCarousel({
     gl.attachShader(prog, shader(gl, gl.FRAGMENT_SHADER, FRAG))
     gl.linkProgram(prog)
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.warn("curved-lens-carousel: " + gl.getProgramInfoLog(prog))
+      console.warn("3d-curved-carousel: " + gl.getProgramInfoLog(prog))
       setNoGL(true)
       setShown(true)
       return

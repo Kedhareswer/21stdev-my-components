@@ -1,16 +1,16 @@
-// Install-safety and motion-logic checks for components/curved-lens-carousel.
-// Run: node tests/curved-lens-carousel.test.mjs
+// Install-safety and motion-logic checks for components/3d-curved-carousel.
+// Run: node tests/3d-curved-carousel.test.mjs
 import assert from "node:assert/strict"
 import { readFileSync, readdirSync } from "node:fs"
 import { stripTypeScriptTypes } from "node:module"
 
-const dir = new URL("../components/curved-lens-carousel/", import.meta.url)
-const src = readFileSync(new URL("curved-lens-carousel.tsx", dir), "utf8")
+const dir = new URL("../components/3d-curved-carousel/", import.meta.url)
+const src = readFileSync(new URL("3d-curved-carousel.tsx", dir), "utf8")
 
 // ---- install safety ------------------------------------------------------------
 const imports = [...src.matchAll(/^import .*?from ["']([^"']+)["']/gm)].map((m) => m[1])
 assert.deepEqual(imports, ["react"], "imports react only")
-assert.deepEqual(readdirSync(dir).sort(), ["README.md", "curved-lens-carousel.tsx", "demo.tsx"])
+assert.deepEqual(readdirSync(dir).sort(), ["3d-curved-carousel.tsx", "README.md", "demo.tsx"])
 assert.ok(src.includes('height = "100svh"'), "stage height defaults to a definite length")
 assert.doesNotMatch(src, /\bh-full\b/, "no h-full: percentage heights collapse on an installed page")
 assert.doesNotMatch(src, /use(Ref|State|Memo|Callback|Effect)</, "no generic hook type arguments (they hang the 21st CLI)")
@@ -76,4 +76,4 @@ assert.ok(cw > 200 && cw <= 320 && ch > cw, "desktop cards are portrait " + cw +
 assert.ok(L.cardSize(375, 812)[0] < 375 * 0.6, "phone cards leave the neighbours peeking in")
 assert.equal(L.pad2(4), "04")
 
-console.log("curved-lens-carousel: ok")
+console.log("3d-curved-carousel: ok")
