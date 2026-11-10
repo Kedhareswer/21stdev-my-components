@@ -656,7 +656,7 @@ export default function SkeletonKeyPreloader({
   name = "Kedhareswer Naidu",
   aboutLabel = "about/",
   about = ["design engineer", "building interfaces", "that move."],
-  links = ["21st.dev/@kedhareswer", "kedhar.vercel.app"],
+  links = ["21st.dev/@kedhareswer", "kedhar.pages.dev"],
   signature = "kedhareswer",
   release = "1.0",
   metal = "gold",

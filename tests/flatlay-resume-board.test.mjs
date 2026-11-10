@@ -32,7 +32,7 @@ const digest = (m) => createHash("sha256").update(m.map((r) => r.join("")).join(
 // Captured from a build whose every matrix was decoded back to its exact input
 // by jsQR. Any drift here means the code stopped scanning.
 const GOLDEN = [
-  ["https://kedhar.vercel.app/", 2, "869500b9346b25ba"],
+  ["https://kedhar.pages.dev/", 2, "cdbd9354563141db"],
   ["https://github.com/Kedhareswer", 3, "b98d68eebb0eab7a"],
   ["https://www.linkedin.com/in/kedhareswernaidu", 4, "a5defd30cbe42351"],
   ["HELLO", 1, "e0734fb3f3f2ac2b"],

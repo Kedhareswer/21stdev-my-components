@@ -7,7 +7,7 @@
 *Good design = satisfaction. Bad design = trend.*
 
 [![See my work on 21st.dev](https://img.shields.io/badge/See_my_work_on-21st.dev-000?style=for-the-badge)](https://21st.dev/@kedhareswer)
-[![Portfolio](https://img.shields.io/badge/Portfolio-kedhar.vercel.app-4f46e5?style=for-the-badge)](https://kedhar.vercel.app/?ref=21st.dev)
+[![Portfolio](https://img.shields.io/badge/Portfolio-kedhar.pages.dev-4f46e5?style=for-the-badge)](https://kedhar.pages.dev/?ref=21st.dev)
 
 </div>
 
@@ -44,7 +44,7 @@ Built with React + TypeScript + Tailwind, shadcn-compatible.
 ## Links
 
 - **21st.dev** — https://21st.dev/@kedhareswer
-- **Portfolio** — https://kedhar.vercel.app/?ref=21st.dev
+- **Portfolio** — https://kedhar.pages.dev/?ref=21st.dev
 - **GitHub** — https://github.com/Kedhareswer
 
 ---

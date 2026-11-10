@@ -14,7 +14,7 @@ import * as React from "react"
  * (GOP 1) MP4 to scrub something else.
  */
 
-const DEFAULT_BASE = "https://kedhar.vercel.app/motion/magic-hour"
+const DEFAULT_BASE = "https://kedhar.pages.dev/motion/magic-hour"
 
 export type MagicHourProps = {
   /** All-keyframe (GOP 1) MP4. Anything else seeks in lurches. */

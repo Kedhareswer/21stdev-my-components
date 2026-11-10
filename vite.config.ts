@@ -4,6 +4,8 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const root = fileURLToPath(new URL(".", import.meta.url)).replace(/[\\/]$/, "")
 
 // When each component folder last changed in git, so the index can list the
@@ -38,7 +40,7 @@ export default defineConfig({
   // The harness lives in dev/ so the repo root stays just components/ + library/.
   root: "dev",
   define: { __UPDATED__: JSON.stringify(updatedDates()) },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   resolve: {
     alias: [
       // Demos import the path a 21st installer ends up with. Map it back onto
