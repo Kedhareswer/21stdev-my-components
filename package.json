@@ -5,7 +5,7 @@
   "description": "Authoring repo for every component and library published to 21st.dev/@kedhareswer",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-source-zips.mjs",
     "check": "tsc --noEmit",
     "test": "node --test"
   },
