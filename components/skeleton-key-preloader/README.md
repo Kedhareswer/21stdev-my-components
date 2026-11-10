@@ -70,7 +70,7 @@ import SkeletonKeyPreloader from "@/components/ui/skeleton-key-preloader"
 | `name` | `"Kedhareswer Naidu"` | The end card (first name, in script) and the accessible label. |
 | `aboutLabel` | `"about/"` | The light prefix on the about block. Empty string drops it. |
 | `about` | design engineer / building interfaces / that move. | Short lines typed out beside the script, and joined on the end card. |
-| `links` | `21st.dev/@kedhareswer`, `kedhar.vercel.app` | Along the bottom edge (hidden under 640px wide). |
+| `links` | `21st.dev/@kedhareswer`, `kedhar.pages.dev` | Along the bottom edge (hidden under 640px wide). |
 | `signature` | `"kedhareswer"` | Letter-spaced along the bottom. |
 | `release` | `"1.0"` | What the version lands on at 100. |
 | `metal` | `"gold"` | `"gold"`, `"silver"`, `"rose"` or `"bronze"`. |

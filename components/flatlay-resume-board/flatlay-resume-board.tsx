@@ -647,7 +647,7 @@ const ROLES = ["Software Developer", "ML / Data Science", "Full-stack Engineer"]
 const CONTACTS: BoardContact[] = [
   { kind: "phone", text: "+91 93989 11432", href: "tel:+919398911432" },
   { kind: "mail", text: "kedhareswer.12110626@gmail.com", href: "mailto:kedhareswer.12110626@gmail.com" },
-  { kind: "link", text: "kedhar.vercel.app", href: "https://kedhar.vercel.app/" },
+  { kind: "link", text: "kedhar.pages.dev", href: "https://kedhar.pages.dev/" },
 ]
 
 const ABOUT = [
@@ -732,7 +732,7 @@ export default function FlatlayResumeBoard({
   abilities = ABILITIES,
   skills = SKILLS,
   tiles = TILES,
-  portfolioUrl = "https://kedhar.vercel.app/",
+  portfolioUrl = "https://kedhar.pages.dev/",
   codeUrl = "https://github.com/Kedhareswer",
   photo,
   className = "",
