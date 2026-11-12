@@ -10,6 +10,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type P
 
 export type StorageIcon = "apps" | "film" | "gear" | "code" | "doc" | "box" | "photo" | "music" | "trash" | "dot"
 
+export type StorageTexture = "lattice" | "rain" | "rise" | "diamond" | "scatter"
+
 export type StorageCategory = {
   id: string
   label: string
@@ -18,6 +20,8 @@ export type StorageCategory = {
   /** Any hex colour, "#rrggbb". */
   color: string
   icon?: StorageIcon
+  /** How the lit cells are laid out in the segment. */
+  texture?: StorageTexture
   /** Shown in the status line while this category is highlighted. */
   note?: string
   /** Makes the category clearable from the footer. `{size}` in `message` is replaced. */
@@ -99,22 +103,39 @@ export function hexRgb(hex: string): [number, number, number] {
   return Number.isFinite(n) ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [200, 200, 200]
 }
 
+/** Chance a lattice cell is lit. u = column 0..1 across the segment, v = row 0..1 top to bottom. */
+export function textureDensity(texture: string, u: number, v: number): number {
+  switch (texture) {
+    case "rain":
+      return 0.06 + 0.9 * Math.pow(1 - v, 1.7)
+    case "rise":
+      return 0.06 + 0.85 * Math.pow(v, 1.7)
+    case "diamond":
+      return 0.1 + 0.85 * Math.max(0, 1 - Math.abs(Math.abs(u - 0.5) - Math.abs(v - 0.5)) * 4.5)
+    case "scatter":
+      return 0.26
+    default:
+      return 0.82
+  }
+}
+
 export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 export const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 // #endregion
 
 const DEFAULT_CATEGORIES: StorageCategory[] = [
-  { id: "apps", label: "Apps", size: 52.6, color: "#22c3e6", icon: "apps", note: "214 apps. Three of them haven't opened since spring." },
-  { id: "movies", label: "Movies", size: 44.1, color: "#9b6cf6", icon: "film", note: "Screen recordings take 24.6 GB, most from this autumn." },
-  { id: "system", label: "System data", size: 34.2, color: "#a3acb9", icon: "gear", note: "Managed by the system. It shrinks on its own." },
-  { id: "developer", label: "Developer", size: 36.3, color: "#34d399", icon: "code", note: "Toolchains, simulators and 41 dependency folders." },
-  { id: "documents", label: "Documents", size: 41.7, color: "#3b82f6", icon: "doc", note: "Mostly exports and an old project archive." },
+  { id: "apps", label: "Apps", size: 52.6, color: "#22c3e6", icon: "apps", texture: "lattice", note: "214 apps. Three of them haven't opened since spring." },
+  { id: "movies", label: "Movies", size: 44.1, color: "#9b6cf6", icon: "film", texture: "rain", note: "Screen recordings take 24.6 GB, most from this autumn." },
+  { id: "system", label: "System data", size: 34.2, color: "#a3acb9", icon: "gear", texture: "lattice", note: "Managed by the system. It shrinks on its own." },
+  { id: "developer", label: "Developer", size: 36.3, color: "#34d399", icon: "code", texture: "scatter", note: "Toolchains, simulators and 41 dependency folders." },
+  { id: "documents", label: "Documents", size: 41.7, color: "#3b82f6", icon: "doc", texture: "lattice", note: "Mostly exports and an old project archive." },
   {
     id: "caches",
     label: "Caches",
     size: 46.3,
     color: "#f59e0b",
     icon: "box",
+    texture: "scatter",
     note: "Temporary files apps keep to start faster.",
     clear: {
       keep: 1.2,
@@ -124,14 +145,15 @@ const DEFAULT_CATEGORIES: StorageCategory[] = [
       paths: ["~/Library/Caches/thumbnails", "~/Library/Caches/browser/cache2", "~/.cache/pip/wheels", "~/Library/Caches/editor/CachedData", "~/Library/Caches/maps/tiles", "~/.npm/_cacache/content-v2", "~/Library/Caches/fonts", "~/Library/Caches/photos/derivatives"],
     },
   },
-  { id: "photos", label: "Photos", size: 58.6, color: "#ec4899", icon: "photo", note: "18,402 photos. 2.3 GB of them are near-duplicates." },
-  { id: "music", label: "Music", size: 12.6, color: "#facc15", icon: "music", note: "Downloaded albums, mostly from one long summer." },
+  { id: "photos", label: "Photos", size: 58.6, color: "#ec4899", icon: "photo", texture: "diamond", note: "18,402 photos. 2.3 GB of them are near-duplicates." },
+  { id: "music", label: "Music", size: 12.6, color: "#facc15", icon: "music", texture: "lattice", note: "Downloaded albums, mostly from one long summer." },
   {
     id: "trash",
     label: "Trash",
     size: 31.4,
     color: "#ef4444",
     icon: "trash",
+    texture: "rise",
     note: "Deleted files that still count against the disk.",
     clear: {
       keep: 0,
@@ -161,71 +183,115 @@ const DEFAULT_PATHS = [
 ]
 
 // Bar geometry, CSS px.
-const P = 6 // cell pitch
-const ROWS = 12
-const PAD = 5 // track padding
-const OX = 16 // canvas overhang left / right
-const OY = 104 // canvas overhang above (pixels rise into it)
-const OB = 16 // overhang below
-const BAR_H = ROWS * P + PAD * 2
+const P = 4.5 // cell pitch
+const ROWS = 18
+const BAR_H = ROWS * P
+const RADIUS = 9
+const OX = 18 // canvas overhang left / right (bloom)
+const OY = 150 // canvas overhang above: the dissolved pixels rise into it
+const OB = 18 // overhang below
+const PEACH: [number, number, number] = [255, 233, 214]
 
-const ICONS: Record<StorageIcon, string> = {
-  apps: "M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z",
-  film: "M2.5 3.5h11v9h-11zM5 3.5v9M11 3.5v9M2.5 6.5H5M2.5 9.5H5M11 6.5h2.5M11 9.5h2.5",
-  gear: "M8 5.6a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4",
-  code: "M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9 3l-2 10",
-  doc: "M4 2h5l3 3v9H4zM9 2v3h3M6 8.5h4M6 11h4",
-  box: "M2.5 5L8 2.5L13.5 5v6L8 13.5L2.5 11zM2.5 5L8 7.5L13.5 5M8 7.5v6",
-  photo: "M2.5 3.5h11v9h-11zM2.5 10.5l3-3l3 3l2-2l3 3M10.5 6.2a.7.7 0 1 0 0 .1",
-  music: "M6 12V3.5l7-1.5V10.5M6 12a1.8 1.8 0 1 1-3.6 0a1.8 1.8 0 1 1 3.6 0M13 10.5a1.8 1.8 0 1 1-3.6 0a1.8 1.8 0 1 1 3.6 0",
-  trash: "M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9M7 7v4.5M9 7v4.5",
-  dot: "M8 5a3 3 0 1 0 0 6a3 3 0 1 0 0-6",
+// Two-tone filled glyphs: [path, tone]. 0 = colour, 1 = shade, 2 = highlight, 3 = shade stroke.
+const ICONS: Record<StorageIcon, [string, number][]> = {
+  apps: [
+    ["M2 3.6A1.6 1.6 0 0 1 3.6 2h8.8A1.6 1.6 0 0 1 14 3.6v8.8a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 12.4z", 0],
+    ["M2 5.4h12V3.6A1.6 1.6 0 0 0 12.4 2H3.6A1.6 1.6 0 0 0 2 3.6z", 2],
+    ["M4.3 7.6h3.2v3.6H4.3zM9 7.6h2.7v1.3H9zM9 9.9h2.7v1.3H9z", 1],
+  ],
+  film: [
+    ["M2 3h12v10H2z", 0],
+    ["M3 4.1h1.4v1.4H3zM3 7.3h1.4v1.4H3zM3 10.5h1.4v1.4H3zM11.6 4.1H13v1.4h-1.4zM11.6 7.3H13v1.4h-1.4zM11.6 10.5H13v1.4h-1.4z", 1],
+    ["M5.5 4h5v8h-5z", 2],
+  ],
+  gear: [
+    ["M8 1.4l1.3 1.7 2.1-.5.5 2.1 1.7 1.3-.9 1.9.9 1.9-1.7 1.3-.5 2.1-2.1-.5L8 14.6l-1.3-1.7-2.1.5-.5-2.1-1.7-1.3.9-1.9-.9-1.9 1.7-1.3.5-2.1 2.1.5z", 0],
+    ["M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z", 1],
+  ],
+  code: [
+    ["M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z", 0],
+    ["M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1H2z", 2],
+    ["M4.8 7.4l2 1.6-2 1.6M8.4 11h2.8", 3],
+  ],
+  doc: [
+    ["M3.8 1.8h5.4l3 3.2v9.2H3.8z", 0],
+    ["M9.2 1.8V5h3z", 2],
+    ["M5.8 8h4.4M5.8 10.2h4.4M5.8 12.3h2.8", 3],
+  ],
+  box: [
+    ["M8 1.8l5.6 2.8v6.8L8 14.2l-5.6-2.8V4.6z", 0],
+    ["M13.6 4.6L8 7.4v6.8l5.6-2.8z", 1],
+    ["M8 1.8l5.6 2.8L8 7.4 2.4 4.6z", 2],
+  ],
+  photo: [
+    ["M1.6 13.4L6 6.4l2.7 4.1 1.9-2.5 3.8 5.4z", 0],
+    ["M11.4 2.8a1.6 1.6 0 1 0 0 3.2a1.6 1.6 0 1 0 0-3.2z", 0],
+    ["M6 6.4l1.4 2.1L6 9.6 4.7 8.5z", 2],
+  ],
+  music: [
+    ["M6 3.6l7-1.6v8.7a2 2 0 1 1-1.4-1.9V5.2L7.4 6.2v6.3A2 2 0 1 1 6 10.6z", 0],
+    ["M6 3.6l7-1.6v1.6L6 5.2z", 2],
+  ],
+  trash: [
+    ["M3 3.5h10v1.7H3zM6.3 1.9h3.4v1.6H6.3z", 0],
+    ["M4 5.9h8l-.7 8.2H4.7z", 0],
+    ["M6.4 7.6v4.8M9.6 7.6v4.8", 3],
+  ],
+  dot: [["M8 4.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z", 0]],
 }
 
-function Glyph({ name, color, size = 14 }: { name: StorageIcon; color: string; size?: number }) {
+function Glyph({ name, color, size = 16 }: { name: StorageIcon; color: string; size?: number }) {
   return (
-    <svg className="ssm-glyph" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={ICONS[name] || ICONS.dot} />
+    <svg className="ssm-glyph" width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">
+      {(ICONS[name] || ICONS.dot).map(([d, tone], i) =>
+        tone === 3 ? (
+          <path key={i} d={d} fill="none" stroke="rgba(0,0,0,.5)" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path key={i} d={d} fill={tone === 0 ? color : tone === 1 ? "rgba(0,0,0,.32)" : "rgba(255,255,255,.3)"} />
+        ),
+      )}
     </svg>
   )
 }
 
 const CSS =
   ".ssm-stage{position:relative;display:grid;place-items:center;width:100%;overflow:hidden;background:var(--color-background);color:var(--color-foreground);padding:24px 16px;box-sizing:border-box;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}" +
-  ".ssm-card{position:relative;width:100%;max-width:620px;box-sizing:border-box;border-radius:18px;background:linear-gradient(180deg,#19191c,#121214);color:#ececee;padding:22px 22px 0;border:1px solid color-mix(in oklab,var(--color-foreground) 10%,rgba(255,255,255,.07));box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 30px 60px -28px rgba(0,0,0,.55),0 10px 24px -14px rgba(0,0,0,.4)}" +
+  ".ssm-card{position:relative;width:100%;max-width:640px;box-sizing:border-box;border-radius:18px;background:#1b1b1d;color:#ececee;padding:24px 24px 0;border:1px solid color-mix(in oklab,var(--color-foreground) 10%,rgba(255,255,255,.06));box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 34px 70px -30px rgba(0,0,0,.6),0 12px 28px -16px rgba(0,0,0,.45)}" +
   ".ssm-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;position:relative;z-index:2}" +
-  ".ssm-total{display:flex;align-items:baseline;gap:8px;margin:0;line-height:1}" +
-  ".ssm-used{font-size:26px;font-weight:600;letter-spacing:-.02em;color:#f4f4f5}" +
-  ".ssm-of{font-size:12px;color:#8b8b92}" +
-  ".ssm-status{display:flex;align-items:center;gap:8px;margin-top:9px;min-height:18px;font-size:12px;color:#c9c9ce;white-space:nowrap;overflow:hidden}" +
+  ".ssm-total{display:flex;align-items:baseline;gap:9px;margin:0;line-height:1}" +
+  ".ssm-used{font-size:31px;font-weight:600;letter-spacing:-.025em;color:#f5f5f6}" +
+  ".ssm-of{font-size:15px;color:#8e8e94}" +
+  ".ssm-status{display:flex;align-items:center;gap:8px;margin-top:12px;min-height:20px;font-size:14px;color:#c9c9ce;white-space:nowrap;overflow:hidden}" +
   ".ssm-status b{font-weight:500;color:#ececee;flex:none}" +
   ".ssm-status .ssm-glyph{flex:none}" +
-  ".ssm-muted{color:#7d7d85;overflow:hidden;text-overflow:ellipsis;min-width:0}" +
-  ".ssm-path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}" +
+  ".ssm-muted{color:#7f7f86;overflow:hidden;text-overflow:ellipsis;min-width:0}" +
+  ".ssm-faint{color:#5d5d63}" +
+  ".ssm-path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}" +
   ".ssm-check{flex:none;color:#4ade80}" +
-  ".ssm-btn{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#c9c9ce;font:inherit;font-size:12px;line-height:1;padding:7px 10px;border-radius:9px;cursor:pointer;transition:background .2s,color .2s,transform .15s,opacity .2s;flex:none}" +
-  ".ssm-btn:hover{background:rgba(255,255,255,.08);color:#f4f4f5}" +
+  ".ssm-btn{appearance:none;display:inline-flex;align-items:center;gap:7px;border:0;background:#2c2c2f;color:#f2f2f4;font:inherit;font-size:14px;font-weight:500;line-height:1;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s,transform .15s,opacity .2s;flex:none}" +
+  ".ssm-btn:hover{background:#363639}" +
   ".ssm-btn:active{transform:translateY(1px)}" +
-  ".ssm-btn:disabled{opacity:.4;cursor:default;transform:none}" +
+  ".ssm-btn:disabled{opacity:.35;cursor:default;transform:none}" +
   ".ssm-btn:focus-visible,.ssm-item:focus-visible{outline:2px solid rgba(255,255,255,.5);outline-offset:2px}" +
-  ".ssm-btn-ghost{border-color:transparent;background:transparent;color:#8b8b92}" +
+  ".ssm-btn-ghost{background:transparent;color:#a3a3a9;font-weight:400;padding:6px 4px}" +
+  ".ssm-btn-ghost:hover{background:transparent;color:#f2f2f4}" +
   ".ssm-btn svg{flex:none}" +
   ".ssm-spin{animation:ssm-spin 1s linear infinite}" +
   "@keyframes ssm-spin{to{transform:rotate(360deg)}}" +
-  ".ssm-bar{position:relative;height:" + BAR_H + "px;margin:18px 0 16px;touch-action:pan-y}" +
+  ".ssm-bar{position:relative;height:" + BAR_H + "px;margin:20px 0 18px;touch-action:pan-y}" +
   ".ssm-canvas{position:absolute;left:-" + OX + "px;top:-" + OY + "px;pointer-events:none;display:block;max-width:none}" +
-  ".ssm-legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:column;grid-template-rows:repeat(3,auto);gap:2px 14px;margin:0 -8px;padding:0;list-style:none}" +
-  ".ssm-item{appearance:none;width:100%;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#c9c9ce;font:inherit;font-size:12px;text-align:left;padding:6px 8px;border-radius:8px;cursor:pointer;transition:background .2s,color .2s,opacity .25s}" +
-  ".ssm-item:hover,.ssm-item[data-on='1']{background:rgba(255,255,255,.05);color:#f4f4f5}" +
-  ".ssm-item[data-dim='1']{opacity:.45}" +
+  ".ssm-legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:column;grid-template-rows:repeat(3,auto);gap:2px 18px;margin:0 -8px;padding:0;list-style:none}" +
+  ".ssm-item{appearance:none;width:100%;display:flex;align-items:center;gap:10px;border:0;background:transparent;color:#d9d9dd;font:inherit;font-size:14px;text-align:left;padding:7px 8px;border-radius:9px;cursor:pointer;transition:background .2s,color .2s,opacity .25s}" +
+  ".ssm-item:hover,.ssm-item[data-on='1']{background:rgba(255,255,255,.06);color:#fafafa}" +
+  ".ssm-item[data-dim='1']{opacity:.42}" +
   ".ssm-item-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-  ".ssm-item-size{flex:none;color:#7d7d85;font-size:11px}" +
-  ".ssm-foot{display:flex;align-items:center;gap:10px;margin:14px -22px 0;padding:12px 14px 12px 22px;border-top:1px solid rgba(255,255,255,.06);min-height:58px;box-sizing:border-box;font-size:12px;color:#a1a1a8}" +
-  ".ssm-foot-msg{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;animation:ssm-in .45s cubic-bezier(.2,.8,.2,1)}" +
+  ".ssm-item-size{flex:none;color:#8e8e94}" +
+  ".ssm-foot{display:flex;align-items:center;gap:12px;margin:16px -24px 0;padding:12px 14px 12px 24px;border-top:1px solid rgba(255,255,255,.06);min-height:64px;box-sizing:border-box;font-size:14px;color:#9d9da3}" +
+  ".ssm-foot-msg{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;animation:ssm-in .45s cubic-bezier(.2,.8,.2,1)}" +
   ".ssm-foot-msg span{min-width:0}" +
   "@keyframes ssm-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}" +
   ".ssm-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
-  "@media (max-width:520px){.ssm-card{padding:18px 16px 0}.ssm-legend{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-flow:row;grid-template-rows:none}.ssm-foot{margin:14px -16px 0;padding:12px 12px 12px 16px;flex-wrap:wrap}.ssm-used{font-size:22px}}" +
+  "@media (max-width:560px){.ssm-card{padding:18px 16px 0}.ssm-legend{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-flow:row;grid-template-rows:none;gap:0 10px}.ssm-item{font-size:13px}.ssm-foot{margin:14px -16px 0;padding:12px 12px 12px 16px;flex-wrap:wrap;font-size:13px}.ssm-used{font-size:25px}.ssm-of{font-size:13px}.ssm-status{font-size:13px}}" +
   "@media (prefers-reduced-motion:reduce){.ssm-spin,.ssm-foot-msg{animation:none}.ssm-btn,.ssm-item{transition:none}}"
 
 type Phase = "scan" | "idle" | "clear"
@@ -235,16 +301,16 @@ type Seg = {
   rgb: [number, number, number]
   x: number // columns, animated
   w: number // columns, animated
-  target: number
   lit: Float32Array // per cell intensity, 0 = unlit
-  keep: Uint8Array // lit cells that survive a clear
   phase: Float32Array
-  swept: number // local columns already swept
 }
 
 type Particle = { x: number; y: number; vx: number; vy: number; age: number; life: number; s: number; r: number; g: number; b: number }
 
-type Clearing = { idx: number; t: number; from: number; to: number; w0: number; w1: number; d1: number; d2: number; lastCol: number }
+type Clearing = { idx: number; t: number; from: number; to: number; w0: number; w1: number; d: number; lastCol: number }
+
+const mix = (a: [number, number, number], b: [number, number, number], k: number) =>
+  Math.round(a[0] + (b[0] - a[0]) * k) + "," + Math.round(a[1] + (b[1] - a[1]) * k) + "," + Math.round(a[2] + (b[2] - a[2]) * k)
 
 export default function StorageSweepMeter({
   categories = DEFAULT_CATEGORIES,
@@ -279,10 +345,11 @@ export default function StorageSweepMeter({
     width: 0,
     phase: "scan" as Phase,
     scanT: 0,
-    scanDur: 3.4,
+    scanDur: 3.2,
     sizes: categories.map((c) => c.size),
     disp: categories.map(() => 0),
     hi: -1,
+    hiK: [] as number[], // eased highlight per category
     particles: [] as Particle[],
     clear: null as Clearing | null,
     px: -999,
@@ -299,7 +366,7 @@ export default function StorageSweepMeter({
   const order = (barOrder ?? DEFAULT_ORDER).map((id) => categories.findIndex((c) => c.id === id)).filter((i) => i >= 0)
   const barIdx = order.length === categories.length ? order : categories.map((_, i) => i)
   const orderKey = barIdx.join(",")
-  const catKey = categories.map((c) => c.id + ":" + c.size + c.color).join("|")
+  const catKey = categories.map((c) => c.id + ":" + c.size + c.color + (c.texture ?? "")).join("|")
 
   // Latest props for the loop.
   const catsRef = useRef(categories)
@@ -319,6 +386,7 @@ export default function StorageSweepMeter({
     const s = S.current
     s.sizes = categories.map((c) => c.size)
     s.disp = categories.map(() => 0)
+    s.hiK = categories.map(() => 0)
     s.phase = "scan"
     s.scanT = 0
     s.clear = null
@@ -330,6 +398,7 @@ export default function StorageSweepMeter({
     setPhase("scan")
     setFreed(0)
     setClearing(-1)
+    setPinned(-1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catKey, orderKey, total, runId])
 
@@ -338,7 +407,9 @@ export default function StorageSweepMeter({
     const canvas = canvasRef.current
     if (!bar || !canvas) return
     const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const off = document.createElement("canvas") // the bar, drawn once, composited twice (bloom + sharp)
+    const bx = off.getContext("2d")
+    if (!ctx || !bx) return
     const s = S.current
     const mqR = window.matchMedia("(prefers-reduced-motion: reduce)")
     const mqF = window.matchMedia("(hover: hover) and (pointer: fine)")
@@ -358,8 +429,8 @@ export default function StorageSweepMeter({
       dpr = Math.min(2, window.devicePixelRatio || 1)
       cssW = w + OX * 2
       cssH = BAR_H + OY + OB
-      canvas.width = Math.round(cssW * dpr)
-      canvas.height = Math.round(cssH * dpr)
+      canvas.width = off.width = Math.round(cssW * dpr)
+      canvas.height = off.height = Math.round(cssH * dpr)
       canvas.style.width = cssW + "px"
       canvas.style.height = cssH + "px"
       s.rebuild = true
@@ -376,32 +447,32 @@ export default function StorageSweepMeter({
     io.observe(bar)
 
     const build = () => {
-      const cols = Math.max(12, Math.floor((s.width - PAD * 2) / P))
+      const cols = Math.max(16, Math.floor(s.width / P))
       s.cols = cols
       const idx = barIdxRef.current
       const cats = catsRef.current
       const alloc = allocateColumns(idx.map((i) => s.sizes[i]), totalRef.current, cols)
-      const prev = s.segs
       s.segs = idx.map((ci, k) => {
         const cat = cats[ci]
         const rnd = mulberry32(0x9e37 + ci * 7919 + cat.id.length * 131)
         const n = cols * ROWS
         const lit = new Float32Array(n)
-        const keep = new Uint8Array(n)
         const ph = new Float32Array(n)
-        const dens = 0.24 + rnd() * 0.16
-        const keepRatio = cat.clear ? Math.max(0, Math.min(1, cat.clear.keep / Math.max(0.01, cat.size))) : 1
+        // Texture is laid out over the segment's full-size width, so a cleared
+        // sliver keeps the same look it had before.
+        const span = Math.max(1, allocateColumns([cat.size], totalRef.current, cols)[0])
+        const tex = cat.texture ?? "lattice"
         for (let c = 0; c < cols; c++) {
           for (let r = 0; r < ROWS; r++) {
             const i = c * ROWS + r
-            const p = r === ROWS - 1 ? 0.7 : r === 0 ? dens * 0.6 : dens
-            lit[i] = rnd() < p ? 0.5 + rnd() * 0.5 : 0
-            keep[i] = rnd() < keepRatio ? 1 : 0
+            const edge = r === 0 || r === ROWS - 1
+            const onLattice = (r + c) % 2 === 0
+            const p = edge ? 0.92 : onLattice ? textureDensity(tex, (c + 0.5) / span, r / (ROWS - 1)) : 0.015
+            lit[i] = rnd() < p ? 0.62 + rnd() * 0.38 : 0
             ph[i] = rnd() * 6.283
           }
         }
-        const old = prev[k]
-        return { cat, rgb: hexRgb(cat.color), x: 0, w: alloc[k], target: alloc[k], lit, keep, phase: ph, swept: old && old.cat.id === cat.id ? Math.min(old.swept, alloc[k]) : 0 }
+        return { cat, rgb: hexRgb(cat.color), x: 0, w: alloc[k], lit, phase: ph }
       })
       let x = 0
       for (const g of s.segs) {
@@ -412,31 +483,31 @@ export default function StorageSweepMeter({
     }
 
     const spawn = (x: number, y: number, rgb: [number, number, number], strong: boolean) => {
-      if (s.particles.length > 2200) return
-      const life = strong ? 1 + Math.random() * 1.2 : 0.5 + Math.random() * 0.6
+      if (s.particles.length > 2600) return
+      const k = 0.25 + Math.random() * 0.6 // how far toward peach-white
       s.particles.push({
-        x: x + (Math.random() - 0.5) * P * 0.6,
-        y: y + (Math.random() - 0.5) * P * 0.6,
-        vx: (Math.random() - 0.5) * (strong ? 40 : 18),
-        vy: -(strong ? 30 + Math.random() * 90 : 20 + Math.random() * 46),
+        x: x + (Math.random() - 0.5) * P * 0.8,
+        y: y + (Math.random() - 0.5) * P * 0.8,
+        vx: (Math.random() - 0.35) * (strong ? 26 : 14),
+        vy: -(strong ? 14 + Math.random() * 50 : 10 + Math.random() * 30),
         age: 0,
-        life,
-        s: strong ? P * (0.4 + Math.random() * 0.3) : P * 0.35,
-        r: rgb[0],
-        g: rgb[1],
-        b: rgb[2],
+        life: strong ? 1.3 + Math.random() * 1.5 : 0.6 + Math.random() * 0.7,
+        s: P * (strong ? 0.55 + Math.random() * 0.35 : 0.5),
+        r: rgb[0] + (PEACH[0] - rgb[0]) * k,
+        g: rgb[1] + (PEACH[1] - rgb[1]) * k,
+        b: rgb[2] + (PEACH[2] - rgb[2]) * k,
       })
     }
 
-    const rr = (x: number, y: number, w: number, h: number, r: number) => {
-      const q = Math.min(r, w / 2, h / 2)
-      ctx.beginPath()
-      ctx.moveTo(x + q, y)
-      ctx.arcTo(x + w, y, x + w, y + h, q)
-      ctx.arcTo(x + w, y + h, x, y + h, q)
-      ctx.arcTo(x, y + h, x, y, q)
-      ctx.arcTo(x, y, x + w, y, q)
-      ctx.closePath()
+    const rr = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+      const q = Math.max(0, Math.min(r, w / 2, h / 2))
+      c.beginPath()
+      c.moveTo(x + q, y)
+      c.arcTo(x + w, y, x + w, y + h, q)
+      c.arcTo(x + w, y + h, x, y + h, q)
+      c.arcTo(x, y + h, x, y, q)
+      c.arcTo(x, y, x + w, y, q)
+      c.closePath()
     }
 
     let raf = 0
@@ -452,7 +523,6 @@ export default function StorageSweepMeter({
       time += dt
       const reduced = s.reduced
       const cats = catsRef.current
-      const tot = totalRef.current
 
       // ---- advance state ----
       const usedCols = s.segs.reduce((a, g) => a + g.w, 0)
@@ -466,12 +536,9 @@ export default function StorageSweepMeter({
           s.disp[ci] = s.sizes[ci] * Math.max(0, Math.min(1, (front - g.x) / Math.max(0.001, g.w)))
         }
         if (!reduced && p < 1) {
-          // embers kicked up at the scan front
+          const seg = s.segs.find((g) => front >= g.x && front < g.x + g.w)
           for (let k = 0; k < 3; k++) {
-            if (Math.random() < 0.6) {
-              const seg = s.segs.find((g) => front >= g.x && front < g.x + g.w)
-              spawn(OX + PAD + front * P, OY + PAD + Math.random() * ROWS * P, seg ? seg.rgb : [255, 255, 255], false)
-            }
+            if (Math.random() < 0.6) spawn(OX + (s.width - s.cols * P) / 2 + front * P, OY + Math.random() * BAR_H, seg ? seg.rgb : PEACH, false)
           }
         }
         if (p >= 1) {
@@ -483,45 +550,50 @@ export default function StorageSweepMeter({
         for (let i = 0; i < s.disp.length; i++) if (!s.clear || s.clear.idx !== i) s.disp[i] = s.sizes[i]
       }
 
+      const gx = OX + (s.width - s.cols * P) / 2
+      const gy = OY
       const cl = s.clear
+      let edge = -1 // column where the clearing segment is being eaten
+      let clearSeg: Seg | undefined
       if (cl) {
         cl.t += reduced ? 99 : dt
-        const g = s.segs.find((q) => cats.indexOf(q.cat) === cl.idx)
-        if (g) {
-          const sweepP = Math.min(1, cl.t / cl.d1)
-          const sweepCol = easeInOut(sweepP) * cl.w0
-          // dissolve every column the front crossed this frame
-          const upto = Math.min(Math.floor(sweepCol), Math.ceil(cl.w0))
-          for (let c = cl.lastCol; c < upto; c++) {
-            if (!reduced) {
-              for (let r = 0; r < ROWS; r++) {
-                const i = c * ROWS + r
-                const cx = OX + PAD + (g.x + c + 0.5) * P
-                const cy = OY + PAD + (r + 0.5) * P
-                if (g.lit[i] > 0 && !g.keep[i]) {
-                  spawn(cx, cy, g.rgb, true)
-                  spawn(cx, cy, g.rgb, true)
-                } else if (Math.random() < 0.3) spawn(cx, cy, g.rgb, false)
-              }
-            }
-          }
-          cl.lastCol = Math.max(cl.lastCol, upto)
-          g.swept = Math.max(g.swept, sweepCol)
-          const shrinkP = Math.max(0, Math.min(1, (cl.t - cl.d1) / cl.d2))
-          g.w = cl.w0 + (cl.w1 - cl.w0) * easeOut(shrinkP)
-          s.disp[cl.idx] = cl.from + (cl.to - cl.from) * easeInOut(Math.min(1, cl.t / (cl.d1 + cl.d2)))
+        clearSeg = s.segs.find((q) => cats.indexOf(q.cat) === cl.idx)
+        if (clearSeg) {
+          const g = clearSeg
+          const p = Math.min(1, cl.t / cl.d)
+          g.w = cl.w0 + (cl.w1 - cl.w0) * easeInOut(p)
+          s.disp[cl.idx] = cl.from + (cl.to - cl.from) * easeInOut(p)
           let x = 0
           for (const q of s.segs) {
             q.x = x
             x += q.w
           }
-          if (shrinkP >= 1) {
+          edge = g.w
+          // every column the hot edge has passed lifts off as pixels
+          const upto = Math.max(0, Math.floor(g.w))
+          if (!reduced) {
+            for (let c = cl.lastCol - 1; c >= upto; c--) {
+              for (let r = 0; r < ROWS; r++) {
+                const i = c * ROWS + r
+                const cx = gx + (g.x + c + 0.5) * P
+                const cy = gy + (r + 0.5) * P
+                if (g.lit[i] > 0) {
+                  spawn(cx, cy, g.rgb, true)
+                  if (Math.random() < 0.5) spawn(cx, cy, g.rgb, true)
+                } else if (Math.random() < 0.22) spawn(cx, cy, g.rgb, true)
+              }
+            }
+            // a steady wisp off the edge itself
+            for (let k = 0; k < 4; k++) spawn(gx + (g.x + g.w) * P, gy + Math.random() * BAR_H, g.rgb, Math.random() < 0.5)
+          }
+          cl.lastCol = Math.min(cl.lastCol, upto)
+          if (p >= 1) {
             g.w = cl.w1
-            g.target = cl.w1
             s.sizes[cl.idx] = cl.to
             s.disp[cl.idx] = cl.to
             s.clear = null
             s.phase = "idle"
+            edge = -1
             const gone = cl.from - cl.to
             setSizes(s.sizes.slice())
             setFreed((f) => f + gone)
@@ -558,139 +630,167 @@ export default function StorageSweepMeter({
         }
       }
 
-      // ---- draw ----
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, cssW, cssH)
-      const gx = OX + PAD + (s.width - PAD * 2 - s.cols * P) / 2
-      const gy = OY + PAD
+      // eased highlight: 1 for the isolated category (or everyone when none is)
+      const hiIdx = s.clear ? -1 : s.hi
+      for (let i = 0; i < cats.length; i++) {
+        const want = hiIdx < 0 || hiIdx === i ? 1 : 0
+        const k = s.hiK[i] ?? 1
+        s.hiK[i] = reduced ? want : k + (want - k) * Math.min(1, dt * 10)
+      }
+
+      // ---- draw the bar into the offscreen canvas ----
+      bx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      bx.clearRect(0, 0, cssW, cssH)
       const pointer = s.fine && s.px > -900
       const near = (cx: number, cy: number) => {
         if (!pointer) return 0
         const d = Math.hypot(cx - s.px, cy - s.py)
-        return d < 36 ? 1 - d / 36 : 0
+        return d < 30 ? 1 - d / 30 : 0
       }
+      const barW = s.cols * P
 
-      // track
-      rr(OX + 0.5, OY + 0.5, s.width - 1, BAR_H - 1, 7)
-      ctx.fillStyle = "rgba(255,255,255,0.018)"
-      ctx.fill()
-      ctx.strokeStyle = "rgba(255,255,255,0.06)"
-      ctx.lineWidth = 1
-      ctx.stroke()
-      const usedEnd = Math.min(front, usedCols)
-      for (let c = 0; c < s.cols; c++) {
-        if (c < usedEnd - 0.5) continue
+      // track and free space
+      rr(bx, gx + 0.5, gy + 0.5, barW - 1, BAR_H - 1, RADIUS)
+      bx.fillStyle = "rgba(255,255,255,0.015)"
+      bx.fill()
+      bx.strokeStyle = "rgba(255,255,255,0.07)"
+      bx.lineWidth = 1
+      bx.stroke()
+      const usedEnd = Math.min(front, s.segs.reduce((a, g) => a + g.w, 0))
+      for (let c = Math.max(0, Math.floor(usedEnd)); c < s.cols; c++) {
         for (let r = 0; r < ROWS; r++) {
           const cx = gx + (c + 0.5) * P
+          if (cx < gx + usedEnd * P + 1) continue
           const cy = gy + (r + 0.5) * P
           const k = near(cx, cy)
-          ctx.fillStyle = "rgba(255,255,255," + (0.07 + k * 0.3).toFixed(3) + ")"
-          const d = 1.2 + k * 1.2
-          ctx.fillRect(cx - d / 2, cy - d / 2, d, d)
+          bx.fillStyle = "rgba(255,255,255," + (0.08 + k * 0.32).toFixed(3) + ")"
+          const d = 1.1 + k * 1.3
+          bx.fillRect(cx - d / 2, cy - d / 2, d, d)
         }
       }
 
-      // segments
-      const hiIdx = s.hi
-      for (const g of s.segs) {
-        const ci = cats.indexOf(g.cat)
-        const vis = Math.min(g.w, front - g.x)
-        if (vis <= 0.02) continue
-        const [R, G, B] = g.rgb
-        const col = R + "," + G + "," + B
-        const isHi = hiIdx === ci
-        const m = hiIdx < 0 ? 1 : isHi ? 1 : 0.24
-        const x0 = gx + g.x * P
-        const wPx = vis * P
-        const y0 = gy - 2.5
-        const hPx = ROWS * P + 5
-        ctx.save()
-        rr(x0 + 0.75, y0, Math.max(1.5, wPx - 1.5), hPx, 4)
-        ctx.fillStyle = "rgba(" + col + "," + ((isHi ? 0.17 : 0.1) * m).toFixed(3) + ")"
-        ctx.fill()
-        ctx.clip()
-        const cEnd = Math.ceil(vis)
-        const sweeping = s.clear && s.clear.idx === ci && s.clear.t < s.clear.d1 ? g.swept : -1
-        for (let c = 0; c < cEnd; c++) {
-          const post = c < g.swept
-          for (let r = 0; r < ROWS; r++) {
-            const i = c * ROWS + r
-            const cx = x0 + (c + 0.5) * P
-            const cy = gy + (r + 0.5) * P
-            const k = near(cx, cy)
-            let a = g.lit[i]
-            if (post && !g.keep[i]) a = 0
-            if (a > 0) {
-              const tw = reduced ? 1 : 0.8 + 0.2 * Math.sin(time * 1.6 + g.phase[i])
-              const al = Math.min(1, (a * tw + k * 0.4) * m)
-              // fresh cells right behind the scan front burn white
-              const heat = front < Infinity ? Math.max(0, 1 - (front - (g.x + c)) / 2.2) : sweeping >= 0 && c >= sweeping - 0.5 ? Math.max(0, 1 - (c - sweeping) / 2.5) : 0
-              const s2 = P * 0.62 + k * 1.2
-              ctx.fillStyle = heat > 0 ? "rgba(" + Math.round(R + (255 - R) * heat) + "," + Math.round(G + (255 - G) * heat) + "," + Math.round(B + (255 - B) * heat) + "," + Math.min(1, al + heat * 0.5).toFixed(3) + ")" : "rgba(" + col + "," + al.toFixed(3) + ")"
-              ctx.fillRect(cx - s2 / 2, cy - s2 / 2, s2, s2)
-            } else {
-              const d = 1.3 + k * 1.2
-              ctx.fillStyle = "rgba(" + col + "," + ((0.32 + k * 0.4) * m).toFixed(3) + ")"
-              ctx.fillRect(cx - d / 2, cy - d / 2, d, d)
+      const usedPx = usedEnd * P
+      if (usedPx > 0.5) {
+        // one continuous, rounded bar; segments are slices of it
+        bx.save()
+        rr(bx, gx, gy, usedPx, BAR_H, RADIUS)
+        bx.clip()
+        for (const g of s.segs) {
+          const vis = Math.min(g.w, front - g.x)
+          if (vis <= 0.01) continue
+          const ci = cats.indexOf(g.cat)
+          const m = 0.22 + 0.78 * (s.hiK[ci] ?? 1)
+          const isHi = s.hi === ci && !s.clear
+          const x0 = gx + g.x * P
+          bx.fillStyle = "rgba(" + g.rgb.join(",") + "," + ((isHi ? 0.26 : 0.15) * m).toFixed(3) + ")"
+          bx.fillRect(x0, gy, vis * P, BAR_H)
+          const cEnd = Math.ceil(vis)
+          const isClear = clearSeg === g && edge >= 0
+          for (let c = 0; c < cEnd; c++) {
+            const ac = g.x + c // absolute column
+            let heat = 0
+            if (front < Infinity) heat = Math.max(0, 1 - (front - ac) / 3)
+            else if (edge >= 0 && clearSeg) {
+              const ex = clearSeg.x + edge
+              heat = isClear ? Math.max(0, 1 - (ex - ac - 0.5) / 3.2) : g.x >= ex - 0.01 ? Math.max(0, 0.7 - (ac - ex) / 3.5) : 0
+            }
+            for (let r = 0; r < ROWS; r++) {
+              const i = c * ROWS + r
+              const cx = x0 + (c + 0.5) * P
+              const cy = gy + (r + 0.5) * P
+              const k = near(cx, cy)
+              let a = g.lit[i]
+              // the hot edge ignites unlit cells too
+              if (a === 0 && heat > 0.35 && g.phase[i] < heat * 2.4) a = 0.45 + heat * 0.45
+              if (a > 0) {
+                const tw = reduced ? 1 : 0.86 + 0.14 * Math.sin(time * 1.5 + g.phase[i])
+                const al = Math.min(1, (a * tw + k * 0.35) * m + heat * 0.4)
+                const sz = P * 0.7 + k * 0.9
+                bx.fillStyle = "rgba(" + (heat > 0 ? mix(g.rgb, PEACH, Math.min(1, heat * 1.1)) : g.rgb.join(",")) + "," + al.toFixed(3) + ")"
+                bx.fillRect(cx - sz / 2, cy - sz / 2, sz, sz)
+              } else {
+                const d = 1.15 + k * 1.2
+                bx.fillStyle = "rgba(" + g.rgb.join(",") + "," + ((0.34 + k * 0.4) * m).toFixed(3) + ")"
+                bx.fillRect(cx - d / 2, cy - d / 2, d, d)
+              }
             }
           }
         }
-        ctx.restore()
-        // glowing rim
-        ctx.save()
-        rr(x0 + 0.75, y0, Math.max(1.5, wPx - 1.5), hPx, 4)
-        ctx.shadowColor = "rgba(" + col + "," + (0.9 * m).toFixed(3) + ")"
-        ctx.shadowBlur = isHi ? 16 : 10
-        ctx.strokeStyle = "rgba(" + col + "," + ((isHi ? 1 : 0.85) * m).toFixed(3) + ")"
-        ctx.lineWidth = isHi ? 1.6 : 1.25
-        ctx.stroke()
-        ctx.restore()
-      }
+        bx.restore()
 
-      // white-hot fronts: the scan, and the sweep
-      const drawFront = (xPx: number, strength: number) => {
-        const top = gy - 8
-        const h = ROWS * P + 16
-        ctx.save()
-        ctx.globalCompositeOperation = "lighter"
-        const grad = ctx.createLinearGradient(xPx - 18, 0, xPx + 6, 0)
-        grad.addColorStop(0, "rgba(255,255,255,0)")
-        grad.addColorStop(0.8, "rgba(255,246,230," + (0.22 * strength).toFixed(3) + ")")
-        grad.addColorStop(1, "rgba(255,255,255,0)")
-        ctx.fillStyle = grad
-        ctx.fillRect(xPx - 18, top, 24, h)
-        ctx.shadowColor = "rgba(255,255,255,0.95)"
-        ctx.shadowBlur = 14
-        ctx.fillStyle = "rgba(255,255,255," + (0.95 * strength).toFixed(3) + ")"
-        ctx.fillRect(xPx - 1, top + 4, 2, h - 8)
-        ctx.restore()
-      }
-      if (front < Infinity && !reduced) drawFront(gx + front * P, Math.min(1, s.scanT * 3))
-      if (s.clear && !reduced) {
-        const g = s.segs.find((q) => cats.indexOf(q.cat) === s.clear!.idx)
-        if (g && s.clear.t < s.clear.d1 + 0.12) {
-          const fade = s.clear.t > s.clear.d1 ? 1 - (s.clear.t - s.clear.d1) / 0.12 : 1
-          drawFront(gx + (g.x + Math.min(g.swept, g.w)) * P, fade)
+        // each slice's share of the outline, in its own colour
+        for (const g of s.segs) {
+          const vis = Math.min(g.w, front - g.x)
+          if (vis <= 0.01) continue
+          const ci = cats.indexOf(g.cat)
+          const m = 0.25 + 0.75 * (s.hiK[ci] ?? 1)
+          bx.save()
+          bx.beginPath()
+          bx.rect(gx + g.x * P, gy - 4, vis * P, BAR_H + 8)
+          bx.clip()
+          rr(bx, gx + 0.75, gy + 0.75, usedPx - 1.5, BAR_H - 1.5, RADIUS)
+          bx.strokeStyle = "rgba(" + g.rgb.join(",") + "," + m.toFixed(3) + ")"
+          bx.lineWidth = s.hi === ci ? 2 : 1.5
+          bx.stroke()
+          bx.restore()
+        }
+        // hairline dividers
+        bx.fillStyle = "rgba(235,235,240,0.55)"
+        for (let k = 1; k < s.segs.length; k++) {
+          const xc = s.segs[k].x
+          if (xc >= usedEnd - 0.05 || s.segs[k].w < 0.01) continue
+          bx.fillRect(gx + xc * P - 0.5, gy + 1, 1, BAR_H - 2)
         }
       }
 
-      // pixels in flight
+      // white-hot fronts: the scan, and the edge eating a cleared segment
+      const drawFront = (xPx: number, strength: number, glowW: number) => {
+        bx.save()
+        bx.globalCompositeOperation = "lighter"
+        const grad = bx.createLinearGradient(xPx - glowW, 0, xPx + 4, 0)
+        grad.addColorStop(0, "rgba(255,235,215,0)")
+        grad.addColorStop(0.85, "rgba(255,240,225," + (0.28 * strength).toFixed(3) + ")")
+        grad.addColorStop(1, "rgba(255,255,255,0)")
+        bx.fillStyle = grad
+        bx.fillRect(xPx - glowW, gy, glowW + 4, BAR_H)
+        bx.fillStyle = "rgba(255,250,244," + strength.toFixed(3) + ")"
+        bx.fillRect(xPx - 1.25, gy - 1, 2.5, BAR_H + 2)
+        bx.restore()
+      }
+      if (front < Infinity && !reduced) drawFront(gx + front * P, Math.min(1, s.scanT * 3), 26)
+      if (clearSeg && edge >= 0 && !reduced) drawFront(gx + (clearSeg.x + edge) * P, 1, 18)
+
+      // ---- composite: LED bloom, then the sharp bar, then pixels in flight ----
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.save()
+      ctx.globalCompositeOperation = "lighter"
+      ctx.globalAlpha = 0.75
+      ctx.filter = "blur(" + Math.round(5 * dpr) + "px)"
+      ctx.drawImage(off, 0, 0)
+      ctx.restore()
+      ctx.drawImage(off, 0, 0)
+
       if (s.particles.length) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         ctx.save()
         ctx.globalCompositeOperation = "lighter"
         const out: Particle[] = []
         for (const q of s.particles) {
           q.age += dt
           if (q.age >= q.life) continue
-          q.vy -= 14 * dt
-          q.vx *= 1 - 0.6 * dt
-          q.x += q.vx * dt + Math.sin((q.age + q.x) * 6) * 0.15
+          q.vy -= 26 * dt
+          q.vx += (6 - q.vx) * 0.6 * dt // drift gently up and to the right
+          q.x += q.vx * dt
           q.y += q.vy * dt
           const t = q.age / q.life
-          const hot = Math.max(0, 1 - t * 3)
-          const a = (1 - t) * (1 - t) * Math.max(0, Math.min(1, q.y / 44))
-          ctx.fillStyle = "rgba(" + Math.round(q.r + (255 - q.r) * hot) + "," + Math.round(q.g + (255 - q.g) * hot) + "," + Math.round(q.b + (255 - q.b) * hot) + "," + a.toFixed(3) + ")"
-          const sz = q.s * (1 - t * 0.4)
+          const a = Math.pow(1 - t, 1.4) * Math.max(0, Math.min(1, (q.y - 8) / 50))
+          if (a <= 0.01) {
+            if (q.y > 0) out.push(q)
+            continue
+          }
+          ctx.fillStyle = "rgba(" + Math.round(q.r) + "," + Math.round(q.g) + "," + Math.round(q.b) + "," + a.toFixed(3) + ")"
+          const sz = q.s * (1 - t * 0.35)
           ctx.fillRect(q.x - sz / 2, q.y - sz / 2, sz, sz)
           out.push(q)
         }
@@ -720,8 +820,8 @@ export default function StorageSweepMeter({
     after[idx] = to
     const alloc = allocateColumns(barIdx.map((i) => after[i]), total, s.cols)
     const w1 = alloc[barIdx.indexOf(idx)]
-    const d1 = Math.max(1.3, Math.min(2.4, 0.8 + seg.w * 0.08))
-    s.clear = { idx, t: 0, from: s.sizes[idx], to, w0: seg.w, w1, d1, d2: 0.7, lastCol: Math.floor(seg.swept) }
+    const d = Math.max(1.8, Math.min(3, 1.2 + seg.w * 0.07))
+    s.clear = { idx, t: 0, from: s.sizes[idx], to, w0: seg.w, w1, d, lastCol: Math.ceil(seg.w) }
     s.phase = "clear"
     setPinned(-1)
     setHover(-1)
@@ -729,12 +829,16 @@ export default function StorageSweepMeter({
     setPhase("clear")
   }
 
+  const colAt = (x: number) => {
+    const s = S.current
+    return (x - (s.width - s.cols * P) / 2) / P
+  }
   const onBarMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = S.current
     if (!s.fine || e.pointerType !== "mouse") return
     s.px = e.nativeEvent.offsetX + OX
     s.py = e.nativeEvent.offsetY + OY
-    const col = (s.px - OX - PAD - (s.width - PAD * 2 - s.cols * P) / 2) / P
+    const col = colAt(e.nativeEvent.offsetX)
     const g = s.segs.find((q) => col >= q.x && col < q.x + q.w)
     const ci = g && s.phase === "idle" ? categories.findIndex((c) => c.id === g.cat.id) : -1
     if (ci !== hover) setHover(ci)
@@ -747,7 +851,7 @@ export default function StorageSweepMeter({
   const onBarTap = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = S.current
     if (s.phase !== "idle") return
-    const col = (e.nativeEvent.offsetX - PAD - (s.width - PAD * 2 - s.cols * P) / 2) / P
+    const col = colAt(e.nativeEvent.offsetX)
     const g = s.segs.find((q) => col >= q.x && col < q.x + q.w)
     const ci = g ? categories.findIndex((c) => c.id === g.cat.id) : -1
     setPinned((p) => (p === ci ? -1 : ci))
@@ -757,6 +861,12 @@ export default function StorageSweepMeter({
   const suggest = nextClearable(categories.map((c, i) => ({ size: sizes[i], clear: c.clear })))
   const hiCat = hi >= 0 && phase === "idle" ? categories[hi] : null
   const clearCat = clearing >= 0 ? categories[clearing] : null
+
+  const check = (
+    <svg className="ssm-check" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 8.5l3.2 3L13 4.5" />
+    </svg>
+  )
 
   let status: ReactNode
   if (phase === "scan") {
@@ -785,24 +895,17 @@ export default function StorageSweepMeter({
   } else if (freed > 0.05) {
     status = (
       <>
-        <svg className="ssm-check" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 8.5l3.2 3L13 4.5" />
-        </svg>
+        {check}
         <b>Freed {formatGB(freed)}</b>
         <span className="ssm-muted">{formatGB(total - used)} available</span>
       </>
     )
   } else {
-    status = (
-      <>
-        <b>{formatGB(total - used)} available</b>
-        <span className="ssm-muted">Scanned just now</span>
-      </>
-    )
+    status = <span className="ssm-faint">{formatGB(total - used)} available</span>
   }
 
   const spin = (cls?: string) => (
-    <svg className={cls} width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+    <svg className={cls} width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
       <path d="M13.5 8A5.5 5.5 0 1 1 11.6 3.8M13.5 2.5v3.2h-3.2" />
     </svg>
   )
@@ -824,7 +927,14 @@ export default function StorageSweepMeter({
           <Glyph name={c.icon ?? "dot"} color={c.color} />
           <span>{(c.clear?.message ?? "").replace("{size}", formatGB(clearCat ? S.current.sizes[i] : sizes[i]))}</span>
         </div>
-        <button type="button" className="ssm-btn" disabled={phase !== "idle"} onClick={() => startClear(i)}>
+        <button
+          type="button"
+          className="ssm-btn"
+          disabled={phase !== "idle"}
+          onClick={() => startClear(i)}
+          onMouseEnter={() => phase === "idle" && setHover(i)}
+          onMouseLeave={() => setHover(-1)}
+        >
           {c.clear?.action ?? "Clear"}
         </button>
       </>
@@ -832,9 +942,7 @@ export default function StorageSweepMeter({
   } else {
     foot = (
       <div className="ssm-foot-msg" key="done">
-        <svg className="ssm-check" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 8.5l3.2 3L13 4.5" />
-        </svg>
+        {check}
         <span>Nothing else is worth clearing right now.</span>
       </div>
     )

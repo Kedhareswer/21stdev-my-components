@@ -50,6 +50,18 @@ assert.equal(m.formatGB(-2), "0.0 GB")
 assert.equal(m.nextClearable([{ size: 5 }, { size: 46.3, clear: { keep: 1.2 } }, { size: 9, clear: { keep: 0 } }]), 1)
 assert.equal(m.nextClearable([{ size: 1.2, clear: { keep: 1.2 } }, { size: 9, clear: { keep: 0 } }]), 1, "skips what's already clear")
 assert.equal(m.nextClearable([{ size: 0, clear: { keep: 0 } }]), -1, "nothing left")
+// Textures: densities stay in 0..1 and actually differ in shape.
+for (const t of ["lattice", "rain", "rise", "diamond", "scatter"])
+  for (let u = 0; u <= 1; u += 0.1) for (let v = 0; v <= 1; v += 0.1) {
+    const d = m.textureDensity(t, u, v)
+    assert.ok(d >= 0 && d <= 1, t + " density in range")
+  }
+assert.ok(m.textureDensity("rain", 0.5, 0) > m.textureDensity("rain", 0.5, 1) + 0.5, "rain is heavy at the top")
+assert.ok(m.textureDensity("rise", 0.5, 1) > m.textureDensity("rise", 0.5, 0) + 0.5, "rise is heavy at the bottom")
+assert.ok(m.textureDensity("diamond", 0, 0) > m.textureDensity("diamond", 0.5, 0.2), "diamond lights its diagonals")
+assert.match(src, /ctx\.filter = "blur\(/, "LED bloom pass")
+assert.match(src, /const hiIdx = s\.clear \? -1 : s\.hi/, "nothing is dimmed while a segment is being cleared")
+
 assert.deepEqual(m.hexRgb("#f59e0b"), [245, 158, 11])
 assert.deepEqual(m.hexRgb("#fff"), [255, 255, 255])
 assert.equal(m.easeInOut(0), 0)

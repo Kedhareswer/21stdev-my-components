@@ -1,8 +1,8 @@
 # Storage Sweep Meter
 
-A disk-usage card whose bar is an LED dot matrix. Each category is a glowing, rounded segment filled with a grid of dim dots and scattered lit cells, and the free space runs on as a faint dotted track.
+A disk-usage card whose bar is an LED dot matrix. The used space is one continuous rounded bar, sliced into categories by hairline dividers. Each slice has its own glowing outline and a fine grid of dim dots, and its lit cells sit on a checker lattice in a texture of its own: a dense lattice, rain falling from the top, a rising floor, a diamond, or a loose scatter. The top and bottom rows are lit like a frame, and the whole bar is bloomed so it reads like LEDs. The free space runs on as a faint dotted track.
 
-On load the card scans: a white-hot front sweeps the bar from left to right, the segments light up behind it, sparks lift off the front, and the used total and every legend size count up while the status line flicks through paths. When the scan finishes, the footer offers the first thing worth clearing. Press **Clear caches** and a second front sweeps across that segment. Its lit cells peel off as pixels that drift up out of the bar, then the segment folds shut, everything to its right slides over, and the counter ticks down. The status line reads *Freed 45.1 GB* and the footer moves on to the Trash. When nothing is left, it says so.
+On load the card scans: a white-hot front sweeps the bar from left to right, the segments light up behind it, sparks lift off the front, and the used total and every legend size count up while the status line flicks through paths. When the scan finishes, the footer offers the first thing worth clearing. Hover **Clear caches** and that segment is picked out. Press it and the segment is eaten from its right edge. A white-hot edge moves left, cells catch peach-white just ahead of it, and a plume of pixels lifts off and drifts up and to the right out of the bar. Everything to its right slides along behind the edge, and the counter ticks down. The status line reads *Freed 45.1 GB* and the footer moves on to the Trash. When nothing is left, it says so.
 
 All the data in the default demo is made up. It needs nothing beyond React.
 
@@ -42,7 +42,7 @@ With `prefers-reduced-motion: reduce`, the scan and the clear finish on their fi
 
 | Prop | Default | |
 |---|---|---|
-| `categories` | 9 made-up categories | `{ id, label, size, color, icon?, note?, clear? }[]`. `size` is in GB, `color` is a hex string. `icon` is one of `apps`, `film`, `gear`, `code`, `doc`, `box`, `photo`, `music`, `trash` or `dot`. `clear` is `{ keep, message, action, verb, paths? }`, where `{size}` in `message` is replaced with the current size. |
+| `categories` | 9 made-up categories | `{ id, label, size, color, icon?, texture?, note?, clear? }[]`. `texture` is `lattice` (default), `rain`, `rise`, `diamond` or `scatter`. `size` is in GB, `color` is a hex string. `icon` is one of `apps`, `film`, `gear`, `code`, `doc`, `box`, `photo`, `music`, `trash` or `dot`. `clear` is `{ keep, message, action, verb, paths? }`, where `{size}` in `message` is replaced with the current size. |
 | `total` | `512` | Disk capacity in GB. The bar's full width. |
 | `barOrder` | apps, documents, developer, photos, movies, system, music, caches, trash | The order of the segments, by `id`. The legend keeps the `categories` order (column by column, three to a column). |
 | `scanPaths` | 12 made-up paths | What the status line flicks through while scanning. |
@@ -53,6 +53,7 @@ With `prefers-reduced-motion: reduce`, the scan and the clear finish on their fi
 ## Notes
 
 - The card itself is always dark, like a small instrument panel, so the lit cells have something to glow against. The stage around it follows the host's `--color-background`, and the card's border mixes in `--color-foreground` so it still reads on a dark page.
-- The bar is a single canvas, sized by a `ResizeObserver`. It overhangs the bar by 104px at the top so the rising pixels can drift into the header, and it ignores pointer events, so nothing underneath stops working.
+- The bar is a single canvas, sized by a `ResizeObserver`. It overhangs the bar by 150px at the top so the rising pixels can drift into the header, and it ignores pointer events, so nothing underneath stops working.
+- The bar is drawn once per frame to an offscreen canvas and composited twice: blurred and added for the bloom, then sharp on top.
 - The frame loop pauses when the card scrolls off screen or the tab is hidden.
 - Cell patterns are seeded, so the same data draws the same matrix every time.
