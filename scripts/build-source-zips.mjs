@@ -1,17 +1,27 @@
 // After `vite build`: give every 21st.dev template a downloadable copy of its code
 // and a self-hosted cover, served from this site.
 //
-//   dist/source/<slug>.zip   the template's folder + every @/components/ui/<dep> it
-//                            imports, with a README naming the npm packages
+//   dist/source/<slug>.zip   a runnable Vite + React + Tailwind project: the
+//                            template + every @/components/ui/<dep> it imports
 //   dist/<cover>             the cover image named in scripts/templates.json
 //
-// 21st sends a template back as "no code to download" unless its listing links
-// the source. The template descriptions link these zips, so they must survive
-// every rebuild; that is why this runs as part of `npm run build`.
+// The zip is laid out so it can be uploaded as-is in 21st Studio's template form,
+// which refuses a zip without a package.json at its top and builds the listing's
+// demo from it:
+//
+//   package.json  index.html  vite.config.ts  tsconfig.json  README.md  LICENSE
+//   src/main.tsx  src/index.css  src/App.tsx          (App = the template's demo.tsx)
+//   src/components/ui/<folder>.tsx                    (one per component folder)
+//   src/demos/<demo-*.tsx>                            (any extra demo variants)
+//
+// npm versions come from this repo's package.json, so the zip builds with what the
+// workshop builds with. The template descriptions also link these zips for
+// download, so they must survive every rebuild; that is why this runs as part of
+// `npm run build`.
 //
 // Run: node scripts/build-source-zips.mjs   (needs Node 22+ for zlib.crc32)
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
-import { dirname, join, relative } from "node:path"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { crc32, deflateRawSync } from "node:zlib"
 
@@ -106,31 +116,183 @@ function zip(entries) {
   return Buffer.concat([...local, cd, end])
 }
 
-mkdirSync(join(dist, "source"), { recursive: true })
-for (const { slug, cover } of templates) {
-  const { folders, packages } = collect(slug)
+// The runnable project around a template: the collected files in, zip entries out.
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+const versions = { ...pkg.dependencies, ...pkg.devDependencies }
+const TOOLING = ["@tailwindcss/vite", "@types/react", "@types/react-dom", "@vitejs/plugin-react", "tailwindcss", "typescript", "vite"]
+
+const title = (slug) => slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ")
+const version = (name) => {
+  const v = versions[name]
+  if (!v) throw new Error(`${name} is imported but not declared in the root package.json`)
+  return v
+}
+
+function projectEntries({ slug, folders, packages, read, readme }) {
+  const runtime = [...new Set(["react", "react-dom", ...packages])].sort()
+  const types = runtime.map((p) => `@types/${p.replace(/^@/, "").replace("/", "__")}`).filter((t) => versions[t])
+  const dev = [...new Set([...TOOLING, ...types])].sort()
+  const text = (name, s) => ({ name, data: Buffer.from(s, "utf8") })
   const entries = []
-  for (const folder of folders.sort()) {
-    const dir = join(root, "components", folder)
-    for (const f of files(dir).sort()) {
-      entries.push({ name: `${slug}/components/${folder}/${relative(dir, f).replaceAll("\\", "/")}`, data: readFileSync(f) })
-    }
+
+  entries.push(text("package.json", JSON.stringify({
+    name: slug,
+    private: true,
+    version: "1.0.0",
+    type: "module",
+    license: "MIT",
+    scripts: { dev: "vite", build: "vite build", preview: "vite preview", typecheck: "tsc --noEmit" },
+    dependencies: Object.fromEntries(runtime.map((p) => [p, version(p)])),
+    devDependencies: Object.fromEntries(dev.map((p) => [p, version(p)])),
+  }, null, 2) + "\n"))
+
+  entries.push(text("index.html", `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title(slug)}</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`))
+
+  entries.push(text("vite.config.ts", `import { fileURLToPath, URL } from "node:url"
+import tailwindcss from "@tailwindcss/vite"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+})
+`))
+
+  entries.push(text("tsconfig.json", JSON.stringify({
+    compilerOptions: {
+      target: "ES2022",
+      lib: ["ES2022", "DOM", "DOM.Iterable"],
+      module: "ESNext",
+      moduleResolution: "bundler",
+      jsx: "react-jsx",
+      strict: true,
+      noEmit: true,
+      skipLibCheck: true,
+      isolatedModules: true,
+      baseUrl: ".",
+      paths: { "@/*": ["./src/*"] },
+      types: ["vite/client"],
+    },
+    include: ["src"],
+  }, null, 2) + "\n"))
+
+  entries.push(text(".gitignore", "node_modules\ndist\n"))
+
+  entries.push(text("src/main.tsx", `import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import App from "./App"
+import "./index.css"
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+`))
+
+  // The same semantic tokens the workshop gives every component (dev/styles.css).
+  entries.push(text("src/index.css", `@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.145 0 0);
+  --color-muted-foreground: oklch(0.556 0 0);
+  --color-border: oklch(0.922 0 0);
+  --color-primary: oklch(0.205 0 0);
+}
+
+.dark {
+  --color-background: oklch(0.145 0 0);
+  --color-foreground: oklch(0.985 0 0);
+  --color-muted-foreground: oklch(0.708 0 0);
+  --color-border: oklch(0.269 0 0);
+  --color-primary: oklch(0.985 0 0);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+`))
+
+  for (const folder of [...folders].sort()) {
+    entries.push({ name: `src/components/ui/${folder}.tsx`, data: read(folder, `${folder}.tsx`) })
   }
-  const readme = `# ${slug} — source code
+  entries.push({ name: "src/App.tsx", data: read(slug, "demo.tsx") })
+  for (const demo of readme.demos) entries.push({ name: `src/demos/${demo}`, data: read(slug, demo) })
+
+  const body = (readme.text || "").replace(/^# .*\n+/, "")
+  entries.push(text("README.md", `# ${title(slug)}
 
 Live demo: ${site}/#${slug}
 
-Folders under components/ are React + TypeScript + Tailwind components.
-Main file: components/${slug}/${slug}.tsx  (usage example: components/${slug}/demo.tsx)
+\`\`\`bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # production build in dist/
+\`\`\`
 
-Put each folder's .tsx file at src/components/ui/<folder>.tsx in a
-shadcn-style project (the code imports siblings as @/components/ui/<name>).
-
-npm packages used: ${packages.join(", ") || "react only"}
+The template is \`src/components/ui/${slug}.tsx\`; \`src/App.tsx\` renders it.
+${folders.length > 1 ? `It uses ${folders.filter((f) => f !== slug).map((f) => `\`src/components/ui/${f}.tsx\``).join(", ")}.\n` : ""}React + Vite + Tailwind CSS v4${packages.length ? `, plus ${packages.join(", ")}` : ""}.
 
 License: MIT. Author: Kedhareswer Naidu (https://kedhar.pages.dev).
-`
-  entries.unshift({ name: `${slug}/README.md`, data: Buffer.from(readme, "utf8") })
+${body ? `\n---\n\n${body}` : ""}`))
+
+  entries.push(text("LICENSE", `MIT License
+
+Copyright (c) 2026 Kedhareswer Naidu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+`))
+  return entries
+}
+
+mkdirSync(join(dist, "source"), { recursive: true })
+for (const { slug, cover } of templates) {
+  const { folders, packages } = collect(slug)
+  const dir = join(root, "components", slug)
+  const read = (folder, file) => {
+    const p = join(root, "components", folder, file)
+    if (!existsSync(p)) throw new Error(`components/${folder}/${file} is missing (needed by ${slug})`)
+    return readFileSync(p)
+  }
+  const readmePath = join(dir, "README.md")
+  const readme = {
+    text: existsSync(readmePath) ? readFileSync(readmePath, "utf8") : "",
+    demos: readdirSync(dir).filter((f) => /^demo-.+\.tsx$/.test(f)).sort(),
+  }
+  const entries = projectEntries({ slug, folders, packages: packages.filter((p) => p !== "react" && p !== "react-dom"), read, readme })
   writeFileSync(join(dist, "source", `${slug}.zip`), zip(entries))
 
   if (cover) {

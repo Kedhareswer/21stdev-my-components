@@ -207,6 +207,12 @@ The index (no hash, or one that names no demo) is also the deployed site's home 
 
 8. **Commit** here so repo and registry stay in sync.
 
+### Templates
+
+A full-page piece listed as a 21st **template** (not a component) also gets a line in `scripts/templates.json`. `npm run build` then writes `dist/source/<slug>.zip`: a runnable Vite + React + Tailwind project with `package.json` at the top, the template at `src/components/ui/<slug>.tsx`, every `@/components/ui/<dep>` it imports beside it, and `demo.tsx` as `src/App.tsx`. npm versions come from the root `package.json`.
+
+21st Studio's **New template** form refuses a zip without a top-level `package.json`, and a demo URL alone can't be submitted ("Upload the code first"). Upload this zip there. Studio builds the listing's demo from it and moves the template to *In review*. `21st publish-template` needs a `21st_sk_…` API key; a `21st login` session is not enough. End the description with `Download the code (MIT, React + Tailwind): https://kedhar-components.pages.dev/source/<slug>.zip`, which only works after the site is deployed.
+
 ### The stripped-height check
 
 `dev/styles.css` sets `html, body, #root { height: 100% }`. **An installed page has no such chain.** Any component whose layout is percentage-based below its root — `h-full`, `h-[500%]`, `h-[calc(100%-…)]`, sticky-scroll scrubbers — renders correctly in the workshop and collapses to 0px on 21st. Elements with intrinsic height still paint, so the result reads as "some UI, no images" rather than an obvious break, and every other check still passes.
