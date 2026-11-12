@@ -14,6 +14,7 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/eyelet-curtain-tear": ["./components/eyelet-curtain-tear/eyelet-curtain-tear.tsx"],
       "@/components/ui/sector-tide-matrix": ["./components/sector-tide-matrix/sector-tide-matrix.tsx"],
       "@/components/ui/vellum-journal-template": ["./components/vellum-journal-template/vellum-journal-template.tsx"],
       "@/components/ui/minted-coin-scroll": ["./components/minted-coin-scroll/minted-coin-scroll.tsx"],
