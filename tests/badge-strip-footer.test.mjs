@@ -79,4 +79,5 @@ assert.ok(css.includes("bkm-marq " + S.MARQUEE_S + "s linear"), "the constant ma
 assert.equal(S.urlOf("/a.webp"), 'url("/a.webp")')
 assert.equal(S.urlOf('x");background:red;("'), 'url("x);background:red;(")', "quotes can't break out of url()")
 
+assert.match(src, /"\.bkm-root\{width:100%;/, "the root claims the full width: 21st centres demos in a flex box, which would shrink it to 0px")
 console.log("badge-strip-footer: ok")

@@ -123,4 +123,5 @@ for (let k = 0; k < S.THEMES.length; k++) t = S.nextTheme(t)
 assert.equal(t, 0, "themes cycle and come back round")
 for (const th of S.THEMES) assert.match(th.bg + th.fg + th.deep, /^(#[0-9a-f]{6}){3}$/)
 
+assert.match(src, /"\.bkm-root\{width:100%;/, "the root claims the full width: 21st centres demos in a flex box, which would shrink it to 0px")
 console.log("bunkum-wordmark-hero: ok")

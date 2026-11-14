@@ -60,7 +60,7 @@ const defaultItems = () => (defaults ??= KINDS.map((k, i) => ({ src: IMG[k], nam
 /* ------------------------------------------------------------- styles */
 
 const CSS =
-  ".bkm-root{--butter:#ffe98a;--deep:#0d137a;--ink:#0c0c10;--paper:#f6f1e3;position:relative;overflow:clip;background:var(--ink);color:var(--paper);font-family:BkmSans,ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;isolation:isolate}" +
+  ".bkm-root{width:100%;--butter:#ffe98a;--deep:#0d137a;--ink:#0c0c10;--paper:#f6f1e3;position:relative;overflow:clip;background:var(--ink);color:var(--paper);font-family:BkmSans,ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;isolation:isolate}" +
   ".dark .bkm-root{--ink:#08080b}" +
   ".bkm-root *{box-sizing:border-box}" +
   ".bkm-root svg,.bkm-root img{max-width:none}" +

@@ -88,4 +88,5 @@ assert.equal(M.step(2, 1, 3), 0, "next wraps to the first card")
 assert.equal(M.step(0, -1, 3), 2, "previous wraps to the last")
 assert.equal(M.step(0, 1, 0), 0, "never NaN")
 
+assert.match(src, /"\.bkm-root\{width:100%;/, "the root claims the full width: 21st centres demos in a flex box, which would shrink it to 0px")
 console.log("weird-brief-cta: ok")

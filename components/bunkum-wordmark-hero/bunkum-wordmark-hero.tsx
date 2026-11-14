@@ -141,7 +141,7 @@ const BOX = ["a1", "b3", "a4", "b8", "a2", "b1"]
 /* ------------------------------------------------------------- styles */
 
 const CSS =
-  ".bkm-root{--blue:#2731e8;--deep:#0d137a;--butter:#ffe98a;--ink:#0c0c10;position:relative;overflow:clip;color:var(--butter);font-family:BkmSans,ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;isolation:isolate}" +
+  ".bkm-root{width:100%;--blue:#2731e8;--deep:#0d137a;--butter:#ffe98a;--ink:#0c0c10;position:relative;overflow:clip;color:var(--butter);font-family:BkmSans,ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;isolation:isolate}" +
   ".dark .bkm-root{--ink:#08080b}" +
   ".bkm-root *{box-sizing:border-box}" +
   ".bkm-root svg,.bkm-root img{max-width:none}" +

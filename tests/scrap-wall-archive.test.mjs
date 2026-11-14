@@ -136,4 +136,5 @@ assert.equal(A.countAt(1), "Scrap 1204 / 1204")
 assert.deepEqual(A.rowFrom(3, 14, 18), [14, 1, 6])
 assert.ok(A.rowFrom(3, 9, 4).every((k) => k >= 0 && k < 4), "rows stay in range for small sets")
 
+assert.match(src, /"\.bkm-root\{width:100%;/, "the root claims the full width: 21st centres demos in a flex box, which would shrink it to 0px")
 console.log("scrap-wall-archive: ok")
