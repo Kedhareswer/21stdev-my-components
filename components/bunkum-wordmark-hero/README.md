@@ -55,6 +55,6 @@ The giant wordmark always spells BUNKUM, because its glyphs are drawn by hand fo
 
 ## Pictures and fonts
 
-The six carton faces and three stickers (blob, Gerald, aubergine) were generated for the original template with ChatGPT's image model. They're embedded as compressed WebP data URIs, so the component makes no network requests. Each picture is set once as a CSS custom property on the root. Text uses subsets of **Inter Tight** (700) and **JetBrains Mono** (capitals), both SIL Open Font License 1.1 fonts, renamed `BkmSans` and `BkmMono` as the licence asks of modified copies.
+The six carton faces and three stickers (blob, Gerald, aubergine) were generated for the original template with ChatGPT's image model. They're served full-size from `https://kedhar-components.pages.dev/bunkum/` (embedding them would push the file past 21st's 200 kB limit); to self-host, copy them and change `IMG_BASE` at the bottom of the file. Each picture is set once as a CSS custom property on the root. Text uses subsets of **Inter Tight** (700) and **JetBrains Mono** (capitals), both SIL Open Font License 1.1 fonts, renamed `BkmSans` and `BkmMono` as the licence asks of modified copies.
 
 It needs nothing beyond React and Tailwind's base styles.

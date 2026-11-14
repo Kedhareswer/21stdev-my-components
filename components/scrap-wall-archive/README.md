@@ -13,7 +13,7 @@ A pinned archive stage, lifted from the Bunkum Studio template. It opens in prev
 
 | Prop | Default | |
 |---|---|---|
-| `items` | 18 embedded illustrations | `{ src, name }[]`. Square art reads best; the wall crops each scrap to one of a few shapes. The wall's picture order steps 7 per column, so a set of 7 (or 1) repeats down whole columns; 8 or more reads best. |
+| `items` | 18 template illustrations | `{ src, name }[]`. Square art reads best; the wall crops each scrap to one of a few shapes. The wall's picture order steps 7 per column, so a set of 7 (or 1) repeats down whole columns; 8 or more reads best. |
 | `title` | `"Archive"` | Heading, bottom left. |
 | `height` | `"100svh"` | Height of the pinned stage. The track is 3.4 stages tall. Keep it a definite length. |
 | `className`, `style` | none | Passed to the root. |
@@ -40,7 +40,7 @@ With `prefers-reduced-motion`, the archive shows a still wall (scroll doesn't pa
 
 ## Pictures and fonts
 
-The eighteen default illustrations were generated for the Bunkum template with ChatGPT's image model. They're embedded as compressed WebP data URIs (about 520 KB), so the component makes no network requests. Each picture is set once as a CSS custom property on the root, so a scrap that appears many times on the wall doesn't copy the data. Pass `items` to use your own.
+The eighteen default illustrations were generated for the Bunkum template with ChatGPT's image model. They're served full-size from `https://kedhar-components.pages.dev/bunkum/` (embedding them would push the file past 21st's 200 kB limit); to self-host, copy them and change `IMG_BASE` at the bottom of the file. Each picture is set once as a CSS custom property on the root, so a scrap that appears many times on the wall is only fetched once. Pass `items` to use your own.
 
 Text uses subsets of **Inter Tight** (400 and 700) and **JetBrains Mono** (capitals), both SIL Open Font License 1.1, embedded as base64 woff2 and renamed (`BkmSans`, `BkmMono`) as the licence asks of modified copies.
 

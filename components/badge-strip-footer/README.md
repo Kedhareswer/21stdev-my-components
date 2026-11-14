@@ -23,7 +23,7 @@ import BadgeStripFooter from "@/components/ui/badge-strip-footer"
 
 | Prop | Default | |
 |---|---|---|
-| `badges` | the 18 embedded drawings | Image URLs for the round badges. Square pictures work best. |
+| `badges` | the 18 template drawings | Image URLs for the round badges. Square pictures work best. |
 | `copyright` | "© 2026 Bunkum Studio · drawn by hand, mostly" | The middle of the legal row. |
 | `signatureLabel` | `"Bunkum signature"` | Accessible name of the signature drawing. |
 | `backToTopLabel` | `"Back to top ↑"` | Text of the button. |
@@ -35,7 +35,7 @@ The colours are the template's Cobalt palette, set as custom properties on the r
 
 ## Pictures and fonts
 
-The eighteen square illustrations from the template are embedded as WebP data URIs, about 575 KB in total, so nothing is fetched. Each picture is set once as a CSS custom property on the root, so the strip's second copy doesn't duplicate the data. They stay in the file even when you pass `badges`. To slim the component down, delete the entries in `IMG` at the bottom and always pass your own.
+The eighteen square illustrations from the template are served full-size from `https://kedhar-components.pages.dev/bunkum/` (embedding them would push the file past 21st's 200 kB limit); to self-host, copy them and change `IMG_BASE` at the bottom of the file. Each picture is set once as a CSS custom property on the root, so the strip's second copy doesn't fetch it again. Pass `badges` to use your own.
 
 Text uses subsets of **Inter Tight** 400 and **JetBrains Mono** (capitals), embedded as woff2 and renamed `BkmSans` and `BkmMono` as their SIL OFL 1.1 licence asks. The back-to-top button is set in `BkmSans`, as in the template, because its `font: inherit` overrides the mono face.
 
