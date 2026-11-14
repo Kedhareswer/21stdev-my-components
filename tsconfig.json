@@ -14,6 +14,10 @@
     /* tsc cannot expand a wildcard twice, so each component gets one line here.
        Vite resolves the same imports by pattern — see vite.config.ts. */
     "paths": {
+      "@/components/ui/bunkum-wordmark-hero": ["./components/bunkum-wordmark-hero/bunkum-wordmark-hero.tsx"],
+      "@/components/ui/scrap-wall-archive": ["./components/scrap-wall-archive/scrap-wall-archive.tsx"],
+      "@/components/ui/weird-brief-cta": ["./components/weird-brief-cta/weird-brief-cta.tsx"],
+      "@/components/ui/badge-strip-footer": ["./components/badge-strip-footer/badge-strip-footer.tsx"],
       "@/components/ui/argent-studio-landing": ["./components/argent-studio-landing/argent-studio-landing.tsx"],
       "@/components/ui/bunkum-studio-template": ["./components/bunkum-studio-template/bunkum-studio-template.tsx"],
       "@/components/ui/storage-sweep-meter": ["./components/storage-sweep-meter/storage-sweep-meter.tsx"],
