@@ -2,10 +2,7 @@
 
 import * as React from "react"
 import * as THREE from "three"
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js"
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js"
 
 export type EyeletCurtainTearProps = {
   /** Base colour of the cloth */
@@ -81,7 +78,7 @@ export type Cloth = {
 
 export function makeCloth(W: number, H: number, top = 14, cell = 17): Cloth {
   const cols = Math.max(24, Math.min(84, Math.round(W / cell)))
-  const len = (H - top) * 0.985
+  const len = (H - top) * 1.02
   const rows = Math.max(22, Math.min(60, Math.round(len / cell)))
   const n = cols * rows
   const pos = new Float32Array(n * 3)
@@ -385,7 +382,7 @@ function rng(seed: number) {
 // out (alpha 0), so the real window shows through; `halo` is the same perforation mask
 // blurred, which the shader uses for the glow that bleeds round each backlit hole.
 // Motifs carry small seeded jitter in place, size and turn — hand cutwork, not a print.
-function paintFabric(w: number, h: number, fabric: string, thread: string) {
+function paintFabric(w: number, h: number, unit: number, fabric: string, thread: string) {
   const mk = () => {
     const c = document.createElement("canvas")
     c.width = w
@@ -398,7 +395,11 @@ function paintFabric(w: number, h: number, fabric: string, thread: string) {
   const hg = halo.getContext("2d")
   if (!g || !hg) return { cloth, halo }
   const r = rng(11)
-  const k = Math.max(1, w / 1400)
+  // `unit` is texels per stage pixel. The repeat is set in stage pixels, so a wide
+  // stage gets bigger flowers, not more of them, and a sharper screen only adds detail.
+  const rep = Math.max(84, Math.min(300, w / unit / 6.5, h / unit / 3.2))
+  const s = rep * unit
+  const k = unit * 0.8 * Math.max(1, rep / 152)
 
   // ground: base, slow mottling (uneven density), then loose threads both ways
   g.fillStyle = fabric
@@ -427,7 +428,6 @@ function paintFabric(w: number, h: number, fabric: string, thread: string) {
   for (let i = 0; i < (w * h) / 1500; i++) g.fillRect(r() * w, r() * h, (3 + r() * 14) * k, 0.8)
   g.globalAlpha = 1
 
-  const s = Math.max(80, Math.min(190, w / 5.6))
   const R = s * 0.135
   const holes = new Path2D()
   const sprig = new Path2D()
@@ -499,7 +499,7 @@ function paintFabric(w: number, h: number, fabric: string, thread: string) {
   }
 
   // field — ring row, flower row, sparse diamonds, quads; plenty of plain cloth between
-  const bandTop = h * 0.72
+  const bandTop = Math.max(h * 0.5, h - s * 1.34)
   const kinds = ["ring", "flower", "diamond", "quad"]
   let ri = 0
   for (let y = s * 0.45; y < bandTop - s * 0.3; y += s * 0.52, ri++) {
@@ -771,7 +771,7 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
       fallback?.remove()
       const w = Math.round(r.width), h = Math.round(r.height)
       fallback = paintWindow(w, h, o.sunX, o.sunY)
-      fallback.getContext("2d")?.drawImage(paintFabric(w, h, o.fabric, o.thread).cloth, 0, 0)
+      fallback.getContext("2d")?.drawImage(paintFabric(w, h, 1, o.fabric, o.thread).cloth, 0, 0)
       fallback.className = "ect-fallback"
       host.appendChild(fallback)
     })
@@ -824,14 +824,35 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
     bgMat.uniforms.map.value = bgTex
   }
 
-  // bloom: the sun through the eyelets and the tears flares like the footage does
+  // The scene renders once into a multisampled half-float target (highlights stay above
+  // 1.0), and the bloom pass resolves it straight to the screen: one resolve, no composer
+  // ping-pong. The sun through the eyelets and the tears flares like the footage does.
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 })
-  const composer = new EffectComposer(gl, rt)
-  composer.addPass(new RenderPass(scene, camera))
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.45, 0.98)
-  composer.addPass(bloom)
-  const output = new OutputPass()
-  composer.addPass(output)
+  bloom.renderToScreen = true
+
+  // Render quality, best first: [pixel ratio, MSAA samples]. A slow GPU steps down it.
+  let tiers: number[][] = [[pr, 4]]
+  let tier = 0
+  let gN = 0, gT = 0
+  function applyQuality() {
+    const [q, aa] = tiers[tier]
+    gl.setPixelRatio(q)
+    gl.setSize(W, H, false)
+    const bw = Math.floor(W * q), bh = Math.floor(H * q)
+    if (rt.samples !== aa) {
+      rt.samples = aa
+      rt.dispose()
+    }
+    rt.setSize(bw, bh)
+    // the glow is sized against the stage, not the buffer, so every tier blooms alike
+    const gw = Math.min(bw, 1280)
+    bloom.setSize(gw, Math.round((gw * bh) / bw))
+    mat.uniforms.sunPx.value.set(o.sunX * bw, (1 - o.sunY) * bh)
+    mat.uniforms.scale.value = Math.min(bh, Math.sqrt(bw * bh))
+    gN = 0
+    gT = 0
+  }
 
   let cloth: Cloth | null = null
   let tex: THREE.CanvasTexture | null = null
@@ -846,18 +867,21 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
   function build(w: number, h: number) {
     W = w
     H = h
-    gl.setSize(w, h, false)
     camera.aspect = w / h
     const camZ = h / 2 / Math.tan((15 * Math.PI) / 180)
     camera.position.set(0, 0, camZ)
     camera.updateProjectionMatrix()
-    composer.setPixelRatio(pr)
-    composer.setSize(w, h)
+    // start within a pixel budget; a 4K stage at 2x is more than the picture needs
+    const q0 = Math.min(pr, Math.sqrt(3.2e6 / (w * h)))
+    const q1 = Math.min(q0, 1)
+    tiers = [[q0, 4], [Math.max(q1, q0 * 0.75), 4], [q1, 0], [Math.min(q0, 0.75), 0]]
+    tier = Math.min(tier, tiers.length - 1)
+    applyQuality()
     const grow = ((camZ + 90) / camZ) * 1.04
     bg.scale.set(w * grow, h * grow, 1)
     paintBackdrop(w, h)
     mat.uniforms.folds.value = Math.max(4, w / 95)
-    const c = makeCloth(w, h)
+    const c = makeCloth(w, h, 0)
     cloth = c
     const geo = new THREE.BufferGeometry()
     geo.setAttribute("position", new THREE.BufferAttribute(c.pos, 3))
@@ -870,16 +894,14 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
     mesh.geometry = geo
     tex?.dispose()
     haloTex?.dispose()
-    const tw = Math.min(2048, Math.round(w * pr))
-    const th = Math.min(2048, Math.round(h * pr))
-    const painted = paintFabric(tw, th, o.fabric, o.thread)
+    // one scale for both axes, or the flowers stretch on a wide stage
+    const unit = Math.min(pr, 2048 / Math.max(w, h))
+    const painted = paintFabric(Math.round(w * unit), Math.round(h * unit), unit, o.fabric, o.thread)
     tex = new THREE.CanvasTexture(painted.cloth)
     tex.anisotropy = gl.capabilities.getMaxAnisotropy()
     haloTex = new THREE.CanvasTexture(painted.halo)
     mat.uniforms.map.value = tex
     mat.uniforms.halo.value = haloTex
-    mat.uniforms.sunPx.value.set(o.sunX * w * pr, (1 - o.sunY) * h * pr)
-    mat.uniforms.scale.value = h * pr
     releases = []
     anyTorn = false
     down = false
@@ -964,12 +986,30 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
   let acc = 0, t = 0, last = performance.now(), frames = 0, raf = 0
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
-    const dt = Math.min(0.05, (now - last) / 1000)
+    const raw = (now - last) / 1000
+    const dt = Math.min(0.1, raw)
     last = now
     if (!cloth || !visible) return
+    // Frame-time governor: a run of slow frames drops a quality tier (resolution first,
+    // then MSAA), so a weak GPU gets a softer picture rather than a slideshow. Long gaps
+    // are a throttled or backgrounded tab, not a slow GPU, and don't count.
+    if (raw < 0.25 && tier < tiers.length - 1 && ++gN > 10) {
+      gT += raw
+      if (gN >= 40) {
+        const avg = gT / 30
+        gN = 0
+        gT = 0
+        const to = avg > 0.045 ? tier + 2 : avg > 0.022 && tier < tiers.length - 2 ? tier + 1 : tier
+        if (to !== tier) {
+          tier = Math.min(to, tiers.length - 1)
+          applyQuality()
+        }
+      }
+    }
     acc += dt
     let n = 0
-    while (acc >= STEP && n < 4) {
+    // enough steps per frame that the cloth keeps real time down to about 11 fps
+    while (acc >= STEP && n < 8) {
       t += STEP
       if (releases.length && t >= releaseAt) {
         releaseLoop(cloth, releases.shift() as number)
@@ -979,7 +1019,7 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
       acc -= STEP
       n++
     }
-    if (n === 4) acc = 0
+    if (n === 8) acc = 0
     if (cloth.dirty) {
       const count = buildIndex(cloth, idx)
       const ia = mesh.geometry.getIndex()
@@ -1000,7 +1040,9 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
     const na = mesh.geometry.getAttribute("normal2")
     pa.needsUpdate = true
     na.needsUpdate = true
-    composer.render()
+    gl.setRenderTarget(rt)
+    gl.render(scene, camera)
+    bloom.render(gl, rt, rt, dt, false)
   }
   raf = requestAnimationFrame(frame)
 
@@ -1023,9 +1065,9 @@ function createEngine(host: HTMLDivElement, o: EngineOpts): Engine {
       bg.geometry.dispose()
       bgMat.dispose()
       bloom.dispose()
-      output.dispose()
-      composer.dispose()
+      rt.dispose()
       gl.dispose()
+      gl.forceContextLoss()
       canvas.remove()
     },
     reset() {

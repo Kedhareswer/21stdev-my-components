@@ -7,7 +7,7 @@ import assert from "node:assert/strict"
 import { checkComponent, liftRegion } from "./_component-safety.mjs"
 
 const slug = "eyelet-curtain-tear"
-const { src, demo } = checkComponent(slug, { prefix: "ect-", imports: ["react", "three", "three/examples/jsm/postprocessing/EffectComposer.js", "three/examples/jsm/postprocessing/RenderPass.js", "three/examples/jsm/postprocessing/UnrealBloomPass.js", "three/examples/jsm/postprocessing/OutputPass.js"] })
+const { src, demo } = checkComponent(slug, { prefix: "ect-", imports: ["react", "three", "three/examples/jsm/postprocessing/UnrealBloomPass.js"] })
 
 assert.match(demo, /from "@\/components\/ui\/eyelet-curtain-tear"/, "demo imports the installed path")
 assert.match(src, /\(hover:hover\) and \(pointer:fine\)/, "grab cursor only for fine pointers")
@@ -20,6 +20,16 @@ assert.match(src, /type="button"/, "the take-down / re-hang control is a real bu
 assert.match(src, /className="ect-sr"/, "screen-reader description")
 assert.match(src, /gl\.dispose\(\)/, "the renderer is disposed on unmount")
 assert.match(src, /io\.disconnect\(\)/, "offscreen pause observer is cleaned up")
+assert.match(src, /gl\.forceContextLoss\(\)/, "the WebGL context is released, not left for the browser to evict")
+// one multisampled target and one resolve: a composer with MSAA on both ping-pong
+// buffers cost ~52 ms a frame at 1920x1080 on integrated graphics
+assert.doesNotMatch(src, /EffectComposer|OutputPass|RenderPass/, "no composer chain")
+assert.match(src, /bloom\.renderToScreen = true/, "bloom resolves straight to the screen")
+assert.match(src, /raw < 0\.25 && tier < tiers\.length - 1/, "slow frames step the quality down; throttled-tab gaps don't count")
+assert.match(src, /Math\.sqrt\(3\.2e6 \/ \(w \* h\)\)/, "the starting resolution sits inside a pixel budget")
+assert.match(src, /const unit = Math\.min\(pr, 2048 \/ Math\.max\(w, h\)\)/, "the cloth texture scales both axes together, so motifs stay round")
+assert.match(src, /while \(acc >= STEP && n < 8\)/, "the solver keeps real time at low frame rates")
+assert.match(src, /makeCloth\(w, h, 0\)/, "the heading is tucked behind the rod")
 
 const g = await liftRegion(src, "cloth")
 const env = (o = {}) => ({ dt: 1 / 90, t: 0, gravity: 980, wind: 0, tear: 2.3, iters: 6, ...o })

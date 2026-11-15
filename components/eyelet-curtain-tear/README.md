@@ -15,8 +15,8 @@ import EyeletCurtainTear from "@/components/ui/eyelet-curtain-tear"
 <EyeletCurtainTear backdropSrc="/images/garden.jpg" onTornDown={() => console.log("open")} />
 ```
 
-**Dependencies:** `three`, including its `examples/jsm` post-processing passes
-(EffectComposer, RenderPass, UnrealBloomPass and OutputPass). Nothing is fetched unless
+**Dependencies:** `three`, including `UnrealBloomPass` from its `examples/jsm`
+post-processing folder. Nothing is fetched unless
 you pass `backdropSrc`. The cloth (weave, mottling, satin-stitch rims, flower, ring and
 fan eyelets, hemstitch columns and the border band) and the default window (sky, sun,
 layered trees, lawn, glazing bars) are both painted to offscreen canvases at runtime.
@@ -39,7 +39,7 @@ layered trees, lawn, glazing bars) are both painted to offscreen canvases at run
 ## How it works
 
 1. **Verlet cloth.** The cloth is a grid of up to 84 × 60 particles in stage pixels.
-   The top row is pinned to the rod. Irregular pleats are set into the rest lengths so
+   The top row is pinned to the rod, behind it, and the hem runs just past the sill. Irregular pleats are set into the rest lengths so
    they hold. The solver runs at a fixed 90 Hz with 6 constraint passes.
 2. **Tearing.** A thread snaps once it passes 2.3 × its rest length (× `tearResistance`).
    Only one side of a snapped thread goes, so tears open as rips with hanging flaps
@@ -55,9 +55,15 @@ layered trees, lawn, glazing bars) are both painted to offscreen canvases at run
 4. **Window and bloom.** The window is a plane inside the scene. Its highlights are
    pushed past 1.0 and an UnrealBloom pass flares them through the eyelets and the tears,
    like the camera glare on real footage.
-5. **Pointer.** Pressing grabs the particles under the pointer, and dragging holds them.
+5. **Frame budget.** The scene renders once into a multisampled half-float target and
+   the bloom pass resolves it straight to the screen. Resolution starts inside a
+   3.2-megapixel budget. If frames run slow, the renderer steps down: lower pixel
+   ratio first, then no MSAA. The solver takes up to 8 steps a frame, so the cloth
+   falls at the same speed on a slow GPU. Motifs are sized in stage pixels, so a wide
+   stage gets bigger flowers rather than more of them.
+6. **Pointer.** Pressing grabs the particles under the pointer, and dragging holds them.
    The brush-past billow only runs under `(hover: hover) and (pointer: fine)`.
-6. **Accessibility.** The **Pull it down** button rips the curtain off the rod loop by
+7. **Accessibility.** The **Pull it down** button rips the curtain off the rod loop by
    loop. Once it's torn, the button changes to **Hang it again**. Under
    `prefers-reduced-motion` the breeze and the hover billow are off, and the button drops
    the curtain all at once.
