@@ -54,13 +54,10 @@
     { "slug": "quiet-portfolio-template" },
     { "slug": "coquette-desktop-portfolio" },
     { "slug": "vellum-journal-template" },
-    { "slug": "signature-gallery-template" },
     { "slug": "loupe-curator-landing" },
     { "slug": "argent-studio-landing" },
     { "slug": "bunkum-studio-template" },
-    { "slug": "murmur-voice-app-landing" },
     { "slug": "sheen-board-landing" },
-    { "slug": "keel-founders-template" },
-    { "slug": "sleeve-folio-template" }
+    { "slug": "keel-founders-template" }
   ]
 }

@@ -24,7 +24,7 @@ assert.ok(statSync(file).size < 200_000, "under 21st's 200 kB file limit: " + st
 const ts = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
 assert.ok(ts.includes('"@/components/ui/' + slug + '": ["./components/' + slug + "/" + slug + '.tsx"]'), "tsconfig paths line")
 const tpl = JSON.parse(readFileSync(new URL("../scripts/templates.json", import.meta.url), "utf8"))
-assert.ok(tpl.templates.some((t) => t.slug === slug), "listed in scripts/templates.json")
+assert.ok(!tpl.templates.some((t) => t.slug === slug), "sold on 21st: no free source zip")
 assert.match(demo, /from "@\/components\/ui\/signature-gallery-template"/, "demo imports the installed path")
 
 assert.match(src, /height = "100svh"/, "height defaults to a definite length")
