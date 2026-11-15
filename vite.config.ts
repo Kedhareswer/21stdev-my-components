@@ -11,6 +11,7 @@ const root = fileURLToPath(new URL(".", import.meta.url)).replace(/[\\/]$/, "")
 // older folder with the clone's oldest commit, and its clone has no usable
 // origin to deepen from — so fall back to the public repo. No git at all just
 // means no dates.
+const SITE = "https://kedhar-components.pages.dev/"
 const PUBLIC_REPO = "https://github.com/Kedhareswer/21stdev-my-components.git"
 function updatedDates() {
   const git = (args: string) =>
@@ -38,7 +39,21 @@ export default defineConfig({
   // The harness lives in dev/ so the repo root stays just components/ + library/.
   root: "dev",
   define: { __UPDATED__: JSON.stringify(updatedDates()) },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Components load large images from the deployed site (21st caps a file at
+    // 200 kB). While developing, serve those same files from dev/public so a
+    // new piece shows its pictures before the site is redeployed.
+    {
+      name: "local-site-assets",
+      apply: "serve",
+      transform(code, id) {
+        if (!id.includes("/components/") || !code.includes(SITE)) return null
+        return { code: code.split(SITE).join("/"), map: null }
+      },
+    },
+  ],
   resolve: {
     alias: [
       // Demos import the path a 21st installer ends up with. Map it back onto
