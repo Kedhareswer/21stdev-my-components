@@ -24,6 +24,8 @@
       "@/components/ui/keel-founders-template": ["./components/keel-founders-template/keel-founders-template.tsx"],
       "@/components/ui/easel-showcase-template": ["./components/easel-showcase-template/easel-showcase-template.tsx"],
       "@/components/ui/drape-studio-template": ["./components/drape-studio-template/drape-studio-template.tsx"],
+      "@/components/ui/keystone-crossing-template": ["./components/keystone-crossing-template/keystone-crossing-template.tsx"],
+      "@/components/ui/himal-journeys-template": ["./components/himal-journeys-template/himal-journeys-template.tsx"],
       "@/components/ui/storage-sweep-meter": ["./components/storage-sweep-meter/storage-sweep-meter.tsx"],
       "@/components/ui/eyelet-curtain-tear": ["./components/eyelet-curtain-tear/eyelet-curtain-tear.tsx"],
       "@/components/ui/sector-tide-matrix": ["./components/sector-tide-matrix/sector-tide-matrix.tsx"],
