@@ -25,6 +25,8 @@
       "@/components/ui/easel-showcase-template": ["./components/easel-showcase-template/easel-showcase-template.tsx"],
       "@/components/ui/drape-studio-template": ["./components/drape-studio-template/drape-studio-template.tsx"],
       "@/components/ui/keystone-crossing-template": ["./components/keystone-crossing-template/keystone-crossing-template.tsx"],
+      "@/components/ui/crimson-reach-template": ["./components/crimson-reach-template/crimson-reach-template.tsx"],
+      "@/components/ui/jewelcase-folio-template": ["./components/jewelcase-folio-template/jewelcase-folio-template.tsx"],
       "@/components/ui/himal-journeys-template": ["./components/himal-journeys-template/himal-journeys-template.tsx"],
       "@/components/ui/storage-sweep-meter": ["./components/storage-sweep-meter/storage-sweep-meter.tsx"],
       "@/components/ui/eyelet-curtain-tear": ["./components/eyelet-curtain-tear/eyelet-curtain-tear.tsx"],
