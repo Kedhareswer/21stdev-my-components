@@ -26,9 +26,13 @@
       "@/components/ui/drape-studio-template": ["./components/drape-studio-template/drape-studio-template.tsx"],
       "@/components/ui/keystone-crossing-template": ["./components/keystone-crossing-template/keystone-crossing-template.tsx"],
       "@/components/ui/crimson-reach-template": ["./components/crimson-reach-template/crimson-reach-template.tsx"],
+      "@/components/ui/synapse-folio-template": ["./components/synapse-folio-template/synapse-folio-template.tsx"],
       "@/components/ui/shutter-roll-template": ["./components/shutter-roll-template/shutter-roll-template.tsx"],
+      "@/components/ui/deck-rack-add-to-cart": ["./components/deck-rack-add-to-cart/deck-rack-add-to-cart.tsx"],
+      "@/components/ui/flipboard-checkout-counter": ["./components/flipboard-checkout-counter/flipboard-checkout-counter.tsx"],
       "@/components/ui/sketch-city-hero": ["./components/sketch-city-hero/sketch-city-hero.tsx"],
       "@/components/ui/featured-cities-carousel": ["./components/featured-cities-carousel/featured-cities-carousel.tsx"],
+      "@/components/ui/slab-skate-shop-template": ["./components/slab-skate-shop-template/slab-skate-shop-template.tsx"],
       "@/components/ui/jewelcase-folio-template": ["./components/jewelcase-folio-template/jewelcase-folio-template.tsx"],
       "@/components/ui/himal-journeys-template": ["./components/himal-journeys-template/himal-journeys-template.tsx"],
       "@/components/ui/storage-sweep-meter": ["./components/storage-sweep-meter/storage-sweep-meter.tsx"],
@@ -293,6 +297,8 @@
       "@/components/ui/led-matrix-sales": ["./components/led-matrix-sales/led-matrix-sales.tsx"],
       "@/components/ui/cell-column-trend": ["./components/cell-column-trend/cell-column-trend.tsx"],
       "@/components/ui/agent-usage-meter": ["./components/agent-usage-meter/agent-usage-meter.tsx"],
+      "@/components/ui/serum-dive-scroll-hero": ["./components/serum-dive-scroll-hero/serum-dive-scroll-hero.tsx"],
+      "@/components/ui/serum-product-card": ["./components/serum-product-card/serum-product-card.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
