@@ -305,7 +305,7 @@
       "@/components/ui/dot-matrix-feature-accordion": ["./components/dot-matrix-feature-accordion/dot-matrix-feature-accordion.tsx"],
       "@/components/ui/slide-in-assistant-panel": ["./components/slide-in-assistant-panel/slide-in-assistant-panel.tsx"],
       "@/components/ui/fuzzy-critter-footer": ["./components/fuzzy-critter-footer/fuzzy-critter-footer.tsx"],
-      "@/components/ui/glass-fit-try-on": ["./components/glass-fit-try-on/glass-fit-try-on.tsx"],
+      "@/components/ui/hanger-rail-try-on": ["./components/hanger-rail-try-on/hanger-rail-try-on.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
