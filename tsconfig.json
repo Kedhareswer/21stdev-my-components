@@ -299,6 +299,7 @@
       "@/components/ui/agent-usage-meter": ["./components/agent-usage-meter/agent-usage-meter.tsx"],
       "@/components/ui/serum-dive-scroll-hero": ["./components/serum-dive-scroll-hero/serum-dive-scroll-hero.tsx"],
       "@/components/ui/serum-product-card": ["./components/serum-product-card/serum-product-card.tsx"],
+      "@/components/ui/glyph-curtain-hero": ["./components/glyph-curtain-hero/glyph-curtain-hero.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
