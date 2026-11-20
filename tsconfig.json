@@ -300,6 +300,12 @@
       "@/components/ui/serum-dive-scroll-hero": ["./components/serum-dive-scroll-hero/serum-dive-scroll-hero.tsx"],
       "@/components/ui/serum-product-card": ["./components/serum-product-card/serum-product-card.tsx"],
       "@/components/ui/glyph-curtain-hero": ["./components/glyph-curtain-hero/glyph-curtain-hero.tsx"],
+      "@/components/ui/coupon-dust-checkout": ["./components/coupon-dust-checkout/coupon-dust-checkout.tsx"],
+      "@/components/ui/paper-plane-drawer-footer": ["./components/paper-plane-drawer-footer/paper-plane-drawer-footer.tsx"],
+      "@/components/ui/dot-matrix-feature-accordion": ["./components/dot-matrix-feature-accordion/dot-matrix-feature-accordion.tsx"],
+      "@/components/ui/slide-in-assistant-panel": ["./components/slide-in-assistant-panel/slide-in-assistant-panel.tsx"],
+      "@/components/ui/fuzzy-critter-footer": ["./components/fuzzy-critter-footer/fuzzy-critter-footer.tsx"],
+      "@/components/ui/glass-fit-try-on": ["./components/glass-fit-try-on/glass-fit-try-on.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
