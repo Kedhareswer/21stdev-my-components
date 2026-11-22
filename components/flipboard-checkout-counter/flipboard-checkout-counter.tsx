@@ -12,6 +12,10 @@ import { useEffect, useRef, useState } from "react"
  *
  * Only the counter top is 3D (a perspective plane the decks lie on). The board, plaque and drawer stay flat
  * so their text renders crisp. All sizes come from container units; nothing reads layout.
+ *
+ * The root states its own width (100%). Everything inside is absolutely positioned and the root is a size
+ * container, so its intrinsic width is 0: as a flex or grid item (21st mounts demos in a centring flex row)
+ * it would otherwise shrink to nothing and paint a blank page.
  */
 
 const IMG_BASE = "https://kedhar-components.pages.dev/flipboard-checkout-counter/"
@@ -88,7 +92,7 @@ const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const E = "cubic-bezier(.2,.8,.2,1)"
 const CSS =
   "@property --fc-oy{syntax:'<number>';inherits:true;initial-value:0}" +
-  ".fc-root{position:relative;overflow:hidden;container:fc/size;isolation:isolate;" +
+  ".fc-root{position:relative;width:100%;overflow:hidden;container:fc/size;isolation:isolate;" +
   "--fc-wall:color-mix(in oklab,var(--color-background) 86%,#d9a79e);--fc-floor:color-mix(in oklab,var(--color-background) 72%,#7d6f6a);" +
   "--fc-ink:var(--color-foreground);--fc-soft:var(--color-muted-foreground);--fc-g:clamp(16px,3cqw,40px);" +
   "background:var(--fc-wall);color:var(--fc-ink);" +

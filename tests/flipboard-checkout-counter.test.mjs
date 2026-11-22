@@ -40,6 +40,12 @@ assert.deepEqual(validate(good), [])
 assert.deepEqual(validate({ ...good, email: "nope" }), ["email"])
 assert.deepEqual(validate({ ...good, card: "4242", expiry: "13/29", cvc: "1" }), ["card", "expiry", "cvc"])
 
+// the root has no in-flow content and is a size container, so its intrinsic width is 0. 21st mounts a demo in
+// `w-screen min-h-screen flex justify-center items-center`, where a root without its own width is 0px wide
+// and the preview is blank. It must state a width itself.
+assert.match(css, /\.fc-root\{[^}]*(?<![-\w])width:100%/, "the root states its own width (0px wide as a flex item otherwise)")
+assert.match(css, /\.fc-root\{[^}]*container:fc\/size/, "the root is still the size container")
+
 // motion order
 assert.ok(css.includes(".fc-drawer[data-open]{opacity:1;transform:perspective(1200px) translateY(0) rotateX(0deg)"), "open drawer restates its full transform")
 assert.match(css, /@keyframes fc-kick\{0%,14%\{[^}]*\}50%\{transform:rotateX\(190deg\)/, "Pay kickflips")

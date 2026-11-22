@@ -142,10 +142,17 @@ export default function SlabSkateShopTemplate({ height = "100svh", email = EMAIL
     let shownP = 0
     let finishing = false
     let raf = 0
+    let last = t0
+    let stopped = false
     const timers: number[] = []
     const frame = (now: number) => {
-      const goal = Math.min(target, Math.min(1, (now - t0) / MIN))
-      shownP += (goal - shownP) * (R ? 1 : 0.14)
+      if (stopped) return
+      // a slow image must not hold the shop shut: after 6s the count runs on without it
+      const goal = Math.min(now - t0 > 6000 ? 1 : target, Math.min(1, (now - t0) / MIN))
+      // ease by elapsed time, not by frame, so a throttled or slow page finishes in the same 2s
+      const dt = Math.min(1000, Math.max(0, now - last))
+      last = now
+      shownP += (goal - shownP) * (R ? 1 : 1 - Math.pow(0.86, dt / 16.67))
       if (goal >= 1 && shownP > 0.996) shownP = 1
       if (pctRef.current) pctRef.current.textContent = String(Math.round(shownP * 100)).padStart(3, "0")
       if (fillRef.current) fillRef.current.style.setProperty("--p", shownP.toFixed(4))
@@ -177,12 +184,22 @@ export default function SlabSkateShopTemplate({ height = "100svh", email = EMAIL
         setPhase("leave")
         timers.push(window.setTimeout(() => setIntro(true), R ? 0 : 420))
         timers.push(window.setTimeout(() => setPhase("done"), R ? 300 : 1040))
+        stopped = true
+        window.clearInterval(watchdog)
         return
       }
+      cancelAnimationFrame(raf)
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
+    // requestAnimationFrame stalls in a background tab or a capture frame; keep the count moving regardless
+    const watchdog = window.setInterval(() => {
+      const now = performance.now()
+      if (now - last > 250) frame(now)
+    }, 250)
     return () => {
+      stopped = true
+      window.clearInterval(watchdog)
       cancelAnimationFrame(raf)
       timers.forEach((t) => clearTimeout(t))
       imgs.forEach((im) => (im.onload = im.onerror = null))

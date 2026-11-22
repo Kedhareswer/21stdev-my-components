@@ -12,6 +12,11 @@ import { useEffect, useRef, useState } from "react"
  * The camera never enlarges anything: the wall is laid out at its focused size and the wall view is that
  * world scaled down (1/K), so the glide is a compositor transform that only ever minifies the deck art.
  * Positions come from container units and custom properties, so no layout reads are needed.
+ *
+ * The root is a size container whose children are all absolutely positioned, so it has no intrinsic width:
+ * it states width:100% itself, or it collapses to 0px inside a centring flex parent (the 21st preview).
+ * It clips with overflow:clip (hidden is only the fallback): a hidden box is still a scroll container, and
+ * tabbing to a deck that sits off-stage while another is focused would scroll the whole scene sideways.
  */
 
 const IMG_BASE = "https://kedhar-components.pages.dev/deck-rack-add-to-cart/"
@@ -102,7 +107,7 @@ const MARK_RATIO = 672 / 1600
 const P = "cubic-bezier(.76,0,.24,1)"
 const CSS =
   "@property --dr-p{syntax:'<number>';inherits:true;initial-value:0}" +
-  ".dr-root{position:relative;overflow:hidden;container:dr/size;isolation:isolate;" +
+  ".dr-root{position:relative;width:100%;overflow:hidden;overflow:clip;container:dr/size;isolation:isolate;" +
   "--dr-wall:color-mix(in oklab,var(--color-background) 84%,#d9a79e);--dr-ink:var(--color-foreground);" +
   "--dr-soft:var(--color-muted-foreground);--dr-g:clamp(16px,3cqw,40px);background:var(--dr-wall);color:var(--dr-ink);" +
   "font-family:Inter,'Helvetica Neue',Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased;user-select:none}" +
@@ -154,7 +159,7 @@ const CSS =
   "@keyframes dr-bump{0%{transform:translateY(0)}35%{transform:translateY(-4px)}70%{transform:translateY(1px)}100%{transform:translateY(0)}}" +
   ".dr-hint{position:absolute;z-index:6;left:50%;bottom:var(--dr-g);transform:translate(-50%,0);font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--dr-soft);white-space:nowrap;transition:opacity .4s ease,transform .4s ease}" +
   ".dr-root[data-on] .dr-hint{opacity:0;transform:translate(-50%,8px)}" +
-  ".dr-card{position:absolute;z-index:7;left:46cqw;top:50%;width:min(30rem,38cqw);box-sizing:border-box;padding:clamp(20px,2.4cqw,34px);border-radius:6px;" +
+  ".dr-card{position:absolute;z-index:7;left:46cqw;top:50%;width:min(30rem,max(38cqw,19.5rem),54cqw - var(--dr-g));box-sizing:border-box;padding:clamp(20px,2.4cqw,34px);border-radius:6px;" +
   "background:color-mix(in oklab,var(--color-background) 60%,transparent);backdrop-filter:blur(22px) saturate(1.15);-webkit-backdrop-filter:blur(22px) saturate(1.15);" +
   "box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--color-background) 60%,transparent),0 30px 60px -30px rgba(60,15,15,.35);" +
   "opacity:0;filter:blur(8px);transform:translate(0,calc(-50% + 18px));pointer-events:none;will-change:opacity,filter,transform;" +
@@ -168,7 +173,7 @@ const CSS =
   ".dr-specs{margin:1.1em 0 0;display:grid;grid-template-columns:auto 1fr;column-gap:2em;row-gap:.55em;font-size:13px}" +
   ".dr-specs dt{font-size:9.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--dr-soft);align-self:center}" +
   ".dr-specs dd{margin:0;font-weight:500}" +
-  ".dr-buy{margin-top:1.5em;display:flex;align-items:center;justify-content:space-between;gap:16px}" +
+  ".dr-buy{margin-top:1.5em;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}" +
   ".dr-price{font-family:'Archivo Black','Arial Black','Helvetica Neue',Arial,sans-serif;font-weight:900;font-size:clamp(1.6rem,2.4cqw,2.1rem);line-height:1;font-variant-numeric:tabular-nums}" +
   ".dr-back{margin-top:1.4em;font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--dr-soft);transition:color .2s ease}" +
   ".dr-back:hover{color:var(--dr-ink)}" +
@@ -256,6 +261,7 @@ export default function DeckRackAddToCart({
   const timer = useRef(0)
   const boards = useRef([] as (HTMLButtonElement | null)[])
   const addBtn = useRef(null as HTMLDivElement | null)
+  const cardEl = useRef(null as HTMLDivElement | null)
 
   const wait = (ms: number) => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms)
 
@@ -291,6 +297,10 @@ export default function DeckRackAddToCart({
     return () => window.removeEventListener("keydown", key)
   })
   useEffect(() => () => window.clearTimeout(timer.current), [])
+  // inert keeps the closed card out of the tab order (set by hand: React 18 and 19 disagree on the prop)
+  useEffect(() => {
+    cardEl.current?.toggleAttribute("inert", !open)
+  }, [open])
   useEffect(() => {
     if (!open) return
     const t = window.setTimeout(() => addBtn.current?.querySelector("button")?.focus({ preventScroll: true }), wait(700))
@@ -367,7 +377,7 @@ export default function DeckRackAddToCart({
         Pick a deck off the wall
       </p>
 
-      <div className="dr-card" data-open={open ? "" : undefined} role="dialog" aria-label={d ? d.name : "Deck"} aria-hidden={!open} {...(open ? {} : { inert: "" })}>
+      <div className="dr-card" data-open={open ? "" : undefined} role="dialog" aria-label={d ? d.name : "Deck"} aria-hidden={!open} ref={cardEl}>
         {d && card !== null && (
           <div key={d.id}>
             <p className="dr-eyebrow dr-st" style={{ "--i": 0 } as React.CSSProperties}>

@@ -8,6 +8,25 @@ import { checkSkate } from "./_skate-cart-shared.mjs"
 
 const { src, css } = checkSkate("deck-rack-add-to-cart", "dr")
 
+// The root is a size container whose children are all absolutely positioned, so it has no intrinsic width.
+// 21st previews a demo inside a centring flex parent (w-screen min-h-screen flex justify-center items-center):
+// without its own width the root is a 0px-wide flex item, overflow:hidden clips everything, and the preview is
+// blank. The workshop wraps demos in a block parent, so it never shows this.
+assert.match(css, /\.dr-root\{[^}]*width:100%/, "root states width:100% (it collapses to 0px in a centring flex parent)")
+assert.match(css, /\.dr-root\{[^}]*container:dr\/size/, "root is still the size container the wall units come from")
+// overflow:hidden alone leaves the root a scroll container: Tab to an off-stage deck (390px wide, a deck focused)
+// scrolled the scene 328px sideways. clip cannot scroll; hidden stays first as the fallback.
+assert.match(css, /\.dr-root\{[^}]*overflow:hidden;overflow:clip/, "root clips without being a scroll container")
+
+// inert is set on the element by hand: React 19 drops inert="" and React 18 drops inert={true}.
+assert.ok(src.includes('toggleAttribute("inert", !open)'), "the closed card is inert under React 18 and 19")
+assert.doesNotMatch(src, /inert: ""|\binert=/, "inert is never passed as a prop")
+
+// Narrow landscape stages (under about 820px wide): the card keeps room for the price and the 11.5rem button,
+// stops a gutter short of the stage edge, and the buy row wraps before the button can leave the card.
+assert.ok(css.includes("width:min(30rem,max(38cqw,19.5rem),54cqw - var(--dr-g))"), "card has a width floor and a stage cap")
+assert.match(css, /\.dr-buy\{[^}]*flex-wrap:wrap/, "buy row wraps instead of overflowing the card")
+
 // The camera only ever scales the world DOWN: it is laid out at the focused size (K) and the wall view is
 // scale(1/K), the focused view scale(1). Nothing is enlarged past its layout size, so decks never pixelate.
 assert.ok(css.includes("--dr-s:calc(1/var(--dr-k))"), "wall view is the world scaled down by 1/K")

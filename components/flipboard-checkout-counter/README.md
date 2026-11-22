@@ -28,4 +28,5 @@ Only the counter top is 3D (a perspective plane); the board, plaque and drawer s
 
 - No dependencies beyond React. Images load from `kedhar-components.pages.dev/flipboard-checkout-counter/`; pass your own. `onPay` only reports the order: wire it to your payment provider.
 - The counter, board and drawer keep their own materials; the wall and floor follow `--color-background`, so light and dark themes both work.
+- The root is `width: 100%` and `height` tall. Everything inside is absolutely positioned, so the root has no intrinsic width: give its parent a width (a flex or grid parent is fine).
 - `prefers-reduced-motion`: decks appear without the drop or tumble, flaps land without cycling and the drawer switches without travel.
