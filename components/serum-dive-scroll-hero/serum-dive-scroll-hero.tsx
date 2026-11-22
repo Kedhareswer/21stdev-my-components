@@ -20,6 +20,12 @@ import * as React from "react"
  * with transforms. Under prefers-reduced-motion the hero does not pin: it
  * shows one still frame with the call to action.
  *
+ * autoPlay (off by default) plays the dive once on its own when the hero opens
+ * at the top of the page: it scrolls the page from rest to rest, eased, and
+ * stops for good the moment the visitor scrolls. It is meant for unattended
+ * previews. Until the fonts and pictures are in, the stage shows the first
+ * line on the plain wall colour, then the scene fades in whole.
+ *
  * Self-contained: React is the only import. The pictures come from the
  * catalog site and were generated with ChatGPT.
  */
@@ -49,6 +55,13 @@ export interface SerumDiveScrollHeroProps {
   height?: string
   /** How many stage heights of scrolling the story takes. */
   screens?: number
+  /**
+   * Play the dive once on its own, by scrolling the page, when the hero opens at
+   * the top and nobody has scrolled. Any scroll input ends it. Off by default.
+   */
+  autoPlay?: boolean
+  /** How long that takes, in ms. */
+  autoPlayDuration?: number
   /** Where the six pictures live. */
   imageBase?: string
   /** Google Fonts stylesheet, or null to bring your own. */
@@ -96,6 +109,8 @@ export const T = {
     [0.63, 0.68, 0.73, 0.76],
     [0.79, 0.85, 2, 2],
   ],
+  /** Where autoplay rests: one per line, with the line in and the scene still. */
+  stops: [0.17, 0.37, 0.555, 0.72, 0.88],
 }
 
 export function clamp01(v: number) {
@@ -162,6 +177,27 @@ export function camAt(p: number, keys: CamKey[], word1X: number, word3X: number)
   x = mix(x, keys[3].x, c)
   by = mix(by, keys[3].by, c)
   return { z, x, by }
+}
+
+/**
+ * Autoplay: ms since it began to scroll progress. After a short lead-in it
+ * moves from rest to rest on a sine ease and waits at each one, so every line
+ * can be read; it ends on the last rest.
+ */
+export function autoAt(ms: number, total: number) {
+  const n = T.stops.length
+  const lead = 0.01
+  const hold = 0.02
+  const move = (1 - lead - hold * (n - 1)) / n
+  let t = clamp01(ms / total) - lead
+  let from = 0
+  for (let i = 0; i < n; i++) {
+    if (t <= 0) return from
+    if (t < move) return mix(from, T.stops[i], 0.5 - 0.5 * Math.cos(Math.PI * (t / move)))
+    t -= move + hold
+    from = T.stops[i]
+  }
+  return from
 }
 
 /** The pill sits in its line until the scene scrolls away, then sticks in the nav row. */
@@ -277,6 +313,7 @@ const css =
   ".sdh-bag{display:inline-flex;align-items:center;gap:8px}" +
   ".sdh-badge{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#161616;color:#fff;font-size:11px;font-weight:600}" +
   ".sdh-stage{position:sticky;top:0;width:100%;overflow:hidden;background:#d9b6b2;contain:paint}" +
+  ".sdh-scene{position:absolute;inset:0;transition:opacity .6s ease}" +
   ".sdh-layer{position:absolute;inset:0;overflow:hidden}" +
   ".sdh-wall{position:absolute;left:0;top:0;display:block}" +
   ".sdh-wet{will-change:clip-path}" +
@@ -288,7 +325,7 @@ const css =
   ".sdh-shadow{position:absolute;left:0;top:0;display:block;opacity:.3;filter:blur(7px)}" +
   ".sdh-word{position:absolute;left:0;top:0;white-space:nowrap;font-family:Archivo,'Archivo Expanded',ui-sans-serif,sans-serif;font-stretch:125%;font-weight:600;line-height:1;letter-spacing:.035em;color:#f7e4df;text-shadow:0 2px 24px rgba(120,80,80,.12)}" +
   ".sdh-word span{display:inline-block}" +
-  ".sdh-fog{position:absolute;inset:0;background:rgba(238,212,208,.46);-webkit-mask-size:100% 100%;mask-size:100% 100%}" +
+  ".sdh-fog{position:absolute;inset:0;background:rgba(238,212,208,.46);-webkit-backdrop-filter:blur(16px) saturate(.9);backdrop-filter:blur(16px) saturate(.9);-webkit-mask-size:100% 100%;mask-size:100% 100%}" +
   ".sdh-ink{position:absolute;inset:0;background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}" +
   ".sdh-copy{position:absolute;inset:0;display:grid;pointer-events:none}" +
   ".sdh-block{grid-area:1/1;text-align:center;justify-self:center;max-width:min(30em,88vw)}" +
@@ -300,9 +337,10 @@ const css =
   ".sdh-btn:focus-visible,.sdh-nav a:focus-visible{outline:2px solid #12786d;outline-offset:3px}" +
   ".sdh-slot{visibility:hidden}" +
   ".sdh-pill{position:absolute;left:0;top:0;z-index:21}" +
-  ".sdh-root:not([data-ready=true]) .sdh-word,.sdh-root:not([data-ready=true]) .sdh-copy,.sdh-root:not([data-ready=true]) .sdh-pill{opacity:0}" +
+  ".sdh-root:not([data-ready=true]) .sdh-word,.sdh-root:not([data-ready=true]) .sdh-scene,.sdh-root:not([data-ready=true]) .sdh-beat,.sdh-root:not([data-ready=true]) .sdh-pill,.sdh-root:not([data-sized=true]) .sdh-copy{opacity:0}" +
   "@media (max-width:520px){.sdh-btn{height:44px;padding:0 16px;gap:14px;font-size:13.5px}.sdh-logo{letter-spacing:.26em}.sdh-links{gap:20px}}" +
-  "@media (prefers-reduced-motion:reduce){.sdh-shim{animation:none}.sdh-btn{transition:none}}"
+  "@media (max-width:380px){.sdh-btn{padding:0 13px;gap:10px;font-size:13px}.sdh-logo{letter-spacing:.2em}.sdh-links{gap:14px}}" +
+  "@media (prefers-reduced-motion:reduce){.sdh-shim{animation:none}.sdh-btn,.sdh-scene{transition:none}.sdh-root:not([data-ready=true]) .sdh-copy{opacity:0}}"
 
 export default function SerumDiveScrollHero({
   brand = "KEDHAR",
@@ -316,6 +354,8 @@ export default function SerumDiveScrollHero({
   onAddToBag,
   height = "100svh",
   screens = 6,
+  autoPlay = false,
+  autoPlayDuration = 18000,
   imageBase = IMG_BASE,
   fontHref = FONT_HREF,
   className,
@@ -345,8 +385,15 @@ export default function SerumDiveScrollHero({
   const [reduced, setReduced] = React.useState(false)
   const [active, setActive] = React.useState(0)
   const [size, setSize] = React.useState({ w: 0, h: 0 })
+  // What must survive the scene effect re-running (a resize, a late font): the
+  // eased progress, and autoplay (state 0 waiting, 1 playing, 2 over). hold is
+  // where autoplay left the scene on a page that could not scroll along; -1
+  // whenever the scroll position rules.
+  const live = React.useRef({ cur: -1, state: 0, ms: 0, lead: 0, hold: -1 })
 
-  const letters = React.useMemo(() => (word[0] + word[1]).split(""), [word])
+  // Keyed on the text, not the array: the default prop is a new array each render.
+  const wordText = word[0] + word[1]
+  const letters = React.useMemo(() => wordText.split(""), [wordText])
   const pre = word[0].length
 
   React.useEffect(() => {
@@ -359,9 +406,20 @@ export default function SerumDiveScrollHero({
     const done = () => alive && setReady(true)
     const link = linkRef.current
     const fonts = typeof document !== "undefined" ? document.fonts : undefined
+    // The pictures too, so the scene fades in whole instead of piece by piece.
+    const stage = stageRef.current
+    const pics = stage ? (Array.prototype.slice.call(stage.querySelectorAll("img")) as HTMLImageElement[]) : []
+    const seen = pics.map(
+      (im) =>
+        new Promise((res) => {
+          if (im.complete) return res(null)
+          im.addEventListener("load", res, { once: true })
+          im.addEventListener("error", res, { once: true })
+        }),
+    )
     const load = () => {
-      if (!fonts) return done()
-      Promise.all([fonts.load("600 expanded 100px Archivo"), fonts.load("500 40px 'Instrument Sans'")]).then(done, done)
+      const faces = fonts ? [fonts.load("600 expanded 100px Archivo"), fonts.load("500 40px 'Instrument Sans'")] : []
+      Promise.all((faces as Promise<unknown>[]).concat(seen)).then(done, done)
     }
     if (link && !link.sheet) {
       link.addEventListener("load", load, { once: true })
@@ -484,8 +542,9 @@ export default function SerumDiveScrollHero({
       slotW = sr.width
       blockTop = lastBlock.getBoundingClientRect().top - st.top
       lastBlock.style.transform = prev
-      // Where the pill docks: under its line, unless that would crowd the logo or
-      // the links (narrow screens); then centred in the gap between them.
+      // Where the pill docks: under its line, nudged just enough to keep 16 px
+      // clear of the logo and the links. Where both cannot be kept (phones), it
+      // sits centred in the gap between them.
       const lg = root.querySelector(".sdh-logo")
       const ln = root.querySelector(".sdh-links")
       const pl = pillRef.current
@@ -493,10 +552,13 @@ export default function SerumDiveScrollHero({
       dockCx = slotCx
       if (lg && ln && pl) {
         const rl = root.getBoundingClientRect().left
-        const logoR = lg.getBoundingClientRect().right - rl
+        // the logo box ends with one letter-space of air after its last letter
+        const logoR = lg.getBoundingClientRect().right - rl - (parseFloat(getComputedStyle(lg).letterSpacing) || 0)
         const linksL = ln.getBoundingClientRect().left - rl
         const half = pl.offsetWidth / 2
-        if (slotCx - half < logoR + 16 || slotCx + half > linksL - 16) dockCx = (logoR + linksL) / 2
+        const lo = logoR + 16 + half
+        const hi = linksL - 16 - half
+        dockCx = lo > hi ? (logoR + linksL) / 2 : Math.min(hi, Math.max(lo, slotCx))
       }
     }
     let slotCx = 0
@@ -672,25 +734,55 @@ export default function SerumDiveScrollHero({
 
     if (still) {
       render(0.36, awayNow())
+      root.setAttribute("data-ready", "true")
       const onScroll = () => render(0.36, awayNow())
       window.addEventListener("scroll", onScroll, { passive: true })
       return () => window.removeEventListener("scroll", onScroll)
     }
 
-    let cur = target()
+    const A = live.current
+    let cur = A.cur < 0 ? target() : A.cur
     let raf = 0
     let last = performance.now()
     let visible = true
+    // Autoplay only ever begins from the very start: the hero at the top of the
+    // viewport, nothing scrolled yet, and motion allowed.
+    const total = Math.max(2000, autoPlayDuration)
+    if (autoPlay && A.state === 0 && (prefersReduced() || cur > 0.002 || root.getBoundingClientRect().top > H * 0.5)) A.state = 2
+    let goal = target()
+    /** The page offset autoplay last asked for; a scroll to anywhere else is the visitor's. */
+    let setY = window.scrollY
+    // Autoplay ends. Where the page followed, the scroll position already agrees
+    // with the scene; where it could not, the scene stays put until a real scroll.
+    const over = () => {
+      if (A.state === 1 && Math.abs(target() - goal) > 0.004) A.hold = goal
+      A.state = 2
+    }
     const tick = (now: number) => {
       raf = 0
       const dt = Math.min(64, now - last)
       last = now
-      const goal = target()
+      if (autoPlay && A.state < 2) {
+        const r = root.getBoundingClientRect()
+        if (A.state === 0) {
+          A.state = 1
+          A.lead = Math.max(0, r.top)
+        }
+        A.ms += dt
+        goal = autoAt(A.ms, total)
+        // Scroll the page along, so the scrollbar and the story agree and taking
+        // over is seamless. Where the page cannot scroll, the scene still plays.
+        const y = window.scrollY + r.top + goal * (r.height - H) - A.lead * (1 - clamp01(goal / 0.03))
+        window.scrollTo({ top: y, behavior: "instant" as ScrollBehavior })
+        setY = window.scrollY
+        if (A.ms >= total) over()
+      } else goal = A.hold < 0 ? target() : A.hold
       const ease = 1 - Math.pow(1 - 0.12, dt / 16.67)
       cur += (goal - cur) * ease
       if (Math.abs(goal - cur) < 0.00005) cur = goal
+      A.cur = cur
       render(cur, awayNow())
-      if (visible && !document.hidden && cur !== goal) raf = requestAnimationFrame(tick)
+      if (visible && !document.hidden && (cur !== goal || (autoPlay && A.state < 2))) raf = requestAnimationFrame(tick)
     }
     const kick = () => {
       if (!raf && visible && !document.hidden) {
@@ -699,21 +791,39 @@ export default function SerumDiveScrollHero({
       }
     }
     render(cur, awayNow())
+    root.setAttribute("data-ready", "true")
     const io = new IntersectionObserver((es) => {
       visible = es[0] ? es[0].isIntersecting : true
       if (visible) kick()
     })
     io.observe(root)
-    const onScroll = () => kick()
+    // Any scroll input hands the scene back to the visitor, for good.
+    const take = () => {
+      if (autoPlay && A.state < 2) over()
+    }
+    const onScroll = () => {
+      if (A.state === 1 && Math.abs(window.scrollY - setY) > 1) take()
+      else if (A.state === 2) A.hold = -1
+      kick()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (/^(Arrow(Up|Down)|Page(Up|Down)|Home|End| )$/.test(e.key)) take()
+    }
     window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("wheel", take, { passive: true })
+    window.addEventListener("touchmove", take, { passive: true })
+    window.addEventListener("keydown", onKey)
     document.addEventListener("visibilitychange", kick)
     return () => {
       if (raf) cancelAnimationFrame(raf)
       io.disconnect()
       window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("wheel", take)
+      window.removeEventListener("touchmove", take)
+      window.removeEventListener("keydown", onKey)
       document.removeEventListener("visibilitychange", kick)
     }
-  }, [ready, fontsRev, reduced, size.w, size.h, L, beats.length, letters, pre, junction])
+  }, [ready, fontsRev, reduced, size.w, size.h, L, beats.length, letters, pre, junction, autoPlay, autoPlayDuration])
 
   const rootStyle = {
     height: reduced ? height : "calc(" + height + " * " + (screens + 1) + ")",
@@ -740,7 +850,7 @@ export default function SerumDiveScrollHero({
       ref={rootRef}
       className={"sdh-root" + (className ? " " + className : "")}
       style={rootStyle}
-      data-ready={ready && size.w > 0}
+      data-sized={size.w > 0}
       aria-label={intro.title + " " + intro.accent}
     >
       {fontHref && <link ref={linkRef} rel="stylesheet" href={fontHref} />}
@@ -763,30 +873,32 @@ export default function SerumDiveScrollHero({
       </header>
 
       <div ref={stageRef} className="sdh-stage" style={{ height, width: "100%" }}>
-        <div className="sdh-layer" aria-hidden="true">
-          <img ref={dryRef} className="sdh-wall" src={imageBase + "wall-dry.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
-        </div>
-        <div ref={wetLayerRef} className="sdh-layer sdh-wet" aria-hidden="true" style={{ clipPath: "inset(100% 0 0 0)" }}>
-          <img ref={wetRef} className="sdh-wall" src={imageBase + "wall-wet.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
-          <div className="sdh-shim">
-            <img ref={shimRef} className="sdh-shimmer" src={imageBase + "wall-wet.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
+        <div className="sdh-scene">
+          <div className="sdh-layer" aria-hidden="true">
+            <img ref={dryRef} className="sdh-wall" src={imageBase + "wall-dry.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
           </div>
-        </div>
-        <div className="sdh-layer" aria-hidden="true">
-          <img ref={bShadowRef} className="sdh-shadow" src={imageBase + "bottle-shadow.webp"} alt="" width={185} height={458} draggable={false} style={{ maxWidth: "none" }} />
-          <img ref={dShadowRef} className="sdh-shadow" src={imageBase + "dropper-shadow.webp"} alt="" width={124} height={412} draggable={false} style={{ maxWidth: "none" }} />
-          <div ref={wordRef} className="sdh-word" aria-hidden="true">
-            {letters.map((ch, i) => (
-              <span key={i}>{ch}</span>
-            ))}
+          <div ref={wetLayerRef} className="sdh-layer sdh-wet" aria-hidden="true" style={{ clipPath: "inset(100% 0 0 0)" }}>
+            <img ref={wetRef} className="sdh-wall" src={imageBase + "wall-wet.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
+            <div className="sdh-shim">
+              <img ref={shimRef} className="sdh-shimmer" src={imageBase + "wall-wet.webp"} alt="" width={WALL_W} height={WALL_H} draggable={false} style={{ maxWidth: "none" }} />
+            </div>
           </div>
-          <img ref={dropPipeRef} className="sdh-obj" src={imageBase + "dropper.webp"} alt="" width={SHEET.dropper.w} height={SHEET.dropper.h} draggable={false} style={{ maxWidth: "none", clipPath: "inset(" + ((SHEET.dropper.collar / SHEET.dropper.h) * 100).toFixed(2) + "% 0 0 0)" }} />
-          <img ref={bottleRef} className="sdh-obj" src={imageBase + "bottle.webp"} alt="" width={SHEET.bottle.w} height={SHEET.bottle.h} draggable={false} style={{ maxWidth: "none" }} />
-          <img ref={dropTopRef} className="sdh-obj" src={imageBase + "dropper.webp"} alt="" width={SHEET.dropper.w} height={SHEET.dropper.h} draggable={false} style={{ maxWidth: "none", clipPath: "inset(0 0 " + (100 - (SHEET.dropper.collar / SHEET.dropper.h) * 100).toFixed(2) + "% 0)" }} />
+          <div className="sdh-layer" aria-hidden="true">
+            <img ref={bShadowRef} className="sdh-shadow" src={imageBase + "bottle-shadow.webp"} alt="" width={185} height={458} draggable={false} style={{ maxWidth: "none" }} />
+            <img ref={dShadowRef} className="sdh-shadow" src={imageBase + "dropper-shadow.webp"} alt="" width={124} height={412} draggable={false} style={{ maxWidth: "none" }} />
+            <div ref={wordRef} className="sdh-word" aria-hidden="true">
+              {letters.map((ch, i) => (
+                <span key={i}>{ch}</span>
+              ))}
+            </div>
+            <img ref={dropPipeRef} className="sdh-obj" src={imageBase + "dropper.webp"} alt="" width={SHEET.dropper.w} height={SHEET.dropper.h} draggable={false} style={{ maxWidth: "none", clipPath: "inset(" + ((SHEET.dropper.collar / SHEET.dropper.h) * 100).toFixed(2) + "% 0 0 0)" }} />
+            <img ref={bottleRef} className="sdh-obj" src={imageBase + "bottle.webp"} alt="" width={SHEET.bottle.w} height={SHEET.bottle.h} draggable={false} style={{ maxWidth: "none" }} />
+            <img ref={dropTopRef} className="sdh-obj" src={imageBase + "dropper.webp"} alt="" width={SHEET.dropper.w} height={SHEET.dropper.h} draggable={false} style={{ maxWidth: "none", clipPath: "inset(0 0 " + (100 - (SHEET.dropper.collar / SHEET.dropper.h) * 100).toFixed(2) + "% 0)" }} />
+          </div>
+          <div ref={lineRef} className="sdh-line" aria-hidden="true" style={{ top: 0, opacity: 0 }} />
+          <div ref={fogRef} className="sdh-fog" aria-hidden="true" style={{ WebkitMaskImage: fog.mask, maskImage: fog.mask }} />
+          <div ref={inkRef} className="sdh-ink" aria-hidden="true" style={{ backgroundImage: fog.ink }} />
         </div>
-        <div ref={lineRef} className="sdh-line" aria-hidden="true" style={{ top: 0, opacity: 0 }} />
-        <div ref={fogRef} className="sdh-fog" aria-hidden="true" style={{ WebkitMaskImage: fog.mask, maskImage: fog.mask }} />
-        <div ref={inkRef} className="sdh-ink" aria-hidden="true" style={{ backgroundImage: fog.ink }} />
 
         <div className="sdh-copy">
           <div
@@ -809,7 +921,7 @@ export default function SerumDiveScrollHero({
               ref={(el) => {
                 beatRefs.current[i] = el
               }}
-              className="sdh-block"
+              className="sdh-block sdh-beat"
               style={blockPos(i)}
               aria-hidden={active !== i + 1}
             >
