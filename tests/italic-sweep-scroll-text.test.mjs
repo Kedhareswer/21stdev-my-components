@@ -14,7 +14,11 @@ const tsconfig = readFileSync(new URL("../tsconfig.json", import.meta.url), "utf
 assert.deepEqual(readdirSync(dir).sort(), ["README.md", "demo.tsx", slug + ".tsx"].sort(), "folder holds only the publishable files")
 assert.match(src, /height = "100svh"/, "stage height defaults to a definite length")
 assert.match(src, /scrollLength = "340svh"/, "the scroll track defaults to a definite length")
-assert.ok(src.includes("style={{ height: scrollLength }}") && src.includes("style={{ height }}"), "both lengths reach the DOM as explicit heights")
+assert.ok(src.includes("style={{ height: autoPlay ? height : scrollLength }}") && src.includes("style={{ height }}"), "both lengths reach the DOM as explicit heights")
+// autoplay is opt-in, loops with a blank restart, and never eases the restart backwards
+assert.match(src, /autoPlay = false,/, "autoplay is off by default")
+assert.match(src, /if \(pass \|\| L\.eased < 0/, "autoplay sets the progress directly (no reverse replay on restart)")
+assert.match(demo, /autoPlay=\{\d+\}/, "the demo plays on its own so the preview shows the effect")
 assert.doesNotMatch(src, /\bh-full\b|height:\s*100%/, "no percentage heights")
 assert.doesNotMatch(src, /@import/, "no @import")
 assert.doesNotMatch(src, /`/, "no backticks in the file")

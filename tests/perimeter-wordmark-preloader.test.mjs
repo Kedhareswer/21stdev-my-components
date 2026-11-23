@@ -61,7 +61,6 @@ function scoped(text, prefix, min) {
   return flat
 }
 const css = scoped(src, ".pwp-", 12)
-const demoCss = scoped(demo, ".pwpd-", 12)
 assert.match(src, /prefers-reduced-motion: reduce/, "reduced motion is read at runtime")
 assert.match(css, /\.pwp-root\{[^}]*container-type:size/, "the root is the container the cq units resolve against")
 assert.match(css, /\.pwp-root\{[^}]*overflow:hidden/, "the dropping panel cannot stretch the host page")
@@ -77,17 +76,9 @@ for (const v of ["--pwp-g", "--pwp-iy", "--pwp-fs"]) {
   assert.ok(readme.includes("`" + v + "`"), "README documents " + v)
 }
 
-// The component fetches nothing; the demo's one picture comes from the catalog site.
+// The component and its demo fetch nothing.
 assert.deepEqual([...src.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]), [], "the component fetches nothing")
-assert.deepEqual(
-  [...demo.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]),
-  ["https://kedhar-components.pages.dev/" + slug + "/red-coat.webp"],
-  "the demo loads one picture, from the catalog",
-)
-readFileSync(new URL("../dev/public/" + slug + "/red-coat.webp", import.meta.url))
-assert.ok(demo.includes('maxWidth: "none"'), "inline guard against img max-width:100%")
-assert.match(demoCss, /\.pwpd-shot img\{[^}]*max-width:none/, "the picture overrides Preflight's max-width")
-assert.ok(demo.includes("width={1280}") && demo.includes("height={720}"), "the picture carries explicit width/height")
+assert.deepEqual([...demo.matchAll(/https?:\/\/[^"'\s)]+/g)].map((m) => m[0]), [], "the demo fetches nothing")
 
 // Contract the brief asked for.
 for (const p of ["text", "duration", "onComplete", "onReveal", "children", "height", "panel", "color", "fontFamily", "keepWordmark"]) {
@@ -100,9 +91,11 @@ assert.match(src, /toggleAttribute\("inert", phase !== "done"\)/, "the page is i
 assert.match(src, /aria-busy=\{phase !== "done"\}/, "the stage reports that it is busy")
 assert.match(src, /role="img"[\s\S]{0,40}aria-label=\{word\}/, "the scattered letters read as one word")
 assert.match(src, /cancelAnimationFrame\(raf\)/, "the clock stops on unmount")
-assert.match(demo, /Replay preloader/, "the demo has a replay control")
-assert.match(demo, /key=\{run\}/, "replay remounts the preloader")
-assert.match(demo, /onReveal=\{/, "the page starts its own entrance when the panel drops")
+// The demo is the preloader alone, looping (no page under it).
+assert.match(demo, /key=\{run\}/, "each loop remounts the preloader")
+assert.match(demo, /onReveal=\{again\}/, "the next loop is timed from the panel dropping")
+assert.match(demo, /clearTimeout\(timer\.current\)/, "the loop timer is cleared on unmount")
+assert.doesNotMatch(demo, /children|pwpd-/, "no page under the preloader in the demo")
 
 // No identifiers from the reference.
 for (const banned of [/\bario\b/i, /10 years/i, /pinterest/i, /pinimg/i, /details\.so/i, /lawyer/i, /voronko/i, /oleksii/i, /press center/i, /bframerb/i]) {

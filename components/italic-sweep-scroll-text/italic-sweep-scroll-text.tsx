@@ -38,6 +38,12 @@ export interface ItalicSweepScrollTextProps {
   sweep?: boolean
   /** Keep the inline marks shifting shape while they are open. */
   glyphLoop?: boolean
+  /**
+   * Seconds for one pass when the statement should play on its own instead of
+   * following the scroll: it loops (rise, hold, lift away, pause) and the block
+   * is only as tall as the stage. Off by default; useful for previews and banners.
+   */
+  autoPlay?: number | false
   align?: "center" | "left"
   fontFamily?: string
   /** Stylesheet for the font, or null to bring your own. */
@@ -279,6 +285,7 @@ export default function ItalicSweepScrollText({
   exit = true,
   sweep = true,
   glyphLoop = true,
+  autoPlay = false,
   align = "center",
   fontFamily = FONT,
   fontHref = FONT_HREF,
@@ -494,12 +501,24 @@ export default function ItalicSweepScrollText({
       return istClamp((extra - rect.top) / (pinned + 2 * extra))
     }
 
+    // autoplay: time stands in for scroll. Both ends of a pass are blank (words
+    // below their lines, then lifted away), so the restart is invisible.
+    const pass = autoPlay && autoPlay > 0 ? autoPlay : 0
+    const PAUSE = 0.6
+    let t0 = -1
+    const autoGoal = (now: number) => {
+      if (t0 < 0) t0 = now
+      const s = ((now - t0) / 1000) % (pass + PAUSE)
+      return istClamp(s / pass)
+    }
+
     const frame = (now: number) => {
       raf = seen ? requestAnimationFrame(frame) : 0
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
       last = now
-      const goal = target()
-      if (L.eased < 0 || smoothing <= 0) L.eased = goal
+      const goal = pass ? autoGoal(now) : target()
+      // time is already smooth, and easing would replay the loop's restart backwards
+      if (pass || L.eased < 0 || smoothing <= 0) L.eased = goal
       else {
         L.eased += (goal - L.eased) * (1 - Math.exp(-dt / smoothing))
         if (Math.abs(goal - L.eased) < 0.0002) L.eased = goal
@@ -550,7 +569,7 @@ export default function ItalicSweepScrollText({
       if (ro) ro.disconnect()
       if (fonts && fonts.removeEventListener) fonts.removeEventListener("loadingdone", onFont)
     }
-  }, [tokens, plan, rows, r0, r1, r2, r3, lead, rise, lift, smoothing, exit, sweep, glyphLoop, align])
+  }, [tokens, plan, rows, r0, r1, r2, r3, lead, rise, lift, smoothing, exit, sweep, glyphLoop, align, autoPlay])
 
   const cell = (n: number) => {
     const t = tokens[n]
@@ -594,7 +613,7 @@ export default function ItalicSweepScrollText({
   const lines = rows || [tokens.map((_, n) => n)]
 
   return (
-    <div ref={rootRef} className={"ist-root" + (className ? " " + className : "")} data-flow="" style={{ height: scrollLength }}>
+    <div ref={rootRef} className={"ist-root" + (className ? " " + className : "")} data-flow="" style={{ height: autoPlay ? height : scrollLength }}>
       <style>{CSS}</style>
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       <div ref={stageRef} className="ist-stage" style={{ height }}>

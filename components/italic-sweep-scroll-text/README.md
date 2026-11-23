@@ -25,7 +25,13 @@ Text syntax:
 | `[]` | an inline mark that opens between two words |
 | `\n` | a forced line break |
 
-Put it straight in the page flow. It needs content above and below to scroll through, and no ancestor with `overflow: hidden` (that disables `position: sticky`).
+To play it without scrolling (a banner, a preview), give it a pass length in seconds:
+
+```tsx
+<ItalicSweepScrollText autoPlay={9} />
+```
+
+Otherwise put it straight in the page flow. It needs content above and below to scroll through, and no ancestor with `overflow: hidden` (that disables `position: sticky`).
 
 ## Props
 
@@ -43,6 +49,7 @@ Put it straight in the page flow. It needs content above and below to scroll thr
 | `exit` | `true` | Lift the words away at the end of the track |
 | `sweep` | `true` | Sweep the emphasis into italic. `false` keeps it italic throughout |
 | `glyphLoop` | `true` | Keep the marks shifting shape while open |
+| `autoPlay` | `false` | Seconds per pass to play on its own, looping, instead of following the scroll. The block is then only as tall as the stage. For previews and banners |
 | `align` | `"center"` | `"center"` or `"left"` |
 | `fontFamily` | Newsreader, then system serifs | Any family with a real italic |
 | `fontHref` | Google Fonts, Newsreader | Stylesheet to load, or `null` to bring your own font |
