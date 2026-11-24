@@ -311,6 +311,7 @@
       "@/components/ui/frosted-folder-lookbook": ["./components/frosted-folder-lookbook/frosted-folder-lookbook.tsx"],
       "@/components/ui/fuzzy-gaze-footer": ["./components/fuzzy-gaze-footer/fuzzy-gaze-footer.tsx"],
       "@/components/ui/italic-sweep-scroll-text": ["./components/italic-sweep-scroll-text/italic-sweep-scroll-text.tsx"],
+      "@/components/ui/molten-ink-template": ["./components/molten-ink-template/molten-ink-template.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
