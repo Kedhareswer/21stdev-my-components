@@ -312,6 +312,11 @@
       "@/components/ui/fuzzy-gaze-footer": ["./components/fuzzy-gaze-footer/fuzzy-gaze-footer.tsx"],
       "@/components/ui/italic-sweep-scroll-text": ["./components/italic-sweep-scroll-text/italic-sweep-scroll-text.tsx"],
       "@/components/ui/molten-ink-template": ["./components/molten-ink-template/molten-ink-template.tsx"],
+      "@/components/ui/halo-ring-hero": ["./components/halo-ring-hero/halo-ring-hero.tsx"],
+      "@/components/ui/halo-arch-hero": ["./components/halo-arch-hero/halo-arch-hero.tsx"],
+      "@/components/ui/pestle-pharmacy-hero": ["./components/pestle-pharmacy-hero/pestle-pharmacy-hero.tsx"],
+      "@/components/ui/helix-ribbon-hero": ["./components/helix-ribbon-hero/helix-ribbon-hero.tsx"],
+      "@/components/ui/rally-wordmark-footer": ["./components/rally-wordmark-footer/rally-wordmark-footer.tsx"],
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
