@@ -344,13 +344,15 @@ const CSS =
   ".mit-sign b{font-weight:800;font-size:clamp(48px,11vw,190px);letter-spacing:-.045em;line-height:.85;white-space:nowrap;text-transform:uppercase}" +
   ".mit-gl{position:relative;display:inline-block}" +
   ".mit-glove{position:absolute;z-index:2;left:50%;top:50%;width:clamp(64px,9.4vw,170px);max-width:none;height:auto;transform:translate(-50%,-46%) rotate(-6deg);pointer-events:none;filter:drop-shadow(0 18px 24px rgba(0,0,0,.45))}" +
-  ".mit-foot-row{position:relative;z-index:3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px 24px;font-size:11px;font-weight:600;letter-spacing:.12em;line-height:1.4;text-transform:uppercase}" +
+  ".mit-foot-row{position:relative;z-index:3;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px 24px;font-size:11px;font-weight:600;letter-spacing:.12em;line-height:1.4;text-transform:uppercase}" +
   ".mit-foot-row > :first-child{justify-self:start}" +
   ".mit-foot-row > :last-child{justify-self:end}" +
   ".mit-foot-row a{color:#f6d400;text-decoration:none;border-bottom:1px solid rgba(246,212,0,.4)}" +
   ".mit-foot-row a:hover{border-color:#f6d400}" +
   ".mit-foot-row a:focus-visible{outline:2px solid #f6d400;outline-offset:3px}" +
-  "@media (max-width:720px){.mit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mit-pills{display:none}.mit-manifesto span:first-child i{padding-left:0}.mit-head{top:13%}.mit-name{font-size:24vw}.mit-script{font-size:25vw}.mit-foot-row{grid-template-columns:1fr}.mit-foot-row > :last-child{justify-self:start}.mit-mark{flex-wrap:wrap;row-gap:0}.mit-name{line-height:1.22}.mit-script{line-height:1.28}.mit-tag{margin-top:calc(24vw * .12 + 8px)}.mit-gadget{top:69%}}" +
+  "@media (max-width:900px){.mit-foot-row{grid-template-columns:1fr}.mit-foot-row > :last-child{justify-self:start}}" +
+  "@media (max-width:720px){.mit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mit-pills{display:none}.mit-manifesto span:first-child i{padding-left:0}}" +
+  "@media (max-width:720px) and (orientation:portrait){.mit-head{top:13%}.mit-name{font-size:24vw}.mit-script{font-size:25vw}.mit-mark{flex-wrap:wrap;row-gap:0}.mit-name{line-height:1.22}.mit-script{line-height:1.28}.mit-tag{margin-top:calc(24vw * .12 + 8px)}.mit-gadget{top:69%}}" +
   "@media (prefers-reduced-motion:reduce){.mit-card img{transition:none}}"
 
 const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -505,7 +507,35 @@ export function MoltenInkTemplate({
     let nameBox = { top: 1, h: 1 }
     let worksBox = { w: 1, h: 1 }
     let footBox = { w: 1, h: 1 }
+    // The console floats over the wordmark on purpose, but never over the tagline.
+    // When the two share horizontal space (narrow or near-square frames), it drops
+    // below the tagline, and shrinks if the hero is too short to hold it.
+    const placeGadget = () => {
+      const gd = gadgetRef.current
+      const tag = hero.querySelector(".mit-tag") as HTMLElement | null
+      const cue = hero.querySelector(".mit-cue") as HTMLElement | null
+      if (!gd || !tag) return
+      gd.style.top = ""
+      gd.style.width = ""
+      const hr = hero.getBoundingClientRect()
+      const cs = getComputedStyle(gd)
+      const ratio = 880 / 558
+      let w = parseFloat(cs.width)
+      const cy = parseFloat(cs.top)
+      const tr = tag.getBoundingClientRect()
+      const tagBottom = tr.bottom - hr.top
+      if (tr.right - hr.left + 12 <= hr.width / 2 - w / 2) return
+      const floor = (cue ? cue.getBoundingClientRect().top - hr.top : hr.height) - 12
+      let top = Math.max(cy, tagBottom + 16 + (w * ratio) / 2)
+      if (top + (w * ratio) / 2 > floor) {
+        w = Math.max(70, (floor - tagBottom - 16) / ratio)
+        top = tagBottom + 16 + (w * ratio) / 2
+      }
+      gd.style.width = w.toFixed(1) + "px"
+      gd.style.top = top.toFixed(1) + "px"
+    }
     const layout = () => {
+      placeGadget()
       heroBox = sizeCanvas(inkRef.current, hero)
       if (nameRef.current) {
         const nr = nameRef.current.getBoundingClientRect()
