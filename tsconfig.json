@@ -317,6 +317,16 @@
       "@/components/ui/pestle-pharmacy-hero": ["./components/pestle-pharmacy-hero/pestle-pharmacy-hero.tsx"],
       "@/components/ui/helix-ribbon-hero": ["./components/helix-ribbon-hero/helix-ribbon-hero.tsx"],
       "@/components/ui/rally-wordmark-footer": ["./components/rally-wordmark-footer/rally-wordmark-footer.tsx"],
+      "@/components/ui/card-flight-header": ["./components/card-flight-header/card-flight-header.tsx"],
+      "@/components/ui/cloth-works-gallery": ["./components/cloth-works-gallery/cloth-works-gallery.tsx"],
+      "@/components/ui/cylinder-tunnel-gallery": ["./components/cylinder-tunnel-gallery/cylinder-tunnel-gallery.tsx"],
+      "@/components/ui/folding-card-reel": ["./components/folding-card-reel/folding-card-reel.tsx"],
+      "@/components/ui/glass-logo-button": ["./components/glass-logo-button/glass-logo-button.tsx"],
+      "@/components/ui/glow-hex-keys": ["./components/glow-hex-keys/glow-hex-keys.tsx"],
+      "@/components/ui/gooey-delete-confirm": ["./components/gooey-delete-confirm/gooey-delete-confirm.tsx"],
+      "@/components/ui/hanging-glass-gallery": ["./components/hanging-glass-gallery/hanging-glass-gallery.tsx"],
+      "@/components/ui/pinwheel-gallery": ["./components/pinwheel-gallery/pinwheel-gallery.tsx"],
+      "@/components/ui/spiral-ribbon-gallery": ["./components/spiral-ribbon-gallery/spiral-ribbon-gallery.tsx"]
     }
   },
   "include": ["components", "dev", "vite.config.ts"]
