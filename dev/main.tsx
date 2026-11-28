@@ -33,6 +33,11 @@ const nameOf = (slug: string) => slug.replace(/(^|-)(\w)/g, (_, dash, c) => (das
 declare const __UPDATED__: Record<string, number>
 const updatedAt = (slug: string) => __UPDATED__[slug] ?? Number.MAX_SAFE_INTEGER
 
+// Each component's source on GitHub. Only folders git has seen get a link: an
+// uncommitted folder isn't on GitHub yet, and its link would 404.
+const REPO = "https://github.com/Kedhareswer/21stdev-my-components/tree/main/components/"
+const codeUrl = (slug: string) => (slug in __UPDATED__ ? REPO + slug : null)
+
 // One card per component, most recently updated first (name breaks ties), its default demo first.
 const components = [...new Set(demos.map((d) => d.slug))]
   .sort((a, b) => updatedAt(b) - updatedAt(a) || a.localeCompare(b))
@@ -41,6 +46,7 @@ const components = [...new Set(demos.map((d) => d.slug))]
     name: nameOf(slug),
     thumb: thumbs["../media/" + slug + "/thumb.webp"],
     demos: demos.filter((d) => d.slug === slug),
+    code: codeUrl(slug),
   }))
 
 // No chrome. A toolbar sitting over a full-bleed component is the one thing the
@@ -108,14 +114,24 @@ function Index() {
               brings you back here.
             </p>
           </div>
-          <a
-            href="https://21st.dev/@kedhareswer"
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm underline underline-offset-4 hover:text-muted-foreground"
-          >
-            Install them on 21st.dev
-          </a>
+          <p className="flex gap-5 text-sm">
+            <a
+              href="https://github.com/Kedhareswer/21stdev-my-components"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4 hover:text-muted-foreground"
+            >
+              All the code on GitHub
+            </a>
+            <a
+              href="https://21st.dev/@kedhareswer"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4 hover:text-muted-foreground"
+            >
+              Install them on 21st.dev
+            </a>
+          </p>
         </header>
         <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {components.map((c) => (
@@ -138,8 +154,22 @@ function Index() {
                     </div>
                   )}
                 </div>
-                <p className="mt-3 text-sm font-medium">{c.name}</p>
               </a>
+              <p className="mt-3 flex items-baseline justify-between gap-3 text-sm">
+                <a href={"#" + c.demos[0].id} className="font-medium hover:underline underline-offset-4">
+                  {c.name}
+                </a>
+                {c.code ? (
+                  <a
+                    href={c.code}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 font-mono text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                  >
+                    Code on GitHub
+                  </a>
+                ) : null}
+              </p>
               {c.demos.length > 1 ? (
                 <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {c.demos.slice(1).map((d) => (
